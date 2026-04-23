@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                         String   @id @default(cuid())
+  name                       String?
+  birthYear                  Int?
+  birthPlace                 String?
+  email                      String   @unique
+  passwordHash               String
+  xp                         Int      @default(0)
+  onboardingCompleted        Boolean  @default(false)
+  onboardingProfileText      String?
+  onboardingProfileData      Json?
+  careerEducationContextText String?
+  lifeWheelRatings           Json?
+  lifeWheelHistory           Json?
+  lifeWheelAchievementAt     DateTime?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  goals                      Goal[]
+  branches                   Branch[]
+  moments                    Moment[]
+  evaluationCaches           GoalEvaluationCache[]
+  accounts                   Account[]
+  sessions                   Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Branch {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  limbId         String
+  label          String?
+  parentBranchId String?
+  turningPointId String?
+  mapAngleOffset Float    @default(0)
+  moments        Moment[]
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Moment {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  limbId         String
+  branchId       String
+  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  label          String
+  description    String?
+  year           Int      @default(2026)
+  month          Int?
+  mapPosition    Float    @default(0)
+  significance   Int      @default(1)
+  future         Boolean  @default(false)
+  isTurningPoint Boolean  @default(false)
+  location       String?
+  timelineNote   String?
+  subtype        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([branchId])
+}
+
+model Goal {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  lifeArea    String      @default("Other")
+  isFork      Boolean     @default(false)
+  forkOf      String?
+  forkSide    String?
+  goalType    String      @default("action")
+  targetAmount Float?
+  currentAmount Float?
+  deadline    DateTime
+  xpReward    Int         @default(1000)
+  // Cached raw roadmap returned by the AI model at creation time. Kept for
+  // provenance + to avoid any future re-generation calls for the same goal.
+  roadmapJson Json?
+  // False when the roadmap was produced by the deterministic fallback
+  // because the AI provider failed or ran out of credits. UI can surface this.
+  aiGenerated Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones  Milestone[]
+}
+
+// Caches the AI-generated evaluation for a specific (user, goal-inputs) tuple
+// so repeat submissions of the same draft inside the create-goal modal don't
+// re-bill the LLM provider.
+model GoalEvaluationCache {
+  id         String   @id @default(cuid())
+  userId     String
+  inputHash  String
+  evaluation String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inputHash])
+  @@index([userId])
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  position    Int
+  goalId      String
+  goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  subtasks    Subtask[]
+
+  @@unique([goalId, position])
+}
+
+model Subtask {
+  id          String    @id @default(cuid())
+  title       String
+  position    Int
+  isCompleted Boolean   @default(false)
+  xpReward    Int       @default(50)
+  completedAt DateTime?
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  dailyTasks  DailyTask[]
+  checkpoints Checkpoint[]
+
+  @@unique([milestoneId, position])
+}
+
+model DailyTask {
+  id        String   @id @default(cuid())
+  title     String
+  position  Int
+  quickWinId String
+  quickWin  Subtask  @relation(fields: [quickWinId], references: [id], onDelete: Cascade)
+
+  @@unique([quickWinId, position])
+}
+
+model Checkpoint {
+  id         String  @id @default(cuid())
+  title      String
+  position   Int
+  quickWinId String
+  quickWin   Subtask @relation(fields: [quickWinId], references: [id], onDelete: Cascade)
+
+  @@unique([quickWinId, position])
+}
+
