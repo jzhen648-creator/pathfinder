@@ -47,11 +47,19 @@ export type Branch = {
   userId: string;
   limbId: LimbId;
   label: string | null;
+  name?: string | null;
+  goal?: string | null;
+  goalValue?: number | null;
+  currentValue?: number | null;
+  unit?: string | null;
+  status?: "active" | "paused" | "achieved" | "abandoned";
+  order?: number;
   parentBranchId: string | null;
   turningPointId: string | null;
   mapAngleOffset: number; // 0 for first branch
   // ±25 for splits
   createdAt: string;
+  updatedAt?: string;
 };
 
 // ── MOMENT ───────────────────────────────
@@ -78,6 +86,33 @@ export type Moment = {
   subtype?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+// ── MARK ─────────────────────────────────
+// Stored in database (new canonical checkpoint entity).
+export type Mark = {
+  id: string;
+  branchId: string;
+  limbId: LimbId;
+  userId: string;
+  title: string;
+  description: string | null;
+  date: string;
+  type: "milestone" | "setback" | "realisation" | "decision" | "achievement";
+  value?: number | null;
+  sentiment: "positive" | "neutral" | "negative";
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ── REFRAME ──────────────────────────────
+export type Reframe = {
+  id: string;
+  markId: string;
+  note: string;
+  date: string;
+  createdAt: string;
 };
 
 // Curated subtype vocabulary per Limb. Used by the detail panel picker.

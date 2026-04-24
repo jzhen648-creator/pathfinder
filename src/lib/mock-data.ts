@@ -1,4 +1,4 @@
-import type { Branch, Moment } from "./types";
+import type { Branch, Mark, Moment } from "./types";
 
 export const MOCK_BRANCHES: Branch[] = [
   {
@@ -708,9 +708,43 @@ export const MOCK_MOMENTS: Moment[] = [
   },
 ]
 
+export const MOCK_MARKS: Mark[] = MOCK_MOMENTS.map((moment) => {
+  const type: Mark["type"] = moment.isTurningPoint
+    ? "decision"
+    : moment.future
+      ? "milestone"
+      : moment.significance >= 3
+        ? "achievement"
+        : "milestone";
+  const sentiment: Mark["sentiment"] = moment.future
+    ? "positive"
+    : moment.significance >= 3
+      ? "positive"
+      : "neutral";
+  const month = Number(moment.month ?? 1);
+  const safeMonth = Number.isFinite(month) && month >= 1 && month <= 12 ? month : 1;
+  const date = `${moment.year}-${String(safeMonth).padStart(2, "0")}-01`;
+  return {
+    id: moment.id,
+    branchId: moment.branchId,
+    limbId: moment.limbId,
+    userId: moment.userId,
+    title: moment.label,
+    description: moment.description ?? null,
+    date,
+    type,
+    value: null,
+    sentiment,
+    archived: false,
+    createdAt: moment.createdAt,
+    updatedAt: moment.updatedAt,
+  };
+});
+
 export const MOCK_DATA = {
   branches: MOCK_BRANCHES,
   moments: MOCK_MOMENTS,
+  marks: MOCK_MARKS,
 }
 
 // Summary for reference:

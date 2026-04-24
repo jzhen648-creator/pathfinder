@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 function redirectToMoments(request: Request) {
   const url = new URL(request.url);
-  url.pathname = "/api/moments";
+  url.pathname = "/api/marks";
   return NextResponse.redirect(url, 308);
 }
 

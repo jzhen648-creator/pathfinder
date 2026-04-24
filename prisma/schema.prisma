@@ -27,9 +27,31 @@ model User {
   goals                      Goal[]
   branches                   Branch[]
   moments                    Moment[]
+  marks                      Mark[]
   evaluationCaches           GoalEvaluationCache[]
   accounts                   Account[]
   sessions                   Session[]
+}
+
+enum BranchStatus {
+  active
+  paused
+  achieved
+  abandoned
+}
+
+enum MarkType {
+  milestone
+  setback
+  realisation
+  decision
+  achievement
+}
+
+enum MarkSentiment {
+  positive
+  neutral
+  negative
 }
 
 model Account {
@@ -76,9 +98,55 @@ model Branch {
   turningPointId String?
   mapAngleOffset Float    @default(0)
   moments        Moment[]
+  marks          Mark[]
+  name           String?
+  goal           String?
+  goalValue      Float?
+  currentValue   Float?
+  unit           String?
+  status         BranchStatus @default(active)
+  order          Int      @default(0)
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([userId])
+}
+
+model Mark {
+  id          String   @id @default(cuid())
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  limbId      String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  date        DateTime
+  type        MarkType
+  value       Float?
+  sentiment   MarkSentiment @default(neutral)
+  archived    Boolean  @default(false)
+  reframes    Reframe[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([branchId])
+  @@index([limbId])
+  @@index([archived])
+  @@index([date])
+}
+
+model Reframe {
+  id        String   @id @default(cuid())
+  markId    String
+  mark      Mark     @relation(fields: [markId], references: [id], onDelete: Cascade)
+  note      String
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@index([markId])
+  @@index([date])
 }
 
 model Moment {
@@ -88,6 +156,9 @@ model Moment {
   limbId         String
   branchId       String
   branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  parentMomentId String?
+  parentMoment   Moment?  @relation("MomentChildren", fields: [parentMomentId], references: [id], onDelete: SetNull)
+  children       Moment[] @relation("MomentChildren")
   label          String
   description    String?
   year           Int      @default(2026)
@@ -104,6 +175,7 @@ model Moment {
 
   @@index([userId])
   @@index([branchId])
+  @@index([parentMomentId])
 }
 
 model Goal {

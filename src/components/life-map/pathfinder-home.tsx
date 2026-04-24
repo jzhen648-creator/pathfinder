@@ -4,7 +4,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LimbDetailView } from "@/components/life-map/LimbDetailView";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DevPanel, type DevHoverInfo } from "@/components/dev/DevPanel";
 import { MOCK_DATA } from "@/lib/mock-data";
@@ -65,7 +64,7 @@ const BRANCHES = [
     id: "finance",
     label: "Money & Finance",
     color: "#34D399",
-    angle: -72,
+    angle: -70,
     emptyPrompt: "How has your financial situation evolved?",
     examples: ["First income", "Started saving", "Big financial decision"],
   },
@@ -73,7 +72,7 @@ const BRANCHES = [
     id: "work",
     label: "Work & Career",
     color: "#F59E0B",
-    angle: -36,
+    angle: -45,
     emptyPrompt: "What do you do and how did you get here?",
     examples: ["First job", "Career pivot", "New role"],
   },
@@ -81,7 +80,7 @@ const BRANCHES = [
     id: "becoming",
     label: "Who I'm Becoming",
     color: "#A78BFA",
-    angle: -2,
+    angle: 0,
     emptyPrompt: "How have you grown and changed?",
     examples: ["Changed my view on", "Learned that", "Became someone who"],
   },
@@ -89,7 +88,7 @@ const BRANCHES = [
     id: "people",
     label: "People & Relationships",
     color: "#EC4899",
-    angle: 34,
+    angle: 45,
     emptyPrompt: "Who has shaped your story?",
     examples: ["Met my partner", "Found my people", "Lost someone"],
   },
@@ -97,7 +96,7 @@ const BRANCHES = [
     id: "health",
     label: "Health & Body",
     color: "#10B981",
-    angle: 68,
+    angle: 70,
     emptyPrompt: "How has your health evolved?",
     examples: ["Started training", "Built a habit", "Health turning point"],
   },
@@ -119,14 +118,29 @@ const NODE_SPACING = 120;
 const PROMPT_DISTANCE = 260;
 const LIMB_CARD_SIZE = 80;
 const LIMB_CARD_HALF = LIMB_CARD_SIZE / 2;
+const LIMB_LABEL_Y = 56;
+const LIMB_LABEL_MIN_WIDTH = 86;
+const LIMB_LABEL_CHAR_WIDTH = 6.6;
+const LIMB_LABEL_PADDING_X = 10;
+const LIMB_LABEL_HEIGHT = 18;
+const MOMENT_STEP = 20;
+const LIMB_STEM_MAX_LENGTH = 160;
+const MOMENT_LABEL_FONT_SIZE = 9;
+const MOMENT_LABEL_OFFSET_X = 14;
+const LABELS_RIGHT_LIMBS = new Set(["becoming", "people", "health"]);
+const BRANCH_STEM_LENGTH = 90;
+const BRANCH_FAN_DEGREES = 45;
 const RING_1 = PROMPT_DISTANCE * 0.2;
 const RING_2 = PROMPT_DISTANCE * 0.55;
 const RING_3 = PROMPT_DISTANCE * 0.9;
 const FORK_ANGLE_OFFSET = 25;
 const LABEL_MIN_VERTICAL_DISTANCE = 40;
 const LABEL_DOWN_OFFSET = 20;
-const SELF_BOTTOM_OFFSET = 120;
+const SELF_VIEWPORT_HEIGHT_RATIO = 0.6;
 const BOUNDS_PADDING = 200;
+const SELF_GLOW_RADIUS = 68;
+const SELF_OUTER_RING_RADIUS = 52;
+const SELF_CORE_RADIUS = 40;
 const SELF_X = 0;
 const SELF_Y = 0;
 
@@ -314,6 +328,12 @@ function getLimbEdgeAnchor(limbPos: { x: number; y: number }) {
     x: limbPos.x + normal.x * LIMB_CARD_HALF,
     y: limbPos.y + normal.y * LIMB_CARD_HALF,
   };
+}
+
+/** Bottom-center of limb card in map space (cards sit above Self; rect spans y±LIMB_CARD_HALF). */
+function getLimbCardBottomCenterForSpoke(card: { x: number; y: number }) {
+  // Slightly extend so spoke visually reaches card edge.
+  return { x: card.x, y: card.y + LIMB_CARD_HALF + 2 };
 }
 
 function getMapPositionValue(moment, fallbackIndex = 0) {
@@ -527,8 +547,12 @@ function transformGoals(goals, branchLabels) {
         ];
       }
     });
+    const canonicalBranchId =
+      BRANCH_ID_BY_LABEL[area] ??
+      ALL_BRANCHES.find((b) => b.id === area || b.label === area)?.id ??
+      area;
     return {
-      id: area,
+      id: canonicalBranchId,
       label: area,
       color,
       angle,
@@ -577,6 +601,10 @@ const STYLE = `
   @keyframes unlock-prompt-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes unlock-prompt-out { to { opacity: 0; transform: translateY(10px); } }
   @keyframes unlock-countdown-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  @keyframes self-origin-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.48; }
+    50% { transform: scale(1.08); opacity: 0.9; }
+  }
   .unlock-prompt-panel-enter { animation: unlock-prompt-in 0.3s ease-out forwards; }
   .unlock-prompt-panel-leave { animation: unlock-prompt-out 0.2s ease forwards; }
   .unlock-prompt-countdown { transform-origin: left center; animation: unlock-countdown-bar 10s linear forwards; }
@@ -592,6 +620,7 @@ const STYLE = `
   .node-g:hover .moment-label, .node-g:hover .moment-location { opacity: 1; }
   .overlay-shimmer { animation: overlay-shimmer 7s ease-in-out infinite; }
   .overlay-particle { animation: overlay-float 4.5s ease-in-out infinite; }
+  .self-origin-pulse { animation: self-origin-pulse 2.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
 `;
 
 function buildPromptCard(text) {
@@ -629,7 +658,7 @@ function buildPromptPositions(branches) {
 function buildSuggestionPositions(branches, positions, suggestionsByBranch) {
   const suggestionPositions = {};
   branches.forEach((branch) => {
-    const branchSuggestions = suggestionsByBranch[branch.id] ?? [];
+    const branchSuggestions = suggestionsByBranch[branch.label] ?? [];
     if (branchSuggestions.length === 0) return;
     const sorted = sortBranchMomentsForMap(branch.nodes);
     const endpoint = sorted.length > 0 ? positions[sorted[sorted.length - 1].id] : positions.self;
@@ -656,7 +685,7 @@ function buildExtractionPreviewPositions(branches, positions, previewNodes) {
 
   const pos = {};
   branches.forEach((branch) => {
-    const branchPreview = byBranch[branch.id] ?? [];
+    const branchPreview = byBranch[branch.label] ?? [];
     if (branchPreview.length === 0) return;
     const existingMain = sortBranchMomentsForMap(branch.nodes);
     const startIndex = existingMain.length;
@@ -669,8 +698,32 @@ function buildExtractionPreviewPositions(branches, positions, previewNodes) {
   return pos;
 }
 
-function buildLimbCardPositions(branches) {
+function buildLimbCardPositions(branches, worldLeft?: number, worldRight?: number) {
   const BRANCH_ROW_Y = -PROMPT_DISTANCE;
+  const n = branches.length;
+  if (n === 0) return {};
+
+  const boundsOk =
+    typeof worldLeft === "number" &&
+    typeof worldRight === "number" &&
+    Number.isFinite(worldLeft) &&
+    Number.isFinite(worldRight) &&
+    worldRight > worldLeft + LIMB_CARD_SIZE;
+
+  if (boundsOk) {
+    const W = worldRight - worldLeft;
+    const C = LIMB_CARD_SIZE;
+    const gap = Math.max(12, (W - n * C) / (n + 1));
+    const used = n * C + (n + 1) * gap;
+    const offset = worldLeft + Math.max(0, (W - used) / 2);
+    return Object.fromEntries(
+      branches.map((branch, i) => {
+        const x = offset + gap + C / 2 + i * (C + gap);
+        return [branch.id, { x, y: BRANCH_ROW_Y }];
+      }),
+    );
+  }
+
   const labels = branches.map((branch) => {
     const p = getPos(branch.angle, PROMPT_DISTANCE);
     return {
@@ -1084,7 +1137,9 @@ export function PathfinderHome() {
   const isDev = true;
   const devPanelFeatureEnabled = isEnabled("DEV_PANEL") && isDev;
   const [hovered, setHovered] = useState(null);
+  const [hoveredMarkId, setHoveredMarkId] = useState<string | null>(null);
   const [selected, setSelected] = useState(null);
+  const [selectedMomentId, setSelectedMomentId] = useState<string | null>(null);
   const [focusedBranch, setFocusedBranch] = useState<string | null>(null);
   const [focusedSubbranch, setFocusedSubbranch] = useState<string | null>(null);
   const [editSubbranch, setEditSubbranch] = useState<string | null>(null);
@@ -1244,8 +1299,6 @@ export function PathfinderHome() {
     id: string;
   } | null>(null);
   const [activeView, setActiveView] = useState<"map" | "timeline">("map");
-  const [viewMode, setViewMode] = useState<"map" | "limbDetail">("map");
-  const [selectedLimbId, setSelectedLimbId] = useState<string | null>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [hasAutoFit, setHasAutoFit] = useState(false);
   const [viewport, setViewport] = useState({
@@ -1497,7 +1550,7 @@ export function PathfinderHome() {
         return;
       }
       const [response, branchesResponse] = await Promise.all([
-        fetch("/api/moments", { cache: "no-store" }),
+        fetch("/api/marks", { cache: "no-store" }),
         fetch("/api/branches", { cache: "no-store" }).catch(() => null),
       ]);
       if (response.status === 401) {
@@ -1509,7 +1562,7 @@ export function PathfinderHome() {
       }
       const data = await response.json();
       if (!mounted) return;
-      const momentItems = Array.isArray(data.moments) ? data.moments : [];
+      const markItems = Array.isArray(data.marks) ? data.marks : [];
       let branchLimbById: Record<string, string> = {};
       if (branchesResponse && branchesResponse.ok) {
         try {
@@ -1526,16 +1579,28 @@ export function PathfinderHome() {
           console.error("[PathfinderHome] branches parse failed", err);
         }
       }
-      const merged = momentItems.map((item, idx) => {
+      const merged = markItems.map((item, idx) => {
         const resolved = resolveLimbFromMomentLike(item, branchLimbById);
+        const parsedDate = Date.parse(String(item?.date ?? ""));
+        const fallbackDate = new Date().toISOString();
+        const safeDate = Number.isFinite(parsedDate)
+          ? new Date(parsedDate).toISOString()
+          : fallbackDate;
+        const safeYear = Number.isFinite(new Date(safeDate).getFullYear())
+          ? new Date(safeDate).getFullYear()
+          : new Date().getFullYear();
+        const safeMonth = new Date(safeDate).getMonth() + 1;
         return {
           ...item,
           limbId: resolved.limbId,
           limb: resolved.limbLabel,
-          title: item?.label ?? item?.title,
+          title: item?.title ?? item?.label,
           lifeArea: resolved.limbLabel,
           branch: resolved.limbLabel,
-          mapPosition: Number(item?.mapPosition ?? idx),
+          year: Number(item?.year ?? safeYear),
+          month: Number(item?.month ?? safeMonth),
+          createdAt: item?.createdAt ?? safeDate,
+          mapPosition: Number(item?.sequenceNumber ?? idx),
         };
       });
       setGoals(deduplicateNodes(merged));
@@ -1569,14 +1634,68 @@ export function PathfinderHome() {
     });
     return counts;
   }, [momentsByLimbId]);
-  const selectedLimb = useMemo(
-    () => LIMBS.find((l) => l.id === selectedLimbId) ?? null,
-    [selectedLimbId],
-  );
-  const selectedLimbMoments = useMemo(
-    () => (selectedLimbId ? momentsByLimbId[selectedLimbId] ?? [] : []),
-    [selectedLimbId, momentsByLimbId],
-  );
+  const branchMarksForMap = useMemo(() => {
+    const result: Record<
+      string,
+      Array<{
+        id: string;
+        branchId: string;
+        title: string;
+        yearLabel: string;
+        dateValue: number;
+        dateLabel: string;
+        location?: string | null;
+        description?: string | null;
+      }>
+    > = {};
+    timelineGoals.forEach((markLike: any) => {
+      const branchId = String(markLike?.branchId ?? "").trim();
+      if (!branchId) return;
+      const normalized = {
+        id: String(markLike?.id ?? ""),
+        branchId,
+        title: "",
+        yearLabel: "",
+        dateValue: 0,
+        dateLabel: "",
+        location: null as string | null,
+        description: null as string | null,
+      };
+      const fallbackYear = Number(markLike?.year ?? new Date().getFullYear());
+      const parsedCreatedAt = Date.parse(String(markLike?.createdAt ?? ""));
+      const parsedFallback = Date.parse(
+        `${Number.isFinite(fallbackYear) ? fallbackYear : 1970}-${String(markLike?.month ?? 1).padStart(2, "0")}-01`,
+      );
+      normalized.dateValue =
+        Number.isFinite(parsedCreatedAt) && parsedCreatedAt > 0
+          ? parsedCreatedAt
+          : Number.isFinite(parsedFallback) && parsedFallback > 0
+            ? parsedFallback
+            : 0;
+      const yearNumber = Number(markLike?.year ?? new Date(markLike?.createdAt ?? "").getFullYear());
+      normalized.dateLabel =
+        Number.isFinite(parsedCreatedAt) && parsedCreatedAt > 0
+          ? new Date(parsedCreatedAt).toLocaleDateString("en-GB", {
+              year: "numeric",
+              month: "short",
+            })
+          : Number.isFinite(yearNumber)
+            ? String(yearNumber)
+            : "Unknown";
+      normalized.title = String(markLike?.title ?? markLike?.label ?? "Untitled");
+      normalized.yearLabel = Number.isFinite(yearNumber) ? String(yearNumber) : "Unknown";
+      normalized.location = markLike?.location ?? null;
+      normalized.description = markLike?.description ?? null;
+      if (!result[branchId]) result[branchId] = [];
+      result[branchId].push(normalized);
+    });
+    Object.keys(result).forEach((branchId) => {
+      const normalized = result[branchId] ?? [];
+      normalized.sort((a, b) => b.dateValue - a.dateValue); // newest at highest index transform later
+      result[branchId] = normalized;
+    });
+    return result;
+  }, [timelineGoals]);
   const timelineMoments = useMemo(
     () =>
       timelineGoals.map((goal) => {
@@ -1637,6 +1756,12 @@ export function PathfinderHome() {
   const displayName = getDisplayName(profile);
   const possessiveDisplayName = getPossessive(displayName);
   const firstName = displayName || "EXPLORER";
+  const selfMonogram = (displayName || "Explorer")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
   const numericBirthYear = Number(profile.birthYear);
   const selfYear =
     Number.isFinite(numericBirthYear) && numericBirthYear >= 1900 && numericBirthYear <= 2100
@@ -1653,7 +1778,19 @@ export function PathfinderHome() {
     const points = allMoments
       .map((node) => positions[node.id])
       .filter(Boolean) as Array<{ x: number; y: number }>;
-    if (points.length === 0) {
+    const limbPoints = branches.flatMap((branch) => {
+      const p = getPos(branch.angle, PROMPT_DISTANCE);
+      return [
+        { x: p.x - LIMB_CARD_HALF, y: p.y - LIMB_CARD_HALF },
+        { x: p.x + LIMB_CARD_HALF, y: p.y + LIMB_CARD_HALF + LIMB_LABEL_Y + 8 },
+      ];
+    });
+    const selfExtents = [
+      { x: -SELF_GLOW_RADIUS, y: -SELF_GLOW_RADIUS },
+      { x: SELF_GLOW_RADIUS, y: SELF_GLOW_RADIUS },
+    ];
+    const allPoints = [...points, ...limbPoints, ...selfExtents];
+    if (allPoints.length === 0) {
       return {
         minX: -PROMPT_DISTANCE - BOUNDS_PADDING,
         maxX: PROMPT_DISTANCE + BOUNDS_PADDING,
@@ -1661,15 +1798,15 @@ export function PathfinderHome() {
         maxY: BOUNDS_PADDING,
       };
     }
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
+    const xs = allPoints.map((p) => p.x);
+    const ys = allPoints.map((p) => p.y);
     return {
       minX: Math.min(...xs) - BOUNDS_PADDING,
       maxX: Math.max(...xs) + BOUNDS_PADDING,
       minY: Math.min(...ys) - BOUNDS_PADDING,
       maxY: Math.max(...ys) + BOUNDS_PADDING,
     };
-  }, [allMoments, positions]);
+  }, [allMoments, branches, positions]);
   const draggedNode = dragState.nodeId
     ? allMoments.find((node) => node.id === dragState.nodeId) ?? null
     : null;
@@ -1678,10 +1815,6 @@ export function PathfinderHome() {
   const branchLabelGeometryKey = useMemo(
     () => branches.map((b) => `${b.id}:${Number(b.angle ?? 0)}`).join("|"),
     [branches],
-  );
-  const limbCardPositions = useMemo(
-    () => buildLimbCardPositions(branches),
-    [branchLabelGeometryKey],
   );
   const focusedBranchLabel = focusedBranch
     ? BRANCH_LABEL_BY_ID[focusedBranch] ?? focusedBranch
@@ -1707,7 +1840,12 @@ export function PathfinderHome() {
   };
   const devPanelWidth = 0;
   const selfX = viewport.width / 2 + pan.x;
-  const selfY = viewport.height - 120 + pan.y;
+  const selfY = viewport.height * SELF_VIEWPORT_HEIGHT_RATIO + pan.y;
+  const limbCardPositions = useMemo(() => {
+    const worldLeft = (0 - selfX) / zoom;
+    const worldRight = (Math.max(1, viewport.width) - selfX) / zoom;
+    return buildLimbCardPositions(branches, worldLeft, worldRight);
+  }, [branches, branchLabelGeometryKey, selfX, zoom, viewport.width]);
   const visibleGridLines = useMemo(() => {
     const step = 200;
     const visibleWidth = Math.max(1, viewport.width);
@@ -1896,7 +2034,7 @@ export function PathfinderHome() {
     const isLocalOnly = /^(guided|suggested|preview-saved)-/.test(nodeId);
     if (!isLocalOnly) {
       try {
-        await fetch(`/api/moments/${nodeId}`, { method: "DELETE" });
+        await fetch(`/api/marks/${nodeId}`, { method: "DELETE" });
       } catch (err) {
         console.error("[PathfinderHome] node delete request failed", err);
       }
@@ -1931,7 +2069,7 @@ export function PathfinderHome() {
   }
 
   async function patchLifeMapNodeApi(nodeId, payload) {
-    const res = await fetch(`/api/moments/${nodeId}`, {
+    const res = await fetch(`/api/marks/${nodeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2122,7 +2260,7 @@ export function PathfinderHome() {
       const isLocalOnly = /^(guided|suggested|preview-saved)-/.test(nodeId);
       if (!isLocalOnly) {
         try {
-          await fetch(`/api/moments/${nodeId}`, { method: "DELETE" });
+          await fetch(`/api/marks/${nodeId}`, { method: "DELETE" });
         } catch (err) {
           console.error("[PathfinderHome] undo delete request failed", err);
         }
@@ -2366,7 +2504,8 @@ export function PathfinderHome() {
     const centerX = (contentBounds.minX + contentBounds.maxX) / 2;
     const centerY = (contentBounds.minY + contentBounds.maxY) / 2;
     const nextPanX = -(nextZoom * centerX);
-    const nextPanY = SELF_BOTTOM_OFFSET - viewport.height / 2 - nextZoom * centerY;
+    const selfAnchorY = viewport.height * SELF_VIEWPORT_HEIGHT_RATIO;
+    const nextPanY = selfAnchorY - viewport.height / 2 - nextZoom * centerY;
     setPan({ x: nextPanX, y: nextPanY });
     panDraftRef.current = { x: nextPanX, y: nextPanY };
     setZoom(nextZoom);
@@ -4085,8 +4224,6 @@ export function PathfinderHome() {
             <button
               onClick={() => {
                 setActiveView("map");
-                setViewMode("map");
-                setSelectedLimbId(null);
               }}
               style={{
                 border: "none",
@@ -4193,27 +4330,24 @@ export function PathfinderHome() {
       {activeView === "map" ? (
         <div
           ref={mapContainerRef}
+          onMouseDownCapture={(e) => {
+            const target = e.target as Element | null;
+            if (target?.closest(".map-moment-dot") || target?.closest(".map-moment-detail")) return;
+            setSelectedMomentId(null);
+          }}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseUp}
           style={{
             position: "absolute",
             inset: 0,
             display: "block",
             userSelect: "none",
+            touchAction: "none",
           }}
         >
-          {viewMode === "limbDetail" && selectedLimb ? (
-            <LimbDetailView
-              limbId={selectedLimb.id}
-              limbLabel={selectedLimb.label}
-              limbColor={selectedLimb.color}
-              moments={selectedLimbMoments}
-              onBack={() => {
-                setViewMode("map");
-                setSelectedLimbId(null);
-              }}
-              onAddMoment={() => openGuidedForBranch(selectedLimb.label)}
-            />
-          ) : (
-            <ErrorBoundary name="LifeMapStatic">
+          <ErrorBoundary name="LifeMapStatic">
               <svg ref={svgRef} width="100%" height="100%" style={{ position: "absolute", top: 0, left: 0 }}>
                 <g transform={`translate(${selfX}, ${selfY}) scale(${zoom})`}>
                   {visibleGridLines.xs.map((x) => (
@@ -4239,8 +4373,12 @@ export function PathfinderHome() {
                     />
                   ))}
                   {renderBranches.map((branch) => {
-                    const card = limbCardPositions[branch.id] ?? getPos(branch.angle, PROMPT_DISTANCE);
-                    const anchor = getLimbEdgeAnchor(card);
+                    const rowY = -PROMPT_DISTANCE;
+                    const card = limbCardPositions[branch.id] ?? {
+                      x: getPos(branch.angle, PROMPT_DISTANCE).x,
+                      y: rowY,
+                    };
+                    const anchor = getLimbCardBottomCenterForSpoke(card);
                     return (
                       <line
                         key={`static-spoke-${branch.id}`}
@@ -4256,14 +4394,25 @@ export function PathfinderHome() {
                     );
                   })}
                   <g>
-                    <circle cx={0} cy={0} r={34} fill="#020810" stroke="rgba(96,165,250,0.15)" strokeWidth={1} />
-                    <circle cx={0} cy={0} r={24} fill="#050D1A" stroke="rgba(96,165,250,0.3)" strokeWidth={1} />
-                    <circle cx={0} cy={0} r={14} fill="#0B1628" stroke="rgba(96,165,250,0.5)" strokeWidth={1.5} />
-                    <text x={0} y={-1} textAnchor="middle" fill="rgba(147,197,253,0.9)" fontSize={7} letterSpacing={2}>
-                      {firstName.toUpperCase()}
+                    <circle
+                      className="self-origin-pulse"
+                      cx={0}
+                      cy={0}
+                      r={SELF_GLOW_RADIUS}
+                      fill="none"
+                      stroke="rgba(96,165,250,0.35)"
+                      strokeWidth={2}
+                    />
+                    <circle cx={0} cy={0} r={SELF_OUTER_RING_RADIUS} fill="#020810" stroke="rgba(96,165,250,0.55)" strokeWidth={3} />
+                    <circle cx={0} cy={0} r={SELF_CORE_RADIUS} fill="#061226" stroke="rgba(147,197,253,0.5)" strokeWidth={2} />
+                    <text x={0} y={-2} textAnchor="middle" fill="rgba(226,232,240,0.96)" fontSize={15} fontWeight={700} letterSpacing={1}>
+                      {selfMonogram || firstName.slice(0, 2).toUpperCase()}
+                    </text>
+                    <text x={0} y={15} textAnchor="middle" fill="rgba(147,197,253,0.72)" fontSize={8} letterSpacing={1.2}>
+                      ORIGIN
                     </text>
                     {selfYear ? (
-                      <text x={0} y={10} textAnchor="middle" fill="rgba(96,165,250,0.4)" fontSize={7}>
+                      <text x={0} y={26} textAnchor="middle" fill="rgba(96,165,250,0.55)" fontSize={7}>
                         {selfYear}
                       </text>
                     ) : null}
@@ -4277,11 +4426,7 @@ export function PathfinderHome() {
                       <g
                         key={`static-limb-${branch.id}`}
                         transform={`translate(${labelPos.x}, ${labelPos.y})`}
-                        style={{ cursor: "pointer" }}
-                        onClick={() => {
-                          setSelectedLimbId(branch.id);
-                          setViewMode("limbDetail");
-                        }}
+                        style={{ cursor: "default" }}
                       >
                         <rect x={-40} y={-40} width={80} height={80} rx={18} fill="#030B18" stroke={branch.color} strokeWidth={1.7} strokeOpacity={0.92} />
                         <rect x={-32} y={-32} width={64} height={64} rx={14} fill="#061226" fillOpacity={1} stroke="none" />
@@ -4298,10 +4443,250 @@ export function PathfinderHome() {
                       </g>
                     );
                   })}
+                  {branches.map((branch) => {
+                    const labelPos = limbCardPositions[branch.id];
+                    if (!labelPos) return null;
+                    const labelWidth = Math.max(
+                      LIMB_LABEL_MIN_WIDTH,
+                      Math.round(branch.label.length * LIMB_LABEL_CHAR_WIDTH + LIMB_LABEL_PADDING_X * 2),
+                    );
+                    const labelBoxY = LIMB_LABEL_Y - 12;
+                    return (
+                      <g key={`static-limb-label-${branch.id}`} transform={`translate(${labelPos.x}, ${labelPos.y})`} pointerEvents="none">
+                        <rect
+                          x={-labelWidth / 2}
+                          y={labelBoxY}
+                          width={labelWidth}
+                          height={LIMB_LABEL_HEIGHT}
+                          rx={8}
+                          fill="rgba(2,6,14,0.88)"
+                          stroke="rgba(30,41,59,0.9)"
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={0}
+                          y={LIMB_LABEL_Y}
+                          textAnchor="middle"
+                          fill="rgba(226,232,240,0.96)"
+                          fontSize={11}
+                          fontFamily="'DM Sans', sans-serif"
+                          fontWeight={600}
+                        >
+                          {branch.label}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {branches.map((branch) => {
+                    const labelPos = limbCardPositions[branch.id];
+                    if (!labelPos) return null;
+                    const limbBranchRows = (canonicalBranches as any[])
+                      .filter((b) => String(b?.limbId ?? "") === String(branch.id))
+                      .sort((a, b) => {
+                        const orderDelta = Number(a?.order ?? 0) - Number(b?.order ?? 0);
+                        if (Math.abs(orderDelta) > 0.001) return orderDelta;
+                        return String(a?.name ?? a?.label ?? "").localeCompare(
+                          String(b?.name ?? b?.label ?? ""),
+                        );
+                      });
+                    if (limbBranchRows.length === 0) return null;
+                    const stemStartX = labelPos.x;
+                    const stemStartY = labelPos.y - LIMB_CARD_HALF - 4;
+                    const spread = BRANCH_FAN_DEGREES;
+                    const spreadStep =
+                      limbBranchRows.length > 1 ? spread / (limbBranchRows.length - 1) : 0;
+                    return (
+                      <g key={`static-branch-fan-${branch.id}`} pointerEvents="none">
+                        {limbBranchRows.map((row, idx) => {
+                          const baseOffset = limbBranchRows.length > 1 ? -spread / 2 + idx * spreadStep : 0;
+                          const mapAngleOffset = Number(row?.mapAngleOffset ?? 0);
+                          const fanDeg = baseOffset + mapAngleOffset * 0.35;
+                          const fanRad = (fanDeg * Math.PI) / 180;
+                          const tipX = stemStartX + Math.sin(fanRad) * BRANCH_STEM_LENGTH;
+                          const tipY = stemStartY - Math.cos(fanRad) * BRANCH_STEM_LENGTH;
+                          const branchName = String(row?.name ?? row?.label ?? "Branch");
+                          const placeLabelRight = idx % 2 === 0;
+                          const textAnchor: "start" | "end" = placeLabelRight ? "start" : "end";
+                          const textX = placeLabelRight ? tipX + 8 : tipX - 8;
+                          return (
+                            <g key={`static-branch-fan-line-${branch.id}-${row?.id ?? idx}`}>
+                              <line
+                                x1={stemStartX}
+                                y1={stemStartY}
+                                x2={tipX}
+                                y2={tipY}
+                                stroke={branch.color}
+                                strokeWidth={1.2}
+                                strokeOpacity={0.72}
+                                strokeLinecap="round"
+                              />
+                              <text
+                                x={textX}
+                                y={tipY - 4}
+                                textAnchor={textAnchor}
+                                fill={branch.color}
+                                fontSize={8}
+                                fontFamily="'DM Sans', sans-serif"
+                                fontWeight={600}
+                                opacity={0.92}
+                              >
+                                {branchName}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
+                  {branches.map((branch) => {
+                    const labelPos = limbCardPositions[branch.id];
+                    if (!labelPos) return null;
+                    const limbBranchRows = (canonicalBranches as any[])
+                      .filter((b) => String(b?.limbId ?? "") === String(branch.id))
+                      .sort((a, b) => {
+                        const orderDelta = Number(a?.order ?? 0) - Number(b?.order ?? 0);
+                        if (Math.abs(orderDelta) > 0.001) return orderDelta;
+                        return String(a?.name ?? a?.label ?? "").localeCompare(
+                          String(b?.name ?? b?.label ?? ""),
+                        );
+                      });
+                    if (limbBranchRows.length === 0) return null;
+                    const stemStartX = labelPos.x;
+                    const stemStartY = labelPos.y - LIMB_CARD_HALF - 4;
+                    const spread = BRANCH_FAN_DEGREES;
+                    const spreadStep =
+                      limbBranchRows.length > 1 ? spread / (limbBranchRows.length - 1) : 0;
+
+                    return (
+                      <g key={`static-branch-marks-${branch.id}`}>
+                        {limbBranchRows.map((row, idx) => {
+                          const marks = branchMarksForMap[String(row?.id ?? "")] ?? [];
+                          if (marks.length === 0) return null;
+                          const baseOffset = limbBranchRows.length > 1 ? -spread / 2 + idx * spreadStep : 0;
+                          const mapAngleOffset = Number(row?.mapAngleOffset ?? 0);
+                          const fanDeg = baseOffset + mapAngleOffset * 0.35;
+                          const fanRad = (fanDeg * Math.PI) / 180;
+                          const ux = Math.sin(fanRad);
+                          const uy = -Math.cos(fanRad);
+                          const hasSelectionOnBranch = marks.some((m) => m.id === selectedMomentId);
+                          return (
+                            <g key={`branch-mark-cluster-${branch.id}-${row?.id ?? idx}`}>
+                              {marks.map((moment, index) => {
+                                const reversedIndex = marks.length - 1 - index;
+                                const dist = (reversedIndex + 1) * MOMENT_STEP;
+                                const momentX = stemStartX + ux * dist;
+                                const momentY = stemStartY + uy * dist;
+                                const isSelected = selectedMomentId === moment.id;
+                                const momentOpacity = hasSelectionOnBranch && !isSelected ? 0.3 : 1;
+                                const labelText = `${moment.yearLabel} · ${moment.title}`;
+                                const estimatedLabelWidth = Math.max(
+                                  72,
+                                  Math.min(210, labelText.length * (MOMENT_LABEL_FONT_SIZE * 0.58)),
+                                );
+                                const placeOnRight = fanDeg >= 0;
+                                const minX = visibleGridLines.worldLeft + 8;
+                                const maxX = visibleGridLines.worldRight - 8;
+                                const rawLabelX = momentX + (placeOnRight ? MOMENT_LABEL_OFFSET_X : -MOMENT_LABEL_OFFSET_X);
+                                const labelX = placeOnRight
+                                  ? Math.max(minX, Math.min(rawLabelX, maxX - estimatedLabelWidth))
+                                  : Math.max(minX + estimatedLabelWidth, Math.min(rawLabelX, maxX));
+                                return (
+                                  <g key={`branch-mark-${row?.id ?? idx}-${moment.id}`}>
+                                    <circle
+                                      className="map-moment-dot"
+                                      cx={momentX}
+                                      cy={momentY}
+                                      r={11}
+                                      fill="transparent"
+                                      style={{ cursor: "pointer" }}
+                                      onMouseEnter={() => setHoveredMarkId(moment.id)}
+                                      onMouseLeave={() => setHoveredMarkId((prev) => (prev === moment.id ? null : prev))}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedMomentId((prev) => (prev === moment.id ? null : moment.id));
+                                      }}
+                                    />
+                                    <circle
+                                      className="map-moment-dot"
+                                      cx={momentX}
+                                      cy={momentY}
+                                      r={5}
+                                      fill={branch.color}
+                                      stroke="#020810"
+                                      strokeWidth={1}
+                                      opacity={momentOpacity}
+                                      style={{ cursor: "pointer" }}
+                                      onMouseEnter={() => setHoveredMarkId(moment.id)}
+                                      onMouseLeave={() => setHoveredMarkId((prev) => (prev === moment.id ? null : prev))}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedMomentId((prev) => (prev === moment.id ? null : moment.id));
+                                      }}
+                                    />
+                                    {hoveredMarkId === moment.id ? (
+                                      <text
+                                        x={labelX}
+                                        y={momentY + 3}
+                                        fill={branch.color}
+                                        fontSize={MOMENT_LABEL_FONT_SIZE}
+                                        fontFamily="'DM Sans', sans-serif"
+                                        fontWeight={500}
+                                        opacity={momentOpacity}
+                                        textAnchor={placeOnRight ? "start" : "end"}
+                                      >
+                                        {labelText}
+                                      </text>
+                                    ) : null}
+                                    {isSelected ? (
+                                      <foreignObject
+                                        x={momentX + (placeOnRight ? 12 : -242)}
+                                        y={momentY - 12}
+                                        width={230}
+                                        height={130}
+                                        style={{ overflow: "visible" }}
+                                      >
+                                        <div
+                                          className="map-moment-detail"
+                                          style={{
+                                            background: "rgba(2,8,16,0.95)",
+                                            border: `1px solid ${branch.color}`,
+                                            borderRadius: 10,
+                                            padding: "10px 11px",
+                                            boxShadow: "0 10px 24px rgba(0,0,0,0.55)",
+                                            color: "#E2E8F0",
+                                            fontFamily: "'DM Sans', sans-serif",
+                                            fontSize: 11,
+                                            lineHeight: 1.3,
+                                            pointerEvents: "auto",
+                                          }}
+                                        >
+                                          <div style={{ color: branch.color, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                                            {moment.title}
+                                          </div>
+                                          <div style={{ color: "rgba(226,232,240,0.82)", marginBottom: 2 }}>
+                                            {moment.dateLabel}
+                                          </div>
+                                          <div style={{ color: "rgba(148,163,184,0.95)", marginBottom: 5 }}>
+                                            {moment.location ?? "No location"}
+                                          </div>
+                                          <div style={{ color: "rgba(203,213,225,0.95)" }}>
+                                            {moment.description?.trim() || "No description"}
+                                          </div>
+                                        </div>
+                                      </foreignObject>
+                                    ) : null}
+                                  </g>
+                                );
+                              })}
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
                 </g>
               </svg>
-            </ErrorBoundary>
-          )}
+          </ErrorBoundary>
         </div>
       ) : null}
 
