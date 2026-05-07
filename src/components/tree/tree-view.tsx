@@ -12,10 +12,16 @@ import {
 } from "react";
 import { mapToTreeData, type RawBranch, type RawMark, type RawTreeGoalPayload } from "./tree-data";
 import { TreeGoalNodeSvg } from "./tree-goal-visual";
-import { AREA_LABEL_CONFIG, TREE_TRUNK_MIRROR_X, VIEWBOX_HEIGHT, VIEWBOX_WIDTH } from "./tree-geometry";
+import {
+  AREA_LABEL_CONFIG,
+  TREE_TRUNK_FILL_PATH,
+  TREE_TRUNK_MIRROR_X,
+  VIEWBOX_HEIGHT,
+  VIEWBOX_WIDTH,
+} from "./tree-geometry";
 import type { AreaData, MomentNode, Point, ThreadData, TreeGoalNode } from "./tree-types";
 import {
-  AREA_FORKS,
+  buildStraightForksRecord,
   type AreaForkSpec,
   type ThreadForkSpec,
   closestGlobalTOnLimb,
@@ -29,10 +35,8 @@ import {
 } from "./tree-forks";
 import {
   applyLayoutOverrides,
-  deriveRightLimbsFromLeftMirrored,
   getDefaultLayoutOverrides,
   loadLayoutOverrides,
-  mirrorAreaLayoutGeomAcrossTrunk,
   parseLayoutOverridesFromJson,
   saveLayoutOverrides,
   type AreaLayoutOverride,
@@ -58,10 +62,10 @@ type TreeSVGProps = {
   /** Rendered limbs (respects sidebar visibility toggles). */
   areas: AreaData[];
   /**
-   * Full limb list for mirror math (moment positions + overrides). Defaults to the rendered `areas` prop.
-   * Pass every loaded limb so paired limbs still mirror when one side is toggled off in the sidebar.
+   * All limb records used to build straight fork bases (defaults to rendered `areas`).
+   * Pass every loaded limb so fork geometry stays correct when a limb is hidden in the sidebar.
    */
-  mirrorAreas?: AreaData[];
+  allAreasForForkGeometry?: AreaData[];
   focused: string | null;
   panel: PanelState;
   onClear: () => void;
@@ -227,26 +231,6 @@ type MockUserOption = {
 
 const nodeRadius = (sig: number): number => (sig === 3 ? 5 : sig === 2 ? 4 : 3);
 
-function mirrorPointAcrossTrunkForLayout(p: Point): Point {
-  return { x: 2 * TREE_TRUNK_MIRROR_X - p.x, y: p.y };
-}
-
-function mirroredThreadOverride(
-  thread: ThreadLayoutOverride | undefined,
-): ThreadLayoutOverride | undefined {
-  if (!thread) return undefined;
-  const out: ThreadLayoutOverride = {};
-  if (thread.forkPoint) out.forkPoint = mirrorPointAcrossTrunkForLayout(thread.forkPoint);
-  if (thread.tip) out.tip = mirrorPointAcrossTrunkForLayout(thread.tip);
-  if (thread.rotateDeg != null) out.rotateDeg = -thread.rotateDeg;
-  if (thread.forkTiltDeg != null) out.forkTiltDeg = -thread.forkTiltDeg;
-  if (thread.tipTiltDeg != null) out.tipTiltDeg = -thread.tipTiltDeg;
-  if (thread.bendPoints?.length)
-    out.bendPoints = thread.bendPoints.map((p) => mirrorPointAcrossTrunkForLayout(p));
-  if (thread.bendPoint) out.bendPoint = mirrorPointAcrossTrunkForLayout(thread.bendPoint);
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
 function hasAreaOverride(ov: AreaLayoutOverride): boolean {
   return (
     (ov.limbRotateDeg != null && Math.abs(ov.limbRotateDeg) > 1e-6) ||
@@ -259,74 +243,12 @@ function hasAreaOverride(ov: AreaLayoutOverride): boolean {
   );
 }
 
-function mirrorAreaOverride(ov: AreaLayoutOverride): AreaLayoutOverride {
-  return mirrorAreaLayoutGeomAcrossTrunk(ov);
-}
-
-function mirroredPartner(areaId: string): string | null {
-  if (areaId === "people") return "work";
-  if (areaId === "work") return "people";
-  if (areaId === "health") return "finance";
-  if (areaId === "finance") return "health";
-  return null;
-}
-
-/**
- * Becoming layout mirrors {@link mirroredThreadOverride} between fixed indices matching {@link AREA_FORKS} slots
- * (`tree-forks.ts`: Mindset 0, Habits 1, Identity 2, Creativity 3): Mindset ↔ Creativity (0 ↔ 3), Habits ↔ Identity (1 ↔ 2).
- */
-function intraAreaMirrorPartnerThreadIdx(areaId: string, threadIdx: number): number | null {
-  if (areaId !== "becoming") return null;
-  if (threadIdx === 0) return 3;
-  if (threadIdx === 3) return 0;
-  if (threadIdx === 1) return 2;
-  if (threadIdx === 2) return 1;
-  return null;
-}
-
-function applyIntraAreaThreadMirror(
-  areaId: string,
-  threads: Record<number, ThreadLayoutOverride>,
-  threadIdx: number,
-): Record<number, ThreadLayoutOverride> {
-  const mirrorIdx = intraAreaMirrorPartnerThreadIdx(areaId, threadIdx);
-  if (mirrorIdx == null) return threads;
-  const mirrored = mirroredThreadOverride(threads[threadIdx]);
-  if (mirrored) threads[mirrorIdx] = mirrored;
-  else delete threads[mirrorIdx];
-  return threads;
-}
-
-function upsertAreaAndMirror(
+function upsertAreaLayout(
   prev: Record<string, AreaLayoutOverride>,
   areaId: string,
   areaOverride: AreaLayoutOverride,
 ): Record<string, AreaLayoutOverride> {
   const next = { ...prev };
-  const pair = mirroredPartner(areaId);
-  const LEFT_CANONICAL_PAIR_LIMBS = new Set(["work", "finance"]);
-  const RIGHT_PAIR_LIMBS = new Set(["people", "health"]);
-
-  if (pair && LEFT_CANONICAL_PAIR_LIMBS.has(areaId)) {
-    if (hasAreaOverride(areaOverride)) next[areaId] = areaOverride;
-    else delete next[areaId];
-    return next;
-  }
-
-  if (pair && RIGHT_PAIR_LIMBS.has(areaId)) {
-    const mirroredLeft = mirrorAreaOverride(areaOverride);
-    if (hasAreaOverride(mirroredLeft)) next[pair] = mirroredLeft;
-    else delete next[pair];
-
-    const momentsOnly: AreaLayoutOverride = {};
-    if (areaOverride.momentPositions && Object.keys(areaOverride.momentPositions).length > 0) {
-      momentsOnly.momentPositions = areaOverride.momentPositions;
-    }
-    if (hasAreaOverride(momentsOnly)) next[areaId] = momentsOnly;
-    else delete next[areaId];
-    return next;
-  }
-
   if (hasAreaOverride(areaOverride)) next[areaId] = areaOverride;
   else delete next[areaId];
   return next;
@@ -378,11 +300,47 @@ function normalizeGoalsFromBranches(payload: BranchesResponse): RawTreeGoalPaylo
   return rows as RawTreeGoalPayload[];
 }
 
+/** Inset from thread fork (t→0) when placing goals along `t` ∈ [0,1]. */
+const GOAL_T_MARGIN = 0.042;
+/** Fraction of the path used between margin and tip for auto-stacked goals (higher = wider spread). */
+const GOAL_T_SPAN = 0.945;
+/**
+ * Virtual index before the first goal; smaller pad increases spacing between consecutive goals
+ * (gap ∝ span / (total + 1 + pad)) while keeping the first bud off the fork.
+ */
+const GOAL_T_FORK_PAD = 0.22;
+
+/** Root goals drawn per thread on the tree; keeps the thread readable when many goals exist. */
+const TREE_THREAD_VISIBLE_ROOT_GOALS = 2;
+
+/** Moments (marks) along each thread in tree view — full data can be huge; sample ends + interior. */
+const TREE_THREAD_VISIBLE_MOMENTS = 5;
+
+/** Only this many child goals branch out from each goal node (0-based depth still applies below). */
+const TREE_GOAL_MAX_CHILDREN_PER_NODE = 3;
+
+/** Max depth for goal subtrees: 0 = roots only, 1 = one ring of children, etc. */
+const TREE_GOAL_RENDER_MAX_DEPTH = 1;
+
+function pickThreadMomentsForTree<T>(items: T[], maxVisible: number): T[] {
+  const n = items.length;
+  if (n === 0 || maxVisible <= 0) return [];
+  if (n <= maxVisible) return items.slice();
+  const out: T[] = [];
+  const maxIdx = maxVisible - 1;
+  for (let i = 0; i < maxVisible; i += 1) {
+    const j = maxIdx === 0 ? 0 : Math.floor((i * (n - 1)) / maxIdx);
+    out.push(items[j]!);
+  }
+  return out;
+}
+
 function goalTAlongThread(goal: TreeGoalNode, index: number, total: number): number {
   if (goal.positionAngle != null && goal.positionAngle >= 0 && goal.positionAngle <= 1) {
-    return 0.06 + goal.positionAngle * 0.88;
+    return GOAL_T_MARGIN + goal.positionAngle * GOAL_T_SPAN;
   }
-  return 0.06 + ((index + 1) / (total + 1)) * 0.88;
+  const denom = total + 1 + GOAL_T_FORK_PAD;
+  return GOAL_T_MARGIN + ((index + 1 + GOAL_T_FORK_PAD) / denom) * GOAL_T_SPAN;
 }
 
 function renderGoalsSubtree(
@@ -411,10 +369,14 @@ function renderGoalsSubtree(
       })
     : null;
 
-  const childNodes = goal.childGoals.map((c, ci) => {
-    const n = goal.childGoals.length;
+  const visibleChildren =
+    depth < TREE_GOAL_RENDER_MAX_DEPTH
+      ? goal.childGoals.slice(0, TREE_GOAL_MAX_CHILDREN_PER_NODE)
+      : [];
+  const childNodes = visibleChildren.map((c, ci) => {
+    const n = visibleChildren.length;
     const ang = (ci / Math.max(1, n)) * Math.PI * 2 - Math.PI / 2;
-    const len = 32 + depth * 6;
+    const len = 40 + depth * 10;
     const cpos = { x: pos.x + Math.cos(ang) * len, y: pos.y + Math.sin(ang) * len };
     return (
       <g key={c.id}>
@@ -534,7 +496,7 @@ const MOMENT_SINGLE_RAW_T = 0.52;
 const MOMENT_ARC_GAP_STRETCH = 2;
 
 /** Bump when station span constants change (arc-length cache keys must miss stale rows). */
-const MOMENT_ARC_LAYOUT_REVISION = 10;
+const MOMENT_ARC_LAYOUT_REVISION = 11;
 
 const MOMENT_ARC_STATION_CACHE_MAX = 96;
 
@@ -706,11 +668,6 @@ function getMomentThreadLayout(path: string, count: number): MomentThreadLayoutS
   return layout;
 }
 
-function threadMomentBaselinePoint(path: string, momentIdx: number, count: number): Point {
-  const { baselinePoints } = getMomentThreadLayout(path, count);
-  return baselinePoints[momentIdx] ?? baselinePoints[baselinePoints.length - 1]!;
-}
-
 function momentCatalogClipGlobalT(path: string, count: number): number {
   return getMomentThreadLayout(path, count).catalogClipT;
 }
@@ -721,37 +678,28 @@ function pathEnd(path: string): Point {
   return { x: nums[nums.length - 2], y: nums[nums.length - 1] };
 }
 
-function addPt(a: Point, b: Point): Point {
-  return { x: a.x + b.x, y: a.y + b.y };
+/** Evenly spaced by index along the catalog fork→tip chord (straight slot path), inset from ends for air. */
+function momentOnForkTipChord(slotPath: string, momentIdx: number, count: number): Point {
+  const a = pathPointAtT(slotPath, 0);
+  const b = pathPointAtT(slotPath, 1);
+  const edge = 0.09;
+  const span = 1 - 2 * edge;
+  const u = count <= 1 ? 0.5 : (momentIdx + 1) / (count + 1);
+  const t = edge + u * span;
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-function subPt(a: Point, b: Point): Point {
-  return { x: a.x - b.x, y: a.y - b.y };
-}
-
-function scalePt(p: Point, s: number): Point {
-  return { x: p.x * s, y: p.y * s };
-}
-
-/** Smooth cubic path from fork/start through each moment knot; curve ends at the last moment (no catalog tip). */
-function threadPathThroughMoments(basePath: string, momentPoints: Point[]): string {
-  if (momentPoints.length === 0) return basePath;
-  const start = pathPointAtT(basePath, 0);
-  const knots = [start, ...momentPoints];
-  if (knots.length < 2) return basePath;
+/** Polyline as colinear cubic segments so {@link pathPointAtT} / layout tools keep working. */
+function threadStraightChainAsCubicsFromKnots(knots: Point[]): string {
+  if (knots.length === 0) return "";
+  if (knots.length === 1) return `M${knots[0].x},${knots[0].y}`;
   let d = `M${knots[0].x},${knots[0].y}`;
-  const lastIdx = knots.length - 1;
-  for (let i = 0; i < lastIdx; i += 1) {
-    const p0 = knots[i];
-    const p3 = knots[i + 1];
-    const m0 = i === 0 ? subPt(knots[1], knots[0]) : scalePt(subPt(knots[i + 1], knots[i - 1]), 0.5);
-    const m1 =
-      i + 1 === lastIdx
-        ? subPt(knots[lastIdx], knots[lastIdx - 1])
-        : scalePt(subPt(knots[i + 2], knots[i]), 0.5);
-    const c1 = addPt(p0, scalePt(m0, 1 / 3));
-    const c2 = subPt(p3, scalePt(m1, 1 / 3));
-    d += ` C${c1.x},${c1.y} ${c2.x},${c2.y} ${p3.x},${p3.y}`;
+  for (let i = 0; i < knots.length - 1; i += 1) {
+    const a = knots[i]!;
+    const b = knots[i + 1]!;
+    const c1 = { x: a.x + (b.x - a.x) / 3, y: a.y + (b.y - a.y) / 3 };
+    const c2 = { x: a.x + (2 * (b.x - a.x)) / 3, y: a.y + (2 * (b.y - a.y)) / 3 };
+    d += ` C${c1.x},${c1.y} ${c2.x},${c2.y} ${b.x},${b.y}`;
   }
   return d;
 }
@@ -768,7 +716,7 @@ function resolvedChainMomentPos(
   const m = thread.moments[momentIdx];
   const saved = m ? momentPositions?.[m.id] : undefined;
   if (saved) return saved;
-  return threadMomentBaselinePoint(slotPath, momentIdx, cnt);
+  return momentOnForkTipChord(slotPath, momentIdx, cnt);
 }
 
 function buildRenderedThreadMainPath(
@@ -794,7 +742,9 @@ function buildRenderedThreadMainPath(
   // MOMENT_ARC_GAP_STRETCH spreads buds — otherwise the line stops short of the last buds.
   const threadMainBaseDraw =
     threadSpec != null ? threadMainPathUntilGlobalT(threadSpec, 1) : threadSlotPath;
-  return threadPathThroughMoments(threadMainBaseDraw, momentPoints);
+  const fork = pathPointAtT(threadMainBaseDraw, 0);
+  const tip = pathPointAtT(threadMainBaseDraw, 1);
+  return threadStraightChainAsCubicsFromKnots([fork, ...momentPoints, tip]);
 }
 
 export function TreeView() {
@@ -1155,7 +1105,7 @@ export function TreeView() {
           {viewMode === "tree" ? (
             <TreeSVG
               areas={visibleAreas}
-              mirrorAreas={areas}
+              allAreasForForkGeometry={areas}
               focused={focused}
               panel={panel}
               onClear={clearAll}
@@ -1310,7 +1260,7 @@ export function TreeView() {
 
 function TreeSVG({
   areas,
-  mirrorAreas = areas,
+  allAreasForForkGeometry = areas,
   focused,
   panel,
   onClear,
@@ -1341,10 +1291,13 @@ function TreeSVG({
   }, []);
   const [layoutDevPanelCollapsed, setLayoutDevPanelCollapsed] = useState(false);
   const [layoutOverrides, setLayoutOverrides] = useState(loadLayoutOverrides);
+  const straightForkBases = useMemo(
+    () => buildStraightForksRecord(allAreasForForkGeometry),
+    [allAreasForForkGeometry],
+  );
   const resolvedForks = useMemo(
-    () =>
-      applyLayoutOverrides(AREA_FORKS, deriveRightLimbsFromLeftMirrored(layoutOverrides)),
-    [layoutOverrides],
+    () => applyLayoutOverrides(straightForkBases, layoutOverrides),
+    [layoutOverrides, straightForkBases],
   );
   useEffect(() => {
     saveLayoutOverrides(layoutOverrides);
@@ -1442,7 +1395,7 @@ function TreeSVG({
   const patchAreaLayout = (areaId: string, patch: Partial<AreaLayoutOverride>) => {
     setLayoutOverrides((prev) => {
       const area = { ...(prev[areaId] ?? {}), ...patch } as AreaLayoutOverride;
-      return upsertAreaAndMirror(prev, areaId, area);
+      return upsertAreaLayout(prev, areaId, area);
     });
   };
 
@@ -1451,15 +1404,14 @@ function TreeSVG({
       const area = { ...(prev[areaId] ?? {}) } as AreaLayoutOverride;
       const threads = { ...(area.threads ?? {}) };
       threads[threadIdx] = { ...(threads[threadIdx] ?? {}), ...patch };
-      applyIntraAreaThreadMirror(areaId, threads, threadIdx);
       area.threads = threads;
-      return upsertAreaAndMirror(prev, areaId, area);
+      return upsertAreaLayout(prev, areaId, area);
     });
   };
 
   const patchThreadBendAt = (areaId: string, threadIdx: number, bendIndex: number, pt: Point) => {
     setLayoutOverrides((prev) => {
-      const mergedForks = applyLayoutOverrides(AREA_FORKS, deriveRightLimbsFromLeftMirrored(prev));
+      const mergedForks = applyLayoutOverrides(buildStraightForksRecord(allAreasForForkGeometry), prev);
       const baseThread = mergedForks[areaId]?.threads[threadIdx];
       if (!baseThread) return prev;
       const area = { ...(prev[areaId] ?? {}) } as AreaLayoutOverride;
@@ -1476,9 +1428,8 @@ function TreeSVG({
       delete nextCur.bendPoint;
       nextCur.bendPoints = bends;
       threads[threadIdx] = nextCur;
-      applyIntraAreaThreadMirror(areaId, threads, threadIdx);
       area.threads = threads;
-      return upsertAreaAndMirror(prev, areaId, area);
+      return upsertAreaLayout(prev, areaId, area);
     });
   };
 
@@ -1510,40 +1461,8 @@ function TreeSVG({
         else delete next[targetAreaId];
       };
 
-      const slotsLocal = getAreaSlotRender(areaId, resolvedForks);
-      const slotPathLocal = slotsLocal?.threads[sourceThreadIdx]?.path;
-      const sourcePos =
-        pt ??
-        (slotPathLocal
-          ? resolvedChainMomentPos(
-              areaId,
-              sourceThreadIdx,
-              sourceThread,
-              sourceMomentIdx,
-              slotPathLocal,
-              prev[areaId]?.momentPositions,
-            )
-          : null);
-      const mirroredPoint = sourcePos ? mirrorPointAcrossTrunkForLayout(sourcePos) : null;
       const next = { ...prev };
       upsertMomentPosition(next, areaId, momentId, pt);
-
-      const mirrorThreadIdx = intraAreaMirrorPartnerThreadIdx(areaId, sourceThreadIdx);
-      const mirroredMomentId =
-        mirrorThreadIdx != null ? sourceArea.threads[mirrorThreadIdx]?.moments[sourceMomentIdx]?.id ?? null : null;
-      const mirrorThread = mirrorThreadIdx != null ? sourceArea.threads[mirrorThreadIdx] : undefined;
-      if (mirroredMomentId && mirrorThread) {
-        upsertMomentPosition(next, areaId, mirroredMomentId, pt == null ? null : mirroredPoint);
-      }
-
-      const pairAreaId = mirroredPartner(areaId);
-      if (pairAreaId) {
-        const pairArea = mirrorAreas.find((a) => a.id === pairAreaId);
-        const pairMomentId = pairArea?.threads[sourceThreadIdx]?.moments[sourceMomentIdx]?.id ?? null;
-        if (pairMomentId) {
-          upsertMomentPosition(next, pairAreaId, pairMomentId, pt == null ? null : mirroredPoint);
-        }
-      }
 
       return next;
     });
@@ -1650,17 +1569,8 @@ function TreeSVG({
           <g
             transform={`translate(${TREE_TRUNK_MIRROR_X}, ${TREE_LAYOUT_SCALE_ORIGIN_Y}) scale(${TREE_LAYOUT_WORLD_SCALE}) translate(${-TREE_TRUNK_MIRROR_X}, ${-TREE_LAYOUT_SCALE_ORIGIN_Y})`}
           >
-          {/* Single tapered trunk — replaces the 3 stroked paths */}
-          <path
-            d={`M599,432 
-   C596,520 590,700 586,950 
-   C583,1100 582,1220 584,1340 
-   C588,1348 594,1354 600,1356 
-   C606,1354 612,1348 616,1340 
-   C618,1220 617,1100 614,950 
-   C610,700 604,520 601,432 Z`}
-            fill="url(#trunkBodyGrad)"
-          />
+          {/* Tapered trunk: ground → single crown fork (no stroke continuing up into Becoming). */}
+          <path d={TREE_TRUNK_FILL_PATH} fill="url(#trunkBodyGrad)" />
 
           <path d="M600,1355 C555,1365 505,1375 458,1387" fill="none" stroke="#2A2318" strokeWidth={9} strokeLinecap="round" />
           <path d="M600,1355 C645,1365 695,1375 742,1387" fill="none" stroke="#2A2318" strokeWidth={9} strokeLinecap="round" />
@@ -1727,15 +1637,18 @@ function TreeSVG({
                   if (!threadSlot) return null;
                   const threadOpacity = focused === area.id ? 0.88 : 0.85;
                   const threadSpec = forkSpec?.threads[idx];
+                  const treeMoments = pickThreadMomentsForTree(thread.moments, TREE_THREAD_VISIBLE_MOMENTS);
+                  const threadForTree: ThreadData = { ...thread, moments: treeMoments };
                   const threadMainDraw = buildRenderedThreadMainPath(
                     area.id,
                     idx,
-                    thread,
+                    threadForTree,
                     threadSlot.path,
                     threadSpec,
                     layoutOverrides[area.id],
                   );
-                  const momentCount = Math.max(1, thread.moments.length);
+                  const momentCount = Math.max(1, threadForTree.moments.length);
+                  const goalsOnThread = thread.goals.slice(0, TREE_THREAD_VISIBLE_ROOT_GOALS);
 
                   return (
                     <g key={thread.id}>
@@ -1782,11 +1695,7 @@ function TreeSVG({
                                 x: splitPos.x + nx * dist + tx * along * 0.3,
                                 y: splitPos.y + ny * dist + ty * along * fan * 0.5,
                               };
-                              const ctrl = {
-                                x: splitPos.x + nx * (dist * 0.55) + tx * along * 0.45,
-                                y: splitPos.y + ny * (dist * 0.55) + ty * along * fan * 0.7,
-                              };
-                              const childPath = `M${splitPos.x},${splitPos.y} Q${ctrl.x},${ctrl.y} ${childPos.x},${childPos.y}`;
+                              const childPath = `M${splitPos.x},${splitPos.y} L${childPos.x},${childPos.y}`;
                               return (
                                 <g key={`${thread.id}-sib-${sib.id}`}>
                                   <path d={childPath} fill="none" stroke={area.color} strokeWidth={thread.postSplitStrokeWidth ?? Math.max(1.2, threadSlot.strokeWidth * 0.7)} opacity={0.8} strokeLinecap="round" pointerEvents="none" />
@@ -1798,9 +1707,9 @@ function TreeSVG({
                         );
                       })() : null}
 
-                      {thread.goals.length > 0
-                        ? thread.goals.map((g, gi) => {
-                            const t = goalTAlongThread(g, gi, thread.goals.length);
+                      {goalsOnThread.length > 0
+                        ? goalsOnThread.map((g, gi) => {
+                            const t = goalTAlongThread(g, gi, goalsOnThread.length);
                             const pos = pathPointAtT(threadMainDraw, t);
                             return (
                               <g key={g.id}>
@@ -1820,7 +1729,7 @@ function TreeSVG({
                         : null}
 
                       {showMarksByZoom
-                        ? thread.moments.map((moment, momentIdx) => {
+                        ? threadForTree.moments.map((moment, momentIdx) => {
                         const isSelected = selectedMomentId === moment.id;
                         const isGrowing = moment.bloomStatus === "GROWING" || moment.future;
                         const isEnded = moment.bloomStatus === "ENDED";
@@ -1830,7 +1739,7 @@ function TreeSVG({
                         const pos = resolvedChainMomentPos(
                           area.id,
                           idx,
-                          thread,
+                          threadForTree,
                           momentIdx,
                           threadSlot.path,
                           layoutOverrides[area.id]?.momentPositions,
@@ -1840,7 +1749,7 @@ function TreeSVG({
                         const pBefore = resolvedChainMomentPos(
                           area.id,
                           idx,
-                          thread,
+                          threadForTree,
                           miLo,
                           threadSlot.path,
                           layoutOverrides[area.id]?.momentPositions,
@@ -1848,7 +1757,7 @@ function TreeSVG({
                         const pAfter = resolvedChainMomentPos(
                           area.id,
                           idx,
-                          thread,
+                          threadForTree,
                           miHi,
                           threadSlot.path,
                           layoutOverrides[area.id]?.momentPositions,
@@ -2071,60 +1980,62 @@ function TreeSVG({
               </g>
             );
           })}
-          <g pointerEvents="none">
-            {gridXs.map((x) => (
-              <line
-                key={`grid-x-${x}`}
-                x1={x}
-                y1={0}
-                x2={x}
-                y2={viewHeight}
-                stroke="#9CA3AF"
-                strokeWidth={0.6}
-                opacity={0.24}
-              />
-            ))}
-            {gridYs.map((y) => (
-              <line
-                key={`grid-y-${y}`}
-                x1={0}
-                y1={y}
-                x2={viewWidth}
-                y2={y}
-                stroke="#9CA3AF"
-                strokeWidth={0.6}
-                opacity={0.24}
-              />
-            ))}
-            {gridXs.flatMap((x) =>
-              gridYs.map((y) => (
-                <circle key={`grid-dot-${x}-${y}`} cx={x} cy={y} r={1.6} fill="#9CA3AF" opacity={0.45} />
-              )),
-            )}
-            {areas.map((area) => {
-              const spec = resolvedForks[area.id];
-              if (!spec) return null;
-              const lt = limbStrokeEndPoint(spec);
-              return (
-                <g key={`debug-geom-${area.id}`}>
-                  <circle cx={spec.trunkAttach.x} cy={spec.trunkAttach.y} r={4} fill="#FFFFFF" opacity={0.95} />
-                  <circle cx={lt.x} cy={lt.y} r={3} fill={area.color} opacity={0.95} />
-                  {spec.threads.map((th, ti) => (
-                    <g key={`debug-geom-${area.id}-th-${ti}`}>
-                      <circle cx={th.forkPoint.x} cy={th.forkPoint.y} r={3} fill={area.color} opacity={0.92} />
-                      <circle cx={th.tip.x} cy={th.tip.y} r={2} fill={area.color} opacity={0.85} />
-                    </g>
-                  ))}
-                  {area.threads.map((thread) => (
-                    <g key={`debug-spine-${area.id}-${thread.id}`}>
-                      <circle cx={thread.p1.x} cy={thread.p1.y} r={4.4} fill="#FBBF24" opacity={0.95} />
-                      <circle cx={thread.p2.x} cy={thread.p2.y} r={4.4} fill="#F472B6" opacity={0.95} />
-                    </g>
-                  ))}
-                </g>
-              );
-            })}
-          </g>
+          {process.env.NODE_ENV === "development" ? (
+            <g pointerEvents="none">
+              {gridXs.map((x) => (
+                <line
+                  key={`grid-x-${x}`}
+                  x1={x}
+                  y1={0}
+                  x2={x}
+                  y2={viewHeight}
+                  stroke="#9CA3AF"
+                  strokeWidth={0.6}
+                  opacity={0.24}
+                />
+              ))}
+              {gridYs.map((y) => (
+                <line
+                  key={`grid-y-${y}`}
+                  x1={0}
+                  y1={y}
+                  x2={viewWidth}
+                  y2={y}
+                  stroke="#9CA3AF"
+                  strokeWidth={0.6}
+                  opacity={0.24}
+                />
+              ))}
+              {gridXs.flatMap((x) =>
+                gridYs.map((y) => (
+                  <circle key={`grid-dot-${x}-${y}`} cx={x} cy={y} r={1.6} fill="#9CA3AF" opacity={0.45} />
+                )),
+              )}
+              {areas.map((area) => {
+                const spec = resolvedForks[area.id];
+                if (!spec) return null;
+                const lt = limbStrokeEndPoint(spec);
+                return (
+                  <g key={`debug-geom-${area.id}`}>
+                    <circle cx={spec.trunkAttach.x} cy={spec.trunkAttach.y} r={4} fill="#FFFFFF" opacity={0.95} />
+                    <circle cx={lt.x} cy={lt.y} r={3} fill={area.color} opacity={0.95} />
+                    {spec.threads.map((th, ti) => (
+                      <g key={`debug-geom-${area.id}-th-${ti}`}>
+                        <circle cx={th.forkPoint.x} cy={th.forkPoint.y} r={3} fill={area.color} opacity={0.92} />
+                        <circle cx={th.tip.x} cy={th.tip.y} r={2} fill={area.color} opacity={0.85} />
+                      </g>
+                    ))}
+                    {area.threads.map((thread) => (
+                      <g key={`debug-spine-${area.id}-${thread.id}`}>
+                        <circle cx={thread.p1.x} cy={thread.p1.y} r={4.4} fill="#FBBF24" opacity={0.95} />
+                        <circle cx={thread.p2.x} cy={thread.p2.y} r={4.4} fill="#F472B6" opacity={0.95} />
+                      </g>
+                    ))}
+                  </g>
+                );
+              })}
+            </g>
+          ) : null}
           {TREE_LAYOUT_EDIT_ENABLED
             ? areas.flatMap((area) => {
                 if (!layoutEditByAreaId[area.id]) return [];
@@ -2411,10 +2322,7 @@ function TreeSVG({
                 type="button"
                 onClick={() => {
                   setLayoutOverrides((prev) => {
-                    const mergedForks = applyLayoutOverrides(
-                      AREA_FORKS,
-                      deriveRightLimbsFromLeftMirrored(prev),
-                    );
+                    const mergedForks = applyLayoutOverrides(buildStraightForksRecord(allAreasForForkGeometry), prev);
                     let maxMoments = 0;
                     let shortestArc = Infinity;
                     for (const area of areas) {
@@ -2540,7 +2448,7 @@ function TreeSVG({
                               const n = Number(raw);
                               if (!Number.isNaN(n)) cur.limbRotateDeg = n;
                             }
-                            return upsertAreaAndMirror(prev, a.id, cur);
+                            return upsertAreaLayout(prev, a.id, cur);
                           });
                         }}
                         style={{

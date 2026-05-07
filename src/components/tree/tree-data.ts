@@ -1,4 +1,4 @@
-import { computeSpine, SPINE_ORIGIN, THREAD_SLOTS } from "./tree-geometry";
+import { SPINE_ORIGIN, THREAD_SLOTS } from "./tree-geometry";
 import type { AreaData, GoalBloomStatus, MomentNode, ThreadData, TreeGoalNode } from "./tree-types";
 
 export type RawBranch = {
@@ -152,6 +152,7 @@ function padThreadMoments(branch: RawBranch, realMoments: MomentNode[]): MomentN
   return [...realMoments, ...synth].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
 }
 
+/** Limb/thread records only; fork SVG geometry is derived from this data in `tree-forks` (straight layout). */
 export function mapToTreeData(
   branches: RawBranch[],
   marks: RawMark[],
@@ -280,14 +281,11 @@ export function mapToTreeData(
         postSplitStrokeWidth,
       };
     });
-    const spine = computeSpine(origin, threads);
-
     return {
       id: limbId,
       label: config?.label ?? limbId,
       color: config?.color ?? "#94A3B8",
       summary: null,
-      spine,
       threads,
     };
   });

@@ -57,6 +57,5 @@ export type AreaData = {
   label: string;
   color: string;
   summary: string | null;
-  spine: { p0: Point; p1: Point; p2: Point };
   threads: ThreadData[];
 };

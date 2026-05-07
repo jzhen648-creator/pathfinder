@@ -1,6 +1,5 @@
 import type { Point } from "./tree-types";
 import defaultTreeGeometryJson from "@/data/pathfinder-tree-geometry.json";
-import { TREE_TRUNK_MIRROR_X } from "./tree-geometry";
 import {
   translateThreadToForkPoint,
   threadKnotPolyline,
@@ -43,49 +42,6 @@ export type AreaLayoutOverride = {
 export type LayoutOverrides = Record<string, AreaLayoutOverride>;
 
 export const LAYOUT_OVERRIDES_STORAGE_KEY = "pathfinder-tree-layout-overrides-v1";
-
-/** `[leftCanonicalLimbId, rightMirroredLimbId]` paired across trunk centerline {@link TREE_TRUNK_MIRROR_X}. */
-export const LEFT_RIGHT_MIRROR_PAIRS: ReadonlyArray<[string, string]> = [
-  ["work", "people"],
-  ["finance", "health"],
-];
-
-function mirrorPointAcrossTrunkLayout(p: Point): Point {
-  return { x: 2 * TREE_TRUNK_MIRROR_X - p.x, y: p.y };
-}
-
-function mirrorThreadLayoutGeomAcrossTrunk(thread: ThreadLayoutOverride): ThreadLayoutOverride | undefined {
-  const out: ThreadLayoutOverride = {};
-  if (thread.forkPoint) out.forkPoint = mirrorPointAcrossTrunkLayout(thread.forkPoint);
-  if (thread.tip) out.tip = mirrorPointAcrossTrunkLayout(thread.tip);
-  if (thread.rotateDeg != null) out.rotateDeg = -thread.rotateDeg;
-  if (thread.forkTiltDeg != null) out.forkTiltDeg = -thread.forkTiltDeg;
-  if (thread.tipTiltDeg != null) out.tipTiltDeg = -thread.tipTiltDeg;
-  if (thread.bendPoints?.length)
-    out.bendPoints = thread.bendPoints.map((p) => mirrorPointAcrossTrunkLayout(p));
-  if (thread.bendPoint) out.bendPoint = mirrorPointAcrossTrunkLayout(thread.bendPoint);
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
-/** Limb/thread geometry mirrored across the trunk vertical — excludes {@link AreaLayoutOverride.momentPositions}. */
-export function mirrorAreaLayoutGeomAcrossTrunk(ov: AreaLayoutOverride): AreaLayoutOverride {
-  const mirrored: AreaLayoutOverride = {};
-  if (ov.limbRotateDeg != null) mirrored.limbRotateDeg = -ov.limbRotateDeg;
-  if (ov.limbTip) mirrored.limbTip = mirrorPointAcrossTrunkLayout(ov.limbTip);
-  if (ov.limbFirstC2) mirrored.limbFirstC2 = mirrorPointAcrossTrunkLayout(ov.limbFirstC2);
-  if (ov.limbForkTiltDeg != null) mirrored.limbForkTiltDeg = -ov.limbForkTiltDeg;
-  if (ov.limbTipTiltDeg != null) mirrored.limbTipTiltDeg = -ov.limbTipTiltDeg;
-  if (ov.threads) {
-    const threads: Record<number, ThreadLayoutOverride> = {};
-    for (const [k, v] of Object.entries(ov.threads)) {
-      const idx = Number(k);
-      const mt = mirrorThreadLayoutGeomAcrossTrunk(v);
-      if (mt && Object.keys(mt).length > 0) threads[idx] = mt;
-    }
-    if (Object.keys(threads).length > 0) mirrored.threads = threads;
-  }
-  return mirrored;
-}
 
 /**
  * Parse a **Save geometry** export (`{ layoutOverrides, ... }`) or a bare `layoutOverrides` object.
@@ -341,25 +297,6 @@ function areaHasOverrides(ov: AreaLayoutOverride | undefined): boolean {
   if (ov.threads && Object.keys(ov.threads).length > 0) return true;
   if (ov.momentPositions && Object.keys(ov.momentPositions).length > 0) return true;
   return false;
-}
-
-/**
- * Fork merge input: geometry for **people** / **health** is replaced by mirror(work) / mirror(finance)
- * across {@link TREE_TRUNK_MIRROR_X}; any stored {@link AreaLayoutOverride.momentPositions} on the right limbs stay put.
- */
-export function deriveRightLimbsFromLeftMirrored(raw: LayoutOverrides): LayoutOverrides {
-  const next = { ...raw };
-  for (const [leftId, rightId] of LEFT_RIGHT_MIRROR_PAIRS) {
-    const left = raw[leftId];
-    if (!left || !areaHasOverrides(left)) continue;
-    const mirroredGeom = mirrorAreaLayoutGeomAcrossTrunk(left);
-    if (!areaHasOverrides(mirroredGeom)) continue;
-    const mergedRight: AreaLayoutOverride = { ...mirroredGeom };
-    const rp = raw[rightId]?.momentPositions;
-    if (rp && Object.keys(rp).length > 0) mergedRight.momentPositions = { ...rp };
-    next[rightId] = mergedRight;
-  }
-  return next;
 }
 
 export function loadLayoutOverrides(): LayoutOverrides {
