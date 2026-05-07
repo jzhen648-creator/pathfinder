@@ -1,5 +1,5 @@
-import type { Point } from "./tree-types";
-import { mirrorPointAcrossTrunkX, THREAD_SLOTS, TREE_TRUNK_MIRROR_X } from "./tree-geometry";
+import type { AreaData, Point } from "./tree-types";
+import { TREE_FORK_LOWER, TREE_FORK_MIDDLE, TREE_FORK_TOP } from "./tree-geometry";
 
 /** One SVG cubic Bézier segment: C c1 c2 end (start is implicit from previous point). */
 export type CubicPiece = {
@@ -169,33 +169,6 @@ export function limbStrokeEndPoint(spec: AreaForkSpec): Point {
   return limbPointAtUniformFraction(spec, maxForkGlobalT(spec));
 }
 
-/** Uniform-global `t` on limb stroke where sample x ≈ `targetX` (bisection; limb x on people rises trunk→tip ~606→854). */
-function limbGlobalTWhereX(spec: AreaForkSpec, targetX: number): number | null {
-  const xAt = (gt: number) => limbPointAtUniformFraction(spec, gt).x;
-  let low = 0;
-  let high = 1;
-  const xLow = xAt(low);
-  const xHigh = xAt(high);
-  const minx = Math.min(xLow, xHigh);
-  const maxx = Math.max(xLow, xHigh);
-  if (targetX < minx - 1 || targetX > maxx + 1) return null;
-  const ascending = xHigh >= xLow;
-  for (let i = 0; i < 34; i++) {
-    const mid = (low + high) / 2;
-    const xm = xAt(mid);
-    if (ascending) {
-      if (xm < targetX) low = mid;
-      else high = mid;
-    } else if (xm > targetX) low = mid;
-    else high = mid;
-  }
-  return (low + high) / 2;
-}
-
-function samePoint(a: Point, b: Point): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
 /** Rigidly move a thread so its limb fork sits at {@link forkPoint} (fork + stroke + tip). */
 export function translateThreadToForkPoint(thread: ThreadForkSpec, forkPoint: Point): ThreadForkSpec {
   const delta = { x: forkPoint.x - thread.forkPoint.x, y: forkPoint.y - thread.forkPoint.y };
@@ -214,87 +187,6 @@ function translateThreadSpec(thread: ThreadForkSpec, d: Point): ThreadForkSpec {
     })),
     strokeWidth: thread.strokeWidth,
   };
-}
-
-/** Right-limb pin x on thread 0; work uses the mirror x across {@link TREE_TRUNK_MIRROR_X}. */
-const PEOPLE_THREAD0_LIMB_SNAP_X = 700;
-
-/** Limb x used to pin thread 0 fork. People / work stay symmetric about the trunk centerline. */
-function limbSnapTargetXForArea(areaId: string): number | null {
-  if (areaId === "people") return PEOPLE_THREAD0_LIMB_SNAP_X;
-  if (areaId === "work") return 2 * TREE_TRUNK_MIRROR_X - PEOPLE_THREAD0_LIMB_SNAP_X;
-  return null;
-}
-
-/** Snap first-thread fork onto limb at THREAD_SLOTS[][0].defaultFromT, or pinned x for people/work; translate bundled forks together. */
-function snapThread0ForkToLimb(spec: AreaForkSpec, areaId: string): AreaForkSpec {
-  const slots = THREAD_SLOTS[areaId];
-  if (!slots?.length || !spec.threads.length) return spec;
-  const attachT = slots[0].defaultFromT;
-  const snapX = limbSnapTargetXForArea(areaId);
-  const tPinned = snapX != null ? limbGlobalTWhereX(spec, snapX) : null;
-  const limbPt =
-    tPinned !== null
-      ? limbPointAtUniformFraction(spec, tPinned)
-      : limbPointAtUniformFraction(spec, attachT);
-  const baseFork = spec.threads[0].forkPoint;
-  const delta = { x: limbPt.x - baseFork.x, y: limbPt.y - baseFork.y };
-  if (delta.x === 0 && delta.y === 0) return spec;
-
-  const threads = spec.threads.map((th) =>
-    samePoint(th.forkPoint, baseFork) ? translateThreadSpec(th, delta) : th,
-  );
-  return { ...spec, threads };
-}
-
-/** Dilates each thread cubic away from {@link ThreadForkSpec.forkPoint}; fork unchanged; tip synced to stretched terminal end. */
-export const THREAD_LENGTH_FACTOR = 2;
-
-/** Becoming upper pair (Mindset / Habits): near-straight arms were ~2× stretch → huge arc gaps between moments. */
-const BECOMING_UPPER_THREAD_STRETCH = 0.85;
-
-/** Becoming lower pair (Identity / Creativity): swooping arcs — modest reduction vs global 2×. */
-const BECOMING_LOWER_THREAD_STRETCH = 1.5;
-
-/** Per-thread override after limb snap — lower factor = shorter stroke / tighter spacing between moments on that thread. */
-function resolvedThreadStretchFactor(areaId: string, threadIndex: number): number {
-  if (areaId !== "becoming") return THREAD_LENGTH_FACTOR;
-  if (threadIndex === 0 || threadIndex === 1) return BECOMING_UPPER_THREAD_STRETCH;
-  if (threadIndex === 2 || threadIndex === 3) return BECOMING_LOWER_THREAD_STRETCH;
-  return THREAD_LENGTH_FACTOR;
-}
-
-function stretchThreadForkSpecFromFork(thread: ThreadForkSpec, k: number = THREAD_LENGTH_FACTOR): ThreadForkSpec {
-  const F = thread.forkPoint;
-  const dilate = (p: Point) => ({ x: F.x + k * (p.x - F.x), y: F.y + k * (p.y - F.y) });
-  const pieces = thread.threadPieces.map((piece) => ({
-    c1: dilate(piece.c1),
-    c2: dilate(piece.c2),
-    end: dilate(piece.end),
-  }));
-  const tip = pieces.length > 0 ? pieces[pieces.length - 1]!.end : thread.tip;
-  return { ...thread, threadPieces: pieces, tip };
-}
-
-/**
- * At each internal junction between cubic segments, set the outgoing `c1` so the first derivative
- * matches the incoming side (C¹). Keeps all segment ends and the fork; only adjusts `c1` on
- * segments 1..n−1 — removes corner kinks such as between buds that sit on either side of a join.
- */
-function smoothThreadC1AtInternalJoints(thread: ThreadForkSpec): ThreadForkSpec {
-  const n = thread.threadPieces.length;
-  if (n <= 1) return thread;
-  const pieces = thread.threadPieces.map((p) => ({ ...p }));
-  for (let i = 1; i < n; i++) {
-    const K = pieces[i - 1].end;
-    const c2prev = pieces[i - 1].c2;
-    pieces[i] = {
-      ...pieces[i],
-      c1: { x: 2 * K.x - c2prev.x, y: 2 * K.y - c2prev.y },
-    };
-  }
-  const tipEnd = pieces[n - 1].end;
-  return { ...thread, threadPieces: pieces, tip: tipEnd };
 }
 
 export function threadMainPath(t: ThreadForkSpec): string {
@@ -327,26 +219,9 @@ export function threadMainPathUntilGlobalT(t: ThreadForkSpec, globalTEnd: number
   return pathFromStart(t.forkPoint, piecesOut);
 }
 
-/** Mirror entire fork spec across {@link TREE_TRUNK_MIRROR_X} (left/right limb pairing). */
-function mirrorAreaForkSpecAcrossTrunk(spec: AreaForkSpec): AreaForkSpec {
-  const mx = mirrorPointAcrossTrunkX;
-  return {
-    trunkAttach: mx(spec.trunkAttach),
-    limbTip: mx(spec.limbTip),
-    limbPieces: spec.limbPieces.map((b) => ({ c1: mx(b.c1), c2: mx(b.c2), end: mx(b.end) })),
-    limbStrokeWidth: spec.limbStrokeWidth,
-    threads: spec.threads.map((t) => ({
-      forkPoint: mx(t.forkPoint),
-      tip: mx(t.tip),
-      threadPieces: t.threadPieces.map((b) => ({ c1: mx(b.c1), c2: mx(b.c2), end: mx(b.end) })),
-      strokeWidth: t.strokeWidth,
-    })),
-  };
-}
-
 export function getAreaSlotRender(
   id: string,
-  forks: Record<string, AreaForkSpec> = AREA_FORKS,
+  forks: Record<string, AreaForkSpec>,
 ): {
   limb: string;
   limbStrokeWidth: number;
@@ -365,175 +240,145 @@ export function getAreaSlotRender(
   };
 }
 
-/**
- * People & Relationships — canonical right-side limb in SVG space.
- * {@link AREA_FORKS_BASE} `work` is this spec mirrored across {@link TREE_TRUNK_MIRROR_X}.
- */
-const PEOPLE_FORK_BASE: AreaForkSpec = {
-  trunkAttach: { x: 606, y: 715 },
-  limbTip: { x: 854, y: 498 },
-  limbPieces: [
-    { c1: { x: 646, y: 682 }, c2: { x: 696, y: 642 }, end: { x: 750, y: 596 } },
-    { c1: { x: 786, y: 566 }, c2: { x: 822, y: 534 }, end: { x: 854, y: 498 } },
-  ],
-  limbStrokeWidth: 7.5,
-  threads: [
-    {
-      forkPoint: { x: 700, y: 632 },
-      tip: { x: 842, y: 430 },
-      threadPieces: [
-        { c1: { x: 726, y: 596 }, c2: { x: 758, y: 554 }, end: { x: 792, y: 510 } },
-        { c1: { x: 812, y: 484 }, c2: { x: 830, y: 458 }, end: { x: 842, y: 430 } },
-      ],
-      strokeWidth: 3,
-    },
-    {
-      forkPoint: { x: 744, y: 602 },
-      tip: { x: 900, y: 600 },
-      threadPieces: [
-        { c1: { x: 784, y: 598 }, c2: { x: 820, y: 602 }, end: { x: 856, y: 603 } },
-        { c1: { x: 880, y: 603 }, c2: { x: 894, y: 601 }, end: { x: 900, y: 600 } },
-      ],
-      strokeWidth: 2.4,
-    },
-    {
-      forkPoint: { x: 786, y: 566 },
-      tip: { x: 916, y: 366 },
-      threadPieces: [
-        { c1: { x: 808, y: 532 }, c2: { x: 834, y: 492 }, end: { x: 862, y: 452 } },
-        { c1: { x: 882, y: 424 }, c2: { x: 902, y: 396 }, end: { x: 916, y: 366 } },
-      ],
-      strokeWidth: 2.2,
-    },
-    {
-      forkPoint: { x: 814, y: 548 },
-      tip: { x: 948, y: 332 },
-      threadPieces: [
-        { c1: { x: 834, y: 522 }, c2: { x: 856, y: 492 }, end: { x: 882, y: 458 } },
-        { c1: { x: 908, y: 418 }, c2: { x: 932, y: 372 }, end: { x: 948, y: 332 } },
-      ],
-      strokeWidth: 2.1,
-    },
-  ],
+/** Cubic Bézier control points on the chord p0→p3 so the stroke is a straight line (compatible with cubic evaluators). */
+export function colinearCubicPiece(p0: Point, p3: Point): CubicPiece {
+  return { c1: lerpPoint(p0, p3, 1 / 3), c2: lerpPoint(p0, p3, 2 / 3), end: p3 };
+}
+
+type StraightLimbTemplate = {
+  /** Junction where this limb leaves the trunk (lower / middle / top fork). */
+  trunkAttach: Point;
+  /** Direction from `trunkAttach` toward this limb's hub (radians, +y = down). */
+  limbStemDirRad: number;
+  /** Distance fork → hub along `limbStemDirRad`. */
+  limbStemLen: number;
+  /** Thread fan bisector at the hub (radians); usually matches `limbStemDirRad`. */
+  bisectorRad: number;
+  baseTipLen: number;
+  /** Extra length per thread index to reduce tip overlap. */
+  tipLenPerIndex: number;
+  limbStrokeWidth: number;
 };
 
-/** Health & Body — canonical lower-right limb in SVG space. Finance mirrors this across trunk centerline. */
-const HEALTH_FORK_BASE: AreaForkSpec = {
-  trunkAttach: { x: 608, y: 878 },
-  limbTip: { x: 928, y: 708 },
-  limbPieces: [
-    { c1: { x: 652, y: 858 }, c2: { x: 710, y: 830 }, end: { x: 778, y: 794 } },
-    { c1: { x: 826, y: 770 }, c2: { x: 876, y: 742 }, end: { x: 928, y: 708 } },
-  ],
-  limbStrokeWidth: 7.5,
-  threads: [
-    {
-      forkPoint: { x: 792, y: 800 },
-      tip: { x: 960, y: 614 },
-      threadPieces: [
-        { c1: { x: 822, y: 770 }, c2: { x: 858, y: 734 }, end: { x: 898, y: 694 } },
-        { c1: { x: 922, y: 668 }, c2: { x: 944, y: 642 }, end: { x: 960, y: 614 } },
-      ],
-      strokeWidth: 3,
-    },
-    {
-      forkPoint: { x: 792, y: 800 },
-      tip: { x: 1042, y: 796 },
-      threadPieces: [
-        { c1: { x: 834, y: 797 }, c2: { x: 885, y: 794 }, end: { x: 942, y: 790 } },
-        { c1: { x: 977, y: 789 }, c2: { x: 1011, y: 789 }, end: { x: 1042, y: 796 } },
-      ],
-      strokeWidth: 2.4,
-    },
-    {
-      forkPoint: { x: 818, y: 782 },
-      tip: { x: 1010, y: 556 },
-      threadPieces: [
-        { c1: { x: 848, y: 752 }, c2: { x: 882, y: 716 }, end: { x: 920, y: 676 } },
-        { c1: { x: 956, y: 634 }, c2: { x: 986, y: 594 }, end: { x: 1010, y: 556 } },
-      ],
-      strokeWidth: 2.3,
-    },
-    {
-      forkPoint: { x: 836, y: 764 },
-      tip: { x: 1060, y: 508 },
-      threadPieces: [
-        { c1: { x: 868, y: 732 }, c2: { x: 904, y: 692 }, end: { x: 944, y: 648 } },
-        { c1: { x: 988, y: 596 }, c2: { x: 1026, y: 552 }, end: { x: 1060, y: 508 } },
-      ],
-      strokeWidth: 2.1,
-    },
-  ],
-};
-
-/** Named fork points + piece data (authoritative strokes before limb snap). */
-const AREA_FORKS_BASE: Record<string, AreaForkSpec> = {
-  finance: mirrorAreaForkSpecAcrossTrunk(HEALTH_FORK_BASE),
-  work: mirrorAreaForkSpecAcrossTrunk(PEOPLE_FORK_BASE),
-  becoming: {
-    trunkAttach: { x: 600, y: 505 },
-    limbTip: { x: 600, y: 196 },
-    limbPieces: [
-      { c1: { x: 600, y: 455 }, c2: { x: 600, y: 395 }, end: { x: 600, y: 335 } },
-      { c1: { x: 600, y: 288 }, c2: { x: 600, y: 242 }, end: { x: 600, y: 196 } },
-    ],
-    limbStrokeWidth: 7,
-    threads: [
-      {
-        forkPoint: { x: 580, y: 360 },
-        tip: { x: 394, y: 154 },
-        threadPieces: [
-          { c1: { x: 552, y: 322 }, c2: { x: 516, y: 278 }, end: { x: 476, y: 236 } },
-          { c1: { x: 450, y: 206 }, c2: { x: 422, y: 178 }, end: { x: 394, y: 154 } },
-        ],
-        strokeWidth: 2.8,
-      },
-      {
-        forkPoint: { x: 620, y: 360 },
-        tip: { x: 806, y: 154 },
-        threadPieces: [
-          { c1: { x: 648, y: 322 }, c2: { x: 684, y: 278 }, end: { x: 724, y: 236 } },
-          { c1: { x: 750, y: 206 }, c2: { x: 778, y: 178 }, end: { x: 806, y: 154 } },
-        ],
-        strokeWidth: 2.8,
-      },
-      {
-        forkPoint: { x: 582, y: 430 },
-        tip: { x: 428, y: 578 },
-        threadPieces: [
-          { c1: { x: 554, y: 448 }, c2: { x: 522, y: 470 }, end: { x: 492, y: 496 } },
-          { c1: { x: 464, y: 520 }, c2: { x: 440, y: 548 }, end: { x: 428, y: 578 } },
-        ],
-        strokeWidth: 2.4,
-      },
-      {
-        forkPoint: { x: 618, y: 430 },
-        tip: { x: 772, y: 578 },
-        threadPieces: [
-          { c1: { x: 646, y: 448 }, c2: { x: 678, y: 470 }, end: { x: 708, y: 496 } },
-          { c1: { x: 736, y: 520 }, c2: { x: 760, y: 548 }, end: { x: 772, y: 578 } },
-        ],
-        strokeWidth: 2.4,
-      },
-    ],
+/** Lower pair: outward with net upward (negative sin θ). Middle: up-left / up-right. Top: straight up. */
+const STRAIGHT_LIMB_BY_ID: Record<string, StraightLimbTemplate> = {
+  finance: {
+    trunkAttach: TREE_FORK_LOWER,
+    limbStemDirRad: (-179 * Math.PI) / 180,
+    limbStemLen: 192,
+    bisectorRad: (-179 * Math.PI) / 180,
+    baseTipLen: 430,
+    tipLenPerIndex: 46,
+    limbStrokeWidth: 7.5,
   },
-  people: PEOPLE_FORK_BASE,
-  health: HEALTH_FORK_BASE,
+  health: {
+    trunkAttach: TREE_FORK_LOWER,
+    limbStemDirRad: (-1 * Math.PI) / 180,
+    limbStemLen: 192,
+    bisectorRad: (-1 * Math.PI) / 180,
+    baseTipLen: 444,
+    tipLenPerIndex: 48,
+    limbStrokeWidth: 7.5,
+  },
+  work: {
+    trunkAttach: TREE_FORK_MIDDLE,
+    limbStemDirRad: (-159 * Math.PI) / 180,
+    limbStemLen: 198,
+    bisectorRad: (-159 * Math.PI) / 180,
+    baseTipLen: 436,
+    tipLenPerIndex: 46,
+    limbStrokeWidth: 7.5,
+  },
+  people: {
+    trunkAttach: TREE_FORK_MIDDLE,
+    limbStemDirRad: (-20 * Math.PI) / 180,
+    limbStemLen: 198,
+    bisectorRad: (-20 * Math.PI) / 180,
+    baseTipLen: 454,
+    tipLenPerIndex: 46,
+    limbStrokeWidth: 7.5,
+  },
+  becoming: {
+    trunkAttach: TREE_FORK_TOP,
+    limbStemDirRad: -Math.PI / 2,
+    limbStemLen: 182,
+    bisectorRad: -Math.PI / 2,
+    baseTipLen: 420,
+    tipLenPerIndex: 44,
+    limbStrokeWidth: 7,
+  },
 };
 
-/** Resolved forks — limb stroke ends at furthest thread fork; thread `t0` snaps to limb at slot `defaultFromT`. */
-export const AREA_FORKS: Record<string, AreaForkSpec> = Object.fromEntries(
-  Object.entries(AREA_FORKS_BASE).map(([id, spec]) => {
-    const snapped = snapThread0ForkToLimb(spec, id);
-    const stretched = {
-      ...snapped,
-      threads: snapped.threads.map((t, i) =>
-        stretchThreadForkSpecFromFork(t, resolvedThreadStretchFactor(id, i)),
-      ),
+/**
+ * Degrees from limb `bisectorRad` per thread index (narrow fan, max ±30° from base).
+ * n=3: third thread (index 2) is 0° so it continues parallel to the limb stem; earlier indices fan the other way.
+ * n≥6: linear from −30° to +30° inclusive (evenly spaced along the 60° window).
+ */
+function threadFanOffsetsDeg(n: number): number[] {
+  if (n <= 0) return [];
+  if (n === 1) return [0];
+  if (n === 2) return [-15, 15];
+  if (n === 3) return [-24, -12, 0];
+  if (n === 4) return [-30, -15, 0, 15];
+  if (n === 5) return [-30, -15, 0, 15, 30];
+  return Array.from({ length: n }, (_, i) => -30 + (60 * i) / (n - 1));
+}
+
+function buildStraightAreaForkFromTemplate(tpl: StraightLimbTemplate, area: AreaData | undefined): AreaForkSpec {
+  const n = area?.threads.length ?? 0;
+  const trunkAttach = tpl.trunkAttach;
+  const hub = {
+    x: trunkAttach.x + Math.cos(tpl.limbStemDirRad) * tpl.limbStemLen,
+    y: trunkAttach.y + Math.sin(tpl.limbStemDirRad) * tpl.limbStemLen,
+  };
+  const limbPiece = colinearCubicPiece(trunkAttach, hub);
+  const offsetsDeg = threadFanOffsetsDeg(n);
+  const threads: ThreadForkSpec[] = [];
+  /** 1-based threads 3 & 4 → swap their stem attachment along the limb (0-based indices 2 and 3). */
+  const stemTForThreadIndex = (i: number) => {
+    const t = (i + 1) / (n + 1);
+    if (n >= 4 && i === 2) return (3 + 1) / (n + 1);
+    if (n >= 4 && i === 3) return (2 + 1) / (n + 1);
+    return t;
+  };
+  for (let i = 0; i < n; i += 1) {
+    const stemT = stemTForThreadIndex(i);
+    const forkPoint = lerpPoint(trunkAttach, hub, stemT);
+    const ang = tpl.bisectorRad + (offsetsDeg[i]! * Math.PI) / 180;
+    const L = tpl.baseTipLen + i * tpl.tipLenPerIndex;
+    const tip = {
+      x: forkPoint.x + Math.cos(ang) * L,
+      y: forkPoint.y + Math.sin(ang) * L,
     };
-    return [
-      id,
-      { ...stretched, threads: stretched.threads.map((t) => smoothThreadC1AtInternalJoints(t)) },
-    ] as const;
-  }),
-) as Record<string, AreaForkSpec>;
+    const strokeWidth = area?.threads[i]?.strokeWidth ?? 2.5;
+    threads.push({
+      forkPoint,
+      tip,
+      threadPieces: [colinearCubicPiece(forkPoint, tip)],
+      strokeWidth,
+    });
+  }
+  return {
+    trunkAttach,
+    limbTip: hub,
+    limbPieces: [limbPiece],
+    limbStrokeWidth: tpl.limbStrokeWidth,
+    threads,
+  };
+}
+
+const STRAIGHT_LIMB_IDS = ["finance", "work", "becoming", "people", "health"] as const;
+
+/**
+ * Straight-line fork geometry: three trunk fork heights (lower / middle / top); one limb stem fork→hub;
+ * each thread forks along that stem at an even fraction, then fans within ±30° of `bisectorRad` (60° max total).
+ */
+export function buildStraightForksRecord(areas: AreaData[]): Record<string, AreaForkSpec> {
+  const byId = Object.fromEntries(areas.map((a) => [a.id, a] as const));
+  return Object.fromEntries(
+    STRAIGHT_LIMB_IDS.map((id) => {
+      const tpl = STRAIGHT_LIMB_BY_ID[id];
+      return [id, buildStraightAreaForkFromTemplate(tpl, byId[id])] as const;
+    }),
+  ) as Record<string, AreaForkSpec>;
+}
