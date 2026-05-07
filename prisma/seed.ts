@@ -15,11 +15,40 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { getLegacyMockLifeData } from "../src/data/mock-data";
+import type { Moment } from "../src/lib/types";
+
+/** Mock nodes may carry legacy fields not present on the canonical `Moment` type. */
+type LegacySeedMoment = Moment & {
+  connectedTo?: unknown[];
+  practicalData?: unknown | null;
+};
 
 const prisma = new PrismaClient();
 
-async function upsertNode(userId: string, prefix: string, node: any) {
-  await (prisma as any).lifeMapNode.upsert({
+type LegacyLifeMapNodeDelegate = {
+  upsert: (args: {
+    where: { id: string };
+    update: Record<string, never>;
+    create: {
+      id: string;
+      userId: string;
+      label: string;
+      description: string | null;
+      branch: string;
+      year: number;
+      month: number | null;
+      future: boolean;
+      significance: number;
+      connectedTo: unknown[];
+      practicalData: unknown | null;
+      timelineNote: null;
+    };
+  }) => Promise<unknown>;
+};
+
+async function upsertNode(userId: string, prefix: string, node: LegacySeedMoment) {
+  const lifeMapNode = (prisma as unknown as { lifeMapNode: LegacyLifeMapNodeDelegate }).lifeMapNode;
+  await lifeMapNode.upsert({
     where: { id: `${prefix}-${node.id}` },
     update: {},
     create: {
@@ -27,7 +56,7 @@ async function upsertNode(userId: string, prefix: string, node: any) {
       userId,
       label: node.label,
       description: node.description,
-      branch: node.branch,
+      branch: node.branchId,
       year: node.year,
       month: node.month ?? null,
       future: Boolean(node.future),
