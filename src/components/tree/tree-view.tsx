@@ -40,6 +40,8 @@ import {
 } from "./tree-layout-edit";
 import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { PF_ROADMAP_THEME_CSS } from "@/components/shell/pf-roadmap-theme";
+import { AddGoalModal } from "@/components/goals/add-goal-modal";
+import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 
@@ -81,6 +83,7 @@ type TreePanelProps = {
     turningPointId: string;
     label: string;
   }) => Promise<{ ok: boolean; error?: string }>;
+  onAddGoal: () => void;
 };
 
 type ViewMode = "tree" | "timeline" | "thread";
@@ -805,6 +808,8 @@ export function TreeView() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [mockUsers, setMockUsers] = useState<MockUserOption[]>([]);
   const [selectedMockUserId, setSelectedMockUserId] = useState<string | null>(null);
+  const [addGoalOpen, setAddGoalOpen] = useState(false);
+  const [treeToast, setTreeToast] = useState<{ msg: string; color: string } | null>(null);
 
   useEffect(() => {
     if (!isDev) return;
@@ -904,6 +909,31 @@ export function TreeView() {
       return curr;
     });
   }, []);
+
+  const addGoalBranches = useMemo(
+    () =>
+      areas.flatMap((area) =>
+        area.threads.map((thread) => ({
+          id: thread.id,
+          limbId: area.id,
+          label: thread.type,
+        })),
+      ),
+    [areas],
+  );
+
+  const showTreeToast = useCallback((msg: string, color = "#7B68C8") => {
+    setTreeToast({ msg, color });
+    window.setTimeout(() => setTreeToast(null), 2400);
+  }, []);
+
+  useEffect(() => {
+    const h = () => {
+      void loadData();
+    };
+    window.addEventListener(PATHFINDER_GOALS_CHANGED_EVENT, h);
+    return () => window.removeEventListener(PATHFINDER_GOALS_CHANGED_EVENT, h);
+  }, [loadData]);
 
   useEffect(() => {
     setHiddenAreaIds((prev) => {
@@ -1183,10 +1213,46 @@ export function TreeView() {
                   return { ok: false, error: "Network error creating branch." };
                 }
               }}
+              onAddGoal={() => setAddGoalOpen(true)}
             />
           )}
         </main>
       </div>
+
+      <AddGoalModal
+        open={addGoalOpen}
+        onOpenChange={setAddGoalOpen}
+        branches={addGoalBranches}
+        defaultBranchId={null}
+        onGoalCreated={({ branchLabel }) => {
+          showTreeToast(`Goal created on ${branchLabel}.`);
+        }}
+      />
+
+      {treeToast ? (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 22,
+            right: 22,
+            zIndex: 220,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            maxWidth: 360,
+            padding: "11px 16px",
+            borderRadius: 10,
+            borderLeft: `4px solid ${treeToast.color}`,
+            background: "rgba(12,11,17,0.94)",
+            color: "var(--color-text-primary, #e7e5e4)",
+            fontSize: 13,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <span>{treeToast.msg}</span>
+        </div>
+      ) : null}
 
       <style jsx global>{`
         .pulse-ring {
@@ -2929,7 +2995,7 @@ function ThreadView({ areas, selectedThreadId, onSelectThread, onMomentClick, fo
   );
 }
 
-function TreePanel({ panel, areas, onClose, onCreateBranchFromMoment }: TreePanelProps) {
+function TreePanel({ panel, areas, onClose, onCreateBranchFromMoment, onAddGoal }: TreePanelProps) {
   const [newBranchLabel, setNewBranchLabel] = useState("");
   const [branching, setBranching] = useState(false);
   const [branchCreateError, setBranchCreateError] = useState<string | null>(null);
@@ -3016,11 +3082,39 @@ function TreePanel({ panel, areas, onClose, onCreateBranchFromMoment }: TreePane
         >
           ×
         </button>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: 16, fontWeight: 500, color: area.color }}>{area.label}</div>
-          <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
-            {area.threads.length} threads · {moments.length} moments
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+            <div style={{ fontSize: 16, fontWeight: 500, color: area.color }}>{area.label}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+              {area.threads.length} threads · {moments.length} moments
+            </div>
           </div>
+          <button
+            type="button"
+            data-testid="tree-add-goal"
+            onClick={onAddGoal}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--color-text-secondary)",
+              background: "var(--color-background-secondary, rgba(255,255,255,0.04))",
+              border: "1px solid var(--color-border-secondary)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              cursor: "pointer",
+            }}
+          >
+            Add goal
+          </button>
         </div>
 
         <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
