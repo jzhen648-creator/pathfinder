@@ -1,5 +1,20 @@
 export type Point = { x: number; y: number }
 
+/** φ — used for branch spacing, fork progression, and non-uniform spacing that reads as organic growth. */
+export const GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
+
+/**
+ * Monotonic spread in [0, 1] for index `i` of `count` siblings: successive powers of (φ−1) = 1/φ
+ * so gaps grow in golden proportion from the trunk toward the tips.
+ */
+export function goldenSequentialUnit(i: number, count: number): number {
+  if (count <= 1) return 0.5;
+  const rho = GOLDEN_RATIO - 1;
+  const num = 1 - Math.pow(rho, i + 1);
+  const den = 1 - Math.pow(rho, count);
+  return den > 1e-12 ? num / den : (i + 1) / (count + 1);
+}
+
 export const TRUNK_BASE_Y = 1220
 export const TRUNK_TOP_Y = 120
 /** SVG canvas width — geometry stays ~x≤1150; avoid drawing empty space beyond ~1200. */
@@ -22,8 +37,9 @@ const HEALTH_SPINE = { p0: { x: 512, y: 780 } as Point, angle: -5 };
 const PEOPLE_THREAD_SLOTS: Array<{ defaultFromT: number; p1: Point; p2: Point; sw: number }> = [
   { defaultFromT: 0.56, p1: { x: 620, y: 595 }, p2: { x: 760, y: 520 }, sw: 4.5 },
   { defaultFromT: 0.74, p1: { x: 815, y: 545 }, p2: { x: 900, y: 600 }, sw: 3.5 },
-  { defaultFromT: 0.9, p1: { x: 810, y: 455 }, p2: { x: 980, y: 345 }, sw: 2.8 },
-  { defaultFromT: 0.96, p1: { x: 828, y: 498 }, p2: { x: 998, y: 368 }, sw: 2.5 },
+  /* Upper pair: tips fan with φ-based separation so strokes do not stack. */
+  { defaultFromT: 0.88, p1: { x: 798, y: 448 }, p2: { x: 1008, y: 322 }, sw: 2.8 },
+  { defaultFromT: 0.94, p1: { x: 842, y: 478 }, p2: { x: 1075, y: 398 }, sw: 2.5 },
 ];
 
 // Spine origins — staggered vertically along trunk
@@ -50,8 +66,8 @@ export const THREAD_SLOTS: Record<string, Array<{
   finance: [
     { defaultFromT: 0.56, p1: mirrorPointAcrossTrunkX({ x: 640, y: 740 }), p2: mirrorPointAcrossTrunkX({ x: 800, y: 670 }), sw: 4.5 },
     { defaultFromT: 0.74, p1: mirrorPointAcrossTrunkX({ x: 760, y: 670 }), p2: mirrorPointAcrossTrunkX({ x: 980, y: 560 }), sw: 3.5 },
-    { defaultFromT: 0.9, p1: mirrorPointAcrossTrunkX({ x: 900, y: 620 }), p2: mirrorPointAcrossTrunkX({ x: 1150, y: 500 }), sw: 2.8 },
-    { defaultFromT: 0.96, p1: mirrorPointAcrossTrunkX({ x: 920, y: 582 }), p2: mirrorPointAcrossTrunkX({ x: 1138, y: 418 }), sw: 2.5 },
+    { defaultFromT: 0.88, p1: mirrorPointAcrossTrunkX({ x: 880, y: 648 }), p2: mirrorPointAcrossTrunkX({ x: 1120, y: 520 }), sw: 2.8 },
+    { defaultFromT: 0.94, p1: mirrorPointAcrossTrunkX({ x: 918, y: 622 }), p2: mirrorPointAcrossTrunkX({ x: 1168, y: 468 }), sw: 2.5 },
   ],
   /** Mirrored {@link PEOPLE_THREAD_SLOTS} (same defaultFromT / stroke weights). */
   work: PEOPLE_THREAD_SLOTS.map((s) => ({
@@ -63,16 +79,56 @@ export const THREAD_SLOTS: Record<string, Array<{
   becoming: [
     { defaultFromT: 0.56, p1: { x: 420, y: 510 }, p2: { x: 320, y: 440 }, sw: 4.5 },
     { defaultFromT: 0.74, p1: { x: 500, y: 470 }, p2: { x: 500, y: 360 }, sw: 3.5 },
-    { defaultFromT: 0.9, p1: { x: 580, y: 510 }, p2: { x: 680, y: 440 }, sw: 2.8 },
-    { defaultFromT: 0.96, p1: { x: 520, y: 398 }, p2: { x: 500, y: 276 }, sw: 2.6 },
+    { defaultFromT: 0.88, p1: { x: 562, y: 518 }, p2: { x: 646, y: 452 }, sw: 2.8 },
+    { defaultFromT: 0.94, p1: { x: 440, y: 405 }, p2: { x: 378, y: 268 }, sw: 2.6 },
   ],
   people: PEOPLE_THREAD_SLOTS,
   health: [
     { defaultFromT: 0.56, p1: { x: 640, y: 740 }, p2: { x: 800, y: 670 }, sw: 4.5 },
     { defaultFromT: 0.74, p1: { x: 760, y: 670 }, p2: { x: 980, y: 560 }, sw: 3.5 },
-    { defaultFromT: 0.9, p1: { x: 900, y: 620 }, p2: { x: 1150, y: 500 }, sw: 2.8 },
-    { defaultFromT: 0.96, p1: { x: 920, y: 582 }, p2: { x: 1138, y: 418 }, sw: 2.5 },
+    { defaultFromT: 0.88, p1: { x: 880, y: 648 }, p2: { x: 1120, y: 520 }, sw: 2.8 },
+    { defaultFromT: 0.94, p1: { x: 918, y: 622 }, p2: { x: 1168, y: 468 }, sw: 2.5 },
   ],
+}
+
+/** Slot anchors for spine + data layer when a limb has `totalThreads` roots (any count). */
+export function deriveThreadSlotForIndex(
+  limbId: string,
+  index: number,
+  totalThreads: number,
+  origin: { p0: Point; angle: number },
+): { defaultFromT: number; p1: Point; p2: Point; sw: number } {
+  const catalog = THREAD_SLOTS[limbId] ?? [];
+  const g = goldenSequentialUnit(index, totalThreads);
+
+  if (catalog.length === 0) {
+    const span = 0.38 + 0.56 * g;
+    return { defaultFromT: span, p1: origin.p0, p2: origin.p0, sw: 2 };
+  }
+
+  const slotFrac = g * (catalog.length - 1);
+  const i0 = Math.min(catalog.length - 1, Math.floor(slotFrac));
+  const i1 = Math.min(catalog.length - 1, i0 + 1);
+  const f = slotFrac - i0;
+  const A = catalog[i0]!;
+  const B = catalog[i1]!;
+  const lerp = (u: number, v: number) => u + (v - u) * f;
+
+  const chordX = B.p2.x - A.p1.x;
+  const chordY = B.p2.y - A.p1.y;
+  const chordLen = Math.hypot(chordX, chordY) || 1;
+  const px = -chordY / chordLen;
+  const py = chordX / chordLen;
+  const fan = (index - (totalThreads - 1) / 2) * (11 + (GOLDEN_RATIO - 1) * 8);
+
+  const blendedFromT = lerp(A.defaultFromT, B.defaultFromT);
+  const alongLimb = 0.38 + 0.58 * g;
+  return {
+    defaultFromT: Math.min(0.97, Math.max(0.36, (blendedFromT + alongLimb + g) / 3)),
+    p1: { x: lerp(A.p1.x, B.p1.x) + px * fan * 0.45, y: lerp(A.p1.y, B.p1.y) + py * fan * 0.45 },
+    p2: { x: lerp(A.p2.x, B.p2.x) + px * fan, y: lerp(A.p2.y, B.p2.y) + py * fan },
+    sw: lerp(A.sw, B.sw),
+  };
 }
 
 export const AREA_LABEL_CONFIG: Record<string, {

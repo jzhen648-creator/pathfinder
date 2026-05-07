@@ -1,5 +1,11 @@
 import type { Point } from "./tree-types";
-import { mirrorPointAcrossTrunkX, THREAD_SLOTS, TREE_TRUNK_MIRROR_X } from "./tree-geometry";
+import {
+  GOLDEN_RATIO,
+  goldenSequentialUnit,
+  mirrorPointAcrossTrunkX,
+  THREAD_SLOTS,
+  TREE_TRUNK_MIRROR_X,
+} from "./tree-geometry";
 
 /** One SVG cubic Bézier segment: C c1 c2 end (start is implicit from previous point). */
 export type CubicPiece = {
@@ -398,19 +404,19 @@ const PEOPLE_FORK_BASE: AreaForkSpec = {
     },
     {
       forkPoint: { x: 786, y: 566 },
-      tip: { x: 916, y: 366 },
+      tip: { x: 1005, y: 318 },
       threadPieces: [
-        { c1: { x: 808, y: 532 }, c2: { x: 834, y: 492 }, end: { x: 862, y: 452 } },
-        { c1: { x: 882, y: 424 }, c2: { x: 902, y: 396 }, end: { x: 916, y: 366 } },
+        { c1: { x: 808, y: 532 }, c2: { x: 836, y: 488 }, end: { x: 872, y: 448 } },
+        { c1: { x: 902, y: 398 }, c2: { x: 958, y: 352 }, end: { x: 1005, y: 318 } },
       ],
       strokeWidth: 2.2,
     },
     {
       forkPoint: { x: 814, y: 548 },
-      tip: { x: 948, y: 332 },
+      tip: { x: 1070, y: 388 },
       threadPieces: [
-        { c1: { x: 834, y: 522 }, c2: { x: 856, y: 492 }, end: { x: 882, y: 458 } },
-        { c1: { x: 908, y: 418 }, c2: { x: 932, y: 372 }, end: { x: 948, y: 332 } },
+        { c1: { x: 834, y: 522 }, c2: { x: 862, y: 484 }, end: { x: 898, y: 448 } },
+        { c1: { x: 938, y: 408 }, c2: { x: 1008, y: 394 }, end: { x: 1070, y: 388 } },
       ],
       strokeWidth: 2.1,
     },
@@ -447,19 +453,19 @@ const HEALTH_FORK_BASE: AreaForkSpec = {
     },
     {
       forkPoint: { x: 818, y: 782 },
-      tip: { x: 1010, y: 556 },
+      tip: { x: 1032, y: 532 },
       threadPieces: [
-        { c1: { x: 848, y: 752 }, c2: { x: 882, y: 716 }, end: { x: 920, y: 676 } },
-        { c1: { x: 956, y: 634 }, c2: { x: 986, y: 594 }, end: { x: 1010, y: 556 } },
+        { c1: { x: 848, y: 752 }, c2: { x: 882, y: 716 }, end: { x: 924, y: 668 } },
+        { c1: { x: 970, y: 612 }, c2: { x: 1006, y: 568 }, end: { x: 1032, y: 532 } },
       ],
       strokeWidth: 2.3,
     },
     {
       forkPoint: { x: 836, y: 764 },
-      tip: { x: 1060, y: 508 },
+      tip: { x: 1092, y: 478 },
       threadPieces: [
-        { c1: { x: 868, y: 732 }, c2: { x: 904, y: 692 }, end: { x: 944, y: 648 } },
-        { c1: { x: 988, y: 596 }, c2: { x: 1026, y: 552 }, end: { x: 1060, y: 508 } },
+        { c1: { x: 868, y: 732 }, c2: { x: 906, y: 690 }, end: { x: 948, y: 646 } },
+        { c1: { x: 996, y: 588 }, c2: { x: 1048, y: 528 }, end: { x: 1092, y: 478 } },
       ],
       strokeWidth: 2.1,
     },
@@ -537,3 +543,96 @@ export const AREA_FORKS: Record<string, AreaForkSpec> = Object.fromEntries(
     ] as const;
   }),
 ) as Record<string, AreaForkSpec>;
+
+function cloneThreadForkSpec(t: ThreadForkSpec): ThreadForkSpec {
+  return {
+    forkPoint: { ...t.forkPoint },
+    tip: { ...t.tip },
+    threadPieces: t.threadPieces.map((p) => ({
+      c1: { ...p.c1 },
+      c2: { ...p.c2 },
+      end: { ...p.end },
+    })),
+    strokeWidth: t.strokeWidth,
+  };
+}
+
+/** Rotate thread stroke around its fork; fork unchanged (matches layout-edit semantics). */
+function rotateThreadAroundForkDeg(thread: ThreadForkSpec, deg: number): ThreadForkSpec {
+  if (Math.abs(deg) < 1e-9) return thread;
+  const rad = (deg * Math.PI) / 180;
+  const F = thread.forkPoint;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  const rot = (p: Point) => ({
+    x: F.x + (p.x - F.x) * c - (p.y - F.y) * s,
+    y: F.y + (p.x - F.x) * s + (p.y - F.y) * c,
+  });
+  return {
+    forkPoint: { ...F },
+    tip: rot(thread.tip),
+    threadPieces: thread.threadPieces.map((p) => ({
+      c1: rot(p.c1),
+      c2: rot(p.c2),
+      end: rot(p.end),
+    })),
+    strokeWidth: thread.strokeWidth,
+  };
+}
+
+/**
+ * When a limb has more root threads than the catalog fork (four), grow additional strokes by
+ * placing forks along the limb with {@link goldenSequentialUnit} spacing and φ-weighted fan rotation.
+ */
+export function expandAreaForkSpecThreadCount(
+  spec: AreaForkSpec,
+  areaId: string,
+  desired: number,
+): AreaForkSpec {
+  if (desired <= spec.threads.length) return spec;
+  const isLeft = areaId === "finance" || areaId === "work";
+  const fanSign = isLeft ? -1 : 1;
+
+  const existingTs = spec.threads.map((th) => closestGlobalTOnLimb(spec, th.forkPoint));
+  const tMin = Math.max(0.3, Math.min(...existingTs) - 0.03);
+  const tMax = Math.min(
+    0.97,
+    Math.max(...existingTs) + 0.05 + (desired - spec.threads.length) * 0.018,
+  );
+
+  const templates = spec.threads.slice(0, Math.min(4, spec.threads.length));
+  if (templates.length === 0) return spec;
+
+  const threads = spec.threads.map(cloneThreadForkSpec);
+  for (let i = threads.length; i < desired; i++) {
+    const template = cloneThreadForkSpec(templates[i % templates.length]!);
+    const u = goldenSequentialUnit(i, desired);
+    const t = tMin + (tMax - tMin) * u;
+    const limbPt = limbPointAtUniformFraction(spec, t);
+    let th = translateThreadToForkPoint(template, limbPt);
+    const fanDeg = fanSign * (i - (desired - 1) / 2) * (10 + (GOLDEN_RATIO - 1) * 14);
+    th = rotateThreadAroundForkDeg(th, fanDeg);
+    th = stretchThreadForkSpecFromFork(th, resolvedThreadStretchFactor(areaId, i));
+    th = smoothThreadC1AtInternalJoints(th);
+    const taper = Math.max(1.5, th.strokeWidth * Math.pow(GOLDEN_RATIO - 1, 0.35 * Math.max(0, i - 3)));
+    th = { ...th, strokeWidth: Number(taper.toFixed(2)) };
+    threads.push(th);
+  }
+  return { ...spec, threads };
+}
+
+export function expandForksRecordForAreas(
+  forks: Record<string, AreaForkSpec>,
+  areas: Array<{ id: string; threads: readonly unknown[] }>,
+): Record<string, AreaForkSpec> {
+  const out: Record<string, AreaForkSpec> = { ...forks };
+  for (const area of areas) {
+    const base = out[area.id];
+    if (!base) continue;
+    const want = area.threads.length;
+    if (want > base.threads.length) {
+      out[area.id] = expandAreaForkSpecThreadCount(base, area.id, want);
+    }
+  }
+  return out;
+}
