@@ -12,11 +12,11 @@ import {
 } from "react";
 import { mapToTreeData, type RawBranch, type RawMark, type RawTreeGoalPayload } from "./tree-data";
 import { TreeGoalNodeSvg } from "./tree-goal-visual";
-import { AREA_LABEL_CONFIG, GOLDEN_RATIO, TREE_TRUNK_MIRROR_X, VIEWBOX_HEIGHT, VIEWBOX_WIDTH } from "./tree-geometry";
+import { AREA_LABEL_CONFIG, TREE_TRUNK_MIRROR_X, VIEWBOX_HEIGHT, VIEWBOX_WIDTH } from "./tree-geometry";
 import type { AreaData, MomentNode, Point, ThreadData, TreeGoalNode } from "./tree-types";
 import {
   AREA_FORKS,
-  expandForksRecordForAreas,
+  type AreaForkSpec,
   type ThreadForkSpec,
   closestGlobalTOnLimb,
   getAreaSlotRender,
@@ -378,45 +378,11 @@ function normalizeGoalsFromBranches(payload: BranchesResponse): RawTreeGoalPaylo
   return rows as RawTreeGoalPayload[];
 }
 
-function goalTAlongThread(goal: TreeGoalNode, index: number, total: number, momentCount: number): number {
-  let unit: number;
+function goalTAlongThread(goal: TreeGoalNode, index: number, total: number): number {
   if (goal.positionAngle != null && goal.positionAngle >= 0 && goal.positionAngle <= 1) {
-    unit = goal.positionAngle;
-  } else if (total <= 1) {
-    unit = 0.5;
-  } else {
-    const rho = GOLDEN_RATIO - 1;
-    unit = (1 - Math.pow(rho, index + 1)) / (1 - Math.pow(rho, total));
+    return 0.06 + goal.positionAngle * 0.88;
   }
-  if (momentCount <= 0) {
-    return 0.06 + unit * 0.88;
-  }
-  const lo = 0.62;
-  const hi = 0.96;
-  return lo + unit * (hi - lo);
-}
-
-/** Offset goals slightly beside the thread so they do not stack on moment buds. */
-function goalPositionBesideThread(path: string, t: number, lateralIndex: number, trunkX: number): Point {
-  const base = pathPointAtT(path, t);
-  const te = Math.min(0.9999, t + 0.028);
-  const ahead = pathPointAtT(path, te);
-  let dx = ahead.x - base.x;
-  let dy = ahead.y - base.y;
-  const len = Math.hypot(dx, dy) || 1;
-  let nx = -dy / len;
-  let ny = dx / len;
-  if (
-    (base.x < trunkX && nx > 0) ||
-    (base.x > trunkX && nx < 0)
-  ) {
-    nx = -nx;
-    ny = -ny;
-  }
-  const side = lateralIndex % 2 === 0 ? 1 : -1;
-  const band = Math.floor(lateralIndex / 2);
-  const off = 20 + band * (9 * (GOLDEN_RATIO - 1) + 5);
-  return { x: base.x + nx * off * side, y: base.y + ny * off * side };
+  return 0.06 + ((index + 1) / (total + 1)) * 0.88;
 }
 
 function renderGoalsSubtree(
@@ -489,30 +455,6 @@ function renderGoalsSubtree(
         onClick={() => toggleGoalExpand(goal.id)}
       />
       {milestonesNodes}
-      {showMs ? (
-        <a
-          href={`/roadmap/${goal.id}`}
-          aria-label={`Open roadmap for ${goal.title}`}
-          style={{ pointerEvents: "all" }}
-          rel="noopener noreferrer"
-        >
-          <text
-            x={pos.x}
-            y={pos.y + 14}
-            textAnchor="middle"
-            fill={areaColor}
-            opacity={0.88}
-            fontSize={9}
-            style={{
-              cursor: "pointer",
-              pointerEvents: "none",
-              fontFamily: 'ui-sans-serif, system-ui, "Segoe UI", sans-serif',
-            }}
-          >
-            Open roadmap
-          </text>
-        </a>
-      ) : null}
       {childNodes}
     </g>
   );
@@ -1401,11 +1343,8 @@ function TreeSVG({
   const [layoutOverrides, setLayoutOverrides] = useState(loadLayoutOverrides);
   const resolvedForks = useMemo(
     () =>
-      expandForksRecordForAreas(
-        applyLayoutOverrides(AREA_FORKS, deriveRightLimbsFromLeftMirrored(layoutOverrides)),
-        areas,
-      ),
-    [layoutOverrides, areas],
+      applyLayoutOverrides(AREA_FORKS, deriveRightLimbsFromLeftMirrored(layoutOverrides)),
+    [layoutOverrides],
   );
   useEffect(() => {
     saveLayoutOverrides(layoutOverrides);
@@ -1837,7 +1776,7 @@ function TreeSVG({
                               const fan = thread.siblings!.length === 1
                                 ? 0
                                 : (sibIdx / (thread.siblings!.length - 1)) * 2 - 1;
-                              const dist = 46 + sibIdx * GOLDEN_RATIO * 6.5;
+                              const dist = 48 + sibIdx * 4;
                               const along = 18 + Math.abs(fan) * 10;
                               const childPos = {
                                 x: splitPos.x + nx * dist + tx * along * 0.3,
@@ -1861,11 +1800,8 @@ function TreeSVG({
 
                       {thread.goals.length > 0
                         ? thread.goals.map((g, gi) => {
-                            const t = goalTAlongThread(g, gi, thread.goals.length, thread.moments.length);
-                            const pos =
-                              thread.moments.length > 0
-                                ? goalPositionBesideThread(threadMainDraw, t, gi, TREE_TRUNK_MIRROR_X)
-                                : pathPointAtT(threadMainDraw, t);
+                            const t = goalTAlongThread(g, gi, thread.goals.length);
+                            const pos = pathPointAtT(threadMainDraw, t);
                             return (
                               <g key={g.id}>
                                 {renderGoalsSubtree(
@@ -2475,9 +2411,9 @@ function TreeSVG({
                 type="button"
                 onClick={() => {
                   setLayoutOverrides((prev) => {
-                    const mergedForks = expandForksRecordForAreas(
-                      applyLayoutOverrides(AREA_FORKS, deriveRightLimbsFromLeftMirrored(prev)),
-                      areas,
+                    const mergedForks = applyLayoutOverrides(
+                      AREA_FORKS,
+                      deriveRightLimbsFromLeftMirrored(prev),
                     );
                     let maxMoments = 0;
                     let shortestArc = Infinity;

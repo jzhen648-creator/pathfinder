@@ -1,4 +1,4 @@
-import { computeSpine, deriveThreadSlotForIndex, SPINE_ORIGIN } from "./tree-geometry";
+import { computeSpine, SPINE_ORIGIN, THREAD_SLOTS } from "./tree-geometry";
 import type { AreaData, GoalBloomStatus, MomentNode, ThreadData, TreeGoalNode } from "./tree-types";
 
 export type RawBranch = {
@@ -166,10 +166,17 @@ export function mapToTreeData(
     const limbBranches = branches
       .filter((b) => b.limbId === limbId && !b.parentBranchId)
       .sort((a, b) => asDateMs(a.createdAt) - asDateMs(b.createdAt));
-    const nRoots = limbBranches.length;
+    const slots = THREAD_SLOTS[limbId] ?? [];
 
     const threads: ThreadData[] = limbBranches.map((branch, idx) => {
-      const safeSlot = deriveThreadSlotForIndex(limbId, idx, Math.max(1, nRoots), origin);
+      const slot = slots[idx] ?? slots[slots.length - 1];
+      const fallbackSlot = {
+        defaultFromT: 0.1,
+        p1: origin.p0,
+        p2: origin.p0,
+        sw: 2,
+      };
+      const safeSlot = slot ?? fallbackSlot;
 
       const fromT = safeSlot.defaultFromT;
 
