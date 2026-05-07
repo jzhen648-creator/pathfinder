@@ -18,9 +18,6 @@ export async function POST() {
       prisma.goal.deleteMany({
         where: { userId },
       }),
-      prisma.moment.deleteMany({
-        where: { userId },
-      }),
     ]);
     return NextResponse.json({ ok: true });
   } catch (err) {
@@ -28,4 +25,3 @@ export async function POST() {
     return NextResponse.json({ error: "Reset failed" }, { status: 500 });
   }
 }
-

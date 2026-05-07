@@ -131,14 +131,14 @@ export function DevPanel({
       branch:
         String(data.branchLabel ?? data.branchId ?? "").trim() || "Unknown",
       insertIndex: String(data.insertIndex ?? "?"),
-      after: prevMoment?.label ?? prevMoment?.title ?? "Start of branch",
-      before: nextMoment?.label ?? nextMoment?.title ?? "End of branch",
+      after: prevMoment?.label ?? prevMoment?.title ?? "Start of thread",
+      before: nextMoment?.label ?? nextMoment?.title ?? "End of thread",
     };
   }, [hoverInfo, moments]);
   const toFlatLines = (value: Record<string, unknown> | null) => {
     if (!value) return ["none"];
     return Object.entries(value).map(([k, v]) => {
-      if (k === "isFork") {
+      if (k === "isTurningPoint") {
         return `Turning point: ${v === true ? "yes" : "no"}`;
       }
       const text =
@@ -212,7 +212,7 @@ export function DevPanel({
         )}
         {hoveredGapContext ? (
           <div style={{ lineHeight: 1.5, marginTop: 6, opacity: 0.9 }}>
-            <div>{`branch: ${hoveredGapContext.branch}`}</div>
+            <div>{`thread: ${hoveredGapContext.branch}`}</div>
             <div>{`insert position: ${hoveredGapContext.insertIndex}`}</div>
             <div>{`after: ${hoveredGapContext.after}`}</div>
             <div>{`before: ${hoveredGapContext.before}`}</div>
@@ -221,7 +221,7 @@ export function DevPanel({
       </details>
 
       <details style={{ marginBottom: 8 }}>
-        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Branches (Raw)</summary>
+        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Threads (Raw)</summary>
         {branches.length === 0 ? (
           <div style={{ opacity: 0.6, marginTop: 6 }}>none loaded</div>
         ) : (
@@ -294,7 +294,7 @@ export function DevPanel({
       </details>
 
       <details style={{ marginBottom: 8 }}>
-        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Branch Breakdown</summary>
+        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Thread Breakdown</summary>
         {branchBreakdown.map((branch) => {
           return (
             <div key={branch.id} style={{ marginBottom: 6 }}>
@@ -337,7 +337,7 @@ export function DevPanel({
           <button onClick={onClearRealNodes}>Clear Real Nodes</button>
           <button onClick={onLogState}>Log Full State to Console</button>
           <button onClick={onCopyState}>Copy State as JSON</button>
-          <button onClick={onToggleBranchLabels}>Toggle All Branch Labels</button>
+          <button onClick={onToggleBranchLabels}>Toggle All Thread Labels</button>
         </div>
       </details>
 

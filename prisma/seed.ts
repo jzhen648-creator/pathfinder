@@ -14,7 +14,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { MOCK_LIFE_DATA } from "../src/lib/mock-life-data";
+import { getLegacyMockLifeData } from "../src/data/mock-data";
 
 const prisma = new PrismaClient();
 
@@ -31,9 +31,6 @@ async function upsertNode(userId: string, prefix: string, node: any) {
       year: node.year,
       month: node.month ?? null,
       future: Boolean(node.future),
-      isFork: Boolean(node.isFork ?? false),
-      forkOf: node.forkOf ?? null,
-      forkSide: node.forkSide ?? null,
       significance: Number(node.significance ?? 1),
       connectedTo: node.connectedTo ?? [],
       practicalData: node.practicalData ?? null,
@@ -45,6 +42,7 @@ async function upsertNode(userId: string, prefix: string, node: any) {
 async function main() {
   console.log("Seeding test accounts...");
   const passwordHash = await bcrypt.hash("pathfinder123", 10);
+  const mockLifeData = getLegacyMockLifeData("alex", "extensive");
 
   const emptyUser = await prisma.user.upsert({
     where: { email: "test-empty@pathfinder.com" },
@@ -71,7 +69,7 @@ async function main() {
     },
   });
 
-  const sparseNodes = MOCK_LIFE_DATA.nodes.slice(0, 3);
+  const sparseNodes = mockLifeData.nodes.slice(0, 3);
   for (const node of sparseNodes) {
     await upsertNode(sparseUser.id, "sparse", node);
   }
@@ -88,7 +86,7 @@ async function main() {
       birthPlace: "London, UK",
     },
   });
-  for (const node of MOCK_LIFE_DATA.nodes) {
+  for (const node of mockLifeData.nodes) {
     await upsertNode(fullUser.id, "full", node);
   }
   console.log("Created full account:", fullUser.email);
@@ -104,7 +102,7 @@ async function main() {
       birthPlace: "Bristol, UK",
     },
   });
-  for (const node of MOCK_LIFE_DATA.nodes) {
+  for (const node of mockLifeData.nodes) {
     await upsertNode(mobileUser.id, "mobile", node);
   }
   console.log("Created mobile account:", mobileUser.email);

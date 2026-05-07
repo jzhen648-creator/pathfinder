@@ -51,10 +51,10 @@ export default async function DashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               <Link
-                href="/"
+                href="/tree"
                 className="rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200 transition hover:bg-cyan-400/20"
               >
-                Back to Life Map
+                Back to tree
               </Link>
               <CreateGoalModal />
             </div>
@@ -65,7 +65,6 @@ export default async function DashboardPage() {
           <h2 className="text-sm uppercase tracking-[0.18em] text-zinc-500">Goals</h2>
           <div className="space-y-4">
             {user.goals.map((goal) => {
-              const orderedMilestones = [...goal.milestones].sort((a, b) => a.position - b.position);
               const totalSubtasks = goal.milestones.reduce(
                 (sum, milestone) => sum + milestone.subtasks.length,
                 0,
@@ -95,7 +94,7 @@ export default async function DashboardPage() {
                         title: goal.title,
                         description: goal.description,
                         lifeArea: goal.lifeArea,
-                        deadline: formatDateDMY(goal.deadline),
+                        deadline: goal.deadline ? formatDateDMY(goal.deadline) : "—",
                         milestones: [...goal.milestones]
                           .sort((a, b) => a.position - b.position)
                           .map((m) => ({
@@ -112,7 +111,9 @@ export default async function DashboardPage() {
                       }}
                     />
                   </div>
-                  <p className="mb-3 text-sm text-zinc-400">Deadline: {formatDateDMY(goal.deadline)}</p>
+                  <p className="mb-3 text-sm text-zinc-400">
+                    Deadline: {goal.deadline ? formatDateDMY(goal.deadline) : "None set"}
+                  </p>
                   <p className="mb-3 text-sm text-zinc-300">{goal.description}</p>
 
                   <div className="space-y-1.5">

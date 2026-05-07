@@ -83,34 +83,34 @@ async function ensureDefaultBranchesForUsers(
   return primaryByUserAndLimb;
 }
 
-function inferJourneyBranchName(moment: {
+function inferJourneyBranchName(g: {
   limbId: string;
-  label?: string | null;
+  title?: string | null;
   description?: string | null;
 }): string {
-  const text = `${moment.label ?? ""} ${moment.description ?? ""}`.toLowerCase();
-  if (moment.limbId === "finance") {
+  const text = `${g.title ?? ""} ${g.description ?? ""}`.toLowerCase();
+  if (g.limbId === "finance") {
     if (/(debt|loan|paid off)/.test(text)) return "Debt Freedom";
     if (/(salary|income|pay|profitable|revenue)/.test(text)) return "Income Growth";
     if (/(flat|home|house|mortgage)/.test(text)) return "Home Ownership";
     return "Investing";
   }
-  if (moment.limbId === "work") {
+  if (g.limbId === "work") {
     if (/(side hustle|freelanc|startup|own thing)/.test(text)) return "Side Hustle";
     if (/(skill|learn|course|cert)/.test(text)) return "Skills & Learning";
     return "Main Career";
   }
-  if (moment.limbId === "people") {
+  if (g.limbId === "people") {
     if (/(dad|mum|family|parent)/.test(text)) return "Family";
     if (/(engag|partner|romance|sam)/.test(text)) return "Romance";
     return "Friends";
   }
-  if (moment.limbId === "health") {
+  if (g.limbId === "health") {
     if (/(burnout|anxiety|therapy|stress|mental)/.test(text)) return "Mental Health";
     if (/(rest|sleep|recovery)/.test(text)) return "Rest & Recovery";
     return "Fitness";
   }
-  if (moment.limbId === "becoming") {
+  if (g.limbId === "becoming") {
     if (/(habit|routine)/.test(text)) return "Habits";
     if (/(identity|became|builder)/.test(text)) return "Identity";
     return "Mindset";
@@ -119,70 +119,73 @@ function inferJourneyBranchName(moment: {
 }
 
 async function main() {
-  const moments = await prisma.moment.findMany({
+  const timelineGoals = await prisma.goal.findMany({
+    where: { goalType: { in: ["moment", "event"] }, limbId: { not: null } },
     orderBy: [{ userId: "asc" }, { createdAt: "asc" }],
   });
 
-  if (moments.length === 0) {
-    console.log("No moments found; nothing to backfill.");
+  if (timelineGoals.length === 0) {
+    console.log("No timeline goals (moment/event) found; nothing to backfill.");
     return;
   }
 
-  const userIds = [...new Set(moments.map((m) => m.userId))];
-  const limbIds = [...new Set(moments.map((m) => m.limbId))];
+  const userIds = [...new Set(timelineGoals.map((g) => g.userId))];
+  const limbIds = [...new Set(timelineGoals.map((g) => g.limbId).filter((id): id is string => id != null))];
   const defaultBranches = await ensureDefaultBranchesForUsers(userIds, limbIds);
 
-  for (const moment of moments) {
-    const targetBranchName = inferJourneyBranchName(moment);
+  for (const g of timelineGoals) {
+    const limbId = g.limbId;
+    if (limbId == null) continue;
+    const targetBranchName = inferJourneyBranchName({ limbId, title: g.title, description: g.description });
     const target = await prisma.branch.findFirst({
       where: {
-        userId: moment.userId,
-        limbId: moment.limbId,
+        userId: g.userId,
+        limbId,
         OR: [{ name: targetBranchName }, { label: targetBranchName }],
       },
       select: { id: true },
     });
-    const fallbackBranchId = defaultBranches.get(`${moment.userId}::${moment.limbId}`) ?? null;
+    const fallbackBranchId = defaultBranches.get(`${g.userId}::${limbId}`) ?? null;
     const branchId = target?.id ?? fallbackBranchId;
     if (!branchId) continue;
 
-    const month = Number(moment.month ?? 1);
+    const month = Number(g.month ?? 1);
     const safeMonth = Number.isFinite(month) && month >= 1 && month <= 12 ? month : 1;
-    const date = new Date(`${moment.year}-${String(safeMonth).padStart(2, "0")}-01T00:00:00.000Z`);
+    const date = new Date(`${g.year}-${String(safeMonth).padStart(2, "0")}-01T00:00:00.000Z`);
 
     await prisma.mark.upsert({
-      where: { id: moment.id },
+      where: { id: g.id },
       update: {
         branchId,
-        limbId: moment.limbId,
-        userId: moment.userId,
-        title: moment.label,
-        description: moment.description ?? null,
+        limbId,
+        userId: g.userId,
+        title: g.title,
+        description: g.description || null,
         date,
-        type: inferMarkType(moment),
+        type: inferMarkType(g),
         value: null,
-        sentiment: inferMarkSentiment(moment),
+        sentiment: inferMarkSentiment(g),
         archived: false,
       },
       create: {
-        id: moment.id,
+        id: g.id,
         branchId,
-        limbId: moment.limbId,
-        userId: moment.userId,
-        title: moment.label,
-        description: moment.description ?? null,
+        limbId,
+        userId: g.userId,
+        title: g.title,
+        description: g.description || null,
         date,
-        type: inferMarkType(moment),
+        type: inferMarkType(g),
         value: null,
-        sentiment: inferMarkSentiment(moment),
+        sentiment: inferMarkSentiment(g),
         archived: false,
-        createdAt: moment.createdAt,
-        updatedAt: moment.updatedAt,
+        createdAt: g.createdAt,
+        updatedAt: g.updatedAt,
       },
     });
   }
 
-  console.log(`Backfilled ${moments.length} moments into marks.`);
+  console.log(`Backfilled ${timelineGoals.length} timeline goals into marks.`);
 }
 
 main()

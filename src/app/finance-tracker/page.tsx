@@ -38,7 +38,7 @@ export default async function FinanceTrackerPage() {
   if (!userId) redirect("/login");
 
   const goals = await prisma.goal.findMany({
-    where: { userId, lifeArea: "Money & Finance" },
+    where: { userId, lifeArea: { in: ["Money", "Money & Finance"] } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -47,7 +47,9 @@ export default async function FinanceTrackerPage() {
     label: goal.title,
     year: goal.createdAt.getFullYear(),
     description: goal.description,
-    practicalData: (goal as any).practicalData ?? undefined,
+    practicalData: (
+      goal.roadmapJson as { practicalData?: FinanceNode["practicalData"] } | null | undefined
+    )?.practicalData,
   }));
 
   const totalSaved = nodes.reduce(
@@ -79,7 +81,7 @@ export default async function FinanceTrackerPage() {
       <section className="mx-auto max-w-5xl space-y-8">
         <header className="space-y-2">
           <h1 className="text-4xl font-light text-[#34D399]" style={{ fontFamily: "Cormorant Garamond, serif" }}>
-            Money & Finance
+            Money
           </h1>
           <p className="text-sm text-zinc-400" style={{ fontFamily: "DM Sans, sans-serif" }}>
             Your financial story and practical tracker

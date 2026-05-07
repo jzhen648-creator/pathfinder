@@ -11,11 +11,13 @@ export function PerfMonitor({ nodeCount }: Props) {
   const rendersElRef = useRef<HTMLDivElement | null>(null)
   const fpsElRef = useRef<HTMLDivElement | null>(null)
   const frameRef = useRef<number | undefined>(undefined)
-  const lastTimeRef = useRef(performance.now())
+  const lastTimeRef = useRef(0)
   const frameCountRef = useRef(0)
   const renderCountRef = useRef(0)
 
-  renderCountRef.current += 1
+  useEffect(() => {
+    renderCountRef.current += 1
+  })
 
   useEffect(() => {
     if (!isEnabled('PERF_MONITOR')) return
@@ -31,6 +33,9 @@ export function PerfMonitor({ nodeCount }: Props) {
     if (!isEnabled('PERF_MONITOR')) return
 
     function countFrames(time: number) {
+      if (lastTimeRef.current === 0) {
+        lastTimeRef.current = time
+      }
       frameCountRef.current += 1
       const elapsed = time - lastTimeRef.current
       if (elapsed >= 1000) {

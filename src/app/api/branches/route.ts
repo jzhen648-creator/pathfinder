@@ -12,16 +12,39 @@ const createBranchSchema = z.object({
   mapAngleOffset: z.number().default(0),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUserId = session?.user?.id;
+  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(request.url);
+  const requestedUserId = url.searchParams.get("userId");
+  const userId =
+    process.env.NODE_ENV === "development" && requestedUserId
+      ? requestedUserId
+      : sessionUserId;
 
   const branches = await prisma.branch.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
   });
-  return NextResponse.json({ branches });
+  const goals = await prisma.goal.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    include: {
+      milestones: {
+        orderBy: { position: "asc" },
+        include: {
+          subtasks: {
+            orderBy: { position: "asc" },
+            select: { id: true, isCompleted: true, position: true, title: true },
+          },
+        },
+      },
+      forkedGoals: { select: { id: true } },
+    },
+  });
+  return NextResponse.json({ branches, goals });
 }
 
 export async function POST(request: Request) {

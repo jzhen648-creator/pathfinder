@@ -69,7 +69,7 @@ set to false, then build it, then set to true.
 - Branch ids: lowercase no spaces
 
 ## Testing
-- Mock data lives in src/lib/mock-life-data.ts
+- Mock data lives in src/data/mock-data.ts
 - Toggle with NEXT_PUBLIC_USE_MOCK_DATA=true
 - Test accounts defined in prisma/seed.ts
 - Always test with mock data before real data

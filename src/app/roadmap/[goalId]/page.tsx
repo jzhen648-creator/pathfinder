@@ -2,8 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getGoalWithProgress, getUserLevelData } from "@/lib/roadmap";
+import { getGoalWithProgress } from "@/lib/roadmap";
 import { RoadmapClient } from "@/components/roadmap/roadmap-client";
 
 type RouteProps = {
@@ -21,12 +20,9 @@ export default async function GoalRoadmapPage({ params }: RouteProps) {
   }
 
   const { goalId } = await params;
-  const [goal, user] = await Promise.all([
-    getGoalWithProgress(goalId, userId),
-    prisma.user.findUnique({ where: { id: userId } }),
-  ]);
+  const goal = await getGoalWithProgress(goalId, userId);
 
-  if (!goal || !user) {
+  if (!goal) {
     redirect("/dashboard");
   }
 
@@ -44,7 +40,7 @@ export default async function GoalRoadmapPage({ params }: RouteProps) {
           Vision → Milestones → Quick Wins → Daily Tasks
         </p>
 
-        <RoadmapClient initialGoal={goal} initialUser={getUserLevelData(user.xp)} />
+        <RoadmapClient initialGoal={goal} />
       </div>
     </main>
   );

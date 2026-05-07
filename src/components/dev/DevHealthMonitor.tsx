@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 
 type HealthStatus = "healthy" | "warning" | "problem";
 type InteractionState = "idle" | "hovering" | "dragging";
@@ -75,10 +75,11 @@ function logProblemMetric(name: string, value: string, lastWarningRef: { current
 
 export function DevHealthMonitor() {
   const isDev = process.env.NODE_ENV === "development";
-  if (!isDev) return null;
 
   const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
+  useEffect(() => {
+    renderCountRef.current += 1;
+  });
 
   const interactionStateRef = useRef<InteractionState>("idle");
   const memoryRecentRef = useRef<number[]>([]);
@@ -240,6 +241,8 @@ export function DevHealthMonitor() {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
+  if (!isDev) return null;
+
   return (
     <aside
       style={{
@@ -295,10 +298,10 @@ function MetricRow({
   detailRef,
 }: {
   label: string;
-  dotRef: React.MutableRefObject<HTMLSpanElement | null>;
-  valueRef: React.MutableRefObject<HTMLSpanElement | null>;
+  dotRef: MutableRefObject<HTMLSpanElement | null>;
+  valueRef: MutableRefObject<HTMLSpanElement | null>;
   defaultValue: string;
-  detailRef?: React.MutableRefObject<HTMLSpanElement | null>;
+  detailRef?: MutableRefObject<HTMLSpanElement | null>;
 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "14px 78px 1fr", alignItems: "center", gap: 6 }}>

@@ -15,7 +15,17 @@
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { z } from "zod";
 import { authOptions } from "@/lib/auth";
+import { zodErrorMessage } from "@/lib/validation/zod-helpers";
+
+const dragSuggestionBodySchema = z.object({
+  fromNodeId: z.string().min(1, "fromNodeId is required."),
+  toNodeId: z.string().min(1, "toNodeId is required."),
+  allNodes: z.array(z.unknown()).optional(),
+  /** Client may send allMoments instead of allNodes */
+  allMoments: z.array(z.unknown()).optional(),
+});
 
 type AIDragSuggestion = {
   connectionType: string;
@@ -30,7 +40,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { fromNodeId, toNodeId, allNodes } = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+  }
+
+  const parsed = dragSuggestionBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: zodErrorMessage(parsed.error) }, { status: 400 });
+  }
+
+  const { fromNodeId, toNodeId, allNodes, allMoments } = parsed.data;
+  const nodeList = allNodes ?? allMoments ?? [];
 
   // SCAFFOLDED — not yet implemented
   // TODO: Replace with real Groq AI call
@@ -40,7 +63,7 @@ export async function POST(request: Request) {
   console.log("[DRAG SUGGESTION] Scaffolded route called");
   console.log("From node:", fromNodeId);
   console.log("To node:", toNodeId);
-  console.log("Total nodes in context:", allNodes?.length);
+  console.log("Total nodes in context:", nodeList.length);
 
   const mockSuggestion: AIDragSuggestion = {
     connectionType: "connected_to",

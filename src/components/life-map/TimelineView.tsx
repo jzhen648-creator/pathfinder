@@ -1,6 +1,6 @@
 "use client";
 
-type TimelineNode = {
+export type TimelineNode = {
   id: string;
   label: string;
   description?: string;
@@ -8,7 +8,6 @@ type TimelineNode = {
   year: number;
   month?: number | null;
   future?: boolean;
-  isFork?: boolean;
   connectedTo?: string[];
   significance?: number;
   synthetic?: boolean;
@@ -254,20 +253,6 @@ export function TimelineView({ nodes, branchMetaByLabel, onStartBranch }: Timeli
                           }}
                         >
                           ↔ Connected
-                        </span>
-                      ) : null}
-                      {node.isFork ? (
-                        <span
-                          style={{
-                            borderRadius: 999,
-                            border: "1px solid rgba(255,255,255,0.2)",
-                            color: "rgba(255,255,255,0.35)",
-                            fontSize: 10,
-                            padding: "3px 8px",
-                            fontFamily: "'DM Sans', sans-serif",
-                          }}
-                        >
-                          ⑂ Fork
                         </span>
                       ) : null}
                     </div>

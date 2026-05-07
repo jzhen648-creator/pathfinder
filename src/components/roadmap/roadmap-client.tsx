@@ -6,7 +6,6 @@ type RoadmapSubtask = {
   id: string;
   title: string;
   isCompleted: boolean;
-  xpReward: number;
   dailyTasks: {
     id: string;
     title: string;
@@ -37,29 +36,18 @@ type GoalRoadmap = {
   goalType: "action" | "outcome" | string;
   targetAmount: number | null;
   currentAmount: number | null;
-  deadline: string;
-  xpReward: number;
+  deadline: string | null;
   progress: number;
   milestones: RoadmapMilestone[];
 };
 
-type UserLevelData = {
-  xp: number;
-  level: number;
-  levelProgress: number;
-};
-
 type RoadmapClientProps = {
   initialGoal: GoalRoadmap;
-  initialUser: UserLevelData;
 };
 
-export function RoadmapClient({ initialGoal, initialUser }: RoadmapClientProps) {
+export function RoadmapClient({ initialGoal }: RoadmapClientProps) {
   const [goal, setGoal] = useState(initialGoal);
-  const [user, setUser] = useState(initialUser);
-  const [xpFlash, setXpFlash] = useState<number | null>(null);
   const [loadingSubtaskId, setLoadingSubtaskId] = useState<string | null>(null);
-  const [burst, setBurst] = useState<{ subtaskId: string; xp: number } | null>(null);
 
   const activeMilestoneId = useMemo(
     () => goal.milestones.find((milestone) => milestone.isActive)?.id,
@@ -69,25 +57,12 @@ export function RoadmapClient({ initialGoal, initialUser }: RoadmapClientProps) 
   return (
     <section className="space-y-6">
       <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141414] p-6">
-        <div className="absolute right-4 top-4 text-right">
-          {xpFlash ? (
-            <p
-              className={`animate-xp-flash text-sm font-medium ${
-                xpFlash > 0 ? "text-indigo-300" : "text-zinc-400"
-              }`}
-            >
-              {xpFlash > 0 ? `+${xpFlash}` : xpFlash} XP
-            </p>
-          ) : null}
-        </div>
         <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Milestones</p>
         <h1 className="mt-2 text-3xl font-semibold text-white">{goal.title}</h1>
         <p className="mt-2 max-w-3xl text-zinc-400">{goal.description}</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-4">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <StatItem label="Life Area" value={goal.lifeArea} />
           <StatItem label="Progress" value={`${goal.progress}%`} />
-          <StatItem label="XP" value={`${user.xp}`} subtle />
-          <StatItem label="Level" value={`${user.level}`} subtle />
         </div>
         {goal.goalType === "outcome" && goal.targetAmount ? (
           <div className="mt-4 rounded-lg border border-indigo-400/20 bg-black/20 p-3">
@@ -188,23 +163,13 @@ export function RoadmapClient({ initialGoal, initialUser }: RoadmapClientProps) 
                               );
                               const result = (await response.json()) as {
                                 error?: string;
-                                xpAwarded?: number;
                                 goal?: GoalRoadmap;
-                                user?: UserLevelData;
                               };
-                              if (!response.ok || !result.goal || !result.user) {
-                                setLoadingSubtaskId(null);
+                              if (!response.ok || !result.goal) {
                                 return;
                               }
 
                               setGoal(result.goal);
-                              setUser(result.user);
-                              if (result.xpAwarded && result.xpAwarded !== 0) {
-                                setXpFlash(result.xpAwarded);
-                                setBurst({ subtaskId: subtask.id, xp: result.xpAwarded });
-                                setTimeout(() => setXpFlash(null), 1200);
-                                setTimeout(() => setBurst(null), 760);
-                              }
                             } finally {
                               setLoadingSubtaskId(null);
                             }
@@ -220,33 +185,10 @@ export function RoadmapClient({ initialGoal, initialUser }: RoadmapClientProps) 
                           <span className={subtask.isCompleted ? "line-through opacity-80" : ""}>
                             {subtask.title}
                           </span>
-                          <span className="text-xs text-zinc-400">
-                            {subtask.isCompleted ? "Done" : `+${subtask.xpReward} XP`}
+                          <span className="text-xs text-zinc-500">
+                            {subtask.isCompleted ? "Done" : "Open"}
                           </span>
                         </button>
-                        {burst?.subtaskId === subtask.id ? (
-                          <>
-                            <span className="pointer-events-none absolute right-3 top-1 text-xs font-medium text-amber-300 animate-xp-flash">
-                              +{Math.abs(burst.xp)} XP
-                            </span>
-                            <span
-                              className="burst-particle pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-amber-300"
-                              style={{ ["--x" as string]: "-16px", ["--y" as string]: "-14px" }}
-                            />
-                            <span
-                              className="burst-particle pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-amber-200"
-                              style={{ ["--x" as string]: "14px", ["--y" as string]: "-16px" }}
-                            />
-                            <span
-                              className="burst-particle pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-yellow-200"
-                              style={{ ["--x" as string]: "18px", ["--y" as string]: "-2px" }}
-                            />
-                            <span
-                              className="burst-particle pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-amber-100"
-                              style={{ ["--x" as string]: "-18px", ["--y" as string]: "-2px" }}
-                            />
-                          </>
-                        ) : null}
                       </div>
 
                       <div className="mt-2 space-y-1 pl-1">

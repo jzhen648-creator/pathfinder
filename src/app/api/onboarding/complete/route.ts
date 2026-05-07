@@ -9,6 +9,8 @@ const payloadSchema = z.object({
   answers: z.record(z.string(), z.string().min(1)),
   profileText: z.string().optional(),
   confirm: z.boolean().optional(),
+  // Prefer the new key; keep lifeWheelRatings for backward compatibility.
+  lifeAreaRatings: z.record(z.string(), z.number()).optional(),
   lifeWheelRatings: z.record(z.string(), z.number()).optional(),
 });
 
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
       }));
 
     if (parsed.data.confirm) {
+      const lifeAreaRatings = parsed.data.lifeAreaRatings ?? parsed.data.lifeWheelRatings;
       const birthYearRaw = parsed.data.answers.birthYear;
       const parsedBirthYear = birthYearRaw ? Number.parseInt(birthYearRaw, 10) : NaN;
       const birthYear =
@@ -58,16 +61,16 @@ export async function POST(request: Request) {
           onboardingCompleted: true,
           onboardingProfileText: profileText,
           onboardingProfileData: parsed.data.answers,
-          lifeWheelRatings: parsed.data.lifeWheelRatings,
-          lifeWheelHistory: parsed.data.lifeWheelRatings
+          lifeWheelRatings: lifeAreaRatings,
+          lifeWheelHistory: lifeAreaRatings
             ? [
                 {
                   timestamp: new Date().toISOString(),
-                  ratings: parsed.data.lifeWheelRatings,
+                  ratings: lifeAreaRatings,
                 },
               ]
             : undefined,
-        } as any,
+        },
       });
     }
 

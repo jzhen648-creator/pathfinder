@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 async function redirectToMoment(request: Request, props: RouteProps) {
   const { goalId } = await props.params;
   const url = new URL(request.url);
-  url.pathname = `/api/marks/${goalId}`;
+  url.pathname = `/api/moments/${goalId}`;
   return NextResponse.redirect(url, 308);
 }
 

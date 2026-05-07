@@ -1,27 +1,14 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const createMarkSchema = z.object({
-  limbId: z.string().min(1),
-  branchId: z.string().min(1),
-  title: z.string().min(1).max(200).optional(),
-  label: z.string().min(1).max(200).optional(),
-  description: z.string().nullable().optional(),
-  date: z.string().datetime().optional(),
-  year: z.number().int().min(1900).max(2100).optional(),
-  month: z.number().int().min(1).max(12).nullable().optional(),
-  type: z.enum(["milestone", "setback", "realisation", "decision", "achievement"]).optional(),
-  value: z.number().nullable().optional(),
-  sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
-  archived: z.boolean().optional(),
-  future: z.boolean().optional(),
-  significance: z.number().int().min(1).max(3).optional(),
-  location: z.string().nullable().optional(),
-  subtype: z.string().max(40).nullable().optional(),
-});
+import {
+  createMarkBodySchema,
+  displayMarkTitleFromInput,
+  isMarkDateInTheFuture,
+  resolveMarkInputDate,
+  zodErrorMessage,
+} from "@/lib/validation/marks-and-branches";
 
 function inferType(input: {
   type?: "milestone" | "setback" | "realisation" | "decision" | "achievement";
@@ -45,22 +32,22 @@ function inferSentiment(input: {
   return "neutral";
 }
 
-function resolveDate(input: { date?: string; year?: number; month?: number | null }): Date {
-  if (input.date) return new Date(input.date);
-  const y = Number.isFinite(Number(input.year)) ? Number(input.year) : new Date().getFullYear();
-  const m = Number.isFinite(Number(input.month)) ? Number(input.month) : 1;
-  return new Date(`${y}-${String(m).padStart(2, "0")}-01T00:00:00.000Z`);
-}
-
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUserId = session?.user?.id;
+  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const includeArchived = new URL(request.url).searchParams.get("includeArchived") === "true";
+  const url = new URL(request.url);
+  const requestedUserId = url.searchParams.get("userId");
+  const userId =
+    process.env.NODE_ENV === "development" && requestedUserId
+      ? requestedUserId
+      : sessionUserId;
+
+  const includeArchived = url.searchParams.get("includeArchived") === "true";
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true, xp: true, birthYear: true, birthPlace: true },
+    select: { name: true, email: true, birthYear: true, birthPlace: true },
   });
 
   const [marks, branches] = await Promise.all([
@@ -131,7 +118,6 @@ export async function GET(request: Request) {
     user: {
       name: user?.name ?? "",
       email: user?.email ?? "",
-      xp: Number(user?.xp ?? 0),
       birthYear: user?.birthYear ?? null,
       birthPlace: user?.birthPlace ?? "",
     },
@@ -144,10 +130,16 @@ export async function POST(request: Request) {
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
-  const parsed = createMarkSchema.safeParse(body);
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+  }
+
+  const parsed = createMarkBodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" }, { status: 400 });
+    return NextResponse.json({ error: zodErrorMessage(parsed.error) }, { status: 400 });
   }
   const input = parsed.data;
   const branch = await prisma.branch.findFirst({
@@ -155,15 +147,29 @@ export async function POST(request: Request) {
     select: { id: true, limbId: true },
   });
   if (!branch) {
-    return NextResponse.json({ error: "branchId must reference an existing branch" }, { status: 400 });
+    return NextResponse.json(
+      { error: "branchId must belong to the authenticated user and reference a valid branch." },
+      { status: 400 },
+    );
   }
   if (branch.limbId !== input.limbId) {
-    return NextResponse.json({ error: "branchId must belong to the same limbId" }, { status: 400 });
+    return NextResponse.json(
+      { error: "branchId must belong to the same life area (limbId) as the mark." },
+      { status: 400 },
+    );
   }
 
-  const title = (input.title ?? input.label ?? "").trim().split(/\s+/).slice(0, 7).join(" ");
+  const resolved = resolveMarkInputDate(input);
+  if (!resolved.ok) {
+    return NextResponse.json({ error: resolved.message }, { status: 400 });
+  }
+  if (isMarkDateInTheFuture(resolved.d)) {
+    return NextResponse.json({ error: "Date cannot be in the future." }, { status: 400 });
+  }
+
+  const title = displayMarkTitleFromInput(input.title, input.label);
   if (!title) {
-    return NextResponse.json({ error: "title is required" }, { status: 400 });
+    return NextResponse.json({ error: "Title is required (1–100 characters)." }, { status: 400 });
   }
 
   const mark = await prisma.mark.create({
@@ -173,9 +179,9 @@ export async function POST(request: Request) {
       limbId: input.limbId,
       title,
       description: input.description ?? null,
-      date: resolveDate(input),
+      date: resolved.d,
       type: inferType(input),
-      value: input.value ?? null,
+      value: input.value === undefined ? null : input.value,
       sentiment: inferSentiment(input),
       archived: Boolean(input.archived ?? false),
     },

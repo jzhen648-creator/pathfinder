@@ -12,10 +12,10 @@
  * - Any route or screen that should show a timeline-only experience.
  */
 
-import { TimelineView } from "@/components/life-map/TimelineView";
+import { TimelineView, type TimelineNode } from "@/components/life-map/TimelineView";
 
 type TimelineScreenProps = {
-  nodes: any[];
+  nodes: TimelineNode[];
   branchMetaByLabel: Record<string, { label: string; icon: string; color: string }>;
   onStartBranch: (branchLabel: string) => void;
 };

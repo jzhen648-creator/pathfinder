@@ -8,7 +8,7 @@ type GoalSnapshot = {
   title: string;
   description: string;
   lifeArea: string;
-  deadline: string;
+  deadline: string | null;
   milestones: Array<{
     id: string;
     title: string;

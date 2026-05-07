@@ -49,9 +49,6 @@ const previewNodeSchema = z.object({
   branch: z.enum(BRANCHES),
   desc: z.string().min(1),
   future: z.boolean(),
-  fork: z.boolean(),
-  forkOf: z.string().optional(),
-  forkSide: z.enum(["left", "right"]).optional(),
 });
 
 const extractResponseSchema = z.discriminatedUnion("state", [
@@ -114,19 +111,6 @@ STATE vague:
 - Input too general
 - Reflect what you heard
 - Ask one open question inviting depth
-
-FORK DETECTION
-A fork is ONLY created when user explicitly describes:
-- two genuinely different futures
-- and a choice between them
-- and both options are known
-
-If fork detected, preview should include:
-- fork node (fork: true)
-- chosen path node with forkOf + forkSide right
-- optional road-not-taken node with forkOf + forkSide left only if user explicitly mentioned it
-
-Never create a fork from a single outcome.
 
 CONNECTION DETECTION
 After placing a node, quietly check if it meaningfully connects to existing nodes (same year, cause/effect, related theme).
@@ -237,11 +221,8 @@ export async function POST(request: Request) {
                 branch: { type: "string", enum: BRANCHES },
                 desc: { type: "string" },
                 future: { type: "boolean" },
-                fork: { type: "boolean" },
-                forkOf: { type: "string" },
-                forkSide: { type: "string", enum: ["left", "right"] },
               },
-              required: ["label", "year", "branch", "desc", "future", "fork"],
+              required: ["label", "year", "branch", "desc", "future"],
               additionalProperties: false,
             },
           },

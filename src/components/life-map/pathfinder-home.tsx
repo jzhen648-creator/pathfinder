@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
+﻿/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-explicit-any */
 // @ts-nocheck
 "use client";
 
@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DevPanel, type DevHoverInfo } from "@/components/dev/DevPanel";
-import { MOCK_DATA } from "@/lib/mock-data";
+import { getLegacyMockLifeData } from "@/data/mock-data";
 import { LIMBS } from "@/lib/limbs";
 import { LIMB_SUBTYPES } from "@/lib/types";
 import { isEnabled } from "@/lib/flags";
@@ -62,7 +62,7 @@ import { isEnabled } from "@/lib/flags";
 const BRANCHES = [
   {
     id: "finance",
-    label: "Money & Finance",
+    label: "Money",
     color: "#34D399",
     angle: -70,
     emptyPrompt: "How has your financial situation evolved?",
@@ -70,7 +70,7 @@ const BRANCHES = [
   },
   {
     id: "work",
-    label: "Work & Career",
+    label: "Work & Learning",
     color: "#F59E0B",
     angle: -45,
     emptyPrompt: "What do you do and how did you get here?",
@@ -78,7 +78,7 @@ const BRANCHES = [
   },
   {
     id: "becoming",
-    label: "Who I'm Becoming",
+    label: "Personal Growth",
     color: "#A78BFA",
     angle: 0,
     emptyPrompt: "How have you grown and changed?",
@@ -86,7 +86,7 @@ const BRANCHES = [
   },
   {
     id: "people",
-    label: "People & Relationships",
+    label: "Relationships",
     color: "#EC4899",
     angle: 45,
     emptyPrompt: "Who has shaped your story?",
@@ -94,7 +94,7 @@ const BRANCHES = [
   },
   {
     id: "health",
-    label: "Health & Body",
+    label: "Health",
     color: "#10B981",
     angle: 70,
     emptyPrompt: "How has your health evolved?",
@@ -181,7 +181,7 @@ function resolveLimbFromMomentLike(
 
   return {
     limbId: fallbackLimbId,
-    limbLabel: LIMB_LABEL_BY_ID[fallbackLimbId] ?? "Who I'm Becoming",
+    limbLabel: LIMB_LABEL_BY_ID[fallbackLimbId] ?? "Personal Growth",
   };
 }
 
@@ -207,15 +207,6 @@ function getPos(angleDeg, distance) {
     x: Math.sin(rad) * distance,
     y: -Math.abs(Math.cos(rad)) * distance,
   };
-}
-
-function getNextForkSideForParent(
-  parentId: string,
-  moments: Array<{ fork?: boolean; forkOf?: string | null }>,
-): "left" | "right" {
-  const existingForks = moments.filter((m) => Boolean(m?.fork) && m?.forkOf === parentId);
-  // Alternate sides for clearer multiple forks off the same parent.
-  return existingForks.length % 2 === 0 ? "right" : "left";
 }
 
 function renderLimbGlyph(branchId, color) {
@@ -348,14 +339,10 @@ function sortBranchMomentsForMap(branchMoments) {
   );
 }
 
-function isForkedMoment(node) {
-  return Boolean(node?.fork) && Boolean(node?.forkOf);
-}
-
 function getNodeSubbranchId(node, branch) {
   if (node?.subbranch) return node.subbranch;
   if (node?.id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const globalAny = globalThis as any;
     const warned: Set<string> =
       globalAny.__pathfinderMissingSubbranchWarned ??
@@ -402,8 +389,8 @@ function recalibrateAngles(branches) {
   const MIN_SEPARATION = 25;
   const adjusted = branches.map((branch) => ({ ...branch }));
   for (let i = 0; i < adjusted.length - 1; i += 1) {
-    const currentCount = adjusted[i].nodes.filter((node) => !node.forkOf).length;
-    const nextCount = adjusted[i + 1].nodes.filter((node) => !node.forkOf).length;
+    const currentCount = adjusted[i].nodes.length;
+    const nextCount = adjusted[i + 1].nodes.length;
     if (currentCount < 3 || nextCount < 3) continue;
     const gap = adjusted[i + 1].angle - adjusted[i].angle;
     if (gap < MIN_SEPARATION) {
@@ -466,17 +453,16 @@ function rootEdge(angle, endX, endY) {
 
 function transformGoals(goals, branchLabels) {
   const legacyToNewArea = {
-    Career: "Work & Career",
-    Health: "Health & Body",
-    "Health & Fitness": "Health & Body",
-    "Personal Growth": "Who I'm Becoming",
-    Relationships: "People & Relationships",
-    "Where I've Lived": "Who I'm Becoming",
-    Living: "Who I'm Becoming",
-    "Where I've Been": "Who I'm Becoming",
-    places: "Who I'm Becoming",
-    Finance: "Money & Finance",
-    "Money & Finance": "Money & Finance",
+    Career: "Work & Learning",
+    Health: "Health",
+    "Health & Fitness": "Health",
+    "Personal Growth": "Personal Growth",
+    Relationships: "Relationships",
+    "Where I've Lived": "Personal Growth",
+    Living: "Personal Growth",
+    "Where I've Been": "Personal Growth",
+    places: "Personal Growth",
+    Finance: "Money",
   };
   const dedupedById = [];
   const seenIds = new Set();
@@ -489,7 +475,7 @@ function transformGoals(goals, branchLabels) {
   const grouped = {};
   dedupedById.forEach((g) => {
     const sourceArea = g.limb ?? g.lifeArea ?? g.branch;
-    const area = legacyToNewArea[sourceArea] ?? sourceArea ?? "Who I'm Becoming";
+    const area = legacyToNewArea[sourceArea] ?? sourceArea ?? "Personal Growth";
     if (!grouped[area]) grouped[area] = [];
     grouped[area].push(g);
   });
@@ -513,9 +499,6 @@ function transformGoals(goals, branchLabels) {
       desc: g.description || g.title || g.label,
       progress: g.progress ?? 0,
       future: Boolean(g.future ?? ((g.progress ?? 0) < 100)),
-      fork: g.isFork || false,
-      forkOf: g.forkOf || undefined,
-      forkSide: g.forkSide || undefined,
       synthetic: Boolean(g.synthetic),
       practicalData: g.practicalData,
       significance: Math.max(1, Math.min(3, Number(g.significance ?? 1))),
@@ -531,14 +514,14 @@ function transformGoals(goals, branchLabels) {
       const key = `${String(node.subbranch ?? "")}::${String(node.label ?? "").trim().toLowerCase()}`;
       const idx = dedupeIndex.get(key);
       if (idx === undefined) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         (node as any).duplicateCount = 1;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         (node as any).duplicateNodeIds = [node.id];
         dedupeIndex.set(key, deduped.length);
         deduped.push(node);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         const existing: any = deduped[idx];
         existing.duplicateCount = Number(existing.duplicateCount ?? 1) + 1;
         existing.duplicateNodeIds = [
@@ -772,13 +755,13 @@ function resolveYearChipToNumber(value) {
 
 function buildNodeLabel(selections) {
   const raw = selections.filter(Boolean).join(" ").trim();
-  if (!raw) return "Life Moment";
+  if (!raw) return "Moment";
   const words = raw.split(/\s+/);
   const deduped = words.filter(
     (word, index) => index === 0 || word.toLowerCase() !== words[index - 1].toLowerCase(),
   );
   const capped = deduped.slice(0, 5);
-  if (capped.length === 0) return "Life Moment";
+  if (capped.length === 0) return "Moment";
   return `${capped[0].charAt(0).toUpperCase()}${capped[0].slice(1)}${capped
     .slice(1)
     .map((w) => ` ${w}`)
@@ -956,7 +939,7 @@ function wasUnlockShownRecently(branchId: string) {
 }
 
 const GUIDED_FLOW_BLUEPRINTS = stripTemporalQuestionsFromFlowBlueprints({
-  "Work & Career": {
+  "Work & Learning": {
     "First job": {
       steps: [
         { id: "field", question: "What field was it in?", options: ["Sales", "Tech", "Finance", "Healthcare", "Hospitality", "Other"], allowOther: true },
@@ -980,7 +963,7 @@ const GUIDED_FLOW_BLUEPRINTS = stripTemporalQuestionsFromFlowBlueprints({
       ],
     },
   },
-  "Health & Body": {
+  Health: {
     "Started training": {
       steps: [
         { id: "type", question: "What kind of training?", options: ["Gym", "Running", "Martial arts", "Cycling", "Swimming", "Sport", "Yoga", "Other"], allowOther: true },
@@ -1003,7 +986,7 @@ const GUIDED_FLOW_BLUEPRINTS = stripTemporalQuestionsFromFlowBlueprints({
       ],
     },
   },
-  "People & Relationships": {
+  Relationships: {
     "Met my partner": {
       steps: [
         { id: "how", question: "How did you meet?", options: ["Through friends", "App", "Work", "School", "Travelling", "Just happened"] },
@@ -1025,7 +1008,7 @@ const GUIDED_FLOW_BLUEPRINTS = stripTemporalQuestionsFromFlowBlueprints({
       ],
     },
   },
-  "Who I'm Becoming": {
+  "Personal Growth": {
     "Mindset Shift": {
       steps: [
         {
@@ -1087,7 +1070,7 @@ const GUIDED_FLOW_BLUEPRINTS = stripTemporalQuestionsFromFlowBlueprints({
       ],
     },
   },
-  "Money & Finance": {
+  Money: {
     "First income": {
       steps: [
         { id: "source", question: "What was it from?", options: ["Part time job", "First salary", "Freelance", "Business", "Inheritance"] },
@@ -1133,6 +1116,7 @@ type UndoAction = {
 };
 
 export function PathfinderHome() {
+  const legacyMockData = useMemo(() => getLegacyMockLifeData("alex", "extensive"), []);
   const useMockData = isEnabled("MOCK_DATA");
   const isDev = true;
   const devPanelFeatureEnabled = isEnabled("DEV_PANEL") && isDev;
@@ -1172,7 +1156,7 @@ export function PathfinderHome() {
   // this holds its id. Cleared once the moment is created.
   const [pendingNewBranchId, setPendingNewBranchId] = useState<string | null>(null);
   const [recentNodeIds, setRecentNodeIds] = useState<string[]>([]);
-  const [profile, setProfile] = useState({ name: "", email: "", xp: 0, birthYear: null, birthPlace: "" });
+  const [profile, setProfile] = useState({ name: "", email: "", birthYear: null, birthPlace: "" });
   const [guidedBranch, setGuidedBranch] = useState(null);
   const [guidedSubbranch, setGuidedSubbranch] = useState<string | null>(null);
   const [hoveredPromptBranch, setHoveredPromptBranch] = useState<string | null>(null);
@@ -1200,7 +1184,7 @@ export function PathfinderHome() {
     subbranch: string | null;
     promptOverride: string;
     isBranching?: boolean;
-    forkSide?: "left" | "right";
+    lateral?: "left" | "right";
     insertIndex?: number;
     insertAfterNodeId?: string | null;
     insertBeforeNodeId?: string | null;
@@ -1224,7 +1208,7 @@ export function PathfinderHome() {
     originalY: number;
     branchColor: string;
     branchLabel: string;
-    forkSide: "left" | "right";
+    lateral: "left" | "right";
   } | null>(null);
   const [guidedFlowInsertContext, setGuidedFlowInsertContext] = useState<{
     branchId: string;
@@ -1438,7 +1422,7 @@ export function PathfinderHome() {
   }
 
   function applyMockData() {
-    const normalizedMockNodes = MOCK_DATA.moments.map((node) => {
+    const normalizedMockNodes = legacyMockData.moments.map((node) => {
       const resolved = resolveLimbFromMomentLike(node);
       return {
         id: node.id,
@@ -1453,9 +1437,6 @@ export function PathfinderHome() {
         month: node.month ?? null,
         description: node.description,
         future: node.future,
-        isFork: false,
-        forkOf: null,
-        forkSide: null,
         progress: node.future ? 0 : 100,
         significance: node.significance ?? 1,
         connectedTo: [],
@@ -1468,13 +1449,12 @@ export function PathfinderHome() {
       };
     });
     setGoals(deduplicateNodes(normalizedMockNodes) as any);
-    setCanonicalBranches(MOCK_DATA.branches as any[]);
+    setCanonicalBranches(legacyMockData.branches as any[]);
     setProfile({
-      name: "Mock User",
-      email: "",
-      xp: 0,
-      birthYear: null,
-      birthPlace: "",
+      name: "Alex Carter",
+      email: "alex.mock@example.com",
+      birthYear: 1994,
+      birthPlace: "Manchester, UK",
     });
     setUnlockedBranches([]);
   }
@@ -1607,7 +1587,6 @@ export function PathfinderHome() {
       setProfile({
         name: data.user?.name ?? "",
         email: data.user?.email ?? "",
-        xp: Number(data.user?.xp ?? 0),
         birthYear: data.user?.birthYear ?? null,
         birthPlace: data.user?.birthPlace ?? "",
       });
@@ -1710,7 +1689,6 @@ export function PathfinderHome() {
           year: Number(goal.year ?? new Date(goal.createdAt).getFullYear()),
           month: goal.month ?? null,
           future: Boolean(goal.future ?? false),
-          isFork: Boolean(goal.isFork),
           significance: Math.max(1, Math.min(3, Number(goal.significance ?? 1))),
           connectedTo: Array.isArray(goal.connectedTo) ? goal.connectedTo : [],
           location: goal.location ?? null,
@@ -1993,10 +1971,10 @@ export function PathfinderHome() {
     [branches, getSubbranchNodesByIds],
   );
   const relatedAdjacentPairs = new Set([
-    "Money & Finance|Work & Career",
-    "Work & Career|Who I'm Becoming",
-    "Who I'm Becoming|People & Relationships",
-    "People & Relationships|Health & Body",
+    "Money|Work & Learning",
+    "Work & Learning|Personal Growth",
+    "Personal Growth|Relationships",
+    "Relationships|Health",
   ]);
 
   function addConnection(connection: GuidedFlowConnection) {
@@ -2151,8 +2129,8 @@ export function PathfinderHome() {
         insertBeforeNodeId: gap.nextNodeId ?? null,
         isBranching: true,
         promptOverride: gap.prevNodeLabel
-          ? `Branching from "${gap.prevNodeLabel}" - what's the first moment on this new path?`
-          : `Start a new branch on ${gap.branchLabel}. What's the first moment?`,
+          ? `New thread from "${gap.prevNodeLabel}" - what's the first moment on this new path?`
+          : `Start a new thread on ${gap.branchLabel}. What's the first moment?`,
       });
     } catch (err) {
       console.error("[PathfinderHome] start new branch failed", err);
@@ -2188,7 +2166,7 @@ export function PathfinderHome() {
         insertAfterNodeId: node?.id ?? null,
         insertBeforeNodeId: nextNode?.id ?? null,
         isBranching: true,
-        promptOverride: `Branching from "${node?.label ?? "this moment"}" - what's the first moment on this new path?`,
+        promptOverride: `New thread from "${node?.label ?? "this moment"}" - what's the first moment on this new path?`,
       });
     } catch (err) {
       console.error("[PathfinderHome] branch from moment failed", err);
@@ -2695,7 +2673,7 @@ export function PathfinderHome() {
     const extension = getPos(forkAngle, NODE_SPACING);
     const ghostX = originalPos.x + extension.x;
     const ghostY = originalPos.y + extension.y;
-    const forkSide: "left" | "right" = forkAngle < parentSubbranchAngle ? "left" : "right";
+    const lateral: "left" | "right" = forkAngle < parentSubbranchAngle ? "left" : "right";
     setDragGhost((prev) => {
       const next = {
         ghostX,
@@ -2704,13 +2682,13 @@ export function PathfinderHome() {
         originalY: originalPos.y,
         branchColor: node.branchColor ?? branchMeta?.color ?? "#94A3B8",
         branchLabel: node.branchLabel,
-        forkSide,
+        lateral,
       };
       if (
         prev &&
         Math.abs(prev.ghostX - next.ghostX) < 0.25 &&
         Math.abs(prev.ghostY - next.ghostY) < 0.25 &&
-        prev.forkSide === next.forkSide &&
+        prev.lateral === next.lateral &&
         prev.branchColor === next.branchColor
       ) {
         return prev;
@@ -2790,7 +2768,7 @@ export function PathfinderHome() {
         subbranch: node.subbranch ?? null,
         promptOverride: `What happened next after "${node.label}"?`,
         isBranching: true,
-        forkSide: dragGhost?.forkSide ?? "right",
+        lateral: dragGhost?.lateral ?? "right",
       });
     }
     setDragState({
@@ -2943,9 +2921,6 @@ export function PathfinderHome() {
       year,
       month: input.month ?? null,
       future: Boolean(input.future ?? false),
-      isFork: Boolean(input.isFork),
-      forkOf: input.forkOf ?? null,
-      forkSide: input.forkSide ?? null,
       timelineNote: input.timelineNote ?? null,
       connectedTo: Array.isArray(input.connectedTo) ? input.connectedTo : [],
       significance: Math.max(1, Math.min(3, Number(input.significance ?? 1))),
@@ -2995,7 +2970,7 @@ export function PathfinderHome() {
     const selectedPill = flowState?.pill;
     const get = (key) => String(answers[key] ?? "").trim();
     const currentYear = new Date().getFullYear();
-    if (branch === "Work & Career" && selectedPill === "First job") {
+    if (branch === "Work & Learning" && selectedPill === "First job") {
       const field = get("field") || "First";
       const when = get("when") || "This year";
       const outcome = get("outcome") || "Learned a lot";
@@ -3005,10 +2980,9 @@ export function PathfinderHome() {
         year,
         desc: `Started a ${field.toLowerCase()} job around ${when} - ${outcome.toLowerCase()}.`,
         summary: `Started a ${field.toLowerCase()} job around ${when} - ${outcome.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "Work & Career" && selectedPill === "Career pivot") {
+    if (branch === "Work & Learning" && selectedPill === "Career pivot") {
       const from = get("from") || "previous role";
       const to = get("to") || "new role";
       const driver = get("driver") || "life change";
@@ -3019,10 +2993,9 @@ export function PathfinderHome() {
         year,
         desc: `Pivoted from ${from.toLowerCase()} to ${to.toLowerCase()} in ${when} due to ${driver.toLowerCase()}.`,
         summary: `Pivoted from ${from.toLowerCase()} to ${to.toLowerCase()} in ${when} because of ${driver.toLowerCase()}.`,
-        isFork: true,
       };
     }
-    if (branch === "Work & Career" && selectedPill === "Started a business") {
+    if (branch === "Work & Learning" && selectedPill === "Started a business") {
       const kind = get("kind") || "business";
       const when = get("when") || String(currentYear);
       const status = get("status") || "just getting started";
@@ -3032,10 +3005,9 @@ export function PathfinderHome() {
         year,
         desc: `Started a ${kind.toLowerCase()} business in ${when}; currently ${status.toLowerCase()}.`,
         summary: `Started a ${kind.toLowerCase()} business in ${when} - ${status.toLowerCase()}.`,
-        isFork: true,
       };
     }
-    if (branch === "Health & Body" && selectedPill === "Started training") {
+    if (branch === "Health" && selectedPill === "Started training") {
       const type = get("type") || "training";
       const when = get("when") || String(currentYear);
       const status = get("status") || "on and off";
@@ -3045,10 +3017,9 @@ export function PathfinderHome() {
         year,
         desc: `Started ${type.toLowerCase()} in ${when} - ${status.toLowerCase()}.`,
         summary: `Started ${type.toLowerCase()} training in ${when} - and you're ${status.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "Health & Body" && selectedPill === "Lost weight") {
+    if (branch === "Health" && selectedPill === "Lost weight") {
       const amount = get("amount") || "weight";
       const method = get("method") || "habit changes";
       const when = get("when") || String(currentYear);
@@ -3058,10 +3029,9 @@ export function PathfinderHome() {
         year,
         desc: `Lost ${amount.toLowerCase()} around ${when} using ${method.toLowerCase()}.`,
         summary: `Lost ${amount.toLowerCase()} around ${when} through ${method.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "Health & Body" && selectedPill === "Built a habit") {
+    if (branch === "Health" && selectedPill === "Built a habit") {
       const habit = get("habit") || "habit";
       const when = get("when") || String(currentYear);
       const consistency = get("consistency") || "still building it";
@@ -3071,10 +3041,9 @@ export function PathfinderHome() {
         year,
         desc: `Built a ${habit.toLowerCase()} habit from ${when}; consistency: ${consistency.toLowerCase()}.`,
         summary: `Built a ${habit.toLowerCase()} habit in ${when} - ${consistency.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "People & Relationships" && selectedPill === "Met my partner") {
+    if (branch === "Relationships" && selectedPill === "Met my partner") {
       const how = get("how") || "through life";
       const when = get("when") || String(currentYear);
       const status = get("status") || "together";
@@ -3084,10 +3053,9 @@ export function PathfinderHome() {
         year,
         desc: `Met my partner via ${how.toLowerCase()} in ${when}; now ${status.toLowerCase()}.`,
         summary: `Met your partner via ${how.toLowerCase()} in ${when} - now ${status.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "People & Relationships" && selectedPill === "Found my people") {
+    if (branch === "Relationships" && selectedPill === "Found my people") {
       const community = get("community") || "community";
       const when = get("when") || String(currentYear);
       const year = resolveYearChipToNumber(when);
@@ -3096,10 +3064,9 @@ export function PathfinderHome() {
         year,
         desc: `Found my people through ${community.toLowerCase()} around ${when}.`,
         summary: `Found your people through ${community.toLowerCase()} around ${when}.`,
-        isFork: false,
       };
     }
-    if (branch === "People & Relationships" && selectedPill === "Lost someone") {
+    if (branch === "Relationships" && selectedPill === "Lost someone") {
       const lossType = get("lossType") || "a significant loss";
       const when = get("when") || String(currentYear);
       const impact = get("impact") || "still processing";
@@ -3109,10 +3076,9 @@ export function PathfinderHome() {
         year,
         desc: `Experienced ${lossType.toLowerCase()} around ${when}; it ${impact.toLowerCase()}.`,
         summary: `A significant loss around ${when} that ${impact.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "Who I'm Becoming" && selectedPill === "Mindset Shift") {
+    if (branch === "Personal Growth" && selectedPill === "Mindset Shift") {
       const beforeThink = get("beforeThink") || "something I outgrew";
       const nowThink = get("nowThink") || "something truer for me";
       const cause = get("cause") || "life";
@@ -3123,10 +3089,9 @@ export function PathfinderHome() {
         year,
         desc: `Used to think: ${beforeThink}. Now: ${nowThink}. Shifted after ${cause.toLowerCase()} (${when}).`,
         summary: `Mindset shift around ${when}: moved from "${beforeThink}" toward "${nowThink.slice(0, 140)}${nowThink.length > 140 ? "â€¦" : ""}".`,
-        isFork: false,
       };
     }
-    if (branch === "Who I'm Becoming" && selectedPill === "Lesson Learned") {
+    if (branch === "Personal Growth" && selectedPill === "Lesson Learned") {
       const area = get("area") || "life";
       const lesson = get("lesson") || "something important";
       const how = get("how") || "experience";
@@ -3137,10 +3102,9 @@ export function PathfinderHome() {
         year,
         desc: `I learned that ${lesson}. Learned through ${how.toLowerCase()} in ${area.toLowerCase()} (${when}).`,
         summary: `Lesson in ${area.toLowerCase()} around ${when}: I learned that ${lesson.slice(0, 120)}${lesson.length > 120 ? "â€¦" : ""}.`,
-        isFork: false,
       };
     }
-    if (branch === "Who I'm Becoming" && selectedPill === "Identity Change") {
+    if (branch === "Personal Growth" && selectedPill === "Identity Change") {
       const usedTo = get("usedTo") || "played small";
       const nowIdentity = get("nowIdentity") || "shows up differently";
       const when = get("when") || String(currentYear);
@@ -3150,10 +3114,9 @@ export function PathfinderHome() {
         year,
         desc: `I used to be someone who ${usedTo.toLowerCase()}. Now: ${nowIdentity}. Started shifting around ${when}.`,
         summary: `Identity shift from "${usedTo}" toward "${nowIdentity.slice(0, 120)}${nowIdentity.length > 120 ? "â€¦" : ""}" (${when}).`,
-        isFork: false,
       };
     }
-    if (branch === "Money & Finance" && selectedPill === "First income") {
+    if (branch === "Money" && selectedPill === "First income") {
       const source = get("source") || "income";
       const when = get("when") || String(currentYear);
       const year = resolveYearChipToNumber(when);
@@ -3162,10 +3125,9 @@ export function PathfinderHome() {
         year,
         desc: `First meaningful income came from ${source.toLowerCase()} around ${when}.`,
         summary: `First income came from ${source.toLowerCase()} around ${when}.`,
-        isFork: false,
       };
     }
-    if (branch === "Money & Finance" && selectedPill === "Started saving") {
+    if (branch === "Money" && selectedPill === "Started saving") {
       const goal = get("goal") || "saving";
       const when = get("when") || String(currentYear);
       const status = get("status") || "in progress";
@@ -3175,10 +3137,9 @@ export function PathfinderHome() {
         year,
         desc: `Started saving for ${goal.toLowerCase()} in ${when}; status: ${status.toLowerCase()}.`,
         summary: `Started saving for ${goal.toLowerCase()} in ${when} - ${status.toLowerCase()}.`,
-        isFork: false,
       };
     }
-    if (branch === "Money & Finance" && selectedPill === "Big financial decision") {
+    if (branch === "Money" && selectedPill === "Big financial decision") {
       const decision = get("decision") || "financial decision";
       const when = get("when") || String(currentYear);
       const outcome = get("outcome") || "still dealing with it";
@@ -3188,7 +3149,6 @@ export function PathfinderHome() {
         year,
         desc: `Made a major financial decision (${decision.toLowerCase()}) in ${when}; ${outcome.toLowerCase()}.`,
         summary: `A big financial decision in ${when}: ${decision.toLowerCase()} - ${outcome.toLowerCase()}.`,
-        isFork: true,
       };
     }
     return null;
@@ -3394,7 +3354,7 @@ export function PathfinderHome() {
 
   function startGuidedFlowFromExample(example) {
     const becomingSubByPill =
-      guidedBranch === "Who I'm Becoming"
+      guidedBranch === "Personal Growth"
         ? {
             "Mindset Shift": "becoming-mindset",
             "Lesson Learned": "becoming-lessons",
@@ -3402,7 +3362,7 @@ export function PathfinderHome() {
           }[example]
         : null;
     const resolvedSubbranch = guidedSubbranch ?? becomingSubByPill ?? null;
-    if (guidedBranch === "Who I'm Becoming" && becomingSubByPill && !guidedSubbranch) {
+    if (guidedBranch === "Personal Growth" && becomingSubByPill && !guidedSubbranch) {
       setGuidedSubbranch(becomingSubByPill);
     }
     if (guidedBranchConfig?.subbranches?.length > 0 && !resolvedSubbranch) {
@@ -3493,7 +3453,7 @@ export function PathfinderHome() {
     if (!guidedFlow) return;
     if ((guidedFlow.currentStep ?? 0) <= 0) {
       setGuidedFlow(null);
-      if (guidedBranch === "Who I'm Becoming") {
+      if (guidedBranch === "Personal Growth") {
         setGuidedSubbranch(null);
       }
       return;
@@ -3504,18 +3464,6 @@ export function PathfinderHome() {
       completed: false,
       awaitingOther: false,
     }));
-  }
-
-  function getDragForkInput() {
-    if (!guidedFlowContext?.parentNodeId || !guidedFlowContext?.isBranching) {
-      return { isFork: false, forkOf: null, forkSide: null };
-    }
-    const computedForkSide = getNextForkSideForParent(guidedFlowContext.parentNodeId, timelineGoals as any);
-    return {
-      isFork: true,
-      forkOf: guidedFlowContext.parentNodeId,
-      forkSide: guidedFlowContext.forkSide ?? computedForkSide,
-    };
   }
 
   function getCreatedAtForInsertion(
@@ -3551,7 +3499,6 @@ export function PathfinderHome() {
   function commitPendingGuidedNode() {
     if (!pendingGuidedOutcome || !guidedBranch) return;
     const defaultYear = new Date().getFullYear();
-    const dragFork = getDragForkInput();
     const createdAtOverride = getCreatedAtForInsertion(
       guidedBranch,
       guidedSubbranch,
@@ -3580,9 +3527,6 @@ export function PathfinderHome() {
         guidedFlowInsertContext?.insertIndex ??
         guidedFlowContext?.insertIndex ??
         null,
-      isFork: dragFork.isFork || pendingGuidedOutcome.isFork,
-      forkOf: dragFork.forkOf,
-      forkSide: dragFork.forkSide,
       future: Boolean(pendingGuidedOutcome.future ?? false),
       significance: Number(
         pendingGuidedOutcome.significance ?? pendingSignificance,
@@ -3642,7 +3586,6 @@ export function PathfinderHome() {
       return;
     }
     setPreviewError(null);
-    const dragFork = getDragForkInput();
     const createdAtOverride = getCreatedAtForInsertion(
       guidedBranch,
       guidedSubbranch,
@@ -3661,9 +3604,6 @@ export function PathfinderHome() {
         guidedFlowInsertContext?.insertIndex ??
         guidedFlowContext?.insertIndex ??
         null,
-      isFork: dragFork.isFork,
-      forkOf: dragFork.forkOf,
-      forkSide: dragFork.forkSide,
       subbranch: guidedSubbranch,
       subtype: guidedSubbranch ? String(guidedSubbranch).split("-")[1] ?? null : null,
       insertAfterNodeId: guidedFlowContext?.insertAfterNodeId ?? null,
@@ -3705,9 +3645,6 @@ export function PathfinderHome() {
         mapPosition: getMapPositionForInsert(input.branch),
         progress: 0,
         description: `AI suggestion accepted: ${label}`,
-        isFork: false,
-        forkOf: null,
-        forkSide: null,
       },
     ]);
     pushHistory({
@@ -3761,9 +3698,6 @@ export function PathfinderHome() {
         createdAtOverride,
         desc: inputText,
         branch: guidedBranch,
-        isFork: false,
-        forkOf: null,
-        forkSide: null,
         subbranch: guidedSubbranch,
         subtype: guidedSubbranch ? String(guidedSubbranch).split("-")[1] ?? null : null,
         insertAfterNodeId: guidedFlowContext?.insertAfterNodeId ?? null,
@@ -3833,11 +3767,8 @@ export function PathfinderHome() {
       createdAt: `${Number(node.year)}-01-01`,
       progress: node.future ? 0 : 100,
       description: node.desc?.trim() || node.label,
-      isFork: false,
-      forkOf: null,
-      forkSide: null,
       practicalData:
-        node.branch === "Money & Finance" && financeIncludeNumbers
+        node.branch === "Money" && financeIncludeNumbers
           ? {
               type: financeType,
               amount: financeAmount ? Number(financeAmount) : undefined,
@@ -4202,18 +4133,6 @@ export function PathfinderHome() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div
             style={{
-              color: "#6B7A90",
-              fontSize: 10,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-              fontFamily: "'DM Sans', sans-serif",
-              fontWeight: 500,
-            }}
-          >
-            XP {profile.xp}
-          </div>
-          <div
-            style={{
               display: "flex",
               alignItems: "center",
               borderRadius: 999,
@@ -4504,7 +4423,7 @@ export function PathfinderHome() {
                           const fanRad = (fanDeg * Math.PI) / 180;
                           const tipX = stemStartX + Math.sin(fanRad) * BRANCH_STEM_LENGTH;
                           const tipY = stemStartY - Math.cos(fanRad) * BRANCH_STEM_LENGTH;
-                          const branchName = String(row?.name ?? row?.label ?? "Branch");
+                          const branchName = String(row?.name ?? row?.label ?? "Thread");
                           const placeLabelRight = idx % 2 === 0;
                           const textAnchor: "start" | "end" = placeLabelRight ? "start" : "end";
                           const textX = placeLabelRight ? tipX + 8 : tipX - 8;
@@ -4778,7 +4697,7 @@ export function PathfinderHome() {
                 padding: "2px 8px 6px",
               }}
             >
-              {gapChooser.gap.branchLabel ?? "Branch"}
+              {gapChooser.gap.branchLabel ?? "Thread"}
             </div>
             <button
               type="button"
@@ -4836,7 +4755,7 @@ export function PathfinderHome() {
                     ? `After "${gapChooser.gap.prevNodeLabel}"`
                     : gapChooser.gap.nextNodeLabel
                       ? `Before "${gapChooser.gap.nextNodeLabel}"`
-                      : "On this branch"}
+                      : "On this thread"}
               </span>
             </button>
             <button
@@ -4869,7 +4788,7 @@ export function PathfinderHome() {
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
                 {gapChooser.gap.prevNodeLabel
                   ? `From "${gapChooser.gap.prevNodeLabel}" on ${gapChooser.gap.branchLabel}`
-                  : `Parallel branch on ${gapChooser.gap.branchLabel}`}
+                  : `Parallel thread on ${gapChooser.gap.branchLabel}`}
               </span>
             </button>
           </div>
@@ -5150,11 +5069,6 @@ export function PathfinderHome() {
                         }}
                       >
                         Future Moment
-                      </span>
-                    ) : null}
-                    {detailPanelNode.fork ? (
-                      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                        â‘‚ Fork
                       </span>
                     ) : null}
                   </div>
@@ -5537,7 +5451,7 @@ export function PathfinderHome() {
                 </div>
               </div>
 
-              {detailPanelNode.branchLabel === "Money & Finance" ? (
+              {detailPanelNode.branchLabel === "Money" ? (
                 <Link
                   href="/finance-tracker"
                   style={{
@@ -5691,7 +5605,7 @@ export function PathfinderHome() {
                     cursor: !selectedSourceGoal || detailPanelNode.synthetic ? "not-allowed" : "pointer",
                   }}
                 >
-                  Move to different branch
+                  Move to different thread
                 </button>
                 {moveBranchOpen ? (
                   <div
@@ -5779,7 +5693,7 @@ export function PathfinderHome() {
                   cursor: !selectedSourceGoal || detailPanelNode.synthetic ? "not-allowed" : "pointer",
                 }}
               >
-                Branch from this moment
+                Thread from this moment
               </button>
 
               {nodeDeleteConfirm ? (
@@ -6010,7 +5924,7 @@ export function PathfinderHome() {
               <>
                 {!guidedFlow ? (
                   <div style={{ marginBottom: 18 }}>
-                    {guidedBranch === "Who I'm Becoming" && !guidedSubbranch ? (
+                    {guidedBranch === "Personal Growth" && !guidedSubbranch ? (
                       <>
                         <div style={{ color: "rgba(255,255,255,0.78)", fontSize: 13, marginBottom: 10 }}>
                           What kind of growth moment is this?
@@ -6039,7 +5953,7 @@ export function PathfinderHome() {
                               sub: "You became a different kind of person",
                             },
                           ].map((card) => {
-                            const flowTemplate = GUIDED_FLOW_BLUEPRINTS["Who I'm Becoming"]?.[card.pill];
+                            const flowTemplate = GUIDED_FLOW_BLUEPRINTS["Personal Growth"]?.[card.pill];
                             return (
                               <button
                                 key={card.subId}
@@ -6087,11 +6001,11 @@ export function PathfinderHome() {
                       <>
                         <div style={{ color: "rgba(255,255,255,0.78)", fontSize: 13, marginBottom: 10 }}>
                           {{
-                            "People & Relationships": "What kind of relationship is this?",
-                            "Work & Career": "What kind of career moment is this?",
-                            "Health & Body": "What area of health?",
-                            "Who I'm Becoming": "What kind of growth moment is this?",
-                            "Money & Finance": "What kind of financial moment?",
+                            Relationships: "What kind of relationship is this?",
+                            "Work & Learning": "What kind of work moment is this?",
+                            Health: "What area of health?",
+                            "Personal Growth": "What kind of growth moment is this?",
+                            Money: "What kind of money moment is this?",
                           }[guidedBranch as string] ?? "What kind of moment is this?"}
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -6599,7 +6513,7 @@ export function PathfinderHome() {
                     lineHeight: 1.6,
                   }}
                 />
-                {guidedBranch === "Money & Finance" ? (
+                {guidedBranch === "Money" ? (
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, display: "flex", alignItems: "center", gap: 8 }}>
                       <input
@@ -6727,7 +6641,7 @@ export function PathfinderHome() {
             zIndex: 72,
           }}
         >
-          <div style={{ color: "#CBD5E1", fontSize: 12, marginBottom: 8 }}>Unlockable branches</div>
+          <div style={{ color: "#CBD5E1", fontSize: 12, marginBottom: 8 }}>Unlockable threads</div>
           <div style={{ display: "grid", gap: 8 }}>
             {eligibleUnlockableBranches.map((branch) => (
               <button
@@ -6747,7 +6661,7 @@ export function PathfinderHome() {
               </button>
             ))}
             {eligibleUnlockableBranches.length === 0 ? (
-              <div style={{ color: "#64748B", fontSize: 11 }}>No branches available yet.</div>
+              <div style={{ color: "#64748B", fontSize: 11 }}>No threads available yet.</div>
             ) : null}
           </div>
         </div>
@@ -6828,7 +6742,7 @@ export function PathfinderHome() {
                 lineHeight: 1.45,
               }}
             >
-              Most people find this branch takes 2 minutes to start and becomes their most visited
+              Most people find this thread takes 2 minutes to start and becomes their most visited
             </div>
             <div
               style={{
@@ -6855,7 +6769,7 @@ export function PathfinderHome() {
                   boxShadow: `0 0 14px ${unlockPrompt.color}44`,
                 }}
               >
-                {`Add ${unlockPrompt.label} branch`}
+                {`Start a ${unlockPrompt.label} thread`}
               </button>
               <button
                 type="button"

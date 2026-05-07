@@ -27,6 +27,8 @@ export type Limb = {
   color: string;
   angle: number;
   emptyPrompt: string;
+  /** One warm question for a brand-new map when the user picks this limb first. */
+  firstMarkQuestion: string;
   addPrompt: string;
   examples: string[];
 };
@@ -65,6 +67,7 @@ export type Branch = {
 // ── MOMENT ───────────────────────────────
 // Stored in database
 // A specific life event on a Branch
+// @deprecated — timeline data lives in Prisma `Goal` with goalType `moment` | `event`. Marks remain separate for dated branch marks.
 export type Moment = {
   id: string;
   userId: string;

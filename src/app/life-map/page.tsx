@@ -1,5 +1,5 @@
-import LifeMapScreen from "@/screens/LifeMap";
+import { PathfinderHome } from "@/components/map/pathfinder-home";
 
 export default function LifeMapPage() {
-  return <LifeMapScreen />;
+  return <PathfinderHome />;
 }

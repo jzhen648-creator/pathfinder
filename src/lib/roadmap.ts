@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { getLevelFromXp, getLevelProgress } from "@/lib/gamification";
 
 export async function getGoalWithProgress(goalId: string, userId: string) {
   const goal = await prisma.goal.findFirst({
     where: { id: goalId, userId },
     include: {
+      forkedGoals: { select: { id: true } },
       milestones: {
         orderBy: { position: "asc" },
         include: {
@@ -52,7 +52,6 @@ export async function getGoalWithProgress(goalId: string, userId: string) {
         id: subtask.id,
         title: subtask.title,
         isCompleted: subtask.isCompleted,
-        xpReward: subtask.xpReward,
         dailyTasks: subtask.dailyTasks.map((dailyTask) => ({
           id: dailyTask.id,
           title: dailyTask.title,
@@ -80,17 +79,15 @@ export async function getGoalWithProgress(goalId: string, userId: string) {
     goalType: goal.goalType,
     targetAmount: goal.targetAmount,
     currentAmount: goal.currentAmount,
-    deadline: goal.deadline.toISOString(),
-    xpReward: goal.xpReward,
+    deadline: goal.deadline?.toISOString() ?? null,
     progress: goalProgress,
+    bloomStatus: goal.bloomStatus,
+    bloomedAt: goal.bloomedAt?.toISOString() ?? null,
+    endedAt: goal.endedAt?.toISOString() ?? null,
+    endReason: goal.endReason,
+    parentGoalId: goal.parentGoalId,
+    positionAngle: goal.positionAngle,
+    forkedGoals: goal.forkedGoals.map((f) => ({ id: f.id })),
     milestones,
-  };
-}
-
-export function getUserLevelData(xp: number) {
-  return {
-    xp,
-    level: getLevelFromXp(xp),
-    levelProgress: getLevelProgress(xp),
   };
 }

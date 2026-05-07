@@ -35,7 +35,10 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Product Philosophy
-See PROJECT.md for the full vision,
+## Project brief
+See [BRIEF.md](./BRIEF.md) for a short overview of what Pathfinder does and how it is built.
+
+## Product philosophy
+See [PROJECT.md](./PROJECT.md) for the full vision,
 philosophical foundation and product
 principles that guide every decision.

@@ -14,7 +14,6 @@ model User {
   birthPlace                 String?
   email                      String   @unique
   passwordHash               String
-  xp                         Int      @default(0)
   onboardingCompleted        Boolean  @default(false)
   onboardingProfileText      String?
   onboardingProfileData      Json?
@@ -26,11 +25,20 @@ model User {
   updatedAt                  DateTime @updatedAt
   goals                      Goal[]
   branches                   Branch[]
-  moments                    Moment[]
   marks                      Mark[]
   evaluationCaches           GoalEvaluationCache[]
   accounts                   Account[]
   sessions                   Session[]
+  trunkSegments              TrunkSegment[]
+  trunkEntries               TrunkEntry[]
+}
+
+enum BloomStatus {
+  BUD
+  GROWING
+  BLOOMED
+  BRANCHED
+  ENDED
 }
 
 enum BranchStatus {
@@ -52,6 +60,23 @@ enum MarkSentiment {
   positive
   neutral
   negative
+}
+
+enum TrunkCategory {
+  FAMILY
+  EDUCATION
+  CULTURE_RELIGION
+  SOCIOECONOMIC
+  EARLY_HEALTH
+  FORMATIVE
+  PLACE
+}
+
+enum TrunkEntrySource {
+  MANUAL
+  VOICE
+  DOCUMENT
+  AI_EXTRACTED
 }
 
 model Account {
@@ -97,8 +122,8 @@ model Branch {
   parentBranchId String?
   turningPointId String?
   mapAngleOffset Float    @default(0)
-  moments        Moment[]
   marks          Mark[]
+  goals          Goal[]
   name           String?
   goal           String?
   goalValue      Float?
@@ -106,16 +131,24 @@ model Branch {
   unit           String?
   status         BranchStatus @default(active)
   order          Int      @default(0)
+  bloomStatus         BloomStatus @default(BUD)
+  bloomedAt           DateTime?
+  endedAt             DateTime?
+  endReason           String?
+  spawnedFromBranchId String?
+  spawnedFromBranch   Branch?   @relation("BranchSpawn", fields: [spawnedFromBranchId], references: [id], onDelete: SetNull)
+  branchesSpawnedHere Branch[]  @relation("BranchSpawn")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([userId])
+  @@index([userId, limbId])
 }
 
 model Mark {
   id          String   @id @default(cuid())
   branchId    String
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   limbId      String
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -126,6 +159,17 @@ model Mark {
   value       Float?
   sentiment   MarkSentiment @default(neutral)
   archived    Boolean  @default(false)
+  significance    Int      @default(1)
+  future          Boolean  @default(false)
+  isTurningPoint  Boolean  @default(false)
+  parentMarkId    String?
+  parentMark      Mark?    @relation("MarkChildren", fields: [parentMarkId], references: [id], onDelete: SetNull)
+  children        Mark[]   @relation("MarkChildren")
+  location        String?
+  timelineNote    String?
+  subtype         String?
+  year            Int?
+  month           Int?
   reframes    Reframe[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -135,6 +179,7 @@ model Mark {
   @@index([limbId])
   @@index([archived])
   @@index([date])
+  @@index([parentMarkId])
 }
 
 model Reframe {
@@ -149,59 +194,52 @@ model Reframe {
   @@index([date])
 }
 
-model Moment {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  limbId         String
-  branchId       String
-  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  parentMomentId String?
-  parentMoment   Moment?  @relation("MomentChildren", fields: [parentMomentId], references: [id], onDelete: SetNull)
-  children       Moment[] @relation("MomentChildren")
-  label          String
-  description    String?
-  year           Int      @default(2026)
-  month          Int?
-  mapPosition    Float    @default(0)
-  significance   Int      @default(1)
-  future         Boolean  @default(false)
-  isTurningPoint Boolean  @default(false)
-  location       String?
-  timelineNote   String?
-  subtype        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([userId])
-  @@index([branchId])
-  @@index([parentMomentId])
-}
-
 model Goal {
   id          String      @id @default(cuid())
   title       String
   description String
   lifeArea    String      @default("Other")
-  isFork      Boolean     @default(false)
-  forkOf      String?
-  forkSide    String?
   goalType    String      @default("action")
   targetAmount Float?
   currentAmount Float?
-  deadline    DateTime
-  xpReward    Int         @default(1000)
+  /** Optional: timeline/event goals and ongoing commitments may have no deadline. */
+  deadline    DateTime?
   // Cached raw roadmap returned by the AI model at creation time. Kept for
   // provenance + to avoid any future re-generation calls for the same goal.
   roadmapJson Json?
   // False when the roadmap was produced by the deterministic fallback
   // because the AI provider failed or ran out of credits. UI can surface this.
   aiGenerated Boolean     @default(true)
+  bloomStatus    BloomStatus @default(BUD)
+  bloomedAt      DateTime?
+  endedAt        DateTime?
+  endReason      String?
+  /** Forked sub-goals and former Moment parent links share this relation. */
+  parentGoalId   String?
+  parentGoal     Goal?       @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
+  forkedGoals    Goal[]      @relation("GoalFork")
+  positionAngle  Float?
+  year            Int        @default(2026)
+  month           Int?
+  mapPosition     Float      @default(0)
+  significance    Int        @default(1)
+  future          Boolean    @default(false)
+  isTurningPoint  Boolean    @default(false)
+  location        String?
+  timelineNote    String?
+  subtype         String?
+  limbId          String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId    String?
+  branch      Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
   milestones  Milestone[]
+
+  @@index([parentGoalId])
+  @@index([branchId])
+  @@index([limbId])
 }
 
 // Caches the AI-generated evaluation for a specific (user, goal-inputs) tuple
@@ -236,7 +274,6 @@ model Subtask {
   title       String
   position    Int
   isCompleted Boolean   @default(false)
-  xpReward    Int       @default(50)
   completedAt DateTime?
   milestoneId String
   milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
@@ -264,5 +301,39 @@ model Checkpoint {
   quickWin   Subtask @relation(fields: [quickWinId], references: [id], onDelete: Cascade)
 
   @@unique([quickWinId, position])
+}
+
+model TrunkSegment {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    TrunkCategory
+  entries     TrunkEntry[]
+  richness    Int            @default(0)
+  heightScore Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+model TrunkEntry {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trunkSegmentId String
+  segment        TrunkSegment      @relation(fields: [trunkSegmentId], references: [id], onDelete: Cascade)
+  content        String
+  year           Int?
+  significance   Int               @default(3)
+  source         TrunkEntrySource  @default(MANUAL)
+  aiSummary      String?
+  tags           Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([trunkSegmentId])
+  @@index([userId])
 }
 

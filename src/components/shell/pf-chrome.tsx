@@ -1,0 +1,143 @@
+"use client";
+
+import type { CSSProperties } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+export type PfChromeShell = "roadmap" | "nextSteps";
+
+export function PfChromeTopbar({
+  shell,
+  avatarInitials,
+  avatarLoading,
+  avatarTitle,
+}: {
+  shell: PfChromeShell;
+  avatarInitials: string;
+  avatarLoading?: boolean;
+  avatarTitle: string;
+}) {
+  const ns = shell === "nextSteps";
+  const border = ns ? "var(--ns-border, #D8D9DC)" : "var(--rm-border, #D8D9DC)";
+  const bg = ns ? "var(--ns-bgEl, #fff)" : "var(--rm-bgEl, #fff)";
+  const text1 = ns ? "var(--ns-text1, #1A1C1E)" : "var(--rm-text1, #1A1C1E)";
+  const serif = ns
+    ? "var(--font-pf-ns-serif), Lora, Georgia, serif"
+    : "var(--font-pf-roadmap-serif), Lora, Georgia, serif";
+
+  return (
+    <header className="flex h-12 shrink-0 items-center border-b px-5" style={{ borderColor: border, background: bg }}>
+      <span className="text-[17px] italic leading-none" style={{ color: text1, fontFamily: serif }}>
+        Pathfinder{" "}
+        <span className="ml-1.5 font-sans text-[13px] not-italic opacity-40">your life map</span>
+      </span>
+      <div className="ml-auto flex items-center gap-2">
+        <div
+          className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[12px] font-medium text-white transition-opacity dark:bg-zinc-200 dark:text-zinc-900"
+          style={{ opacity: avatarLoading ? 0.45 : 1 }}
+          title={avatarTitle}
+        >
+          {avatarInitials}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function PfChromeViewsNav({ shell }: { shell: PfChromeShell }) {
+  const pathname = usePathname();
+  const activeHref = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const ns = shell === "nextSteps";
+  const compactClassicNav = shell === "roadmap";
+  const ink100 = ns ? "var(--ns-ink100,#ECEEF0)" : "var(--rm-ink100,#ECEEF0)";
+  const text1 = ns ? "var(--ns-text1,#1A1C1E)" : "var(--rm-text1,#1A1C1E)";
+  const text3 = ns ? "var(--ns-text3,#6B7280)" : "var(--rm-text3,#6B7280)";
+
+  const linkClass = (href: string) =>
+    [
+      "mb-0.5 flex items-center gap-2 rounded-lg px-2 py-2 text-[13px] transition-colors",
+      activeHref(href) ? "font-medium" : "",
+    ].join(" ");
+
+  const linkStyle = (href: string): CSSProperties => {
+    const on = activeHref(href);
+    return {
+      background: on ? ink100 : "transparent",
+      color: on ? text1 : text3,
+    };
+  };
+
+  return (
+    <nav className="px-2 pb-1 pt-2" data-shell={shell}>
+      <Link
+        href="/tree"
+        className={linkClass("/tree")}
+        style={linkStyle("/tree")}
+        onMouseEnter={(e) => {
+          if (!activeHref("/tree")) (e.currentTarget as HTMLAnchorElement).style.background = ink100;
+        }}
+        onMouseLeave={(e) => {
+          if (!activeHref("/tree")) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+        }}
+      >
+        <span className="opacity-70" aria-hidden>
+          🌳
+        </span>
+        Tree
+      </Link>
+      <Link
+        href="/roadmap"
+        className={linkClass("/roadmap")}
+        style={linkStyle("/roadmap")}
+        onMouseEnter={(e) => {
+          if (!activeHref("/roadmap")) (e.currentTarget as HTMLAnchorElement).style.background = ink100;
+        }}
+        onMouseLeave={(e) => {
+          if (!activeHref("/roadmap")) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+        }}
+      >
+        <span className="opacity-70" aria-hidden>
+          ⌁
+        </span>
+        Roadmap
+      </Link>
+      <Link
+        href="/next-steps"
+        className={linkClass("/next-steps")}
+        style={linkStyle("/next-steps")}
+        onMouseEnter={(e) => {
+          if (!activeHref("/next-steps")) (e.currentTarget as HTMLAnchorElement).style.background = ink100;
+        }}
+        onMouseLeave={(e) => {
+          if (!activeHref("/next-steps")) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+        }}
+      >
+        <span className="opacity-70" aria-hidden>
+          ≡
+        </span>
+        Next Steps
+      </Link>
+      <Link
+        href="/life-map"
+        className={linkClass("/life-map")}
+        style={{
+          ...linkStyle("/life-map"),
+          ...(compactClassicNav
+            ? { fontSize: 12, opacity: activeHref("/life-map") ? 1 : 0.78 }
+            : {}),
+        }}
+        onMouseEnter={(e) => {
+          if (!activeHref("/life-map")) (e.currentTarget as HTMLAnchorElement).style.background = ink100;
+        }}
+        onMouseLeave={(e) => {
+          if (!activeHref("/life-map")) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+        }}
+      >
+        <span className="opacity-70" aria-hidden>
+          ↺
+        </span>
+        Classic map
+      </Link>
+    </nav>
+  );
+}
