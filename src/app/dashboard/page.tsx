@@ -3,7 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { CreateGoalModal } from "@/components/dashboard/create-goal-modal";
 import { formatDateDMY } from "@/lib/date";
 import { GoalCardActions } from "@/components/dashboard/goal-card-actions";
 
@@ -56,7 +55,12 @@ export default async function DashboardPage() {
               >
                 Back to tree
               </Link>
-              <CreateGoalModal />
+              <Link
+                href="/next-steps"
+                className="rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-4 py-2 text-sm font-medium text-indigo-200 transition hover:border-indigo-300/60 hover:bg-indigo-500/25"
+              >
+                Add goal
+              </Link>
             </div>
           </div>
         </header>

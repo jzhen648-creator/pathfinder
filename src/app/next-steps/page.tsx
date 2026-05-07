@@ -47,11 +47,23 @@ export default async function NextStepsPage() {
     select: { limbId: true, title: true, date: true, archived: true },
   });
 
+  const branches = await prisma.branch.findMany({
+    where: { userId, parentBranchId: null },
+    orderBy: [{ limbId: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      limbId: true,
+      name: true,
+      label: true,
+    },
+  });
+
   const initialGoals = buildNextStepsGoals(user.goals, marks);
 
   return (
     <NextStepsShell
       initialGoals={initialGoals}
+      initialBranches={branches}
       userName={user.name ?? ""}
       userEmail={user.email ?? ""}
     />

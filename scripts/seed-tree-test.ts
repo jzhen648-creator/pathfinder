@@ -1,6 +1,13 @@
 import { PrismaClient, type BloomStatus, type BranchStatus, type MarkSentiment, type MarkType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
+/**
+ * Dev tree fixtures for `*.@pathfinder.test` (see GET /api/dev/mock-users).
+ * Run: `npm run seed:tree`
+ * - fulltree@pathfinder.test / password123 — showcase data
+ * - mygoals@pathfinder.test / password123 — one starter thread per limb, no marks/goals (your canvas)
+ */
+
 const prisma = new PrismaClient();
 
 type BranchSeed = {
@@ -39,76 +46,6 @@ type UserTreeSeed = {
   branchSeeds: BranchSeed[];
   markSeeds: MarkSeed[];
 };
-
-const branchSeeds: BranchSeed[] = [
-  { limbId: "finance", threadType: "Income", name: "Income", goal: "Reach £100k salary", goalValue: 100000, currentValue: 60000, unit: "£", status: "active", bloomStatus: "GROWING", createdAt: new Date("2018-06-01") },
-  { limbId: "finance", threadType: "Investing", name: "Investing", goal: "ISA £40k", goalValue: 40000, currentValue: 20000, unit: "£", status: "active", bloomStatus: "GROWING", createdAt: new Date("2020-03-01") },
-  { limbId: "work", threadType: "Career", name: "Career", goal: "Build something independent", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2017-07-01") },
-  { limbId: "work", threadType: "Skills", name: "Skills", goal: "Master full-stack AI development", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2020-01-01") },
-  { limbId: "work", threadType: "Projects", name: "Projects", goal: "Ship Pathfinder", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2021-06-01") },
-  { limbId: "becoming", threadType: "Identity", name: "Identity", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2020-03-01") },
-  { limbId: "becoming", threadType: "Habits", name: "Habits", goal: "Four core habits stable", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2021-01-01") },
-  { limbId: "people", threadType: "Family", name: "Family", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2000-01-01") },
-  { limbId: "people", threadType: "Romance", name: "Romance", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2021-03-01") },
-  { limbId: "people", threadType: "Friendships", name: "Friendships", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2019-01-01") },
-  { limbId: "health", threadType: "Fitness", name: "Fitness", goal: "Run a marathon", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2022-01-01") },
-  { limbId: "health", threadType: "Mental health", name: "Mental health", goal: "Sustained care plan", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2022-04-01") },
-];
-
-const markSeeds: MarkSeed[] = [
-  { branchThreadType: "Income", limbId: "finance", title: "First salary", description: "First full-time income. Felt unreal.", date: new Date("2018-06-15"), year: 2018, type: "milestone", significance: 1, sentiment: "positive", value: 20000, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Income", limbId: "finance", title: "Promotion", description: "First recognition the work was worth more.", date: new Date("2020-04-01"), year: 2020, type: "achievement", significance: 1, sentiment: "positive", value: 25000, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Income", limbId: "finance", title: "Senior role", description: "Finally compensated at the right level.", date: new Date("2022-03-01"), year: 2022, type: "achievement", significance: 2, sentiment: "positive", value: 40000, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Income", limbId: "finance", title: "Lead compensation", description: "Negotiated hard. Still growing.", date: new Date("2024-01-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: 60000, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Investing", limbId: "finance", title: "ISA opened", description: "Started with nothing. The point was to start.", date: new Date("2020-03-15"), year: 2020, type: "milestone", significance: 1, sentiment: "positive", value: 0, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Investing", limbId: "finance", title: "£10k milestone", description: "First real number. Compounding clicked.", date: new Date("2021-06-01"), year: 2021, type: "achievement", significance: 2, sentiment: "positive", value: 10000, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Investing", limbId: "finance", title: "£20k reached", description: "Halfway. This one felt significant.", date: new Date("2023-02-01"), year: 2023, type: "achievement", significance: 3, sentiment: "positive", value: 20000, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Investing", limbId: "finance", title: "Target: £40k", description: "The goal is in sight.", date: new Date("2025-01-01"), year: 2025, type: "milestone", significance: 3, sentiment: "positive", value: 40000, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Career", limbId: "work", title: "Graduated", description: "Computer Science. No idea what came next.", date: new Date("2017-07-01"), year: 2017, type: "milestone", significance: 2, sentiment: "neutral", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Career", limbId: "work", title: "Agency role", description: "Learned fast. Burned out faster.", date: new Date("2019-03-01"), year: 2019, type: "milestone", significance: 2, sentiment: "neutral", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Career", limbId: "work", title: "Building Pathfinder", description: "Left the agency path. Building something real.", date: new Date("2024-01-01"), year: 2024, type: "decision", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "GROWING" },
-  { branchThreadType: "Skills", limbId: "work", title: "React deep dive", description: "Went from using it to understanding it.", date: new Date("2020-06-01"), year: 2020, type: "milestone", significance: 1, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Skills", limbId: "work", title: "SVG & canvas", description: "Unlocked a whole new level of what I can build.", date: new Date("2023-03-01"), year: 2023, type: "achievement", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Skills", limbId: "work", title: "AI integration", description: "Still figuring out the edges.", date: new Date("2024-06-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Projects", limbId: "work", title: "First side project", description: "Shipped something small. Mattered more than it looked.", date: new Date("2021-09-01"), year: 2021, type: "milestone", significance: 1, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Projects", limbId: "work", title: "Pathfinder v1", description: "Wrong direction, right instinct.", date: new Date("2023-06-01"), year: 2023, type: "milestone", significance: 3, sentiment: "neutral", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Projects", limbId: "work", title: "Pathfinder tree", description: "This version. The one that feels honest.", date: new Date("2024-06-01"), year: 2024, type: "achievement", significance: 3, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Identity", limbId: "becoming", title: "Therapy starts", description: "Finally asked for help.", date: new Date("2020-03-01"), year: 2020, type: "decision", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Identity", limbId: "becoming", title: "Identity shift", description: "Stopped performing. Started being.", date: new Date("2022-08-01"), year: 2022, type: "realisation", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Identity", limbId: "becoming", title: "Calm under pressure", description: "Something that used to be loud got quiet.", date: new Date("2024-03-01"), year: 2024, type: "realisation", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Habits", limbId: "becoming", title: "Morning routine", description: "Small and imperfect. Still counts.", date: new Date("2021-01-01"), year: 2021, type: "milestone", significance: 1, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Habits", limbId: "becoming", title: "Four habits stable", description: "First time they stuck past 90 days.", date: new Date("2023-04-01"), year: 2023, type: "achievement", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Habits", limbId: "becoming", title: "Weekly review", description: "Building the habit of looking at the whole picture.", date: new Date("2024-06-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Family", limbId: "people", title: "Family of origin", description: "Where it all started. Still shapes everything.", date: new Date("2000-01-01"), year: 2000, type: "milestone", significance: 2, sentiment: "neutral", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Family", limbId: "people", title: "Dad's diagnosis", description: "Everything shifted. Still processing.", date: new Date("2023-09-01"), year: 2023, type: "setback", significance: 3, sentiment: "negative", value: null, isTurningPoint: false, future: false, bloomStatus: "ENDED" },
-  { branchThreadType: "Romance", limbId: "people", title: "Met Sam", description: "Changed what home meant to me. Still does.", date: new Date("2021-03-01"), year: 2021, type: "milestone", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Romance", limbId: "people", title: "Moved in together", description: "The ordinary becoming the permanent.", date: new Date("2022-06-01"), year: 2022, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Romance", limbId: "people", title: "Engaged", description: "Still can't fully believe it.", date: new Date("2024-02-01"), year: 2024, type: "achievement", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "GROWING" },
-  { branchThreadType: "Friendships", limbId: "people", title: "Met Jamie", description: "The friend who shows up.", date: new Date("2019-06-01"), year: 2019, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Friendships", limbId: "people", title: "Weekly support ritual", description: "Built deliberately. One of the better decisions.", date: new Date("2022-01-01"), year: 2022, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Friendships", limbId: "people", title: "Smaller, deeper circle", description: "Quality over breadth.", date: new Date("2024-01-01"), year: 2024, type: "realisation", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Fitness", limbId: "health", title: "First 5k", description: "28:42. Couldn't believe I finished.", date: new Date("2022-03-01"), year: 2022, type: "achievement", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Fitness", limbId: "health", title: "Half marathon", description: "Ran 21k. Cried at the finish line.", date: new Date("2023-05-01"), year: 2023, type: "achievement", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Fitness", limbId: "health", title: "Marathon 3:58", description: "Training. Target: sub 4 hours.", date: new Date("2024-10-01"), year: 2024, type: "milestone", significance: 3, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Mental health", limbId: "health", title: "Better therapist fit", description: "Third attempt. This one worked.", date: new Date("2022-05-01"), year: 2022, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Mental health", limbId: "health", title: "Anxiety baseline drops", description: "First extended period of genuine quiet.", date: new Date("2023-08-01"), year: 2023, type: "realisation", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Mental health", limbId: "health", title: "Sustained care plan", description: "Treating it like maintenance, not crisis management.", date: new Date("2024-04-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-];
-
-const branchSeedsJordanVale: BranchSeed[] = [
-  { limbId: "finance", threadType: "Debt", name: "Debt", goal: "Clear remaining debt", goalValue: 0, currentValue: 6000, unit: "£", status: "active", bloomStatus: "GROWING", createdAt: new Date("2016-01-01") },
-  { limbId: "finance", threadType: "Savings", name: "Savings", goal: "Emergency fund £12k", goalValue: 12000, currentValue: 3500, unit: "£", status: "active", bloomStatus: "GROWING", createdAt: new Date("2021-02-01") },
-  { limbId: "work", threadType: "Career", name: "Career", goal: "Transition into product design", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2022-03-01") },
-  { limbId: "work", threadType: "Study", name: "Study", goal: "Finish UX diploma", goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2023-09-01") },
-  { limbId: "work", threadType: "Freelance", name: "Freelance", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "ENDED", createdAt: new Date("2019-04-01") },
-  { limbId: "becoming", threadType: "Identity", name: "Identity", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2021-01-01") },
-  { limbId: "becoming", threadType: "Boundaries", name: "Boundaries", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2022-05-01") },
-  { limbId: "people", threadType: "Family", name: "Family", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "ENDED", createdAt: new Date("2018-06-01") },
-  { limbId: "people", threadType: "Parenting", name: "Parenting", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2020-10-01") },
-  { limbId: "people", threadType: "Community", name: "Community", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2023-01-01") },
-  { limbId: "health", threadType: "Recovery", name: "Recovery", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "GROWING", createdAt: new Date("2017-02-01") },
-  { limbId: "health", threadType: "Sleep", name: "Sleep", goal: "7h average", goalValue: 7, currentValue: 6, unit: "hours", status: "active", bloomStatus: "GROWING", createdAt: new Date("2022-02-01") },
-];
 
 /**
  * Four root branches per limb (20 threads total), aligned with fork geometry — see AREA_FORKS_BASE &
@@ -227,32 +164,13 @@ const markSeedsFullTreeShowcaseRich: MarkSeed[] = [
   ...extraTemplateMomentsFullTree,
 ];
 
-const markSeedsJordanVale: MarkSeed[] = [
-  { branchThreadType: "Debt", limbId: "finance", title: "Debt peaks", description: "Hit a high-water mark after unstable years.", date: new Date("2018-11-01"), year: 2018, type: "setback", significance: 3, sentiment: "negative", value: 18000, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Debt", limbId: "finance", title: "Consolidation plan", description: "First time there was a real plan.", date: new Date("2021-04-01"), year: 2021, type: "decision", significance: 2, sentiment: "positive", value: 12000, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Debt", limbId: "finance", title: "Below £6k", description: "Momentum finally feels real.", date: new Date("2024-11-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: 6000, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Savings", limbId: "finance", title: "First £1k saved", description: "Tiny buffer, huge relief.", date: new Date("2021-09-01"), year: 2021, type: "milestone", significance: 1, sentiment: "positive", value: 1000, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Savings", limbId: "finance", title: "Emergency fund started", description: "Now building consistency.", date: new Date("2024-02-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: 3500, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Career", limbId: "work", title: "Retail exit", description: "Left shift work to retrain.", date: new Date("2022-03-01"), year: 2022, type: "decision", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Career", limbId: "work", title: "Junior design role", description: "First role in the new path.", date: new Date("2024-05-01"), year: 2024, type: "achievement", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "GROWING" },
-  { branchThreadType: "Study", limbId: "work", title: "UX diploma starts", description: "Evening classes after bedtime routine.", date: new Date("2023-09-01"), year: 2023, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Study", limbId: "work", title: "Capstone in progress", description: "Final project now underway.", date: new Date("2025-01-01"), year: 2025, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Freelance", limbId: "work", title: "Freelance launch", description: "Started with optimism and no structure.", date: new Date("2019-04-01"), year: 2019, type: "milestone", significance: 2, sentiment: "neutral", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Freelance", limbId: "work", title: "Freelance ended", description: "Closed this chapter to stabilize income.", date: new Date("2021-01-01"), year: 2021, type: "decision", significance: 3, sentiment: "negative", value: null, isTurningPoint: true, future: false, bloomStatus: "ENDED" },
-  { branchThreadType: "Identity", limbId: "becoming", title: "Post-divorce reset", description: "Redefined who I am on my own terms.", date: new Date("2021-01-01"), year: 2021, type: "realisation", significance: 3, sentiment: "neutral", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Identity", limbId: "becoming", title: "Confidence returns", description: "Decision-making feels clearer now.", date: new Date("2024-03-01"), year: 2024, type: "realisation", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Boundaries", limbId: "becoming", title: "No-contact line", description: "Set a hard boundary and kept it.", date: new Date("2022-07-01"), year: 2022, type: "decision", significance: 3, sentiment: "positive", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Boundaries", limbId: "becoming", title: "Protecting time", description: "Weekly planning became non-negotiable.", date: new Date("2024-06-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Family", limbId: "people", title: "Relationship rupture", description: "Distance from siblings after conflict.", date: new Date("2018-06-01"), year: 2018, type: "setback", significance: 3, sentiment: "negative", value: null, isTurningPoint: true, future: false, bloomStatus: "ENDED" },
-  { branchThreadType: "Parenting", limbId: "people", title: "Child starts school", description: "A new season of responsibility.", date: new Date("2020-10-01"), year: 2020, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Parenting", limbId: "people", title: "Co-parenting rhythm", description: "Finally found a stable routine.", date: new Date("2023-11-01"), year: 2023, type: "achievement", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "GROWING" },
-  { branchThreadType: "Community", limbId: "people", title: "Neighborhood circle", description: "Joined a local support group.", date: new Date("2023-01-01"), year: 2023, type: "milestone", significance: 1, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Community", limbId: "people", title: "Weekend volunteering", description: "Built belonging through contribution.", date: new Date("2024-09-01"), year: 2024, type: "achievement", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Recovery", limbId: "health", title: "Back injury", description: "Pain changed everything for a while.", date: new Date("2017-02-01"), year: 2017, type: "setback", significance: 3, sentiment: "negative", value: null, isTurningPoint: true, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Recovery", limbId: "health", title: "Physio consistency", description: "Steady progress after years of stops.", date: new Date("2022-02-01"), year: 2022, type: "milestone", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Recovery", limbId: "health", title: "Pain-managed phase", description: "Not perfect, but functional and hopeful.", date: new Date("2024-08-01"), year: 2024, type: "realisation", significance: 2, sentiment: "positive", value: null, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
-  { branchThreadType: "Sleep", limbId: "health", title: "Sleep tracking starts", description: "Started measuring instead of guessing.", date: new Date("2022-02-01"), year: 2022, type: "milestone", significance: 1, sentiment: "neutral", value: 5, isTurningPoint: false, future: false, bloomStatus: "BLOOMED" },
-  { branchThreadType: "Sleep", limbId: "health", title: "6h average reached", description: "Still noisy, but trending better.", date: new Date("2024-12-01"), year: 2024, type: "milestone", significance: 2, sentiment: "positive", value: 6, isTurningPoint: false, future: true, bloomStatus: "GROWING" },
+/** One starter thread per life area — attach roadmap goals via the UI; timeline stays empty until you add marks/events. */
+const branchSeedsMyGoals: BranchSeed[] = [
+  { limbId: "finance", threadType: "My finance focus", name: "My finance focus", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-01") },
+  { limbId: "work", threadType: "My career focus", name: "My career focus", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-02") },
+  { limbId: "becoming", threadType: "Growth", name: "Growth", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-03") },
+  { limbId: "people", threadType: "Relationships", name: "Relationships", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-04") },
+  { limbId: "health", threadType: "Wellbeing", name: "Wellbeing", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-05") },
 ];
 
 async function seedUserTree(passwordHash: string, seed: UserTreeSeed) {
@@ -278,6 +196,7 @@ async function seedUserTree(passwordHash: string, seed: UserTreeSeed) {
     select: { id: true },
   });
   const branchIds = existingBranchIds.map((b) => b.id);
+  await prisma.goal.deleteMany({ where: { userId: user.id } });
   if (branchIds.length > 0) {
     await prisma.mark.deleteMany({ where: { branchId: { in: branchIds } } });
   }
@@ -354,22 +273,16 @@ async function seedUserTree(passwordHash: string, seed: UserTreeSeed) {
 async function main() {
   const passwordHash = await bcrypt.hash("password123", 10);
   await seedUserTree(passwordHash, {
-    email: "alex@pathfinder.test",
-    name: "Alex",
-    branchSeeds,
-    markSeeds,
-  });
-  await seedUserTree(passwordHash, {
-    email: "jordan@pathfinder.test",
-    name: "Jordan Vale",
-    branchSeeds: branchSeedsJordanVale,
-    markSeeds: markSeedsJordanVale,
-  });
-  await seedUserTree(passwordHash, {
     email: "fulltree@pathfinder.test",
     name: "Full Tree Showcase",
     branchSeeds: branchSeedsFullTreeShowcase,
     markSeeds: markSeedsFullTreeShowcaseRich,
+  });
+  await seedUserTree(passwordHash, {
+    email: "mygoals@pathfinder.test",
+    name: "My goals",
+    branchSeeds: branchSeedsMyGoals,
+    markSeeds: [],
   });
 }
 

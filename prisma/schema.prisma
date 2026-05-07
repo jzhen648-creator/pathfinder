@@ -202,6 +202,8 @@ model Goal {
   goalType    String      @default("action")
   targetAmount Float?
   currentAmount Float?
+  /** Unit label when using measurable targets (e.g. "kg", "sessions"). */
+  unit        String?
   /** Optional: timeline/event goals and ongoing commitments may have no deadline. */
   deadline    DateTime?
   // Cached raw roadmap returned by the AI model at creation time. Kept for

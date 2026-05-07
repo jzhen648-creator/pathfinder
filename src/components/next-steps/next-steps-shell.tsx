@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { AddGoalModal } from "@/components/goals/add-goal-modal";
 import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { getLimb } from "@/lib/limbs";
 import {
@@ -57,18 +59,35 @@ function limbTextColors(limbId: LimbId, isDark: boolean): { sub: string; text: s
 
 type Props = {
   initialGoals: NextStepsGoalDTO[];
+  initialBranches: { id: string; limbId: string; name: string | null; label: string | null }[];
   userName: string;
   userEmail: string;
 };
 
-export function NextStepsShell({ initialGoals, userName, userEmail }: Props) {
+export function NextStepsShell({ initialGoals, initialBranches, userName, userEmail }: Props) {
+  const router = useRouter();
   const isDark = useSyncExternalStore(subscribeDark, getDarkSnapshot, getServerDarkSnapshot);
   const [goals, setGoals] = useState(initialGoals);
+  const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [filterLimb, setFilterLimb] = useState<LimbId | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(() => initialGoals[0]?.id ?? null);
   const [toast, setToast] = useState<{ msg: string; color: string } | null>(null);
 
   const avatarInitials = initialsFromProfile(userName, userEmail);
+
+  const addGoalBranches = useMemo(
+    () =>
+      initialBranches.map((b) => ({
+        id: b.id,
+        limbId: b.limbId,
+        label: b.name ?? b.label ?? "Branch",
+      })),
+    [initialBranches],
+  );
+
+  useEffect(() => {
+    setGoals(initialGoals);
+  }, [initialGoals]);
 
   const visibleGoals = useMemo(() => {
     if (filterLimb === "all") return goals;
@@ -647,12 +666,25 @@ export function NextStepsShell({ initialGoals, userName, userEmail }: Props) {
           <div className="ns-page-header">
             <div className="mb-0.5 flex items-center justify-between gap-3">
               <h1 className="ns-page-title">Next Steps</h1>
-              <Link href="/dashboard" className="ns-add-goal-btn no-underline">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                Add roadmap
-              </Link>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="next-steps-add-goal"
+                  className="ns-add-goal-btn"
+                  onClick={() => setAddGoalOpen(true)}
+                >
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Add goal
+                </button>
+                <Link href="/dashboard" className="ns-add-goal-btn no-underline">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Add roadmap
+                </Link>
+              </div>
             </div>
             <p className="ns-page-sub">From branches to next steps.</p>
             <div className="ns-filter-row">
@@ -883,6 +915,17 @@ export function NextStepsShell({ initialGoals, userName, userEmail }: Props) {
           <span>{toast.msg}</span>
         </div>
       ) : null}
+
+      <AddGoalModal
+        open={addGoalOpen}
+        onOpenChange={setAddGoalOpen}
+        branches={addGoalBranches}
+        defaultBranchId={null}
+        onGoalCreated={({ branchLabel }) => {
+          showToast(`Goal created on ${branchLabel}.`);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
