@@ -22,7 +22,6 @@ import {
 import type { AreaData, MomentNode, Point, ThreadData, TreeGoalNode } from "./tree-types";
 import {
   buildStraightForksRecord,
-  type AreaForkSpec,
   type ThreadForkSpec,
   closestGlobalTOnLimb,
   getAreaSlotRender,
@@ -1083,13 +1082,18 @@ export function TreeView() {
                 <select
                   value={selectedMockUserId ?? mockUsers[0]?.id ?? ""}
                   onChange={(e) => setSelectedMockUserId(e.target.value)}
+                  aria-label="Dev mock user"
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
+                    lineHeight: 1.2,
                     color: "var(--color-text-secondary)",
-                    background: "var(--color-background-primary)",
+                    background: "none",
                     border: "0.5px solid var(--color-border-secondary)",
                     borderRadius: 4,
-                    padding: "2px 6px",
+                    padding: "3px 10px",
+                    cursor: "pointer",
+                    minHeight: 28,
+                    maxWidth: 220,
                   }}
                 >
                   {mockUsers.map((user) => (
@@ -2484,7 +2488,7 @@ function TreeSVG({
                   const next = { ...prev };
                   for (const ar of areas) {
                     const areaPrev = { ...(next[ar.id] ?? {}) } as AreaLayoutOverride;
-                    let mp = { ...(areaPrev.momentPositions ?? {}) };
+                    const mp = { ...(areaPrev.momentPositions ?? {}) };
                     for (const th of ar.threads) {
                       for (const m of th.moments) delete mp[m.id];
                     }
