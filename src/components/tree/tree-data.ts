@@ -1,5 +1,5 @@
-import { SPINE_ORIGIN, THREAD_SLOTS } from "./tree-geometry";
-import type { AreaData, GoalBloomStatus, MomentNode, ThreadData, TreeGoalNode } from "./tree-types";
+import { SPINE_ORIGIN, BRANCH_SLOTS } from "./tree-geometry";
+import type { AreaBranchData, AreaData, GoalBloomStatus, MomentNode, TreeGoalNode } from "./tree-types";
 
 export type RawBranch = {
   id: string;
@@ -29,7 +29,7 @@ export type RawTreeGoalPayload = {
     id: string;
     title: string;
     position: number;
-    subtasks: Array<{ id: string; isCompleted: boolean }>;
+    subtasks: Array<{ id: string; title?: string | null; position?: number | null; isCompleted: boolean }>;
   }>;
   forkedGoals: { id: string }[];
 };
@@ -54,7 +54,12 @@ function nestTreeGoalsForBranch(branchId: string, flat: RawTreeGoalPayload[]): T
       id: m.id,
       title: m.title,
       position: m.position,
-      subtasks: m.subtasks.map((s) => ({ id: s.id, isCompleted: s.isCompleted })),
+      subtasks: m.subtasks.map((s, si) => ({
+        id: s.id,
+        title: typeof s.title === "string" && s.title.trim().length > 0 ? s.title : `Subtask ${si + 1}`,
+        position: typeof s.position === "number" ? s.position : si,
+        isCompleted: s.isCompleted,
+      })),
     })),
     childGoals: [],
   }));
@@ -84,13 +89,18 @@ export type RawMark = {
   date?: string | Date | null;
 };
 
-export const LIMB_CONFIG: Record<string, { label: string; color: string }> = {
+export const LIFE_AREA_CONFIG: Record<string, { label: string; color: string }> = {
   finance: { label: "Money & Finance", color: "#1D9E75" },
   work: { label: "Work & Learning", color: "#EF9F27" },
   becoming: { label: "Who I'm Becoming", color: "#7F77DD" },
   people: { label: "People & Relationships", color: "#D4537E" },
   health: { label: "Health & Body", color: "#D85A30" },
 };
+
+/** @deprecated Use `LIFE_AREA_CONFIG`. */
+export const LIMB_CONFIG = LIFE_AREA_CONFIG;
+
+export const LIFE_AREA_ORDER = ["finance", "work", "becoming", "people", "health"] as const;
 
 function deriveBloomStatus(mark: RawMark, branch: RawBranch): MomentNode["bloomStatus"] {
   if (mark.future) return "GROWING";
@@ -119,8 +129,8 @@ function seededSigned(seed: string): number {
   return seededUnit(seed) * 2 - 1;
 }
 
-/** Appended after real marks so each thread shows more buds along the curve (tree view only). */
-const SYNTHETIC_MOMENTS_PER_THREAD = 5;
+/** Single tree-only bud when a thread has no real marks (avoids empty branches without stacking five fillers). */
+const SYNTHETIC_MOMENTS_WHEN_THREAD_EMPTY = 1;
 
 function syntheticBloomForBranch(branch: RawBranch): MomentNode["bloomStatus"] {
   if (branch.bloomStatus === "ENDED") return "ENDED";
@@ -129,17 +139,18 @@ function syntheticBloomForBranch(branch: RawBranch): MomentNode["bloomStatus"] {
 }
 
 function padThreadMoments(branch: RawBranch, realMoments: MomentNode[]): MomentNode[] {
-  if (SYNTHETIC_MOMENTS_PER_THREAD <= 0) return realMoments;
-  const years = realMoments.map((m) => m.year).filter((y): y is number => typeof y === "number");
-  const baseYear = years.length > 0 ? Math.max(...years) : new Date().getFullYear();
+  if (realMoments.length > 0) return realMoments;
+  const n = SYNTHETIC_MOMENTS_WHEN_THREAD_EMPTY;
+  if (n <= 0) return realMoments;
+  const baseYear = new Date().getFullYear();
   const synth: MomentNode[] = [];
-  for (let i = 0; i < SYNTHETIC_MOMENTS_PER_THREAD; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     synth.push({
       id: `tree-pad-${branch.id}-${i}`,
       branchId: branch.id,
-      label: `Along ${realMoments.length + i + 1}`,
+      label: "Along the way",
       description: null,
-      year: baseYear + 1 + i,
+      year: baseYear,
       significance: 1,
       bloomStatus: syntheticBloomForBranch(branch),
       isTurningPoint: false,
@@ -152,24 +163,22 @@ function padThreadMoments(branch: RawBranch, realMoments: MomentNode[]): MomentN
   return [...realMoments, ...synth].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
 }
 
-/** Limb/thread records only; fork SVG geometry is derived from this data in `tree-forks` (straight layout). */
+/** Life-area + branch-line records only; fork SVG geometry is derived from this data in `tree-forks` (straight layout). */
 export function mapToTreeData(
   branches: RawBranch[],
   marks: RawMark[],
   goals: RawTreeGoalPayload[] = [],
 ): AreaData[] {
-  const LIMB_ORDER = ["finance", "work", "becoming", "people", "health"];
+  return LIFE_AREA_ORDER.map((lifeAreaId) => {
+    const config = LIFE_AREA_CONFIG[lifeAreaId];
+    const origin = SPINE_ORIGIN[lifeAreaId];
 
-  return LIMB_ORDER.map((limbId) => {
-    const config = LIMB_CONFIG[limbId];
-    const origin = SPINE_ORIGIN[limbId];
-
-    const limbBranches = branches
-      .filter((b) => b.limbId === limbId && !b.parentBranchId)
+    const rootBranches = branches
+      .filter((b) => b.limbId === lifeAreaId && !b.parentBranchId)
       .sort((a, b) => asDateMs(a.createdAt) - asDateMs(b.createdAt));
-    const slots = THREAD_SLOTS[limbId] ?? [];
+    const slots = BRANCH_SLOTS[lifeAreaId] ?? [];
 
-    const threads: ThreadData[] = limbBranches.map((branch, idx) => {
+    const areaBranches: AreaBranchData[] = rootBranches.map((branch, idx) => {
       const slot = slots[idx] ?? slots[slots.length - 1];
       const fallbackSlot = {
         defaultFromT: 0.1,
@@ -204,7 +213,7 @@ export function mapToTreeData(
         .map((m) => ({
           id: m.id,
           branchId: m.branchId,
-          label: m.title ?? "Untitled moment",
+          label: m.title ?? "Untitled goal",
           description: m.description ?? null,
           year: m.year ?? (m.date ? new Date(m.date).getFullYear() : null),
           significance: Math.min(3, Math.max(1, m.significance ?? 1)),
@@ -264,17 +273,17 @@ export function mapToTreeData(
             }
           : undefined;
 
-      const threadGoals = nestTreeGoalsForBranch(branch.id, goals);
+      const goalRoots = nestTreeGoalsForBranch(branch.id, goals);
 
       return {
         id: branch.id,
-        type: branch.threadType ?? branch.name ?? "Thread",
+        type: branch.threadType ?? branch.name ?? "Branch",
         fromT,
         p1: safeSlot.p1,
         p2: safeSlot.p2,
         strokeWidth: safeSlot.sw,
         moments: branchMarks,
-        goals: threadGoals,
+        goals: goalRoots,
         siblings,
         splitT,
         postSplitP1,
@@ -282,11 +291,11 @@ export function mapToTreeData(
       };
     });
     return {
-      id: limbId,
-      label: config?.label ?? limbId,
+      id: lifeAreaId,
+      label: config?.label ?? lifeAreaId,
       color: config?.color ?? "#94A3B8",
       summary: null,
-      threads,
+      branches: areaBranches,
     };
   });
 }

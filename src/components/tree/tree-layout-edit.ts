@@ -1,14 +1,14 @@
 import type { Point } from "./tree-types";
 import defaultTreeGeometryJson from "@/data/pathfinder-tree-geometry.json";
 import {
-  translateThreadToForkPoint,
-  threadKnotPolyline,
+  translateBranchToForkPoint,
+  branchKnotPolyline,
   type AreaForkSpec,
   type CubicPiece,
-  type ThreadForkSpec,
+  type BranchForkSpec,
 } from "./tree-forks";
 
-export type ThreadLayoutOverride = {
+export type BranchLayoutOverride = {
   forkPoint?: Point;
   /** Degrees CCW around fork after fork placement. */
   rotateDeg?: number;
@@ -24,17 +24,19 @@ export type ThreadLayoutOverride = {
 };
 
 export type AreaLayoutOverride = {
-  /** Rotate entire limb + all threads around trunk attach (degrees CCW). */
+  /** Rotate entire life-area stem + all branches around trunk attach (degrees CCW). */
   limbRotateDeg?: number;
   limbTip?: Point;
-  /** First limb cubic `c2` — bends the stroke near the trunk. */
+  /** First stem cubic `c2` — bends the stroke near the trunk. */
   limbFirstC2?: Point;
   /** CCW tilt of stroke tangent leaving {@link AreaForkSpec.trunkAttach} (first segment `c1` arm). */
   limbForkTiltDeg?: number;
-  /** CCW tilt of stroke tangent arriving at limb tip (last segment `c2` arm). */
+  /** CCW tilt of stroke tangent arriving at stem tip (last segment `c2` arm). */
   limbTipTiltDeg?: number;
-  threads?: Record<number, ThreadLayoutOverride>;
-  /** Absolute SVG positions for moments (mark ids); overrides thread-path sampling when set. */
+  branches?: Record<number, BranchLayoutOverride>;
+  /** @deprecated Same shape as `branches`; honored when loading older localStorage / exports. */
+  threads?: Record<number, BranchLayoutOverride>;
+  /** Absolute SVG positions for goals / marks (mark ids); overrides branch-path sampling when set. */
   momentPositions?: Record<string, Point>;
 };
 
@@ -79,16 +81,16 @@ function rotateVector2D(v: Point, deg: number): Point {
 }
 
 /**
- * Rotate tangent direction at the thread fork (incoming side of first cubic) and/or at the tip
+ * Rotate tangent direction at the branch fork (incoming side of first cubic) and/or at the tip
  * (outgoing side of last cubic). Positions fork, interior knots, and tip stay fixed.
  */
-export function applyThreadEndTilts(thread: ThreadForkSpec, forkTiltDeg: number, tipTiltDeg: number): ThreadForkSpec {
-  if (Math.abs(forkTiltDeg) < 1e-9 && Math.abs(tipTiltDeg) < 1e-9) return thread;
-  const n = thread.threadPieces.length;
-  if (n === 0) return thread;
-  const pieces = thread.threadPieces.map((p) => ({ ...p }));
-  const fork = thread.forkPoint;
-  const tip = thread.tip;
+export function applyBranchEndTilts(branch: BranchForkSpec, forkTiltDeg: number, tipTiltDeg: number): BranchForkSpec {
+  if (Math.abs(forkTiltDeg) < 1e-9 && Math.abs(tipTiltDeg) < 1e-9) return branch;
+  const n = branch.branchPieces.length;
+  if (n === 0) return branch;
+  const pieces = branch.branchPieces.map((p) => ({ ...p }));
+  const fork = branch.forkPoint;
+  const tip = branch.tip;
   if (Math.abs(forkTiltDeg) > 1e-9) {
     const v = sub(pieces[0].c1, fork);
     const vR = rotateVector2D(v, forkTiltDeg);
@@ -100,11 +102,11 @@ export function applyThreadEndTilts(thread: ThreadForkSpec, forkTiltDeg: number,
     const wR = rotateVector2D(w, tipTiltDeg);
     pieces[n - 1] = { ...last, c2: sub(tip, wR) };
   }
-  return { ...thread, threadPieces: pieces };
+  return { ...branch, branchPieces: pieces };
 }
 
 /**
- * Rotate tangent direction where the limb leaves the trunk (first cubic `c1`) and/or where it meets the tip
+ * Rotate tangent direction where the life-area stem leaves the trunk (first cubic `c1`) and/or where it meets the tip
  * (last cubic `c2`). Positions trunk attach, interior knots, and tip stay fixed.
  */
 export function applyLimbEndTilts(spec: AreaForkSpec, forkTiltDeg: number, tipTiltDeg: number): AreaForkSpec {
@@ -184,87 +186,87 @@ function rotateCubicPiece(piece: CubicPiece, pivot: Point, rad: number): CubicPi
   };
 }
 
-/** Rotate limb geometry + every thread around trunk attach (pivot fixed). */
+/** Rotate life-area stem geometry + every branch around trunk attach (pivot fixed). */
 function rotateAreaAroundTrunk(spec: AreaForkSpec, deg: number): AreaForkSpec {
   if (Math.abs(deg) < 1e-9) return spec;
   const rad = (deg * Math.PI) / 180;
   const pivot = spec.trunkAttach;
   const limbPieces = spec.limbPieces.map((p) => rotateCubicPiece(p, pivot, rad));
   const limbTip = rotatePoint(spec.limbTip, pivot, rad);
-  const threads = spec.threads.map((t) => rotateThreadSpecAboutPivot(t, pivot, rad));
+  const branches = spec.branches.map((t) => rotateBranchSpecAboutPivot(t, pivot, rad));
   return {
     ...spec,
     limbPieces,
     limbTip,
-    threads,
+    branches,
   };
 }
 
-function rotateThreadSpecAboutPivot(thread: ThreadForkSpec, pivot: Point, rad: number): ThreadForkSpec {
+function rotateBranchSpecAboutPivot(branch: BranchForkSpec, pivot: Point, rad: number): BranchForkSpec {
   return {
-    forkPoint: rotatePoint(thread.forkPoint, pivot, rad),
-    tip: rotatePoint(thread.tip, pivot, rad),
-    threadPieces: thread.threadPieces.map((p) => rotateCubicPiece(p, pivot, rad)),
-    strokeWidth: thread.strokeWidth,
+    forkPoint: rotatePoint(branch.forkPoint, pivot, rad),
+    tip: rotatePoint(branch.tip, pivot, rad),
+    branchPieces: branch.branchPieces.map((p) => rotateCubicPiece(p, pivot, rad)),
+    strokeWidth: branch.strokeWidth,
   };
 }
 
-/** Rotate thread stroke around its fork; fork stays fixed. */
-export function rotateThreadAroundFork(thread: ThreadForkSpec, deg: number): ThreadForkSpec {
-  if (Math.abs(deg) < 1e-9) return thread;
+/** Rotate branch stroke around its fork; fork stays fixed. */
+export function rotateBranchAroundFork(branch: BranchForkSpec, deg: number): BranchForkSpec {
+  if (Math.abs(deg) < 1e-9) return branch;
   const rad = (deg * Math.PI) / 180;
-  const pivot = thread.forkPoint;
+  const pivot = branch.forkPoint;
   return {
-    forkPoint: { ...thread.forkPoint },
-    tip: rotatePoint(thread.tip, pivot, rad),
-    threadPieces: thread.threadPieces.map((p) => rotateCubicPiece(p, pivot, rad)),
-    strokeWidth: thread.strokeWidth,
+    forkPoint: { ...branch.forkPoint },
+    tip: rotatePoint(branch.tip, pivot, rad),
+    branchPieces: branch.branchPieces.map((p) => rotateCubicPiece(p, pivot, rad)),
+    strokeWidth: branch.strokeWidth,
   };
 }
 
 /**
- * Move thread tip without moving the fork.
+ * Move branch tip without moving the fork.
  * Multi-segment: every interior knot shifts toward the tip delta with **smoothstep(j / n)** (0 at
- * fork → 1 at tip), then the stroke is rebuilt as one **C¹** chain — the whole thread bends and
+ * fork → 1 at tip), then the stroke is rebuilt as one **C¹** chain — the whole branch bends and
  * moment buds (sampled at fixed path `t`) ride the new curve. Single-segment: affine control shift.
  */
-export function moveThreadTipPreserveFork(thread: ThreadForkSpec, newTip: Point): ThreadForkSpec {
-  const n = thread.threadPieces.length;
+export function moveBranchTipPreserveFork(branch: BranchForkSpec, newTip: Point): BranchForkSpec {
+  const n = branch.branchPieces.length;
   if (n === 0) {
-    return { ...thread, tip: newTip };
+    return { ...branch, tip: newTip };
   }
-  const delta = sub(newTip, thread.tip);
+  const delta = sub(newTip, branch.tip);
   if (n === 1) {
-    const seg = thread.threadPieces[0];
+    const seg = branch.branchPieces[0];
     return {
-      ...thread,
+      ...branch,
       tip: newTip,
-      threadPieces: [{ c1: add(seg.c1, delta), c2: add(seg.c2, delta), end: newTip }],
+      branchPieces: [{ c1: add(seg.c1, delta), c2: add(seg.c2, delta), end: newTip }],
     };
   }
-  const knots: Point[] = [thread.forkPoint];
-  for (const seg of thread.threadPieces) knots.push(seg.end);
+  const knots: Point[] = [branch.forkPoint];
+  for (const seg of branch.branchPieces) knots.push(seg.end);
   const newKnots = knots.map((k, j) => add(k, scale(delta, smoothstep01(j / n))));
   newKnots[newKnots.length - 1] = newTip;
-  const threadPieces = hermitePiecesFromOpenKnots(newKnots);
+  const branchPieces = hermitePiecesFromOpenKnots(newKnots);
   return {
-    ...thread,
+    ...branch,
     tip: newTip,
-    threadPieces,
+    branchPieces,
   };
 }
 
 /**
- * Rebuild thread through fork and tip with fixed interior knots {@link bendPoints} (C¹ Hermite chain).
+ * Rebuild branch through fork and tip with fixed interior knots {@link bendPoints} (C¹ Hermite chain).
  */
-export function applyThreadBendPoints(thread: ThreadForkSpec, bendPoints: Point[]): ThreadForkSpec {
-  const knots = threadKnotPolyline(thread);
-  if (knots.length < 2 || bendPoints.length === 0) return thread;
+export function applyBranchBendPoints(branch: BranchForkSpec, bendPoints: Point[]): BranchForkSpec {
+  const knots = branchKnotPolyline(branch);
+  if (knots.length < 2 || bendPoints.length === 0) return branch;
   const fork = knots[0]!;
   const tip = knots[knots.length - 1]!;
   const newKnots = [{ ...fork }, ...bendPoints.map((p) => ({ ...p })), { ...tip }];
-  const threadPieces = hermitePiecesFromOpenKnots(newKnots);
-  return { ...thread, threadPieces, tip };
+  const branchPieces = hermitePiecesFromOpenKnots(newKnots);
+  return { ...branch, branchPieces, tip };
 }
 
 function applyLimbFirstC2(spec: AreaForkSpec, c2: Point): AreaForkSpec {
@@ -294,6 +296,7 @@ function areaHasOverrides(ov: AreaLayoutOverride | undefined): boolean {
   if (ov.limbFirstC2) return true;
   if (ov.limbForkTiltDeg != null && Math.abs(ov.limbForkTiltDeg) > 1e-6) return true;
   if (ov.limbTipTiltDeg != null && Math.abs(ov.limbTipTiltDeg) > 1e-6) return true;
+  if (ov.branches && Object.keys(ov.branches).length > 0) return true;
   if (ov.threads && Object.keys(ov.threads).length > 0) return true;
   if (ov.momentPositions && Object.keys(ov.momentPositions).length > 0) return true;
   return false;
@@ -329,7 +332,7 @@ export function saveLayoutOverrides(overrides: LayoutOverrides): void {
 
 /**
  * Merge layout overrides into catalog fork specs.
- * Order per area: limb rotate → first limb c2 → limb tip → limb fork/tip tangent tilt ° → per-thread fork → rotate → tip → bendPoints → fork/tip tilt °.
+ * Order per area: stem rotate → first stem c2 → stem tip → stem fork/tip tangent tilt ° → per-branch fork → rotate → tip → bendPoints → fork/tip tilt °.
  */
 export function applyLayoutOverrides(
   bases: Record<string, AreaForkSpec>,
@@ -345,20 +348,21 @@ export function applyLayoutOverrides(
     if (ov.limbFirstC2) s = applyLimbFirstC2(s, ov.limbFirstC2);
     if (ov.limbTip) s = applyLimbTip(s, ov.limbTip);
     s = applyLimbEndTilts(s, ov.limbForkTiltDeg ?? 0, ov.limbTipTiltDeg ?? 0);
-    const threads = s.threads.map((t, i) => {
-      const fo = ov.threads?.[i];
+    const branchOverrides = ov.branches ?? ov.threads;
+    const branches = s.branches.map((t, i) => {
+      const fo = branchOverrides?.[i];
       if (!fo) return t;
       let th = t;
-      if (fo.forkPoint) th = translateThreadToForkPoint(th, fo.forkPoint);
-      if (fo.rotateDeg != null) th = rotateThreadAroundFork(th, fo.rotateDeg);
-      if (fo.tip) th = moveThreadTipPreserveFork(th, fo.tip);
+      if (fo.forkPoint) th = translateBranchToForkPoint(th, fo.forkPoint);
+      if (fo.rotateDeg != null) th = rotateBranchAroundFork(th, fo.rotateDeg);
+      if (fo.tip) th = moveBranchTipPreserveFork(th, fo.tip);
       const bends =
         fo.bendPoints && fo.bendPoints.length > 0 ? fo.bendPoints : fo.bendPoint ? [fo.bendPoint] : undefined;
-      if (bends) th = applyThreadBendPoints(th, bends);
-      th = applyThreadEndTilts(th, fo.forkTiltDeg ?? 0, fo.tipTiltDeg ?? 0);
+      if (bends) th = applyBranchBendPoints(th, bends);
+      th = applyBranchEndTilts(th, fo.forkTiltDeg ?? 0, fo.tipTiltDeg ?? 0);
       return th;
     });
-    out[areaId] = { ...s, threads };
+    out[areaId] = { ...s, branches };
   }
   return out;
 }

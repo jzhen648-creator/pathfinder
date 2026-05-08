@@ -84,6 +84,7 @@ export function TreeGoalNodeSvg({
         stroke={color}
         strokeWidth={2}
         strokeOpacity={0.5}
+        className={pulseClass}
         pointerEvents="none"
       />
     );
@@ -96,7 +97,7 @@ export function TreeGoalNodeSvg({
         r={GOAL_R}
         fill={color}
         opacity={status === "BRANCHED" ? 0.95 : 0.9}
-        className={status === "GROWING" ? pulseClass : undefined}
+        className={pulseClass}
         pointerEvents="none"
       />
     );

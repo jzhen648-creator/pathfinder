@@ -8,25 +8,25 @@ export type CubicPiece = {
   end: Point;
 };
 
-export type ThreadForkSpec = {
-  /** Where the thread buds from the limb (first M of thread path). */
+export type BranchForkSpec = {
+  /** Where the branch buds from the life-area stem (first M of branch path). */
   forkPoint: Point;
-  /** End of main thread stroke (last point of thread path). */
+  /** End of main branch stroke (last point of branch path). */
   tip: Point;
-  /** Cubic segments after forkPoint along the thread. */
-  threadPieces: CubicPiece[];
+  /** Cubic segments after forkPoint along the branch. */
+  branchPieces: CubicPiece[];
   strokeWidth: number;
 };
 
 /**
- * Explicit fork geometry for an area limb + threads.
+ * Explicit fork geometry for a life area + its branch lines.
  * Values are extracted from the previous AREA_SLOTS path strings — paths are rebuilt at render time.
  */
 export type AreaForkSpec = {
   trunkAttach: Point;
   limbTip: Point;
   limbPieces: CubicPiece[];
-  threads: ThreadForkSpec[];
+  branches: BranchForkSpec[];
   limbStrokeWidth: number;
 };
 
@@ -50,7 +50,7 @@ function cubicBezierPoint(t: number, p0: Point, p1: Point, p2: Point, p3: Point)
   };
 }
 
-/** Point along limb stroke at uniform multi-segment fraction `globalT` within [0,1], matching spine slot semantics. */
+/** Point along life-area stem stroke at uniform multi-segment fraction `globalT` within [0,1], matching spine slot semantics. */
 export function limbPointAtUniformFraction(spec: AreaForkSpec, globalT: number): Point {
   const segs = spec.limbPieces;
   if (segs.length === 0) return spec.trunkAttach;
@@ -62,31 +62,31 @@ export function limbPointAtUniformFraction(spec: AreaForkSpec, globalT: number):
   return cubicBezierPoint(localT, p0, seg.c1, seg.c2, seg.end);
 }
 
-/** Knot polyline along thread: fork, then each segment end (= tip last). */
-export function threadKnotPolyline(thread: ThreadForkSpec): Point[] {
-  const k: Point[] = [thread.forkPoint];
-  for (const seg of thread.threadPieces) k.push(seg.end);
+/** Knot polyline along branch: fork, then each segment end (= tip last). */
+export function branchKnotPolyline(branch: BranchForkSpec): Point[] {
+  const k: Point[] = [branch.forkPoint];
+  for (const seg of branch.branchPieces) k.push(seg.end);
   return k;
 }
 
-/** Point along thread stroke at uniform multi-segment fraction `globalT` ∈ [0,1]. */
-export function threadPointAtUniformFraction(thread: ThreadForkSpec, globalT: number): Point {
-  const segs = thread.threadPieces;
-  if (segs.length === 0) return thread.forkPoint;
+/** Point along branch stroke at uniform multi-segment fraction `globalT` ∈ [0,1]. */
+export function branchPointAtUniformFraction(branch: BranchForkSpec, globalT: number): Point {
+  const segs = branch.branchPieces;
+  if (segs.length === 0) return branch.forkPoint;
   const clamped = Math.max(0, Math.min(0.999999, globalT));
   const segIndex = Math.min(segs.length - 1, Math.floor(clamped * segs.length));
   const localT = clamped * segs.length - segIndex;
-  const p0 = segIndex === 0 ? thread.forkPoint : segs[segIndex - 1]!.end;
+  const p0 = segIndex === 0 ? branch.forkPoint : segs[segIndex - 1]!.end;
   const seg = segs[segIndex]!;
   return cubicBezierPoint(localT, p0, seg.c1, seg.c2, seg.end);
 }
 
 /** Uniform-global `t` samples for layout-edit bend handles (fork→tip). */
-export const THREAD_LAYOUT_BEND_SAMPLE_TS = [0.25, 0.5, 0.75] as const;
+export const BRANCH_LAYOUT_BEND_SAMPLE_TS = [0.25, 0.5, 0.75] as const;
 
-/** Default bend-handle positions along the resolved thread stroke (three interior influencers). */
-export function threadDefaultBendHandlePoints(thread: ThreadForkSpec): Point[] {
-  return THREAD_LAYOUT_BEND_SAMPLE_TS.map((t) => threadPointAtUniformFraction(thread, t));
+/** Default bend-handle positions along the resolved branch stroke (three interior influencers). */
+export function branchDefaultBendHandlePoints(branch: BranchForkSpec): Point[] {
+  return BRANCH_LAYOUT_BEND_SAMPLE_TS.map((t) => branchPointAtUniformFraction(branch, t));
 }
 
 function lerpPoint(a: Point, b: Point, t: number): Point {
@@ -105,7 +105,51 @@ function splitCubicLeftHalf(p0: Point, seg: CubicPiece, t: number): CubicPiece {
   return { c1: q01, c2: q02, end: q03 };
 }
 
-/** Closest uniform-global `t` on limb to {@link p} (piecewise cubic, sampled per segment). */
+/** De Casteljau split at `t`: left [0,t], right [t,1] as cubic from `p0` through `seg`. */
+function splitCubicAt(
+  p0: Point,
+  seg: CubicPiece,
+  t: number,
+): { left: CubicPiece; rightStart: Point; right: CubicPiece } {
+  const p1 = seg.c1;
+  const p2 = seg.c2;
+  const p3 = seg.end;
+  const p4 = lerpPoint(p0, p1, t);
+  const p5 = lerpPoint(p1, p2, t);
+  const p6 = lerpPoint(p2, p3, t);
+  const p7 = lerpPoint(p4, p5, t);
+  const p8 = lerpPoint(p5, p6, t);
+  const p9 = lerpPoint(p7, p8, t);
+  return {
+    left: { c1: p4, c2: p7, end: p9 },
+    rightStart: p9,
+    right: { c1: p8, c2: p6, end: p3 },
+  };
+}
+
+/**
+ * Stem subpath between uniform-global `t0` and `t1` (inclusive). Supports single `limbPieces`
+ * segment (straight life-area template); multi-segment limbs fall back to {@link limbPathUntilGlobalT}(t1).
+ */
+export function limbPathBetweenGlobalT(spec: AreaForkSpec, t0: number, t1: number): string {
+  const segs = spec.limbPieces;
+  if (segs.length === 0 || t1 <= t0 + 1e-9) return "";
+  if (segs.length > 1) return limbPathUntilGlobalT(spec, t1);
+  const p0Stem = spec.trunkAttach;
+  const seg = segs[0]!;
+  const tA = Math.max(0, Math.min(1, t0));
+  const tB = Math.max(tA, Math.min(1, t1));
+  if (tA <= 1e-9) return limbPathUntilGlobalT(spec, tB);
+  const first = splitCubicAt(p0Stem, seg, tA);
+  if (tB >= 1 - 1e-9) return pathFromStart(first.rightStart, [first.right]);
+  const u = (tB - tA) / Math.max(1e-9, 1 - tA);
+  if (u >= 1 - 1e-9) return pathFromStart(first.rightStart, [first.right]);
+  const uClamped = Math.min(1 - 1e-9, Math.max(1e-9, u));
+  const second = splitCubicAt(first.rightStart, first.right, uClamped);
+  return pathFromStart(first.rightStart, [second.left]);
+}
+
+/** Closest uniform-global `t` on life-area stem to {@link p} (piecewise cubic, sampled per segment). */
 export function closestGlobalTOnLimb(spec: AreaForkSpec, p: Point): number {
   const segs = spec.limbPieces;
   const n = segs.length;
@@ -130,18 +174,18 @@ export function closestGlobalTOnLimb(spec: AreaForkSpec, p: Point): number {
   return Math.min(1, Math.max(0, bestGlobalT));
 }
 
-/** Largest uniform-global `t` among thread fork projections onto the limb — limb stroke ends here so it doesn’t pass beyond threads. */
+/** Largest uniform-global `t` among branch fork projections onto the stem — stem stroke ends here so it doesn’t pass beyond branches. */
 export function maxForkGlobalT(spec: AreaForkSpec): number {
-  if (spec.threads.length === 0) return 1;
+  if (spec.branches.length === 0) return 1;
   let m = 0;
-  for (const th of spec.threads) {
-    const t = closestGlobalTOnLimb(spec, th.forkPoint);
+  for (const br of spec.branches) {
+    const t = closestGlobalTOnLimb(spec, br.forkPoint);
     if (t > m) m = t;
   }
   return Math.min(0.999999, m);
 }
 
-/** Limb {@link pathFromStart} clipped so stroke stops at furthest thread fork (matches rendered limb end). */
+/** Life-area stem {@link pathFromStart} clipped so stroke stops at furthest branch fork (matches rendered stem end). */
 export function limbPathUntilGlobalT(spec: AreaForkSpec, globalTEnd: number): string {
   const segs = spec.limbPieces;
   const n = segs.length;
@@ -164,47 +208,47 @@ export function limbPathUntilGlobalT(spec: AreaForkSpec, globalTEnd: number): st
   return pathFromStart(spec.trunkAttach, piecesOut);
 }
 
-/** Where the truncated limb stroke ends — use for labels instead of catalog {@link AreaForkSpec.limbTip}. */
+/** Where the truncated life-area stem ends — use for labels instead of catalog {@link AreaForkSpec.limbTip}. */
 export function limbStrokeEndPoint(spec: AreaForkSpec): Point {
   return limbPointAtUniformFraction(spec, maxForkGlobalT(spec));
 }
 
-/** Rigidly move a thread so its limb fork sits at {@link forkPoint} (fork + stroke + tip). */
-export function translateThreadToForkPoint(thread: ThreadForkSpec, forkPoint: Point): ThreadForkSpec {
-  const delta = { x: forkPoint.x - thread.forkPoint.x, y: forkPoint.y - thread.forkPoint.y };
-  return translateThreadSpec(thread, delta);
+/** Rigidly move a branch so its stem fork sits at {@link forkPoint} (fork + stroke + tip). */
+export function translateBranchToForkPoint(branch: BranchForkSpec, forkPoint: Point): BranchForkSpec {
+  const delta = { x: forkPoint.x - branch.forkPoint.x, y: forkPoint.y - branch.forkPoint.y };
+  return translateBranchSpec(branch, delta);
 }
 
-function translateThreadSpec(thread: ThreadForkSpec, d: Point): ThreadForkSpec {
+function translateBranchSpec(branch: BranchForkSpec, d: Point): BranchForkSpec {
   const tr = (p: Point) => ({ x: p.x + d.x, y: p.y + d.y });
   return {
-    forkPoint: tr(thread.forkPoint),
-    tip: tr(thread.tip),
-    threadPieces: thread.threadPieces.map((piece) => ({
+    forkPoint: tr(branch.forkPoint),
+    tip: tr(branch.tip),
+    branchPieces: branch.branchPieces.map((piece) => ({
       c1: tr(piece.c1),
       c2: tr(piece.c2),
       end: tr(piece.end),
     })),
-    strokeWidth: thread.strokeWidth,
+    strokeWidth: branch.strokeWidth,
   };
 }
 
-export function threadMainPath(t: ThreadForkSpec): string {
-  return pathFromStart(t.forkPoint, t.threadPieces);
+export function branchMainPath(b: BranchForkSpec): string {
+  return pathFromStart(b.forkPoint, b.branchPieces);
 }
 
 /**
- * Main thread stroke clipped so the tip sits near uniform-global `globalTEnd` (same segment
- * normalization as limb / tree-view {@code pathPointAtT}).
+ * Main branch stroke clipped so the tip sits near uniform-global `globalTEnd` (same segment
+ * normalization as stem / tree-view {@code pathPointAtT}).
  */
-export function threadMainPathUntilGlobalT(t: ThreadForkSpec, globalTEnd: number): string {
-  const segs = t.threadPieces;
+export function branchMainPathUntilGlobalT(b: BranchForkSpec, globalTEnd: number): string {
+  const segs = b.branchPieces;
   const n = segs.length;
-  if (n === 0) return `M${t.forkPoint.x},${t.forkPoint.y}`;
+  if (n === 0) return `M${b.forkPoint.x},${b.forkPoint.y}`;
   const clamped = Math.max(0, Math.min(1, globalTEnd));
   const tn = clamped * n;
   if (tn >= n - 1e-9) {
-    return pathFromStart(t.forkPoint, segs);
+    return pathFromStart(b.forkPoint, segs);
   }
   const segIndex = Math.min(n - 1, Math.floor(tn));
   const localT = tn - segIndex;
@@ -212,11 +256,11 @@ export function threadMainPathUntilGlobalT(t: ThreadForkSpec, globalTEnd: number
   for (let i = 0; i < segIndex; i++) {
     piecesOut.push(segs[i]);
   }
-  const p0 = segIndex === 0 ? t.forkPoint : segs[segIndex - 1].end;
+  const p0 = segIndex === 0 ? b.forkPoint : segs[segIndex - 1].end;
   const seg = segs[segIndex];
   const lt = Math.max(1e-9, Math.min(1, localT));
   piecesOut.push(splitCubicLeftHalf(p0, seg, lt));
-  return pathFromStart(t.forkPoint, piecesOut);
+  return pathFromStart(b.forkPoint, piecesOut);
 }
 
 export function getAreaSlotRender(
@@ -225,7 +269,7 @@ export function getAreaSlotRender(
 ): {
   limb: string;
   limbStrokeWidth: number;
-  threads: Array<{ path: string; strokeWidth: number }>;
+  branchStrokes: Array<{ path: string; strokeWidth: number }>;
 } | null {
   const spec = forks[id];
   if (!spec) return null;
@@ -233,9 +277,9 @@ export function getAreaSlotRender(
   return {
     limb: limbPathUntilGlobalT(spec, tEnd),
     limbStrokeWidth: spec.limbStrokeWidth,
-    threads: spec.threads.map((t) => ({
-      path: threadMainPath(t),
-      strokeWidth: t.strokeWidth,
+    branchStrokes: spec.branches.map((br) => ({
+      path: branchMainPath(br),
+      strokeWidth: br.strokeWidth,
     })),
   };
 }
@@ -245,23 +289,23 @@ export function colinearCubicPiece(p0: Point, p3: Point): CubicPiece {
   return { c1: lerpPoint(p0, p3, 1 / 3), c2: lerpPoint(p0, p3, 2 / 3), end: p3 };
 }
 
-type StraightLimbTemplate = {
-  /** Junction where this limb leaves the trunk (lower / middle / top fork). */
+type StraightLifeAreaTemplate = {
+  /** Junction where this life area leaves the trunk (lower / middle / top fork). */
   trunkAttach: Point;
-  /** Direction from `trunkAttach` toward this limb's hub (radians, +y = down). */
+  /** Direction from `trunkAttach` toward this life area's hub (radians, +y = down). */
   limbStemDirRad: number;
   /** Distance fork → hub along `limbStemDirRad`. */
   limbStemLen: number;
-  /** Thread fan bisector at the hub (radians); usually matches `limbStemDirRad`. */
+  /** Branch fan bisector at the hub (radians); usually matches `limbStemDirRad`. */
   bisectorRad: number;
   baseTipLen: number;
-  /** Extra length per thread index to reduce tip overlap. */
+  /** Extra length per branch index to reduce tip overlap. */
   tipLenPerIndex: number;
   limbStrokeWidth: number;
 };
 
 /** Lower pair: outward with net upward (negative sin θ). Middle: up-left / up-right. Top: straight up. */
-const STRAIGHT_LIMB_BY_ID: Record<string, StraightLimbTemplate> = {
+const STRAIGHT_LIFE_AREA_BY_ID: Record<string, StraightLifeAreaTemplate> = {
   finance: {
     trunkAttach: TREE_FORK_LOWER,
     limbStemDirRad: (-179 * Math.PI) / 180,
@@ -310,11 +354,11 @@ const STRAIGHT_LIMB_BY_ID: Record<string, StraightLimbTemplate> = {
 };
 
 /**
- * Degrees from limb `bisectorRad` per thread index (narrow fan, max ±30° from base).
- * n=3: third thread (index 2) is 0° so it continues parallel to the limb stem; earlier indices fan the other way.
+ * Degrees from life-area `bisectorRad` per branch index (narrow fan, max ±30° from base).
+ * n=3: third branch (index 2) is 0° so it continues parallel to the stem; earlier indices fan the other way.
  * n≥6: linear from −30° to +30° inclusive (evenly spaced along the 60° window).
  */
-function threadFanOffsetsDeg(n: number): number[] {
+function branchFanOffsetsDeg(n: number): number[] {
   if (n <= 0) return [];
   if (n === 1) return [0];
   if (n === 2) return [-15, 15];
@@ -324,25 +368,25 @@ function threadFanOffsetsDeg(n: number): number[] {
   return Array.from({ length: n }, (_, i) => -30 + (60 * i) / (n - 1));
 }
 
-function buildStraightAreaForkFromTemplate(tpl: StraightLimbTemplate, area: AreaData | undefined): AreaForkSpec {
-  const n = area?.threads.length ?? 0;
+function buildStraightAreaForkFromTemplate(tpl: StraightLifeAreaTemplate, area: AreaData | undefined): AreaForkSpec {
+  const n = area?.branches.length ?? 0;
   const trunkAttach = tpl.trunkAttach;
   const hub = {
     x: trunkAttach.x + Math.cos(tpl.limbStemDirRad) * tpl.limbStemLen,
     y: trunkAttach.y + Math.sin(tpl.limbStemDirRad) * tpl.limbStemLen,
   };
   const limbPiece = colinearCubicPiece(trunkAttach, hub);
-  const offsetsDeg = threadFanOffsetsDeg(n);
-  const threads: ThreadForkSpec[] = [];
-  /** 1-based threads 3 & 4 → swap their stem attachment along the limb (0-based indices 2 and 3). */
-  const stemTForThreadIndex = (i: number) => {
+  const offsetsDeg = branchFanOffsetsDeg(n);
+  const branches: BranchForkSpec[] = [];
+  /** Branches 3 & 4 → swap their stem attachment along the stem (0-based indices 2 and 3). */
+  const stemTForBranchIndex = (i: number) => {
     const t = (i + 1) / (n + 1);
     if (n >= 4 && i === 2) return (3 + 1) / (n + 1);
     if (n >= 4 && i === 3) return (2 + 1) / (n + 1);
     return t;
   };
   for (let i = 0; i < n; i += 1) {
-    const stemT = stemTForThreadIndex(i);
+    const stemT = stemTForBranchIndex(i);
     const forkPoint = lerpPoint(trunkAttach, hub, stemT);
     const ang = tpl.bisectorRad + (offsetsDeg[i]! * Math.PI) / 180;
     const L = tpl.baseTipLen + i * tpl.tipLenPerIndex;
@@ -350,11 +394,11 @@ function buildStraightAreaForkFromTemplate(tpl: StraightLimbTemplate, area: Area
       x: forkPoint.x + Math.cos(ang) * L,
       y: forkPoint.y + Math.sin(ang) * L,
     };
-    const strokeWidth = area?.threads[i]?.strokeWidth ?? 2.5;
-    threads.push({
+    const strokeWidth = area?.branches[i]?.strokeWidth ?? 2.5;
+    branches.push({
       forkPoint,
       tip,
-      threadPieces: [colinearCubicPiece(forkPoint, tip)],
+      branchPieces: [colinearCubicPiece(forkPoint, tip)],
       strokeWidth,
     });
   }
@@ -363,21 +407,21 @@ function buildStraightAreaForkFromTemplate(tpl: StraightLimbTemplate, area: Area
     limbTip: hub,
     limbPieces: [limbPiece],
     limbStrokeWidth: tpl.limbStrokeWidth,
-    threads,
+    branches,
   };
 }
 
-const STRAIGHT_LIMB_IDS = ["finance", "work", "becoming", "people", "health"] as const;
+const STRAIGHT_LIFE_AREA_IDS = ["finance", "work", "becoming", "people", "health"] as const;
 
 /**
- * Straight-line fork geometry: three trunk fork heights (lower / middle / top); one limb stem fork→hub;
- * each thread forks along that stem at an even fraction, then fans within ±30° of `bisectorRad` (60° max total).
+ * Straight-line fork geometry: three trunk fork heights (lower / middle / top); one life-area stem fork→hub;
+ * each branch forks along that stem at an even fraction, then fans within ±30° of `bisectorRad` (60° max total).
  */
 export function buildStraightForksRecord(areas: AreaData[]): Record<string, AreaForkSpec> {
   const byId = Object.fromEntries(areas.map((a) => [a.id, a] as const));
   return Object.fromEntries(
-    STRAIGHT_LIMB_IDS.map((id) => {
-      const tpl = STRAIGHT_LIMB_BY_ID[id];
+    STRAIGHT_LIFE_AREA_IDS.map((id) => {
+      const tpl = STRAIGHT_LIFE_AREA_BY_ID[id];
       return [id, buildStraightAreaForkFromTemplate(tpl, byId[id])] as const;
     }),
   ) as Record<string, AreaForkSpec>;

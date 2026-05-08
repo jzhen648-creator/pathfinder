@@ -12,7 +12,7 @@ export type MomentNode = {
   future: boolean;
   value: number | null;
   type: string;
-  /** Tree-only filler moments (not loaded from API); branch-from-moment is disabled. */
+  /** Tree-only filler (not loaded from API); branch-from-node is disabled for synthetic rows. */
   synthetic?: boolean;
 };
 
@@ -22,7 +22,7 @@ export type TreeMilestoneNode = {
   id: string;
   title: string;
   position: number;
-  subtasks: { id: string; isCompleted: boolean }[];
+  subtasks: { id: string; title: string; position: number; isCompleted: boolean }[];
 };
 
 export type TreeGoalNode = {
@@ -37,7 +37,8 @@ export type TreeGoalNode = {
   childGoals: TreeGoalNode[];
 };
 
-export type ThreadData = {
+/** One main branch line on the tree for a life area (maps to a root {@link Branch} row). */
+export type AreaBranchData = {
   id: string;
   type: string;
   fromT: number;
@@ -52,10 +53,11 @@ export type ThreadData = {
   postSplitStrokeWidth?: number;
 };
 
+/** Life area (Money, Health, …) with its rendered branch lines. */
 export type AreaData = {
   id: string;
   label: string;
   color: string;
   summary: string | null;
-  threads: ThreadData[];
+  branches: AreaBranchData[];
 };
