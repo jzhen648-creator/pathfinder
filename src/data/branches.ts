@@ -16,6 +16,6 @@
  * saved data can reference them.
  */
 
-import { LIMBS } from "@/lib/limbs";
+import { LIFE_AREAS } from "@/lib/life-areas";
 
-export const BRANCHES = LIMBS;
+export const BRANCHES = LIFE_AREAS;

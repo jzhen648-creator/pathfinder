@@ -175,7 +175,7 @@ export default async function FinanceTrackerPage() {
             AI Financial Reflection
           </h2>
           <div className="rounded-xl border border-[#34D39933] bg-[#07111F] p-4 text-sm text-zinc-300">
-            {reflection || "Add finance moments to unlock your reflection."}
+            {reflection || "Add finance goals to unlock your reflection."}
           </div>
         </section>
       </section>

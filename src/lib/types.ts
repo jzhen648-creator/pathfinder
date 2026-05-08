@@ -2,8 +2,10 @@
  * Pathfinder Type Definitions
  *
  * HIERARCHY:
- * Self → Limb (config) → Branch (DB)
+ * Self → Life area (catalog) → Branch (DB)
  *   → Moment (DB) → Turning Point (special Moment)
+ *
+ * `Branch.limbId` stores the life area id (same string ids as `LifeAreaId`).
  *
  * Path = visual only, no data
  * Gap = calculated only, no data
@@ -18,36 +20,42 @@ export type Self = {
   email: string;
 };
 
-// ── LIMB ─────────────────────────────────
+// ── LIFE AREA (catalog) ───────────
 // Config only — never stored in database
-export type Limb = {
-  id: LimbId;
-  label: string;
-  sublabel: string;
-  color: string;
-  angle: number;
-  emptyPrompt: string;
-  /** One warm question for a brand-new map when the user picks this limb first. */
-  firstMarkQuestion: string;
-  addPrompt: string;
-  examples: string[];
-};
-
-export type LimbId =
+export type LifeAreaId =
   | "work"
   | "health"
   | "becoming"
   | "people"
   | "finance";
 
+/** @deprecated Use `LifeAreaId`. */
+export type LimbId = LifeAreaId;
+
+export type LifeArea = {
+  id: LifeAreaId;
+  label: string;
+  sublabel: string;
+  color: string;
+  angle: number;
+  emptyPrompt: string;
+  /** One warm question for a brand-new map when the user picks this life area first. */
+  firstMarkQuestion: string;
+  addPrompt: string;
+  examples: string[];
+};
+
+/** @deprecated Use `LifeArea`. */
+export type Limb = LifeArea;
+
 // ── BRANCH ───────────────────────────────
 // Stored in database
-// One per Limb by default
+// One per life area by default
 // More created at Turning Points
 export type Branch = {
   id: string;
   userId: string;
-  limbId: LimbId;
+  limbId: LifeAreaId;
   label: string | null;
   name?: string | null;
   goal?: string | null;
@@ -71,7 +79,7 @@ export type Branch = {
 export type Moment = {
   id: string;
   userId: string;
-  limbId: LimbId;
+  limbId: LifeAreaId;
   branchId: string;
   label: string; // max 5 words
   description: string | null;
@@ -84,8 +92,8 @@ export type Moment = {
   isTurningPoint: boolean;
   location: string | null;
   timelineNote: string | null;
-  // Optional tag inside a Limb (e.g. People → family | friends | romance | community).
-  // Free-form string so new Limbs can define their own vocabulary later.
+  // Optional tag inside a life area (e.g. People → family | friends | romance | community).
+  // Free-form string so new life areas can define their own vocabulary later.
   subtype?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -96,7 +104,7 @@ export type Moment = {
 export type Mark = {
   id: string;
   branchId: string;
-  limbId: LimbId;
+  limbId: LifeAreaId;
   userId: string;
   title: string;
   description: string | null;
@@ -118,15 +126,18 @@ export type Reframe = {
   createdAt: string;
 };
 
-// Curated subtype vocabulary per Limb. Used by the detail panel picker.
+// Curated subtype vocabulary per life area. Used by the detail panel picker.
 // Keep short; free-form values are still allowed at the type level.
-export const LIMB_SUBTYPES: Record<LimbId, string[]> = {
+export const LIFE_AREA_SUBTYPES: Record<LifeAreaId, string[]> = {
   people: ["family", "friends", "romance", "community"],
   work: [],
   health: [],
   finance: [],
   becoming: [],
 };
+
+/** @deprecated Use `LIFE_AREA_SUBTYPES`. */
+export const LIMB_SUBTYPES = LIFE_AREA_SUBTYPES;
 
 // ── TURNING POINT ────────────────────────
 // A Moment where isTurningPoint is true
@@ -154,7 +165,7 @@ export type Path = {
 // The clickable space between Moments
 export type Gap = {
   id: string;
-  limbId: LimbId;
+  limbId: LifeAreaId;
   branchId: string;
   insertIndex: number;
   prevMomentId: string | null;

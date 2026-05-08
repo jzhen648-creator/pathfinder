@@ -148,7 +148,7 @@ export default async function DashboardPage() {
 
         {user.goals.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-[#151515] p-10 text-center text-zinc-400">
-            No moments yet. Add your first moment to get started.
+            No goals yet. Add your first goal to get started.
           </div>
         ) : null}
       </section>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
-import { getLimb } from "@/lib/limbs";
+import { getLifeArea } from "@/lib/life-areas";
 import { prisma } from "@/lib/prisma";
 import {
   createGoalPayloadSchema,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   }
 
   const unit = measurable && input.unit.trim().length > 0 ? input.unit.trim() : null;
-  const lifeArea = getLimb(branchRecord.limbId)?.label ?? "Other";
+  const lifeArea = getLifeArea(branchRecord.limbId)?.label ?? "Other";
 
   try {
     const goal = await prisma.goal.create({

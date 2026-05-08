@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Pathfinder",
-  description: "A clean moment tracking workspace with subtle progression",
+  description: "A clean goal-tracking life map with subtle progression",
 };
 
 export default function RootLayout({

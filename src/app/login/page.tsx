@@ -22,7 +22,7 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-zinc-400">
           {mode === "signin"
             ? "Sign in to continue."
-            : "Set up an account to start tracking moments."}
+            : "Set up an account to start tracking goals."}
         </p>
 
         <div className="mt-5 grid grid-cols-2 rounded-xl border border-white/10 bg-zinc-950/60 p-1">

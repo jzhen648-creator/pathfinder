@@ -14,8 +14,8 @@ import {
 
 export type AddGoalBranchOption = {
   id: string;
-  limbId: string;
-  /** Human-readable branch label */
+  lifeAreaId: string;
+  /** Human-readable label for this branch line */
   label: string;
 };
 
@@ -25,10 +25,11 @@ const GOAL_LABELS: Record<CreateGoalGoalType, string> = {
   identity: "Identity (who I'm becoming)",
 };
 
-const LIMB_ORDER = ["finance", "work", "becoming", "people", "health"] as const;
+/** Matches `LIFE_AREA_ORDER` in tree-data once that export lands in the tree commit. */
+const LIFE_AREA_ORDER_LIST = ["finance", "work", "becoming", "people", "health"] as const;
 
-function limbGroupLabel(limbId: string): string {
-  return LIMB_CONFIG[limbId]?.label ?? limbId;
+function lifeAreaGroupLabel(lifeAreaId: string): string {
+  return LIMB_CONFIG[lifeAreaId]?.label ?? lifeAreaId;
 }
 
 type FormValues = CreateGoalPayloadInput;
@@ -50,9 +51,11 @@ export type AddGoalModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   branches: AddGoalBranchOption[];
-  /** When set (e.g. thread pick), selects this branch until the user changes it. */
+  /** When set (e.g. branch pick), selects this DB branch until the user changes it. */
   defaultBranchId?: string | null;
   onGoalCreated?: (detail: { branchLabel: string; title: string }) => void;
+  /** Reserved for dev mock-user goal creation; wiring lands in a follow-up commit. */
+  devGoalsUserId?: string | null;
 };
 
 export function AddGoalModal({
@@ -61,21 +64,22 @@ export function AddGoalModal({
   branches,
   defaultBranchId = null,
   onGoalCreated,
+  devGoalsUserId: _devGoalsUserId = null,
 }: AddGoalModalProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const grouped = useMemo(() => {
-    const byLimb = new Map<string, AddGoalBranchOption[]>();
-    for (const limb of LIMB_ORDER) {
-      byLimb.set(limb, []);
+    const byLifeArea = new Map<string, AddGoalBranchOption[]>();
+    for (const lifeAreaId of LIFE_AREA_ORDER_LIST) {
+      byLifeArea.set(lifeAreaId, []);
     }
     for (const b of branches) {
-      const list = byLimb.get(b.limbId) ?? [];
+      const list = byLifeArea.get(b.lifeAreaId) ?? [];
       list.push(b);
-      byLimb.set(b.limbId, list);
+      byLifeArea.set(b.lifeAreaId, list);
     }
-    return byLimb;
+    return byLifeArea;
   }, [branches]);
 
   const form = useForm<FormValues>({
@@ -266,11 +270,11 @@ export function AddGoalModal({
               {...form.register("branchId")}
             >
               <option value="">Choose a branch</option>
-              {LIMB_ORDER.map((limbId) => {
-                const opts = grouped.get(limbId) ?? [];
+              {LIFE_AREA_ORDER_LIST.map((lifeAreaId) => {
+                const opts = grouped.get(lifeAreaId) ?? [];
                 if (!opts.length) return null;
                 return (
-                  <optgroup key={limbId} label={limbGroupLabel(limbId)}>
+                  <optgroup key={lifeAreaId} label={lifeAreaGroupLabel(lifeAreaId)}>
                     {[...opts]
                       .sort((a, b) => a.label.localeCompare(b.label))
                       .map((b) => (

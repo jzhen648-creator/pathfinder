@@ -38,7 +38,7 @@ export function GoalCardActions({ goal }: { goal: GoalSnapshot }) {
   );
 
   function openEdit() {
-    const summary = `Current moment:
+    const summary = `Current goal:
 - Title: ${goal.title}
 - Life area: ${goal.lifeArea}
 - Deadline: ${goal.deadline}
@@ -54,7 +54,7 @@ What would you like to change? You can update title, description, deadline, life
 
   async function handleDelete() {
     const confirmed = window.confirm(
-      "Are you sure you want to remove this moment? This cannot be undone.",
+      "Are you sure you want to remove this goal? This cannot be undone.",
     );
     if (!confirmed) return;
     const response = await fetch(`/api/goals/${goal.id}`, { method: "DELETE" });
@@ -68,14 +68,14 @@ What would you like to change? You can update title, description, deadline, life
         <button
           onClick={openEdit}
           className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-300 transition hover:border-indigo-300/50 hover:text-indigo-200"
-          title="Edit moment"
+          title="Edit goal"
         >
           ✎
         </button>
         <button
           onClick={() => void handleDelete()}
           className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-zinc-300 transition hover:border-rose-300/50 hover:text-rose-200"
-          title="Delete moment"
+          title="Delete goal"
         >
           🗑
         </button>
@@ -85,7 +85,7 @@ What would you like to change? You can update title, description, deadline, life
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4">
           <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#141414] p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Edit Moment</h3>
+              <h3 className="text-lg font-semibold text-white">Edit goal</h3>
               <button
                 onClick={() => setIsEditOpen(false)}
                 className="rounded-md px-2 py-1 text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
@@ -170,14 +170,14 @@ What would you like to change? You can update title, description, deadline, life
                         });
                         const data = (await response.json()) as { error?: string };
                         if (!response.ok) {
-                          setError(data.error ?? "Could not update this moment.");
+                          setError(data.error ?? "Could not update this goal.");
                           setIsSubmitting(false);
                           return;
                         }
                         setIsEditOpen(false);
                         router.refresh();
                       } catch {
-                        setError("Could not update this moment.");
+                        setError("Could not update this goal.");
                         setIsSubmitting(false);
                       }
                     }}
