@@ -1,13 +1,14 @@
 import { formatDistanceToNow } from "date-fns";
-import { LIMBS } from "@/lib/limbs";
-import { coerceRoadmapLimbId } from "@/lib/roadmap/roadmap-data";
+import { LIFE_AREAS } from "@/lib/life-areas";
+import { coerceRoadmapLifeAreaId } from "@/lib/roadmap/roadmap-data";
 import type { LimbId } from "@/lib/types";
 
-const KNOWN = new Set(LIMBS.map((l) => l.id));
+const KNOWN = new Set(LIFE_AREAS.map((l) => l.id));
 
 export function goalLifeAreaToLimbId(lifeArea: string): LimbId {
   const t = lifeArea.trim();
-  const hit = LIMBS.find((l) => l.label === t);
+  if (t === "Personal Growth") return "becoming";
+  const hit = LIFE_AREAS.find((l) => l.label === t);
   if (hit) return hit.id as LimbId;
   return KNOWN.has(t as LimbId) ? (t as LimbId) : "work";
 }
@@ -132,7 +133,7 @@ export function buildNextStepsGoals(goals: GoalRow[], marks: MarkRow[]): NextSte
   const lastByLimb = new Map<LimbId, { title: string; date: Date }>();
   const sortedMarks = [...marks].filter((m) => !m.archived).sort((a, b) => b.date.getTime() - a.date.getTime());
   for (const m of sortedMarks) {
-    const limb = coerceRoadmapLimbId(m.limbId);
+    const limb = coerceRoadmapLifeAreaId(m.limbId);
     if (!lastByLimb.has(limb)) {
       lastByLimb.set(limb, { title: m.title, date: m.date });
     }

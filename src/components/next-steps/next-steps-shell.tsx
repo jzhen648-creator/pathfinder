@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
 import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
-import { getLimb } from "@/lib/limbs";
+import { getLifeArea } from "@/lib/life-areas";
 import {
-  ROADMAP_LIMB_COLUMN_ORDER,
-  getRoadmapLimbColor,
-  getRoadmapLimbSub,
+  ROADMAP_LIFE_AREA_COLUMN_ORDER,
+  getRoadmapLifeAreaColor,
+  getRoadmapLifeAreaSub,
 } from "@/lib/roadmap/roadmap-data";
 import {
   type ApiGoalProgressShape,
@@ -46,14 +46,14 @@ function getServerDarkSnapshot() {
 const LIMB_SHORT: Record<LimbId, string> = {
   work: "Work",
   health: "Health",
-  becoming: "Self",
+  becoming: "Becoming",
   finance: "Money",
   people: "People",
 };
 
 function limbTextColors(limbId: LimbId, isDark: boolean): { sub: string; text: string } {
-  const c = getRoadmapLimbColor(limbId, isDark);
-  const sub = getRoadmapLimbSub(limbId, isDark);
+  const c = getRoadmapLifeAreaColor(limbId, isDark);
+  const sub = getRoadmapLifeAreaSub(limbId, isDark);
   return { sub, text: c };
 }
 
@@ -79,7 +79,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
     () =>
       initialBranches.map((b) => ({
         id: b.id,
-        limbId: b.limbId,
+        lifeAreaId: b.limbId,
         label: b.name ?? b.label ?? "Branch",
       })),
     [initialBranches],
@@ -643,10 +643,10 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                 All areas
               </span>
             </button>
-            {ROADMAP_LIMB_COLUMN_ORDER.map((id) => {
-              const limb = getLimb(id);
+            {ROADMAP_LIFE_AREA_COLUMN_ORDER.map((id) => {
+              const limb = getLifeArea(id);
               if (!limb) return null;
-              const dot = getRoadmapLimbColor(id, isDark);
+              const dot = getRoadmapLifeAreaColor(id, isDark);
               return (
                 <button
                   key={id}
@@ -695,12 +695,12 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
               >
                 All
               </button>
-              {ROADMAP_LIMB_COLUMN_ORDER.map((id) => {
-                const limb = getLimb(id);
+              {ROADMAP_LIFE_AREA_COLUMN_ORDER.map((id) => {
+                const limb = getLifeArea(id);
                 if (!limb) return null;
                 const active = filterLimb === id;
                 const { sub, text } = limbTextColors(id, isDark);
-                const stroke = getRoadmapLimbColor(id, isDark);
+                const stroke = getRoadmapLifeAreaColor(id, isDark);
                 return (
                   <button
                     key={id}
@@ -759,7 +759,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                 {visibleGoals.map((goal) => {
                   const expanded = expandedId === goal.id;
                   const { sub, text } = limbTextColors(goal.limbId, isDark);
-                  const col = getRoadmapLimbColor(goal.limbId, isDark);
+                  const col = getRoadmapLifeAreaColor(goal.limbId, isDark);
                   const statusStyles =
                     goal.statusTag === "just started"
                       ? { bg: "rgba(185,140,80,.12)", color: "#7A5820" }
@@ -893,7 +893,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                     </div>
                     <div>
                       <div className="text-[13px] text-[var(--ns-text3)]">
-                        No active roadmaps in {getLimb(filterLimb)?.label ?? filterLimb}
+                        No active roadmaps in {getLifeArea(filterLimb)?.label ?? filterLimb}
                       </div>
                       <div className="mt-1 text-[12px] text-[var(--ns-text3)] opacity-70">
                         Add a roadmap from Dashboard to get started.
@@ -931,7 +931,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
 }
 
 function CardIconLimb({ limbId, isDark }: { limbId: LimbId; isDark: boolean }) {
-  const col = getRoadmapLimbColor(limbId, isDark);
+  const col = getRoadmapLifeAreaColor(limbId, isDark);
   if (limbId === "work") {
     return (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>

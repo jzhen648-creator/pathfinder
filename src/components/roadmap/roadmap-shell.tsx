@@ -20,12 +20,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { getLimb } from "@/lib/limbs";
+import { getLifeArea } from "@/lib/life-areas";
 import {
-  buildPrimarySpineByLimb,
-  LIMB_ROOT_PREFIX,
-  ROADMAP_LIMB_COLUMN_ORDER,
-  ROADMAP_LIMB_ROOT_NODE_R,
+  buildPrimarySpineByLifeArea,
+  ROADMAP_LIFE_AREA_ROOT_PREFIX,
+  ROADMAP_LIFE_AREA_COLUMN_ORDER,
+  ROADMAP_LIFE_AREA_ROOT_NODE_R,
   ROADMAP_NODE_R,
   ROADMAP_NOW_Y,
   ROADMAP_REF_WIDTH,
@@ -35,8 +35,8 @@ import {
   type RoadmapMarkInput,
   type RoadmapNode,
   buildRoadmapLayout,
-  getRoadmapLimbColor,
-  getRoadmapLimbSub,
+  getRoadmapLifeAreaColor,
+  getRoadmapLifeAreaSub,
   roadmapEdgeUsesForkFlare,
   roadmapTreeMeta,
   resolveChronologyParentBranchId,
@@ -46,7 +46,7 @@ import type { Branch, LimbId, Mark } from "@/lib/types";
 
 const MOCK_DENSITY_STORAGE_KEY = "pathfinder_mock_density";
 const MOCK_PROFILE_STORAGE_KEY = "pathfinder_mock_profile";
-const ROADMAP_LIMB_ROOT_VIS = ROADMAP_LIMB_ROOT_NODE_R / ROADMAP_NODE_R;
+const ROADMAP_LIFE_AREA_ROOT_VIS = ROADMAP_LIFE_AREA_ROOT_NODE_R / ROADMAP_NODE_R;
 const ROADMAP_INITIAL_ZOOM = 0.65;
 const ROADMAP_OVERVIEW_CANVAS_MIN_WIDTH = 2200;
 const ROADMAP_NODE_VIS_SCALE = 1.35;
@@ -141,7 +141,7 @@ export function RoadmapShell() {
   const [birthYear, setBirthYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [hiddenLimbIds, setHiddenLimbIds] = useState<Set<LimbId>>(() => new Set());
+  const [hiddenLifeAreaIds, setHiddenLifeAreaIds] = useState<Set<LimbId>>(() => new Set());
   const [hover, setHover] = useState<{
     node: RoadmapNode;
     left: number;
@@ -253,31 +253,31 @@ export function RoadmapShell() {
     svgInitRef.current = false;
   }, [marks, branches, birthYear]);
 
-  const visibleLimbs = useMemo((): LimbId[] => {
-    const v = ROADMAP_LIMB_COLUMN_ORDER.filter((id) => !hiddenLimbIds.has(id));
-    return v.length > 0 ? v : [...ROADMAP_LIMB_COLUMN_ORDER];
-  }, [hiddenLimbIds]);
+  const visibleLifeAreas = useMemo((): LimbId[] => {
+    const v = ROADMAP_LIFE_AREA_COLUMN_ORDER.filter((id) => !hiddenLifeAreaIds.has(id));
+    return v.length > 0 ? v : [...ROADMAP_LIFE_AREA_COLUMN_ORDER];
+  }, [hiddenLifeAreaIds]);
 
   const viewWForLayout = viewportW > 0 ? viewportW : 0;
   const { nodes, edges, layoutWidth, branchLanes } = useMemo(
     () =>
       buildRoadmapLayout(marks, branches, {
         birthYear,
-        visibleLimbIds: visibleLimbs,
+        visibleLifeAreaIds: visibleLifeAreas,
         // Keep internal limb spacing aligned with the rendered canvas width at overview zoom.
         minLayoutWidth: Math.max(ROADMAP_OVERVIEW_CANVAS_MIN_WIDTH, viewWForLayout || 0),
       }),
-    [marks, branches, birthYear, visibleLimbs, viewportW],
+    [marks, branches, birthYear, visibleLifeAreas, viewportW],
   );
 
   const trees = useMemo(() => roadmapTreeMeta(), []);
 
-  const addMarkDefaultLimb = useMemo((): LimbId => {
-    for (const id of ROADMAP_LIMB_COLUMN_ORDER) {
-      if (!hiddenLimbIds.has(id)) return id;
+  const addMarkDefaultLifeArea = useMemo((): LimbId => {
+    for (const id of ROADMAP_LIFE_AREA_COLUMN_ORDER) {
+      if (!hiddenLifeAreaIds.has(id)) return id;
     }
     return "work";
-  }, [hiddenLimbIds]);
+  }, [hiddenLifeAreaIds]);
 
   const nodeMap = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
   const edgeSegmentStartByPair = useMemo(() => {
@@ -290,13 +290,13 @@ export function RoadmapShell() {
     for (const arr of byBranch.values()) {
       arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
-    const spineByLimb = buildPrimarySpineByLimb(branches, marks);
+    const spineByLifeArea = buildPrimarySpineByLifeArea(branches, marks);
     const map = new Map<string, { nextParentMarkId: string; t: number }>();
     for (const br of branches) {
       if (!br.parentBranchId) continue;
       const childMarks = byBranch.get(br.id) ?? [];
       if (childMarks.length === 0) continue;
-      const chronologyParentBranchId = resolveChronologyParentBranchId(br, spineByLimb);
+      const chronologyParentBranchId = resolveChronologyParentBranchId(br, spineByLifeArea);
       if (!chronologyParentBranchId) continue;
       const parentTurningPointId =
         chronologyParentBranchId === br.parentBranchId ? br.turningPointId : null;
@@ -323,21 +323,21 @@ export function RoadmapShell() {
     for (const arr of byBranch.values()) {
       arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
-    const spineByLimb = buildPrimarySpineByLimb(branches, marks);
+    const spineByLifeArea = buildPrimarySpineByLifeArea(branches, marks);
     const set = new Set<string>();
-    for (const [limbId, spineBranchId] of spineByLimb) {
+    for (const [lifeAreaId, spineBranchId] of spineByLifeArea) {
       const series = byBranch.get(spineBranchId) ?? [];
       const branch = branchById.get(spineBranchId);
       const goalId = goalSyntheticId(spineBranchId);
       const hasGoal = Boolean((branch?.goal ?? "").trim());
       if (series.length > 0) {
-        set.add(`${LIMB_ROOT_PREFIX}${limbId}::${series[0]!.id}`);
+        set.add(`${ROADMAP_LIFE_AREA_ROOT_PREFIX}${lifeAreaId}::${series[0]!.id}`);
         for (let i = 0; i < series.length - 1; i += 1) {
           set.add(`${series[i]!.id}::${series[i + 1]!.id}`);
         }
         if (hasGoal) set.add(`${series[series.length - 1]!.id}::${goalId}`);
       } else if (hasGoal) {
-        set.add(`${LIMB_ROOT_PREFIX}${limbId}::${goalId}`);
+        set.add(`${ROADMAP_LIFE_AREA_ROOT_PREFIX}${lifeAreaId}::${goalId}`);
       }
     }
     return set;
@@ -358,7 +358,7 @@ export function RoadmapShell() {
       const firstMark = (marksByBranch.get(lane.branchId) ?? [])[0];
       const firstNode = firstMark ? nodeMap[firstMark.id] : null;
       const turningNode = branch?.turningPointId ? nodeMap[branch.turningPointId] : null;
-      const rootNode = nodeMap[`${LIMB_ROOT_PREFIX}${lane.limbId}`];
+      const rootNode = nodeMap[`${ROADMAP_LIFE_AREA_ROOT_PREFIX}${lane.limbId}`];
       const anchorNode = firstNode ?? turningNode ?? rootNode;
       rawAnchors.set(lane.branchId, {
         x: firstNode?.x ?? lane.x,
@@ -404,7 +404,7 @@ export function RoadmapShell() {
   }, [edges]);
 
   const initialFocus = useMemo(() => {
-    const roots = nodes.filter((n) => n.id.startsWith(LIMB_ROOT_PREFIX));
+    const roots = nodes.filter((n) => n.id.startsWith(ROADMAP_LIFE_AREA_ROOT_PREFIX));
     if (roots.length === 0) return null;
     const childrenByParent = new Map<string, RoadmapNode[]>();
     for (const n of nodes) {
@@ -652,9 +652,9 @@ export function RoadmapShell() {
     [clampPanForZoom, markWheelZoomActive, stopBounce, zoom],
   );
 
-  const toggleLimb = useCallback((id: LimbId) => {
-    setHiddenLimbIds((prev) => {
-      const currentlyVisible = ROADMAP_LIMB_COLUMN_ORDER.filter((limbId) => !prev.has(limbId));
+  const toggleLifeArea = useCallback((id: LimbId) => {
+    setHiddenLifeAreaIds((prev) => {
+      const currentlyVisible = ROADMAP_LIFE_AREA_COLUMN_ORDER.filter((limbId) => !prev.has(limbId));
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -689,7 +689,7 @@ export function RoadmapShell() {
     setZoom(nextZoom);
     setPan(nextPan);
     return undefined;
-  }, [clampPanForZoom, effectiveLayoutWidth, initialFocus, loading, nodes.length, viewH, viewW, visibleLimbs]);
+  }, [clampPanForZoom, effectiveLayoutWidth, initialFocus, loading, nodes.length, viewH, viewW, visibleLifeAreas]);
 
   // Keep linework readable at low zoom by compensating stroke widths in SVG units.
   const zoomCompStroke = useCallback(
@@ -738,17 +738,17 @@ export function RoadmapShell() {
             <div className="mb-1.5 px-5 text-[10px] font-medium uppercase tracking-wider text-[var(--rm-text3)]">
               Life areas
             </div>
-            {ROADMAP_LIMB_COLUMN_ORDER.map((limbId) => {
-              const limb = getLimb(limbId);
+            {ROADMAP_LIFE_AREA_COLUMN_ORDER.map((limbId) => {
+              const limb = getLifeArea(limbId);
               if (!limb) return null;
-              const col = getRoadmapLimbColor(limbId, isDark);
-              const off = !visibleLimbs.includes(limbId);
+              const col = getRoadmapLifeAreaColor(limbId, isDark);
+              const off = !visibleLifeAreas.includes(limbId);
               return (
                 <button
                   key={limbId}
                   type="button"
                   className={`rm-tree-toggle${off ? " rm-off" : ""}`}
-                  onClick={() => toggleLimb(limbId)}
+                  onClick={() => toggleLifeArea(limbId)}
                 >
                   <div className="rm-tree-dot" style={{ background: col }} />
                   <span className="rm-tree-name">{limb.label}</span>
@@ -772,7 +772,7 @@ export function RoadmapShell() {
                 />
                 <circle cx="6" cy="6" r="2" fill="#4A8FA8" />
               </svg>
-              Past moment
+              Past goal
             </div>
             <div className="flex items-center gap-2 text-[11px] text-[var(--rm-text3)]">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -916,10 +916,10 @@ export function RoadmapShell() {
               </button>
             </div>
             <div className="rm-legend">
-              {ROADMAP_LIMB_COLUMN_ORDER.map((limbId) => {
-                const l = getLimb(limbId);
+              {ROADMAP_LIFE_AREA_COLUMN_ORDER.map((limbId) => {
+                const l = getLifeArea(limbId);
                 if (!l) return null;
-                const dot = getRoadmapLimbColor(limbId, isDark);
+                const dot = getRoadmapLifeAreaColor(limbId, isDark);
                 const short =
                   limbId === "finance"
                     ? "Money"
@@ -1037,7 +1037,7 @@ export function RoadmapShell() {
                 const a = nodeMap[aId];
                 const b = nodeMap[bId];
                 if (!a || !b) return null;
-                if (hiddenLimbIds.has(a.tree) || hiddenLimbIds.has(b.tree)) return null;
+                if (hiddenLifeAreaIds.has(a.tree) || hiddenLifeAreaIds.has(b.tree)) return null;
                 let x1 = nx(a);
                 let y1 = a.y;
                 const x2 = nx(b);
@@ -1051,7 +1051,7 @@ export function RoadmapShell() {
                     y1 = y1 + (nxt.y - y1) * seg.t;
                   }
                 }
-                const col = getRoadmapLimbColor(a.tree, isDark);
+                const col = getRoadmapLifeAreaColor(a.tree, isDark);
                 const isTargetPath = a.type === "goal" || b.type === "goal";
                 const isSpineEdge = spineEdgeKeys.has(`${aId}::${bId}`);
                 const isForkEdge = roadmapEdgeUsesForkFlare(
@@ -1078,21 +1078,21 @@ export function RoadmapShell() {
               })}
 
               {nodes.map((n) => {
-                if (hiddenLimbIds.has(n.tree)) return null;
+                if (hiddenLifeAreaIds.has(n.tree)) return null;
                 const x = nx(n);
                 const y = n.y;
-                const col = getRoadmapLimbColor(n.tree, isDark);
-                const sub = getRoadmapLimbSub(n.tree, isDark);
+                const col = getRoadmapLifeAreaColor(n.tree, isDark);
+                const sub = getRoadmapLifeAreaSub(n.tree, isDark);
                 const fut = !n.past;
-                const isLimbRoot = n.id.startsWith(LIMB_ROOT_PREFIX);
-                const R = isLimbRoot
-                  ? ROADMAP_LIMB_ROOT_NODE_R * ROADMAP_NODE_VIS_SCALE
+                const isLifeAreaRoot = n.id.startsWith(ROADMAP_LIFE_AREA_ROOT_PREFIX);
+                const R = isLifeAreaRoot
+                  ? ROADMAP_LIFE_AREA_ROOT_NODE_R * ROADMAP_NODE_VIS_SCALE
                   : n.type === "milestone"
                     ? ROADMAP_NODE_R * 1.05 * ROADMAP_NODE_VIS_SCALE
                     : ROADMAP_NODE_R * 0.82 * ROADMAP_NODE_VIS_SCALE;
                 const diamondHalf = R / Math.SQRT2;
 
-                const short = isLimbRoot
+                const short = isLifeAreaRoot
                   ? n.label
                   : n.label.length > 24
                     ? `${n.label.slice(0, 23)}…`
@@ -1118,7 +1118,7 @@ export function RoadmapShell() {
                               y={y - diamondHalf}
                               width={diamondHalf * 2}
                               height={diamondHalf * 2}
-                              rx={isLimbRoot ? 2.5 * ROADMAP_LIMB_ROOT_VIS : 2.5}
+                              rx={isLifeAreaRoot ? 2.5 * ROADMAP_LIFE_AREA_ROOT_VIS : 2.5}
                               fill={BGEL}
                               stroke={col}
                               strokeWidth={zoomCompStroke(1.5)}
@@ -1129,7 +1129,7 @@ export function RoadmapShell() {
                             <circle
                               cx={x}
                               cy={y}
-                              r={isLimbRoot ? 3.5 * ROADMAP_LIMB_ROOT_VIS * ROADMAP_NODE_VIS_SCALE : 3.5 * ROADMAP_NODE_VIS_SCALE}
+                              r={isLifeAreaRoot ? 3.5 * ROADMAP_LIFE_AREA_ROOT_VIS * ROADMAP_NODE_VIS_SCALE : 3.5 * ROADMAP_NODE_VIS_SCALE}
                               fill={col}
                               opacity={0.35}
                             />
@@ -1141,7 +1141,7 @@ export function RoadmapShell() {
                               y={y - diamondHalf}
                               width={diamondHalf * 2}
                               height={diamondHalf * 2}
-                              rx={isLimbRoot ? 2.5 * ROADMAP_LIMB_ROOT_VIS : 2.5}
+                              rx={isLifeAreaRoot ? 2.5 * ROADMAP_LIFE_AREA_ROOT_VIS : 2.5}
                               fill={sub}
                               stroke={col}
                               strokeWidth={zoomCompStroke(1.85)}
@@ -1153,7 +1153,7 @@ export function RoadmapShell() {
                               textAnchor="middle"
                               dominantBaseline="central"
                               fontSize={zoomCompFont(
-                                isLimbRoot ? 8.5 * ROADMAP_LIMB_ROOT_VIS : 8.5,
+                                isLifeAreaRoot ? 8.5 * ROADMAP_LIFE_AREA_ROOT_VIS : 8.5,
                               )}
                               fill={col}
                               fontWeight={700}
@@ -1268,10 +1268,10 @@ export function RoadmapShell() {
               {Object.keys(childCount).map((id) => {
                 if (childCount[id] < 2) return null;
                 const n = nodeMap[id];
-                if (!n || hiddenLimbIds.has(n.tree)) return null;
+                if (!n || hiddenLifeAreaIds.has(n.tree)) return null;
                 const x = nx(n);
                 const y = n.y;
-                const col = getRoadmapLimbColor(n.tree, isDark);
+                const col = getRoadmapLifeAreaColor(n.tree, isDark);
                 const fy = y - 16;
                 return (
                   <polygon
@@ -1294,8 +1294,8 @@ export function RoadmapShell() {
 
               {branchLanes.map((lane) => {
                 if (!lane.showLabel) return null;
-                if (hiddenLimbIds.has(lane.limbId)) return null;
-                const col = getRoadmapLimbColor(lane.limbId, isDark);
+                if (hiddenLifeAreaIds.has(lane.limbId)) return null;
+                const col = getRoadmapLifeAreaColor(lane.limbId, isDark);
                 const anchor = branchLabelAnchors.get(lane.branchId);
                 const short =
                   lane.label.length > 24 ? `${lane.label.slice(0, 23)}…` : lane.label;
@@ -1345,7 +1345,7 @@ export function RoadmapShell() {
           open={addMarkOpen}
           onClose={() => setAddMarkOpen(false)}
           branches={branches as unknown as ApiBranchRow[]}
-          defaultLimbId={addMarkDefaultLimb}
+          defaultLifeAreaId={addMarkDefaultLifeArea}
           onCreated={async () => {
             setAddMarkOpen(false);
             await reload();
@@ -1371,7 +1371,7 @@ function RoadmapHoverCard({
   left: number;
   top: number;
 }) {
-  const col = getRoadmapLimbColor(node.tree, isDark);
+  const col = getRoadmapLifeAreaColor(node.tree, isDark);
   const meta = trees[node.tree];
   const eyebrow = `${meta?.label ?? node.tree}${node.past ? "" : " · goal"}`;
 

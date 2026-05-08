@@ -10,7 +10,7 @@ const BRANCHES = [
   "Finance",
   "Relationships",
   "Living",
-  "Personal Growth",
+  "Who I'm Becoming",
   "Beliefs & Worldview",
   "Identity",
   "Fun & Life",
@@ -83,7 +83,7 @@ Before placing a node on the map you must have ALL THREE:
 1) WHAT: clear label for event/belief/decision/chapter (5 words or fewer, noun phrase)
 2) WHEN: at minimum a year, or a relative anchor that maps to a known year
 3) WHICH BRANCH: must be one of exactly:
-Career, Health & Fitness, Finance, Relationships, Living, Personal Growth, Beliefs & Worldview, Identity, Fun & Life, Purpose
+Career, Health & Fitness, Finance, Relationships, Living, Who I'm Becoming, Beliefs & Worldview, Identity, Fun & Life, Purpose
 
 If any of these are missing or unclear for a specific event, do NOT include that event in preview yet. Ask ONE specific question to resolve only the unclear part.
 

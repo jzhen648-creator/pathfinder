@@ -1,8 +1,8 @@
-import { LIMBS } from "@/lib/limbs";
+import { LIFE_AREAS } from "@/lib/life-areas";
 import type { LimbId } from "@/lib/types";
 
-/** North-star limb colors (match life-map-v2-shell). */
-export const ROADMAP_LIMB_HEX: Record<LimbId, string> = {
+/** North-star life-area colors (match life-map-v2-shell). */
+export const ROADMAP_LIFE_AREA_HEX: Record<LimbId, string> = {
   finance: "#3D7A5E",
   work: "#5B6FD4",
   becoming: "#A0622F",
@@ -10,7 +10,7 @@ export const ROADMAP_LIMB_HEX: Record<LimbId, string> = {
   health: "#4A8FA8",
 };
 
-const ROADMAP_LIMB_HEX_DARK: Record<LimbId, string> = {
+const ROADMAP_LIFE_AREA_HEX_DARK: Record<LimbId, string> = {
   finance: "#4D9A74",
   work: "#7B8FE8",
   becoming: "#C4894F",
@@ -18,7 +18,7 @@ const ROADMAP_LIMB_HEX_DARK: Record<LimbId, string> = {
   health: "#6AAFCA",
 };
 
-const ROADMAP_LIMB_SUB: Record<LimbId, string> = {
+const ROADMAP_LIFE_AREA_SUB: Record<LimbId, string> = {
   finance: "#EBF4EF",
   work: "#EDEFFE",
   becoming: "#F7EDDF",
@@ -26,7 +26,7 @@ const ROADMAP_LIMB_SUB: Record<LimbId, string> = {
   health: "#E5F4F8",
 };
 
-const ROADMAP_LIMB_SUB_DARK: Record<LimbId, string> = {
+const ROADMAP_LIFE_AREA_SUB_DARK: Record<LimbId, string> = {
   finance: "#1A2E25",
   work: "#1E2240",
   becoming: "#2E2018",
@@ -34,14 +34,14 @@ const ROADMAP_LIMB_SUB_DARK: Record<LimbId, string> = {
   health: "#1A2E35",
 };
 
-const KNOWN_LIMB_IDS = new Set(LIMBS.map((l) => l.id));
+const KNOWN_LIFE_AREA_IDS = new Set(LIFE_AREAS.map((l) => l.id));
 
-export function coerceRoadmapLimbId(raw: string): LimbId {
-  return KNOWN_LIMB_IDS.has(raw as LimbId) ? (raw as LimbId) : "work";
+export function coerceRoadmapLifeAreaId(raw: string): LimbId {
+  return KNOWN_LIFE_AREA_IDS.has(raw as LimbId) ? (raw as LimbId) : "work";
 }
 
 /** Column order left-to-right (matches north-star shell feel). */
-export const ROADMAP_LIMB_COLUMN_ORDER: LimbId[] = [
+export const ROADMAP_LIFE_AREA_COLUMN_ORDER: LimbId[] = [
   "becoming",
   "work",
   "finance",
@@ -108,13 +108,13 @@ export type RoadmapParentAnchor = {
   t?: number;
 };
 
-/** Synthetic id prefix for one root decision node per visible life area. */
-export const LIMB_ROOT_PREFIX = "limb-root:" as const;
-export function limbRootId(limbId: LimbId): string {
-  return `${LIMB_ROOT_PREFIX}${limbId}`;
+/** Synthetic id prefix for one root decision node per visible life area (string kept for stable node ids). */
+export const ROADMAP_LIFE_AREA_ROOT_PREFIX = "limb-root:" as const;
+export function roadmapLifeAreaRootId(lifeAreaId: LimbId): string {
+  return `${ROADMAP_LIFE_AREA_ROOT_PREFIX}${lifeAreaId}`;
 }
-const LIMB_ROOT_DECISION_LABEL: Record<LimbId, string> = {
-  becoming: "Start of Personal Growth Journey",
+const ROADMAP_LIFE_AREA_ROOT_DECISION_LABEL: Record<LimbId, string> = {
+  becoming: "Start of Who I'm Becoming Journey",
   work: "Start of Work & Learning Journey",
   finance: "Start of Money Journey",
   health: "Start of Health Journey",
@@ -146,10 +146,10 @@ export type RoadmapLayoutOptions = {
   /** Past timeline starts at Jan 1 of this year when valid; otherwise earliest mark per branch. */
   birthYear: number | null;
   /**
-   * Limbs to lay out left-to-right (subset of `ROADMAP_LIMB_COLUMN_ORDER`).
-   * Omitted or empty = all limbs. Hidden limbs are omitted so remaining columns widen.
+   * Life areas to lay out left-to-right (subset of `ROADMAP_LIFE_AREA_COLUMN_ORDER`).
+   * Omitted or empty = all. Hidden life areas are omitted so remaining columns widen.
    */
-  visibleLimbIds?: LimbId[];
+  visibleLifeAreaIds?: LimbId[];
   /**
    * When set (e.g. viewport width), total canvas width is at least this value so
    * fewer visible life-area columns expand to fill horizontal space.
@@ -163,10 +163,10 @@ export const ROADMAP_SVG_H = 3160;
 /** Legacy baseline width; actual canvas width is `layoutWidth` from `buildRoadmapLayout`. */
 export const ROADMAP_REF_WIDTH = 980;
 
-const ROADMAP_BASE_COL_W = ROADMAP_REF_WIDTH / ROADMAP_LIMB_COLUMN_ORDER.length;
+const ROADMAP_BASE_COL_W = ROADMAP_REF_WIDTH / ROADMAP_LIFE_AREA_COLUMN_ORDER.length;
 /** Max width of one life-area column before capping (px). */
 const ROADMAP_MAX_COL_W = 720;
-/** Each limb tree gets at least this horizontal room. */
+/** Each life-area column gets at least this horizontal room. */
 const ROADMAP_MIN_TREE_WIDTH = 300;
 /** Side breathing room so outer lanes/labels don't clip at overview zoom. */
 const ROADMAP_SIDE_PADDING = 160;
@@ -179,14 +179,14 @@ const ROADMAP_MIN_NODE_GAP = 28;
 /** Minimum parent→child y separation. */
 export const ROADMAP_MIN_PARENT_CHILD_Y_GAP = 40;
 /** Root→first-child preferred separation. */
-export const ROADMAP_MIN_LIMB_ROOT_CHILD_Y_GAP = 140;
+export const ROADMAP_MIN_LIFE_AREA_ROOT_CHILD_Y_GAP = 140;
 /** Root→first-child maximum separation. */
-export const ROADMAP_MAX_LIMB_ROOT_CHILD_Y_GAP = 140;
+export const ROADMAP_MAX_LIFE_AREA_ROOT_CHILD_Y_GAP = 140;
 /** Default node radius and enlarged root radius. */
 export const ROADMAP_NODE_R = 10.5;
-export const ROADMAP_LIMB_ROOT_NODE_R = ROADMAP_NODE_R * 1.75;
-/** Empty space below the limb root node so bottom labels don't crowd. */
-const ROADMAP_LIMB_ROOT_BOTTOM_CLEAR_PX = 320;
+export const ROADMAP_LIFE_AREA_ROOT_NODE_R = ROADMAP_NODE_R * 1.75;
+/** Empty space below the life-area root node so bottom labels don't crowd. */
+const ROADMAP_LIFE_AREA_ROOT_BOTTOM_CLEAR_PX = 320;
 
 export function goalSyntheticId(branchId: string): string {
   return `goal:${branchId}`;
@@ -200,30 +200,30 @@ export function roadmapTreeMeta(): Record<
     LimbId,
     { color: string; sub: string; label: string; darkColor: string; darkSub: string }
   >;
-  for (const l of LIMBS) {
+  for (const l of LIFE_AREAS) {
     const id = l.id as LimbId;
     out[id] = {
-      color: ROADMAP_LIMB_HEX[id],
-      sub: ROADMAP_LIMB_SUB[id],
+      color: ROADMAP_LIFE_AREA_HEX[id],
+      sub: ROADMAP_LIFE_AREA_SUB[id],
       label: l.label,
-      darkColor: ROADMAP_LIMB_HEX_DARK[id],
-      darkSub: ROADMAP_LIMB_SUB_DARK[id],
+      darkColor: ROADMAP_LIFE_AREA_HEX_DARK[id],
+      darkSub: ROADMAP_LIFE_AREA_SUB_DARK[id],
     };
   }
   return out;
 }
 
-export function getRoadmapLimbColor(limbId: LimbId, isDark: boolean): string {
-  return isDark ? ROADMAP_LIMB_HEX_DARK[limbId] : ROADMAP_LIMB_HEX[limbId];
+export function getRoadmapLifeAreaColor(lifeAreaId: LimbId, isDark: boolean): string {
+  return isDark ? ROADMAP_LIFE_AREA_HEX_DARK[lifeAreaId] : ROADMAP_LIFE_AREA_HEX[lifeAreaId];
 }
 
-export function getRoadmapLimbSub(limbId: LimbId, isDark: boolean): string {
-  return isDark ? ROADMAP_LIMB_SUB_DARK[limbId] : ROADMAP_LIMB_SUB[limbId];
+export function getRoadmapLifeAreaSub(lifeAreaId: LimbId, isDark: boolean): string {
+  return isDark ? ROADMAP_LIFE_AREA_SUB_DARK[lifeAreaId] : ROADMAP_LIFE_AREA_SUB[lifeAreaId];
 }
 
 function branchDisplayName(b: RoadmapBranchInput): string {
   const raw = (b.name ?? b.label ?? "").trim();
-  return raw || "Thread";
+  return raw || "Branch";
 }
 
 /** One horizontal track inside a limb column (for sub-labels under the limb title). */
@@ -242,7 +242,7 @@ export type RoadmapBranchLane = {
  * One narrative spine per limb: root branches ordered by time, with the **primary**
  * root (most marks, then longest span) centered; child branches follow to the side.
  */
-function orderBranchesForLimbLayout(
+function orderBranchesForLifeAreaLayout(
   limbId: LimbId,
   ids: string[],
   byBranch: Map<string, RoadmapMarkInput[]>,
@@ -380,7 +380,7 @@ function marksByBranchSorted(marks: RoadmapMarkInput[]): Map<string, RoadmapMark
   return map;
 }
 
-export function buildPrimarySpineByLimb(
+export function buildPrimarySpineByLifeArea(
   branches: RoadmapBranchInput[],
   marks: RoadmapMarkInput[],
 ): Map<LimbId, string> {
@@ -412,14 +412,14 @@ export function buildPrimarySpineByLimb(
     return ca.localeCompare(cb);
   };
   const out = new Map<LimbId, string>();
-  for (const limbId of ROADMAP_LIMB_COLUMN_ORDER) {
+  for (const limbId of ROADMAP_LIFE_AREA_COLUMN_ORDER) {
     const limbBranchIds = new Set<string>();
     for (const m of marks) {
       if (m.archived) continue;
-      if (coerceRoadmapLimbId(m.limbId) === limbId) limbBranchIds.add(m.branchId);
+      if (coerceRoadmapLifeAreaId(m.limbId) === limbId) limbBranchIds.add(m.branchId);
     }
     for (const b of branches) {
-      if (coerceRoadmapLimbId(b.limbId) === limbId) limbBranchIds.add(b.id);
+      if (coerceRoadmapLifeAreaId(b.limbId) === limbId) limbBranchIds.add(b.id);
     }
     const candidates = [...limbBranchIds];
     if (candidates.length === 0) continue;
@@ -427,7 +427,7 @@ export function buildPrimarySpineByLimb(
       const pid = branchById.get(id)?.parentBranchId;
       if (!pid) return true;
       const parent = branchById.get(pid);
-      return !parent || coerceRoadmapLimbId(parent.limbId) !== limbId;
+      return !parent || coerceRoadmapLifeAreaId(parent.limbId) !== limbId;
     });
     const pool = roots.length > 0 ? roots : candidates;
     pool.sort((a, b) => {
@@ -442,11 +442,11 @@ export function buildPrimarySpineByLimb(
 
 export function resolveChronologyParentBranchId(
   branch: RoadmapBranchInput,
-  spineByLimb: Map<LimbId, string>,
+  spineByLifeArea: Map<LimbId, string>,
 ): string | null {
   if (!branch.parentBranchId) return null;
-  const limbId = coerceRoadmapLimbId(branch.limbId);
-  const spineId = spineByLimb.get(limbId);
+  const limbId = coerceRoadmapLifeAreaId(branch.limbId);
+  const spineId = spineByLifeArea.get(limbId);
   if (!spineId || branch.id === spineId) return branch.parentBranchId;
   return spineId;
 }
@@ -602,8 +602,8 @@ function rootDynamicMaxGapPx(
 function enforceTreeParentChildY(
   nodeById: Map<string, RoadmapNode>,
   minGap: number,
-  limbRootMinGap: number,
-  limbRootMaxGap: number,
+  lifeAreaRootMinGap: number,
+  lifeAreaRootMaxGap: number,
 ) {
   const childrenByParent = new Map<string, string[]>();
   for (const n of nodeById.values()) {
@@ -622,8 +622,8 @@ function enforceTreeParentChildY(
       const pid = queue[qi]!;
       const p = nodeById.get(pid);
       if (!p) continue;
-      const isRoot = p.id.startsWith(LIMB_ROOT_PREFIX);
-      const gap = isRoot ? limbRootMinGap : minGap;
+      const isRoot = p.id.startsWith(ROADMAP_LIFE_AREA_ROOT_PREFIX);
+      const gap = isRoot ? lifeAreaRootMinGap : minGap;
       for (const cid of childrenByParent.get(pid) ?? []) {
         const c = nodeById.get(cid);
         if (!c) continue;
@@ -633,7 +633,7 @@ function enforceTreeParentChildY(
           changed = true;
         }
         if (isRoot) {
-          const dynamicMaxGap = rootDynamicMaxGapPx(p, c, limbRootMaxGap);
+          const dynamicMaxGap = rootDynamicMaxGapPx(p, c, lifeAreaRootMaxGap);
           const minChildY = p.y - dynamicMaxGap;
           if (c.y < minChildY) {
             shiftSubtreeY(cid, minChildY - c.y, childrenByParent, nodeById);
@@ -660,15 +660,15 @@ export type RoadmapLayoutResult = {
 /**
  * Past marks + optional branch goal nodes, edge list, and laid-out x/y matching the reference timeline.
  */
-function resolveVisibleLimbs(visibleLimbIds?: LimbId[]): LimbId[] {
-  const requested = (visibleLimbIds ?? []).filter((id) =>
-    ROADMAP_LIMB_COLUMN_ORDER.includes(id),
+function resolveVisibleLifeAreas(visibleLifeAreaIds?: LimbId[]): LimbId[] {
+  const requested = (visibleLifeAreaIds ?? []).filter((id) =>
+    ROADMAP_LIFE_AREA_COLUMN_ORDER.includes(id),
   );
   const ordered =
     requested.length > 0
-      ? ROADMAP_LIMB_COLUMN_ORDER.filter((id) => requested.includes(id))
-      : [...ROADMAP_LIMB_COLUMN_ORDER];
-  return ordered.length > 0 ? ordered : [...ROADMAP_LIMB_COLUMN_ORDER];
+      ? ROADMAP_LIFE_AREA_COLUMN_ORDER.filter((id) => requested.includes(id))
+      : [...ROADMAP_LIFE_AREA_COLUMN_ORDER];
+  return ordered.length > 0 ? ordered : [...ROADMAP_LIFE_AREA_COLUMN_ORDER];
 }
 
 export function buildRoadmapLayout(
@@ -676,18 +676,18 @@ export function buildRoadmapLayout(
   branches: RoadmapBranchInput[],
   options?: RoadmapLayoutOptions,
 ): RoadmapLayoutResult {
-  const limbs = resolveVisibleLimbs(options?.visibleLimbIds);
-  const limbCount = limbs.length;
+  const lifeAreas = resolveVisibleLifeAreas(options?.visibleLifeAreaIds);
+  const lifeAreaCount = lifeAreas.length;
 
   const birthAnchor = timelineStartMs(options?.birthYear ?? null);
   const activeMarks = marks.filter((m) => !m.archived);
   const byBranch = marksByBranchSorted(activeMarks);
   const branchById = new Map(branches.map((b) => [b.id, b]));
-  const spineByLimb = buildPrimarySpineByLimb(branches, activeMarks);
+  const spineByLifeArea = buildPrimarySpineByLifeArea(branches, activeMarks);
   const activeMarksByLimb = new Map<LimbId, RoadmapMarkInput[]>();
-  limbs.forEach((id) => activeMarksByLimb.set(id, []));
+  lifeAreas.forEach((id) => activeMarksByLimb.set(id, []));
   for (const m of activeMarks) {
-    const lid = coerceRoadmapLimbId(m.limbId);
+    const lid = coerceRoadmapLifeAreaId(m.limbId);
     if (!activeMarksByLimb.has(lid)) continue;
     activeMarksByLimb.get(lid)!.push(m);
   }
@@ -697,7 +697,7 @@ export function buildRoadmapLayout(
   const limbPastScoreByMarkId = new Map<string, number>();
   const limbPastScoreMax = new Map<LimbId, number>();
   const limbPastCount = new Map<LimbId, number>();
-  for (const limbId of limbs) {
+  for (const limbId of lifeAreas) {
     const arr = activeMarksByLimb.get(limbId) ?? [];
     limbPastCount.set(limbId, arr.length);
     if (arr.length === 0) {
@@ -718,7 +718,7 @@ export function buildRoadmapLayout(
   const goalIds = new Set<string>();
 
   for (const m of activeMarks) {
-    const limb = coerceRoadmapLimbId(m.limbId);
+    const limb = coerceRoadmapLifeAreaId(m.limbId);
     nodes.push({
       id: m.id,
       parentId: null,
@@ -736,7 +736,7 @@ export function buildRoadmapLayout(
   for (const b of branches) {
     const g = (b.goal ?? "").trim();
     if (!g) continue;
-    const limb = coerceRoadmapLimbId(b.limbId);
+    const limb = coerceRoadmapLifeAreaId(b.limbId);
     const gid = goalSyntheticId(b.id);
     goalIds.add(gid);
     nodes.push({
@@ -752,16 +752,16 @@ export function buildRoadmapLayout(
       note: branchDisplayName(b),
     });
   }
-  for (const limbId of limbs) {
+  for (const limbId of lifeAreas) {
     nodes.push({
-      id: limbRootId(limbId),
+      id: roadmapLifeAreaRootId(limbId),
       parentId: null,
       tree: limbId,
       x: 0,
-      y: ROADMAP_SVG_H - ROADMAP_LIMB_ROOT_BOTTOM_CLEAR_PX,
+      y: ROADMAP_SVG_H - ROADMAP_LIFE_AREA_ROOT_BOTTOM_CLEAR_PX,
       past: true,
       type: "decision",
-      label: LIMB_ROOT_DECISION_LABEL[limbId],
+      label: ROADMAP_LIFE_AREA_ROOT_DECISION_LABEL[limbId],
       date: rootBirthDateLine(options?.birthYear ?? null),
       note: "",
     });
@@ -781,11 +781,11 @@ export function buildRoadmapLayout(
     const br = branchById.get(branchId);
     if (!br) continue;
     const gid = goalSyntheticId(branchId);
-    const rid = limbRootId(coerceRoadmapLimbId(br.limbId));
+    const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(br.limbId));
     if (list.length > 0) {
       if (!br.parentBranchId) nodeById.get(list[0]!.id)!.parentId = rid;
       else {
-        const chronologyParentBranchId = resolveChronologyParentBranchId(br, spineByLimb);
+        const chronologyParentBranchId = resolveChronologyParentBranchId(br, spineByLifeArea);
         const anchor = chronologyParentBranchId
           ? anchorFromParentBranch(chronologyParentBranchId, br.turningPointId, list[0]?.date)
           : null;
@@ -801,11 +801,11 @@ export function buildRoadmapLayout(
     const gid = goalSyntheticId(b.id);
     if (!goalIds.has(gid)) continue;
     if ((byBranch.get(b.id) ?? []).length > 0) continue;
-    const rid = limbRootId(coerceRoadmapLimbId(b.limbId));
+    const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(b.limbId));
     const g = nodeById.get(gid)!;
     if (!b.parentBranchId) g.parentId = rid;
     else {
-      const chronologyParentBranchId = resolveChronologyParentBranchId(b, spineByLimb);
+      const chronologyParentBranchId = resolveChronologyParentBranchId(b, spineByLifeArea);
       const anchor = chronologyParentBranchId
         ? anchorFromParentBranch(chronologyParentBranchId, b.turningPointId, null)
         : null;
@@ -815,13 +815,13 @@ export function buildRoadmapLayout(
 
   const branchRow = (id: string) => branchById.get(id);
 
-  function branchIdsWithContentForLimb(limbId: LimbId): string[] {
+  function branchIdsWithContentForLifeArea(limbId: LimbId): string[] {
     const ids = new Set<string>();
     for (const m of activeMarks) {
-      if (coerceRoadmapLimbId(m.limbId) === limbId) ids.add(m.branchId);
+      if (coerceRoadmapLifeAreaId(m.limbId) === limbId) ids.add(m.branchId);
     }
     for (const b of branches) {
-      if (coerceRoadmapLimbId(b.limbId) !== limbId) continue;
+      if (coerceRoadmapLifeAreaId(b.limbId) !== limbId) continue;
       if (goalIds.has(goalSyntheticId(b.id))) ids.add(b.id);
     }
     return Array.from(ids).sort((a, b) => {
@@ -836,27 +836,27 @@ export function buildRoadmapLayout(
     });
   }
 
-  let maxBranchesInLimb = 1;
-  for (const limbId of limbs) {
-    maxBranchesInLimb = Math.max(maxBranchesInLimb, branchIdsWithContentForLimb(limbId).length);
+  let maxBranchesInLifeArea = 1;
+  for (const limbId of lifeAreas) {
+    maxBranchesInLifeArea = Math.max(maxBranchesInLifeArea, branchIdsWithContentForLifeArea(limbId).length);
   }
 
-  /** Fewer visible limbs → each column at least this wide so the canvas fills the roadmap. */
-  const minColForLimbCount = ROADMAP_REF_WIDTH / limbCount;
+  /** Fewer visible life areas → each column at least this wide so the canvas fills the roadmap. */
+  const minColForLifeAreaCount = ROADMAP_REF_WIDTH / lifeAreaCount;
 
   let colInner = Math.max(
-    minColForLimbCount,
+    minColForLifeAreaCount,
     ROADMAP_MIN_TREE_WIDTH,
     Math.min(
       ROADMAP_MAX_COL_W,
-      Math.max(ROADMAP_BASE_COL_W, (maxBranchesInLimb - 1) * ROADMAP_BRANCH_LANE_WIDTH + 96),
+      Math.max(ROADMAP_BASE_COL_W, (maxBranchesInLifeArea - 1) * ROADMAP_BRANCH_LANE_WIDTH + 96),
     ),
   );
-  let layoutWidth = limbCount * colInner + ROADMAP_SIDE_PADDING * 2;
+  let layoutWidth = lifeAreaCount * colInner + ROADMAP_SIDE_PADDING * 2;
   const minCanvasW = options?.minLayoutWidth;
   if (minCanvasW != null && minCanvasW > 0 && minCanvasW > layoutWidth) {
     layoutWidth = minCanvasW;
-    colInner = (layoutWidth - ROADMAP_SIDE_PADDING * 2) / limbCount;
+    colInner = (layoutWidth - ROADMAP_SIDE_PADDING * 2) / lifeAreaCount;
   }
 
   const Y_PAST_TOP = ROADMAP_NOW_Y + 48;
@@ -871,23 +871,23 @@ export function buildRoadmapLayout(
   const pastIdeals: PastIdeal[] = [];
   const branchLanes: RoadmapBranchLane[] = [];
   const futureByLimb = new Map<LimbId, FutureIdeal[]>();
-  for (const id of limbs) {
+  for (const id of lifeAreas) {
     futureByLimb.set(id, []);
   }
 
-  for (let colIndex = 0; colIndex < limbs.length; colIndex++) {
-    const limbId = limbs[colIndex];
+  for (let colIndex = 0; colIndex < lifeAreas.length; colIndex++) {
+    const limbId = lifeAreas[colIndex];
     const limbBase = ROADMAP_SIDE_PADDING + colIndex * colInner;
     const colCenter = limbBase + colInner / 2;
-    const rid = limbRootId(limbId);
+    const rid = roadmapLifeAreaRootId(limbId);
     const root = nodeById.get(rid);
     if (root) {
       root.x = colCenter;
       root.y = ROADMAP_SVG_H - 58;
     }
 
-    const branchesWithContentIds = branchIdsWithContentForLimb(limbId);
-    const branchesWithContent = orderBranchesForLimbLayout(
+    const branchesWithContentIds = branchIdsWithContentForLifeArea(limbId);
+    const branchesWithContent = orderBranchesForLifeAreaLayout(
       limbId,
       branchesWithContentIds,
       byBranch,
@@ -924,7 +924,7 @@ export function buildRoadmapLayout(
         }
       }
     };
-    const spineId = spineByLimb.get(limbId);
+    const spineId = spineByLifeArea.get(limbId);
     const rootSlots: number[] = [0];
     for (let step = 1; rootSlots.length < roots.length; step += 1) {
       rootSlots.push(-step);
@@ -994,7 +994,7 @@ export function buildRoadmapLayout(
     }
   }
 
-  for (const limbId of limbs) {
+  for (const limbId of lifeAreas) {
     const limbPast = pastIdeals.filter((p) => p.limb === limbId);
     const yMap = packYMonotonic(
       limbPast.map((p) => ({ id: p.id, ideal: p.ideal })),
@@ -1025,13 +1025,13 @@ export function buildRoadmapLayout(
   enforceTreeParentChildY(
     nodeById,
     ROADMAP_MIN_PARENT_CHILD_Y_GAP,
-    ROADMAP_MIN_LIMB_ROOT_CHILD_Y_GAP,
-    ROADMAP_MAX_LIMB_ROOT_CHILD_Y_GAP,
+    ROADMAP_MIN_LIFE_AREA_ROOT_CHILD_Y_GAP,
+    ROADMAP_MAX_LIFE_AREA_ROOT_CHILD_Y_GAP,
   );
 
   for (const n of nodes) {
     if (n.x !== 0 || n.y !== 0) continue;
-    const colIndex = limbs.indexOf(n.tree);
+    const colIndex = lifeAreas.indexOf(n.tree);
     if (colIndex < 0) continue;
     n.x = colIndex * colInner + colInner / 2;
     n.y = n.past ? (Y_PAST_TOP + Y_PAST_BOTTOM) / 2 : (Y_FUTURE_TOP + Y_FUTURE_BOTTOM) / 2;
@@ -1059,7 +1059,7 @@ export function buildRoadmapLayout(
       const g = nodeById.get(gid);
       if (g && g.y < topY) x = g.x;
     }
-    lane.x = x ?? nodeById.get(limbRootId(lane.limbId))?.x ?? lane.x;
+    lane.x = x ?? nodeById.get(roadmapLifeAreaRootId(lane.limbId))?.x ?? lane.x;
   }
 
   return { nodes, edges, byBranch, layoutWidth, branchLanes };

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApiBranchRow } from "@/lib/life-map-v2-layout";
-import { LIMBS } from "@/lib/limbs";
+import { LIFE_AREAS } from "@/lib/life-areas";
 import type { LimbId } from "@/lib/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -10,7 +10,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   branches: ApiBranchRow[];
-  defaultLimbId: LimbId;
+  defaultLifeAreaId: LimbId;
   onCreated: () => void | Promise<void>;
 };
 
@@ -26,10 +26,10 @@ export function LifeMapV2CreateMarkModal({
   open,
   onClose,
   branches,
-  defaultLimbId,
+  defaultLifeAreaId,
   onCreated,
 }: Props) {
-  const [limbId, setLimbId] = useState<LimbId>(defaultLimbId);
+  const [selectedLifeAreaId, setSelectedLifeAreaId] = useState<LimbId>(defaultLifeAreaId);
   const [branchId, setBranchId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -40,29 +40,29 @@ export function LifeMapV2CreateMarkModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const branchesForLimb = useMemo(
-    () => branches.filter((b) => b.limbId === limbId),
-    [branches, limbId],
+  const branchesForLifeArea = useMemo(
+    () => branches.filter((b) => b.limbId === selectedLifeAreaId),
+    [branches, selectedLifeAreaId],
   );
 
   useEffect(() => {
     if (!open) return;
-    setLimbId(defaultLimbId);
+    setSelectedLifeAreaId(defaultLifeAreaId);
     setTitle("");
     setDescription("");
     setDate(todayInputDate());
     setType("milestone");
     setError(null);
-  }, [open, defaultLimbId]);
+  }, [open, defaultLifeAreaId]);
 
   useEffect(() => {
     if (!open) return;
-    const first = branchesForLimb[0]?.id ?? "";
+    const first = branchesForLifeArea[0]?.id ?? "";
     setBranchId((prev) => {
-      if (prev && branchesForLimb.some((b) => b.id === prev)) return prev;
+      if (prev && branchesForLifeArea.some((b) => b.id === prev)) return prev;
       return first;
     });
-  }, [open, branchesForLimb]);
+  }, [open, branchesForLifeArea]);
 
   const submit = useCallback(async () => {
     if (!branchId) {
@@ -81,7 +81,7 @@ export function LifeMapV2CreateMarkModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          limbId,
+          limbId: selectedLifeAreaId,
           branchId,
           title: t,
           description: description.trim() || undefined,
@@ -101,7 +101,7 @@ export function LifeMapV2CreateMarkModal({
     } finally {
       setSaving(false);
     }
-  }, [branchId, date, description, limbId, onClose, onCreated, title, type]);
+  }, [branchId, date, description, selectedLifeAreaId, onClose, onCreated, title, type]);
 
   useEffect(() => {
     if (!open) return;
@@ -153,10 +153,10 @@ export function LifeMapV2CreateMarkModal({
             <select
               className="rounded-lg border px-2 py-2"
               style={{ borderColor: "var(--rm-border)", color: "var(--rm-text1)" }}
-              value={limbId}
-              onChange={(e) => setLimbId(e.target.value as LimbId)}
+              value={selectedLifeAreaId}
+              onChange={(e) => setSelectedLifeAreaId(e.target.value as LimbId)}
             >
-              {LIMBS.map((l) => (
+              {LIFE_AREAS.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.label}
                 </option>
@@ -172,10 +172,10 @@ export function LifeMapV2CreateMarkModal({
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
             >
-              {branchesForLimb.length === 0 ? (
+              {branchesForLifeArea.length === 0 ? (
                 <option value="">No threads in this area</option>
               ) : (
-                branchesForLimb.map((b) => (
+                branchesForLifeArea.map((b) => (
                   <option key={b.id} value={b.id}>
                     {(b.name ?? b.label ?? b.id).toString()}
                   </option>

@@ -117,6 +117,7 @@ model Branch {
   id             String   @id @default(cuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Legacy column name: stores the **life area** id (`finance` | `work` | `becoming` | `people` | `health`), not a "limb" entity. Prefer the term *life area* in docs and UI.
   limbId         String
   label          String?
   parentBranchId String?
@@ -149,6 +150,7 @@ model Mark {
   id          String   @id @default(cuid())
   branchId    String
   branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  /// Legacy column name: stores the **life area** id. See `Branch.limbId`.
   limbId      String
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -230,6 +232,7 @@ model Goal {
   location        String?
   timelineNote    String?
   subtype         String?
+  /// Legacy column name: stores the **life area** id when set. See `Branch.limbId`.
   limbId          String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

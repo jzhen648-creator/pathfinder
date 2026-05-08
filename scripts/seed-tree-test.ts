@@ -168,7 +168,7 @@ const markSeedsFullTreeShowcaseRich: MarkSeed[] = [
 const branchSeedsMyGoals: BranchSeed[] = [
   { limbId: "finance", threadType: "My finance focus", name: "My finance focus", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-01") },
   { limbId: "work", threadType: "My career focus", name: "My career focus", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-02") },
-  { limbId: "becoming", threadType: "Growth", name: "Growth", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-03") },
+  { limbId: "becoming", threadType: "Becoming", name: "Becoming", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-03") },
   { limbId: "people", threadType: "Relationships", name: "Relationships", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-04") },
   { limbId: "health", threadType: "Wellbeing", name: "Wellbeing", goal: null, goalValue: null, currentValue: null, unit: null, status: "active", bloomStatus: "BUD", createdAt: new Date("2026-01-05") },
 ];
