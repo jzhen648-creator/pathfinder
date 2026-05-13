@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-14
+
+- **Milestone convergence (complete):** Dropped `Goal.treeMilestones` JSON column (migration `20260513220000_drop_goal_tree_milestones`). Relational `Milestone` / `Subtask` is the only store; `PATCH /api/goals/[goalId]` is metadata-only. Backfill: `npm run backfill:tree-milestones` for old DBs before migrate.
+- **Continuation UX:** Goal achieved banner on last milestone / bloom transition; **Evolve this goal** gated to `BLOOMED` goals; fork API returns **409** when parent is not bloomed.
+- **Tree UX:** Delete goal preserves pan/zoom (`loadData({ silent: true })`, no `clearAll()` on delete).
+- **Testing:** `e2e/milestone-bloom-evolve.spec.ts` — critical path (milestone → bloom → fork) + fork guard; shared `e2e/helpers/e2e-session.ts` (NextAuth API login).
+- **Docs:** `docs/STABILIZATION.md` and `AGENTS.md` aligned to post-convergence state.
+
 ## 2026-05-11
 
 - **Tree legibility (brightness):** **Uniform luminance across life-area limbs** — `tree-render-staging.ts` no longer applies plane- or limb-specific filters/opacity/stroke/hull tiering (draw order + per-limb `transform` only; focus dimming unchanged). `tree-render-materials.ts` — `intraLimbBranchDepthMul`, `branchIndexDepthRenderingMul`, and `branchDistalCalmOpacityMul01` are neutral (no default outer/tip darkening). **Global brighten** — shared **`TREE_MAP_SURFACE_FILL`** / **`TREE_MAP_SURFACE_RGB`** in `tree-view-constants.ts` (replacing ad hoc `#07060A`); `tree-svg.tsx` pan root `<g>` **`brightness(1.12)`**; lighter eco/stage overlay fills and lower opacities; **material** floors raised (significance, stroke envelope, conduit length calm, pressure cap). PDF export background uses the same token (`tree-view.tsx`). **`pf-roadmap-theme.ts`** — slightly brighter light and dark **`--rm-canvas`** / **`--rm-canvas2`** (and dark **`--rm-bgEl`**). Narrative: **`docs/DIARY.md`** (same date).

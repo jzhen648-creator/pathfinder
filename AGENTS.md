@@ -10,8 +10,8 @@ Canonical product words: **theme** (outer pillar — same ids as `LifeAreaId` / 
 
 Before changing tree, goals, branches, bloom, or continuation behavior, read [`ONTOLOGY.md`](./ONTOLOGY.md), [`GLOSSARY.md`](./GLOSSARY.md), and [`docs/UX-TERMINOLOGY-AUDIT.md`](./docs/UX-TERMINOLOGY-AUDIT.md).
 
-**Stabilization / QA phase:** [`docs/STABILIZATION.md`](./docs/STABILIZATION.md) — what is canonical vs intentionally transitional (milestones projection vs legacy JSON, freeze guidance, QA checklist). Prefer categorizing fixes there before broad refactors.
+**Stabilization / QA phase:** [`docs/STABILIZATION.md`](./docs/STABILIZATION.md) — dogfood phase after milestone convergence (relational milestones only; freeze guidance; QA checklist). Prefer categorizing fixes there before broad refactors.
 
-**Milestone truth (implementation):** relational `Milestone` / `Subtask` rows are canonical; hex dots are built in `src/components/tree/milestone-tree-projection.ts`; tree panel uses `src/components/tree/goal-milestone-predicates.ts`.
+**Milestone truth (implementation):** relational `Milestone` / `Subtask` rows are the **only** milestone store (`Goal.treeMilestones` JSON column removed). Hex dots: `src/components/tree/milestone-tree-projection.ts`; panel predicates: `src/components/tree/goal-milestone-predicates.ts`. Bloom: `src/lib/goal-bloom-lifecycle.ts` + `recomputeGoalBloomStatus`.
 
 **Do not** introduce new `thread*` domain identifiers or use **thread** in new user-facing copy for goal continuation (legacy code may still say “thread” for older hub/geometry identifiers).

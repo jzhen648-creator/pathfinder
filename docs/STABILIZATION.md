@@ -11,37 +11,40 @@ This document defines the **stabilization / QA phase** after ontology restructur
 | Concept | Canonical meaning |
 |--------|-------------------|
 | **Goal** | One pursuit (`Goal`); roadmap types vs `moment`/`event` per schema. |
-| **Milestone** | **One** progression structure per goal: primarily Prisma `Milestone` + optional `Subtask` rows. Tree hex dots are a **projection** of that structure when relational rows exist (see below). |
+| **Milestone** | **One** progression structure per goal: Prisma `Milestone` + optional `Subtask` rows only. Tree hex dots are a **projection** of those rows (`milestone-tree-projection.ts`). |
 | **Continuation** | `parentGoalId` / successors; `POST /api/goals/[id]/fork`. Not milestones; not branch taxonomy splits. |
 | **Bloom** | Lifecycle only (`BUD` / `GROWING` / `BLOOMED` / `ENDED`); not driven by continuation count. Deprecated **`BRANCHED`** on goals — see [`ONTOLOGY.md`](../ONTOLOGY.md). |
 | **Branch line** | Taxonomy `Branch` and SVG strokes — not continuations. |
 
 ---
 
-## Milestone convergence direction (where we are heading)
+## Milestone model (converged — May 2026)
 
-**Target model:** One milestone journey per goal; **roadmap UI** = expanded execution view; **tree hex** = compact spatial view — **same milestones**, not two systems.
-
-**Current implementation state:**
+**Canonical model:** One milestone journey per goal; **roadmap UI** = expanded execution view; **tree hex** = compact spatial view — **same relational milestones**, not two stores.
 
 | Layer | Role |
 |-------|------|
-| **Canonical persistence** | Prisma `Milestone` / `Subtask` (relational). |
-| **Tree projection** | `src/components/tree/milestone-tree-projection.ts` — when relational milestones exist, hex dots derive from them (`milestoneIsFullyCompleted` aligned with lifecycle); **`Goal.treeMilestones` JSON is ignored for rendering** if it diverges. |
-| **Legacy fallback** | When **no** relational milestones, parsed `treeMilestones` JSON still drives dots until migration/write convergence. |
-| **Panel semantics** | `src/components/tree/goal-milestone-predicates.ts` — use these helpers instead of scattered `.length` checks for “does this goal have milestone structure?” |
+| **Canonical persistence** | Prisma `Milestone` / `Subtask` only. **`Goal.treeMilestones` JSON column removed** (migration `20260513220000_drop_goal_tree_milestones`). |
+| **Tree projection** | `src/components/tree/milestone-tree-projection.ts` — hex dots from relational rows; `milestoneIsFullyCompleted` aligned with lifecycle. |
+| **Writes** | `POST /api/goals/[goalId]/milestones`, `PATCH .../milestones/[milestoneId]` (`completedAt` + `recomputeGoalBloomStatus`). `PATCH /api/goals/[goalId]` is **title / description / significance only** — no milestone JSON. |
+| **Panel semantics** | `src/components/tree/goal-milestone-predicates.ts` — use these helpers instead of scattered `.length` checks. |
+| **AI / create flows** | `persistGeneratedRoadmapForGoal` and conversational create write relational rows. |
 
-**Phase 1 write convergence (implemented):** tree panel “Add step…” / AI suggest chips call **`POST /api/goals/[goalId]/milestones`** → relational `Milestone` rows (**no** auto-subtasks; milestone completion is explicit `completedAt` / tap-stage, with substeps optional), **`recomputeGoalBloomStatus`**, existing projection + lifecycle normalization unchanged. First append on a JSON-only goal **copies** legacy `treeMilestones` into relational rows (JSON column left intact). Legacy **checkbox** edits on JSON-only goals still use **`PATCH`** full JSON. Legacy scaffolding subtasks (auto “Complete this step” / renamed **Optional detail**) are **ignored for rollup** (`milestoneDoneForSemantics` via `isScaffoldingSubtaskTitle`) and **omitted from tree / roadmap / next-steps / dashboard counts**. To remove rows from SQLite entirely: **`npm run backfill:delete-scaffolding-subtasks`**. (Rename-only backfill: **`npm run backfill:rename-legacy-subtasks`**.)
+**Backfill (old DBs only):** `npm run backfill:tree-milestones` copies legacy JSON into relational rows **before** applying the drop-column migration.
 
-**Not done yet (explicitly deferred):** further write convergence (toggle completion via subtasks only, remove JSON column), lifecycle redesign, changing milestone-without-subtasks semantics in UI.
+**Scaffolding subtasks:** Auto “Complete this step” / **Optional detail** placeholders are ignored for rollup (`milestoneDoneForSemantics` via `isScaffoldingSubtaskTitle`) and omitted from tree / roadmap / next-steps / dashboard counts. Cleanup: `npm run backfill:delete-scaffolding-subtasks` (rename-only: `npm run backfill:rename-legacy-subtasks`).
+
+**Explicitly deferred:** `BRANCHED` enum removal from schema; `thread*` naming pass in seeds/layout JSON; Stream UI.
 
 ---
 
 ## Continuation semantics (stable)
 
 - Continuations are **orthogonal** to milestones and bloom (except sharing the same `Goal` row).
-- UI prefers **continuation** / **related goal** / **Continue this goal** — avoid user-visible **fork**; API route may still be `/fork`.
-- Tree panel: **Continued by** / **Continued from** — navigational, not checklist styling.
+- UI: **Evolve this goal** (successor on same hub); parent stays **BLOOMED**, child starts **BUD** with `parentGoalId`.
+- **Goal achieved** banner when the last milestone completes or bloom transitions to `BLOOMED`; evolve is **gated** to bloomed goals in the panel.
+- **`POST /api/goals/[id]/fork`** returns **409** if the parent is not `BLOOMED` (after bloom recompute).
+- Tree panel: **Continued by** / **Continued from** — navigational links between parent and successor.
 
 ---
 
@@ -51,8 +54,8 @@ This document defines the **stabilization / QA phase** after ontology restructur
 
 **Summary:**
 
-- **BUD / GROWING / BLOOMED** for roadmap goals are driven by **relational** milestone + subtask completion — **not** by `treeMilestones` JSON toggles.
-- **`normalizeGoalBloomForDisplay`** in tree assembly handles legacy **`BRANCHED`** remapping and **stale BUD reconciliation**: if persistence still says `BUD` but the payload includes relational milestones, display derives **`computeGoalLifecycleBloom`** so the tree matches ontology until DB catches up. JSON-only structure is **not** lifecycle input here.
+- **BUD / GROWING / BLOOMED** for roadmap goals are driven by **relational** milestone + subtask completion (`milestone-semantics.ts`).
+- **`normalizeGoalBloomForDisplay`** in tree assembly handles legacy **`BRANCHED`** remapping and **stale BUD reconciliation**: if persistence still says `BUD` but relational milestones exist, display derives **`computeGoalLifecycleBloom`** until DB catches up.
 
 During stabilization: **document** felt inconsistencies (see below); **do not** change lifecycle rules without an explicit post-stabilization proposal.
 
@@ -69,25 +72,19 @@ During stabilization: **document** felt inconsistencies (see below); **do not** 
 
 | Layer | Behavior |
 |-------|----------|
-| **`Goal.treeMilestones` JSON** | Still writable via `PATCH /api/goals/[goalId]` when the goal has **no** relational milestones (tree panel “On the tree” edits). Still stored when relational milestones exist but **ignored for hex rendering** (dev console may warn on divergence). |
-| **`GET /api/branches` goals payload** | Feeds `mapToTreeData`; must include `milestones` (+ subtasks) and `treeMilestones` for correct tree + panel behavior. |
-| **Legacy goal bloom rows** | `BRANCHED` on goals until backfill — see `npm run backfill:goal-bloom`. |
-| **Next-steps / roadmap** | Use relational milestones only — JSON-only goals do not appear as structured roadmap milestones elsewhere. |
+| **`GET /api/branches` goals payload** | Feeds `mapToTreeData`; must include nested `milestones` (+ subtasks). |
+| **Legacy goal bloom rows** | `BRANCHED` enum value may linger on old rows — run `npm run backfill:goal-bloom`; read-time normalization remaps for display. |
+| **`thread*` naming in code** | Seeds / layout JSON may still say `threadType`, `threadIdx` — cosmetic rename pass only; no `thread*` DB columns. |
 
 ---
 
-## Known intentional inconsistencies (acceptable during migration)
-
-These are **expected** until write convergence and optional data migration — **not** ad hoc bugs to paper over:
+## Known intentional inconsistencies (acceptable during stabilization)
 
 | Phenomenon | Why it exists |
 |-------------|----------------|
-| **JSON-only goals stay BUD** (typical roadmap goal) | Lifecycle ignores `treeMilestones`; only relational milestones participate in `computeGoalLifecycleBloom`. |
-| **Dots show progress; bloom stays BUD** | Same — legacy JSON edits do not call `recomputeGoalBloomStatus`. |
-| **Roadmap page empty; tree shows dots** | Roadmap reads relational graph only; JSON-only plans are tree-local until migrated. |
 | **>6 relational milestones** | Hex shows **first 6 by `position`** only — tail milestones visible in roadmap list, not all on hex. |
-| **Stale `treeMilestones` in DB** when relational rows exist | Ignored for render; harmless noise until cleanup script removes it. |
-| **Panel milestone row strike-through** vs **lifecycle “milestone complete”** | Roadmap panel uses `total > 0 && done === total` for visual strike; lifecycle uses **`milestoneIsFullyCompleted`** (empty subtasks = complete). Possible **visual** mismatch — known UX edge, not projection bug. |
+| **Panel milestone row strike-through** vs **lifecycle “milestone complete”** | Roadmap panel uses `total > 0 && done === total` for visual strike; lifecycle uses **`milestoneIsFullyCompleted`**. Possible **visual** mismatch — known UX edge, not projection bug. |
+| **Parent/child lineage on tree** | Evolve links visible in panel; no dedicated parent→child stroke on the SVG yet (v0.5 polish). |
 
 ---
 
@@ -95,20 +92,20 @@ These are **expected** until write convergence and optional data migration — *
 
 | Signal | Likely bug |
 |--------|------------|
-| **`GET /api/branches` returns goals with empty `milestones` but non-empty derived projection expectations** | Payload / serializer regression — milestones missing from nested include. |
-| **Any production path writing `treeMilestones` for goals that already have relational milestones** | Should be unreachable from current tree panel (orbital edits disabled when relational exist) — verify no other client. |
+| **`GET /api/branches` returns goals with empty `milestones` but tree expects dots** | Payload / serializer regression — milestones missing from nested include. |
 | **Dots and relational list titles systematically disagree** after full reload | Projection or ordering bug — investigate `milestone-tree-projection.ts` + `nestTreeGoalsForBranch`. |
+| **Bloom stays BUD after completing all milestones** | Missing `recomputeGoalBloomStatus` on a write path — run `npm run diagnose:milestone-recompute`. |
 
 When filing issues during stabilization, tag the **category** (see Freeze guidance below).
 
 ---
 
-## Migration state assumptions
+## Migration state (May 2026)
 
-- **Read-path convergence** is implemented: relational milestones win for hex projection.
-- **Write-path** is **not** converged: JSON PATCH remains for legacy-only goals.
-- **Schema:** `treeMilestones` column remains; no requirement to remove during stabilization phase.
-- **AI roadmap generation** continues to target relational rows — aligns with projection when data reaches `GET /api/branches`.
+- **Milestone read + write convergence: done.** Relational only; JSON column dropped.
+- **Bloom backfill:** `npm run backfill:goal-bloom` — safe to re-run; skips **ENDED** goals.
+- **Old DBs:** run `npm run backfill:tree-milestones` before `prisma migrate deploy` if upgrading from pre-drop schema.
+- **Regression shield:** `e2e/milestone-bloom-evolve.spec.ts` (milestone → bloom → fork + 409 guard).
 
 ---
 
@@ -118,72 +115,55 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 
 ### Milestone flows
 
-- [ ] Create goal via simple flow → no relational milestones → tree shows no dots (unless legacy JSON added); bloom **BUD**.
-- [ ] Add milestones only via **On the tree** (legacy) → dots appear; roadmap page still empty or minimal; bloom unchanged for normal goal types.
-- [ ] AI / wizard creates **relational** milestones → roadmap lists them; tree dots match titles/order (first 6); panel **Milestones** lists them once (tree map is projection only).
-- [ ] Suggest milestones (AI chips) on **legacy-only** goal → titles persist via PATCH JSON; dots update after reload.
-- [ ] Suggest milestones disabled when relational milestones exist (read-only projection mode).
+- [ ] Create goal → add milestones via **Add step…** or AI suggest → relational rows appear on roadmap and tree.
+- [ ] AI / wizard / `generateRoadmap` creates relational milestones → roadmap lists them; tree dots match titles/order (first 6).
+- [ ] Complete milestones via tree panel ritual row or roadmap subtasks → bloom advances; hex dots update after reload.
+- [ ] Goal with **>6** milestones: hex shows 6; roadmap list shows all.
 
 ### Roadmap / tree coherence
 
-- [ ] Complete subtasks on roadmap → dots update after tree reload; bloom advances when all milestones complete per server rules.
-- [ ] Open goal panel: relational goal shows roadmap list + helper lines (“same journey”).
-- [ ] Legacy-only goal: panel shows legacy copy block + editable **On the tree** section.
-- [ ] Goal with **>6** milestones: hex shows 6; list shows all.
+- [ ] Open goal panel: milestone list matches roadmap; hex is projection only.
+- [ ] Complete last milestone → **Goal achieved** banner; **Evolve this goal** available when `BLOOMED`.
 
 ### Lifecycle transitions
 
-- [ ] First relational milestone appears → expect **GROWING** after recompute (observe badge).
-- [ ] Last subtask completed across milestones → **BLOOMED** (unless ENDED).
-- [ ] JSON-only toggles **do not** flip bloom alone.
+- [ ] First relational milestone → **GROWING** after recompute.
+- [ ] All milestones complete → **BLOOMED**.
+- [ ] Evolve on non-bloomed goal → UI disabled and/or fork **409**.
 
 ### Continuation flows
 
-- [ ] Continue this goal → successor created; parent recomputed; navigation opens successor when intended.
-- [ ] Continued from / Continued by links navigate correctly.
-
-### Legacy compatibility
-
-- [ ] Existing JSON-only demo/profile goals still editable under **On the tree** until migrated.
-- [ ] Dev-only console warning when JSON differs from relational projection (development only).
+- [ ] **Evolve this goal** → successor created with `parentGoalId`; parent stays **BLOOMED**.
+- [ ] **Continued from** / **Continued by** links navigate correctly.
 
 ### Payload consistency
 
-- [ ] Network: `GET /api/branches` each goal used on tree has `milestones` array shape expected by `RawTreeGoalPayload` (ids, titles, positions, subtasks).
-- [ ] After `PATCH` treeMilestones (legacy), reload: dots match payload fallback path.
-- [ ] Roadmap `getGoalWithProgress` matches user expectations for same goal (relational only).
+- [ ] `GET /api/branches` each goal has `milestones` array (ids, titles, positions, subtasks, `completedAt`).
+- [ ] Roadmap `getGoalWithProgress` matches tree for the same goal.
+
+### Automated regression
+
+- [ ] `E2E_EMAIL=… E2E_PASSWORD=… npm run test:e2e -- milestone-bloom-evolve` passes (after `npm run seed:tree` for dev user).
 
 ---
 
-## Known risks before write convergence
+## Known risks (post-convergence)
 
 | Risk | Mitigation |
 |------|------------|
-| **Dual authoring** (JSON + relational) | Users or tools PATCH JSON while relational exists → DB drift; render ignores JSON but confusion persists — prioritize write convergence after stabilization. |
-| **Suggest / chip flows** still JSON-only | Can strand plans off roadmap — document; converge to `Milestone` create later. |
-| **next-steps / BRANCHED edge** | Serializer may treat stale `BRANCHED` oddly — separate backlog if seen in QA. |
-| **Dashboard / other surfaces** | Some code uses `goal.milestones[...]` — validate non-tree surfaces with same profile data. |
+| **Stale `Goal.bloomStatus` in DB** | `recomputeGoalBloomStatus` on milestone writes; periodic `npm run backfill:goal-bloom`. |
+| **`BRANCHED` enum / stale rows** | Backfill + read-time normalization; enum removal deferred. |
+| **Tree renderer coupling** | Freeze geometry files during dogfood — see Freeze guidance. |
+| **Dashboard / non-tree surfaces** | Validate bloom and milestone counts match tree/roadmap for same profile. |
 
 ---
 
-## Future convergence preparation (documentation only — not implemented)
+## Deferred (documentation only — not stabilization blockers)
 
-**Intended direction**
-
-1. Tree-first edits create/update/toggle **relational** `Milestone` / `Subtask` rows (or a single facade API).
-2. **`PATCH /api/goals/[id]`** `treeMilestones` retired or restricted to migration/admin after backfill.
-3. Each mutation triggers **`recomputeGoalBloomStatus`** where appropriate (already on subtask complete).
-
-**Likely deprecation path for `treeMilestones`**
-
-1. Stop new JSON writes from product UI (after relational CRUD exists).
-2. Script: JSON-only goals → insert `Milestone` rows; clear JSON.
-3. Remove column only after dual-read period ends.
-
-**Why dual-authoring is dangerous**
-
-- Two stores imply two truths; projection hides one only on **read**, not in DB or user mental model.
-- AI and analytics should read one graph — relational wins long-term.
+- Stream UI + API contract
+- Visual parent→child lineage on the SVG tree
+- `BRANCHED` enum value removal from Prisma
+- `thread*` → `hub*` cosmetic rename in seeds/layout JSON
 
 ---
 
@@ -197,7 +177,6 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 - Schema churn (unless blocking prod incidents)
 - Broad renames across codebase
 - Lifecycle rule changes without explicit approval post-QA
-- Removing `treeMilestones` / JSON paths
 - Large tree rendering rewrites
 
 ### Prefer
@@ -229,8 +208,11 @@ Examples: N weeks of dogfood, checklist largely green, prioritized backlog for w
 | Tree panel UX | `src/components/tree/tree-panel.tsx` |
 | Lifecycle pure rules | `src/lib/goal-bloom-lifecycle.ts` |
 | Lifecycle persist | `src/lib/goal-bloom.ts` |
-| JSON PATCH | `src/app/api/goals/[goalId]/route.ts`, `src/lib/validation/patch-goal-tree-milestones.ts` |
+| Milestone CRUD | `src/app/api/goals/[goalId]/milestones/`, `src/lib/milestone-semantics.ts` |
+| Goal PATCH (metadata only) | `src/app/api/goals/[goalId]/route.ts`, `src/lib/validation/update-goal.ts` |
+| Fork / evolve | `src/app/api/goals/[goalId]/fork/route.ts` |
+| E2E critical path | `e2e/milestone-bloom-evolve.spec.ts` |
 
 ---
 
-*Last aligned with milestone read-path convergence + semantic predicates; update when write convergence lands.*
+*Last aligned: milestone convergence complete (relational only, JSON column dropped), bloom/evolve UX, e2e regression — May 2026.*
