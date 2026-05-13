@@ -23,7 +23,7 @@ export function OnboardingChat({ userName }: { userName: string }) {
     {
       id: crypto.randomUUID(),
       role: "assistant",
-      text: `Hi ${userName || "there"} — glad you’re here. Before anything else, ${onboardingQuestions[0].question}`,
+      text: `Hi ${userName || "there"} — glad you’re here. We’ll ground your map in things you’ve already done, then catch up to today. First: ${onboardingQuestions[0].question}`,
     },
   ]);
   const [profileText, setProfileText] = useState("");
@@ -89,7 +89,10 @@ export function OnboardingChat({ userName }: { userName: string }) {
   return (
     <section className="mx-auto w-full max-w-3xl rounded-2xl border border-white/10 bg-[#141414] p-6">
       <h1 className="text-2xl font-semibold text-white">Personal Onboarding</h1>
-      <p className="mt-2 text-sm text-zinc-400">A few quick questions, then your personalized profile.</p>
+      <p className="mt-2 text-sm text-zinc-400">
+        We ask about wins you&apos;ve already had first so your map has roots—then a few more questions and your
+        profile.
+      </p>
 
       <div className="mt-5 h-[460px] space-y-3 overflow-y-auto rounded-xl border border-white/10 bg-[#101010] p-4">
         {mode === "choose" ? (
@@ -100,7 +103,7 @@ export function OnboardingChat({ userName }: { userName: string }) {
             >
               <p className="text-sm font-semibold text-indigo-200">Let&apos;s have a conversation</p>
               <p className="mt-1 text-sm text-zinc-400">
-                Guided 5-question flow (about 2 minutes).
+                Guided conversation (about a few minutes).
               </p>
             </button>
             <button
@@ -118,15 +121,15 @@ export function OnboardingChat({ userName }: { userName: string }) {
         {mode === "freeText" && !profileText ? (
           <div className="space-y-3">
             <p className="text-sm text-zinc-300">
-              Share as much or as little as you want. Include anything relevant about your identity,
-              moments, constraints, and what success means to you.
+              Share as much or as little as you want. Lead with things you&apos;ve already done that you&apos;re proud
+              of, then your identity, current situation, constraints, and what matters next.
             </p>
             <textarea
               value={aboutMeText}
               onChange={(event) => setAboutMeText(event.target.value)}
               rows={12}
               className="w-full rounded-lg border border-white/10 bg-[#111111] p-3 text-sm leading-6 text-zinc-200 outline-none ring-indigo-500/40 transition focus:ring"
-              placeholder="Tell me about your life, moments, motivation, and current situation..."
+              placeholder="Start with past wins you’re proud of, then your life now, motivation, and what you’re working toward..."
             />
           </div>
         ) : null}
@@ -187,7 +190,7 @@ export function OnboardingChat({ userName }: { userName: string }) {
                   {
                     id: crypto.randomUUID(),
                     role: "assistant",
-                      text: `No problem — let’s refine this together from the start. ${onboardingQuestions[0].question}`,
+                      text: `No problem — let’s refine this together from the start. We’ll ground your map in things you’ve already done, then catch up to today. First: ${onboardingQuestions[0].question}`,
                   },
                 ]);
               }}
@@ -405,9 +408,11 @@ function buildNaturalTransition({
     case 2:
       return `Got it — thanks. ${nextQuestion}`;
     case 3:
-      return `That helps me understand your current reality. ${nextQuestion}`;
+      return `Thanks — that helps. ${nextQuestion}`;
     case 4:
-      return `That’s a meaningful target. ${nextQuestion}`;
+      return `Those are meaningful anchors for your story. ${nextQuestion}`;
+    case 5:
+      return `Thanks for sharing where you are today. ${nextQuestion}`;
     default:
       return nextQuestion;
   }

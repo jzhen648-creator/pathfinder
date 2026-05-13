@@ -23,9 +23,6 @@ export default function Home() {
           <Link href="/next-steps">/next-steps</Link>
         </li>
         <li>
-          <Link href="/life-map">/life-map</Link> (classic canvas)
-        </li>
-        <li>
           <Link href="/dashboard">/dashboard</Link>
         </li>
         <li>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
 
 type GoalSnapshot = {
   id: string;
@@ -12,6 +13,7 @@ type GoalSnapshot = {
   milestones: Array<{
     id: string;
     title: string;
+    completedAt?: string | Date | null;
     subtasks: Array<{ id: string; title: string; isCompleted: boolean }>;
   }>;
 };
@@ -32,20 +34,28 @@ export function GoalCardActions({ goal }: { goal: GoalSnapshot }) {
 
   const activeMilestone = useMemo(
     () =>
-      goal.milestones.find((m) => m.subtasks.some((s) => !s.isCompleted)) ??
-      goal.milestones[goal.milestones.length - 1],
+      goal.milestones.find(
+        (m) =>
+          !milestoneDoneForSemantics({
+            completedAt: m.completedAt ?? null,
+            subtasks: m.subtasks.map((s) => ({
+              isCompleted: s.isCompleted,
+              title: s.title,
+            })),
+          }),
+      ) ?? goal.milestones[goal.milestones.length - 1],
     [goal.milestones],
   );
 
   function openEdit() {
     const summary = `Current goal:
 - Title: ${goal.title}
-- Life area: ${goal.lifeArea}
+- Theme: ${goal.lifeArea}
 - Deadline: ${goal.deadline}
 - Description: ${goal.description}
 - Active milestone: ${activeMilestone?.title ?? "None"}
 
-What would you like to change? You can update title, description, deadline, life area, or ask me to fully regenerate milestones.`;
+What would you like to change? You can update title, description, deadline, theme, or ask me to fully regenerate milestones.`;
     setMessages([{ id: crypto.randomUUID(), role: "assistant", text: summary }]);
     setInput("");
     setError(null);

@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "dev": "next dev --hostname 0.0.0.0 --port 3001",
+    "dev:3000": "next dev --hostname 0.0.0.0 --port 3000",
+    "dev:free": "npx --yes kill-port@2.0.1 3001 && next dev --hostname 0.0.0.0 --port 3001",
+    "dev:fresh": "node -e \"try{require('fs').rmSync('.next',{recursive:true})}catch(e){}\" && npx --yes kill-port@2.0.1 3001 && next dev --hostname 0.0.0.0 --port 3001",
+    "dev:free3000": "npx --yes kill-port@2.0.1 3000 && next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -13,7 +17,13 @@
     "undo": "git reset --hard HEAD~1",
     "snapshot": "npx ts-node scripts/snapshot.ts",
     "migrate:moments": "npx tsx scripts/migrate-moments-to-marks.ts",
-    "seed:tree": "npx tsx scripts/seed-tree-test.ts"
+    "seed:tree": "npx tsx scripts/seed-tree-test.ts",
+    "clear-goals": "npx tsx scripts/clear-all-goals.ts",
+    "backfill:tree-milestones": "npx tsx scripts/backfill-tree-milestones-to-relational.ts",
+    "backfill:goal-bloom": "npx tsx scripts/backfill-goal-bloom.ts",
+    "diagnose:milestone-recompute": "npx tsx scripts/diagnose-milestone-recompute.ts",
+    "backfill:rename-legacy-subtasks": "npx tsx scripts/backfill-rename-legacy-subtask-titles.ts",
+    "backfill:delete-scaffolding-subtasks": "npx tsx scripts/backfill-delete-scaffolding-subtasks.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

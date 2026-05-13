@@ -14,7 +14,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3001](http://localhost:3001) with your browser to see the result (dev server uses port 3001 by default; port 3000 is often taken on Windows).
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
@@ -37,6 +37,9 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Project brief
 See [BRIEF.md](./BRIEF.md) for a short overview of what Pathfinder does and how it is built.
+
+## Changelog & decisions
+See [CHANGELOG.md](./CHANGELOG.md) for a dated work log. Product and engineering notes (taxonomy, focus mode, Stream, and similar) live in [DECISIONS.md](./DECISIONS.md).
 
 ## Product philosophy
 See [PROJECT.md](./PROJECT.md) for the full vision,

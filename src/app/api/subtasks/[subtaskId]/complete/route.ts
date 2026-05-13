@@ -46,6 +46,7 @@ export async function PATCH(_request: Request, { params }: RouteProps) {
     },
   });
 
+  // Primary production hook today for relational bloom persistence after milestone graph changes.
   await recomputeGoalBloomStatus(subtask.milestone.goalId);
 
   const goal = await getGoalWithProgress(subtask.milestone.goalId, userId);

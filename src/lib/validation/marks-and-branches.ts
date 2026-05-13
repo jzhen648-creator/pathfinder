@@ -74,7 +74,7 @@ const markDescriptionField = z
   .optional();
 
 const createMarkBaseFields = {
-  limbId: z.string().min(1, "Life area (limbId) is required."),
+  limbId: z.string().min(1, "Theme (limbId) is required."),
   branchId: z.string().min(1, "Branch is required."),
   title: z
     .string()
@@ -193,7 +193,7 @@ export const updateMarkBodySchema = z
 
 export const createBranchBodySchema = z
   .object({
-    limbId: z.string().min(1, "Life area (limbId) is required."),
+    limbId: z.string().min(1, "Theme (limbId) is required."),
     name: z
       .string()
       .max(BRANCH_NAME_MAX, `Branch name must be at most ${BRANCH_NAME_MAX} characters.`)
@@ -202,8 +202,6 @@ export const createBranchBodySchema = z
       .string()
       .max(BRANCH_NAME_MAX, `Branch name must be at most ${BRANCH_NAME_MAX} characters.`)
       .optional(),
-    parentBranchId: z.string().nullable().optional(),
-    turningPointId: z.string().nullable().optional(),
     mapAngleOffset: z.number().default(0),
     goal: z
       .union([z.string().max(BRANCH_GOAL_MAX, `Branch goal must be at most ${BRANCH_GOAL_MAX} characters.`), z.null()])

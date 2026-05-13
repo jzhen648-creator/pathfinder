@@ -18,13 +18,14 @@ export const onboardingQuestions = [
   },
   { key: "age", question: "How old are you?", area: "Core" },
   {
-    key: "lifeNow",
-    question: "In one sentence, what does your life look like right now?",
+    key: "accomplishedGoals",
+    question:
+      "What have you already achieved that you’re proud of? List a few—education, moves, habits, relationships, career steps, health wins, anything that shaped you. (This helps your life tree start from real roots, not only future plans.)",
     area: "Core",
   },
   {
-    key: "mainGoal",
-    question: "What is the one thing you most want to achieve right now?",
+    key: "lifeNow",
+    question: "In one sentence, what does your life look like right now?",
     area: "Core",
   },
   {
@@ -50,7 +51,7 @@ export async function generateProfileFromAnswers(input: {
     .join("\n");
   const summaryText = [knownSummary, extraAnswers].filter(Boolean).join("\n");
 
-  const fallback = `You are ${input.name || "this user"}, currently shaping your next chapter with clear ambition and real-world constraints. You do best with practical momentum, visible progress, and coaching that adapts to your motivation style, time limits, and priorities.`;
+  const fallback = `You are ${input.name || "this user"}, with a story that already includes real wins and lived experience—not only plans ahead. You do best with practical momentum, visible progress, and coaching that honours what you've built while shaping your next chapter with clear ambition and real-world constraints.`;
 
   if (!hasGroqKey()) {
     return fallback;
@@ -59,7 +60,7 @@ export async function generateProfileFromAnswers(input: {
   try {
     const text = await generateText({
       system:
-        "You are an elite life coach. Write a rich, specific profile in second person ('You are...'). Be concrete, non-judgmental, practical, and psychologically insightful. 2-4 medium paragraphs.",
+        "You are an elite life coach. Write a rich, specific profile in second person ('You are...'). Be concrete, non-judgmental, practical, and psychologically insightful. Give real weight to what they have already accomplished (accomplishedGoals)—those are anchors for their story—not only struggles or future ambitions. 2-4 medium paragraphs.",
       messages: [
         {
           role: "user",

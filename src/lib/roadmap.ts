@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
+import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
 
 export async function getGoalWithProgress(goalId: string, userId: string) {
   const goal = await prisma.goal.findFirst({
@@ -29,13 +31,26 @@ export async function getGoalWithProgress(goalId: string, userId: string) {
   }
 
   const milestones = goal.milestones.map((milestone, index, allMilestones) => {
-    const completedSubtasks = milestone.subtasks.filter((task) => task.isCompleted).length;
-    const totalSubtasks = milestone.subtasks.length;
+    const rollupSubtasks = milestone.subtasks.filter((t) => !isScaffoldingSubtaskTitle(t.title));
+    const completedSubtasks = rollupSubtasks.filter((task) => task.isCompleted).length;
+    const totalSubtasks = rollupSubtasks.length;
     const progress = totalSubtasks === 0 ? 0 : Math.round((completedSubtasks / totalSubtasks) * 100);
-    const previousMilestonesCompleted = allMilestones
-      .slice(0, index)
-      .every((entry) => entry.subtasks.every((task) => task.isCompleted));
-    const isCompleted = completedSubtasks === totalSubtasks;
+    const previousMilestonesCompleted = allMilestones.slice(0, index).every((entry) =>
+      milestoneDoneForSemantics({
+        completedAt: entry.completedAt,
+        subtasks: entry.subtasks.map((task) => ({
+          isCompleted: task.isCompleted,
+          title: task.title,
+        })),
+      }),
+    );
+    const isCompleted = milestoneDoneForSemantics({
+      completedAt: milestone.completedAt,
+      subtasks: milestone.subtasks.map((task) => ({
+        isCompleted: task.isCompleted,
+        title: task.title,
+      })),
+    });
     const isUnlocked = index === 0 || previousMilestonesCompleted;
     const isActive = isUnlocked && !isCompleted;
 
@@ -44,23 +59,26 @@ export async function getGoalWithProgress(goalId: string, userId: string) {
       title: milestone.title,
       description: milestone.description,
       position: milestone.position,
+      completedAt: milestone.completedAt?.toISOString() ?? null,
       progress,
       isCompleted,
       isUnlocked,
       isActive,
-      subtasks: milestone.subtasks.map((subtask) => ({
-        id: subtask.id,
-        title: subtask.title,
-        isCompleted: subtask.isCompleted,
-        dailyTasks: subtask.dailyTasks.map((dailyTask) => ({
-          id: dailyTask.id,
-          title: dailyTask.title,
+      subtasks: milestone.subtasks
+        .filter((subtask) => !isScaffoldingSubtaskTitle(subtask.title))
+        .map((subtask) => ({
+          id: subtask.id,
+          title: subtask.title,
+          isCompleted: subtask.isCompleted,
+          dailyTasks: subtask.dailyTasks.map((dailyTask) => ({
+            id: dailyTask.id,
+            title: dailyTask.title,
+          })),
+          checkpoints: subtask.checkpoints.map((checkpoint) => ({
+            id: checkpoint.id,
+            title: checkpoint.title,
+          })),
         })),
-        checkpoints: subtask.checkpoints.map((checkpoint) => ({
-          id: checkpoint.id,
-          title: checkpoint.title,
-        })),
-      })),
     };
   });
 

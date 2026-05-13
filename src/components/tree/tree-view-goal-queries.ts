@@ -1,4 +1,4 @@
-import type { AreaData, AreaBranchData, TreeGoalNode } from "./tree-types";
+import type { AreaData, DomainHubData, TreeGoalNode } from "./tree-types";
 
 export function countRoadmapGoalsInSubtree(nodes: TreeGoalNode[]): number {
   let n = 0;
@@ -9,7 +9,7 @@ export function countRoadmapGoalsInSubtree(nodes: TreeGoalNode[]): number {
   return n;
 }
 
-export function countRoadmapGoalsOnThread(thread: AreaBranchData): number {
+export function countRoadmapGoalsOnThread(thread: DomainHubData): number {
   return countRoadmapGoalsInSubtree(thread.goals);
 }
 

@@ -131,8 +131,8 @@ export function DevPanel({
       branch:
         String(data.branchLabel ?? data.branchId ?? "").trim() || "Unknown",
       insertIndex: String(data.insertIndex ?? "?"),
-      after: prevMoment?.label ?? prevMoment?.title ?? "Start of thread",
-      before: nextMoment?.label ?? nextMoment?.title ?? "End of thread",
+      after: prevMoment?.label ?? prevMoment?.title ?? "Start of hub",
+      before: nextMoment?.label ?? nextMoment?.title ?? "End of hub",
     };
   }, [hoverInfo, moments]);
   const toFlatLines = (value: Record<string, unknown> | null) => {
@@ -212,7 +212,7 @@ export function DevPanel({
         )}
         {hoveredGapContext ? (
           <div style={{ lineHeight: 1.5, marginTop: 6, opacity: 0.9 }}>
-            <div>{`thread: ${hoveredGapContext.branch}`}</div>
+            <div>{`hub: ${hoveredGapContext.branch}`}</div>
             <div>{`insert position: ${hoveredGapContext.insertIndex}`}</div>
             <div>{`after: ${hoveredGapContext.after}`}</div>
             <div>{`before: ${hoveredGapContext.before}`}</div>
@@ -221,7 +221,7 @@ export function DevPanel({
       </details>
 
       <details style={{ marginBottom: 8 }}>
-        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Threads (Raw)</summary>
+        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Branches (raw)</summary>
         {branches.length === 0 ? (
           <div style={{ opacity: 0.6, marginTop: 6 }}>none loaded</div>
         ) : (

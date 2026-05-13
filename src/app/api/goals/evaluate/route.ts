@@ -116,7 +116,7 @@ export async function POST(request: Request) {
         {
           role: "user",
           content: `Goal: ${parsed.data.title}
-Life area: ${parsed.data.lifeArea}
+Theme: ${parsed.data.lifeArea}
 Description: ${parsed.data.description}
 Deadline: ${parsed.data.deadline}
 Domain: ${domain}

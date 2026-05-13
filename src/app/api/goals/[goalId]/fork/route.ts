@@ -36,31 +36,61 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   const parent = await prisma.goal.findFirst({
     where: { id: goalId, userId },
+    include: {
+      milestones: {
+        orderBy: { position: "asc" },
+        include: { subtasks: { orderBy: { position: "asc" } } },
+      },
+    },
   });
   if (!parent) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await recomputeGoalBloomStatus(parent.id);
+  const refreshed = await prisma.goal.findFirst({
+    where: { id: goalId, userId },
+    select: {
+      bloomStatus: true,
+      goalType: true,
+      description: true,
+      lifeArea: true,
+      targetAmount: true,
+      currentAmount: true,
+      deadline: true,
+      branchId: true,
+    },
+  });
+  if (!refreshed) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (refreshed.bloomStatus !== "BLOOMED") {
+    return NextResponse.json(
+      { error: "Complete this goal before starting a continuation." },
+      { status: 409 },
+    );
+  }
 
   const deadline =
     parsed.data.deadline && !Number.isNaN(Date.parse(parsed.data.deadline))
       ? new Date(parsed.data.deadline)
-      : parent.deadline ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      : refreshed.deadline ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   const child = await prisma.goal.create({
     data: {
       userId,
       title: parsed.data.title.trim(),
-      description: (parsed.data.description ?? parent.description).trim(),
-      lifeArea: parent.lifeArea,
-      goalType: parent.goalType,
-      targetAmount: parent.targetAmount,
-      currentAmount: parent.currentAmount,
+      description: (parsed.data.description ?? refreshed.description ?? "").trim(),
+      lifeArea: refreshed.lifeArea,
+      goalType: refreshed.goalType,
+      targetAmount: refreshed.targetAmount,
+      currentAmount: refreshed.currentAmount,
       deadline,
-      branchId: parent.branchId,
+      branchId: refreshed.branchId,
       parentGoalId: parent.id,
       aiGenerated: false,
       bloomStatus: "BUD",
     },
   });
 
+  // Parent lifecycle unchanged by fork in practice; harmless refresh if milestones ever move.
+  // TODO(stabilization): ensure any future fork-copy of milestones triggers recompute on both goals.
   await recomputeGoalBloomStatus(parent.id);
 
   const goal = await getGoalWithProgress(child.id, userId);

@@ -16,6 +16,8 @@ export const createGoalPayloadSchema = z
     targetAmount: z.string(),
     currentAmount: z.string(),
     unit: z.string(),
+    /** When true, generate and persist relational milestones after goal creation. */
+    generateRoadmap: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();

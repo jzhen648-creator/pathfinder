@@ -1,31 +1,24 @@
+import type { TreeRenderQuality } from "@/components/tree/tree-render-quality";
+
 export const FLAGS = {
-  // Core — always on
-  LIFE_MAP:              true,
-  GUIDED_FLOW:           true,
-  TIMELINE_VIEW:         true,
-
-  // AI features
-  AI_MOMENT_EXTRACTION:  false,
-  AI_SUGGESTIONS:        false,
-  AI_DRAG_SUGGESTIONS:   false,
-
-  // Future features (scaffolded)
-  TURNING_POINTS:        false,
-  BRANCH_SPLITS:         false,
-  CONNECTIONS_VIEW:      false,
-  DIARY_NOTES:           false,
-  FINANCE_TRACKER:       false,
-
-  // Visual options
-  SHOW_FORK_DOTS:        false,
-  SHOW_GRID_LINES:       false,
-  SHOW_BACKGROUND_GLOBS: false,
-  SHOW_FUTURE_RINGS:     false,
-
-  // Dev tools
-  DEV_PANEL:             true,
-  PERF_MONITOR:          true,
-  MOCK_DATA:             true,
+  MOCK_DATA: true,
+  DEV_PANEL: true,
+  PERF_MONITOR: true,
+  FOCUS_MODE: true,
+  /** Pointy-top hex goals, orbital milestone dots, thread stroke gap through hex interior. */
+  GOAL_MILESTONES: true,
+  /**
+   * Goal bloom luminous preset: restrained / balanced / cinematic.
+   * Cinematic explores tighter fields + jewel cores (deterministic SVG only — no particles).
+   */
+  TREE_GOAL_RENDER_QUALITY: "balanced" as TreeRenderQuality,
+  /** Branch + button opens anchored NL goal flow instead of centred Add goal modal. */
+  CONVERSATIONAL_GOAL_CREATE: true,
+  /**
+   * Central vascular trunk mass (silhouette + flow + post-stroke blend) behind life-area stems.
+   * Off for a flatter, hub-forward composition; fork geometry still exposes `trunkAttach` (coincident with the theme gateway when the stem bridge is omitted).
+   */
+  TREE_TRUNK_VISIBLE: false,
 } as const;
 
 export type FeatureFlag = keyof typeof FLAGS;
@@ -33,4 +26,3 @@ export type FeatureFlag = keyof typeof FLAGS;
 export function isEnabled(flag: FeatureFlag): boolean {
   return FLAGS[flag] === true;
 }
-

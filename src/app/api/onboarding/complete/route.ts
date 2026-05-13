@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateProfileFromAnswers } from "@/lib/onboarding";
+import { ensureNewProfileBranches } from "@/lib/new-profile-tree-branches";
 
 const payloadSchema = z.object({
   answers: z.record(z.string(), z.string().min(1)),
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
             : undefined,
         },
       });
+
+      await ensureNewProfileBranches(prisma, userId);
     }
 
     return NextResponse.json({ profileText });

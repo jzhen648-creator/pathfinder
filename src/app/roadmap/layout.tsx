@@ -23,7 +23,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: "Roadmap · Pathfinder",
-  description: "Branching timeline of marks and goals by life area",
+  description: "Branching timeline of timeline notes and goals by theme",
 };
 
 export default function RoadmapLayout({ children }: Readonly<{ children: React.ReactNode }>) {

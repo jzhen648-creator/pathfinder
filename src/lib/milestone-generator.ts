@@ -77,13 +77,13 @@ type RoadmapInput = {
  * unavailable (no credits, rate-limited, outage). Always returns the same
  * shape the AI version produces, so downstream DB writes don't branch.
  *
- * The copy references the actual goal title + life area so it is not purely
+ * The copy references the actual goal title + theme so it is not purely
  * generic. Callers should also set `Goal.aiGenerated = false` so the UI can
  * surface "regenerate with AI" affordances.
  */
 export function buildFallbackRoadmap(input: RoadmapInput): GeneratedRoadmap {
   const topic = input.title.trim() || input.lifeArea || "your goal";
-  const area = input.lifeArea.trim() || "this life area";
+  const area = input.lifeArea.trim() || "this theme";
 
   const phases: Array<{ title: string; description: string }> = [
     {
@@ -267,7 +267,7 @@ const SYSTEM_PROMPT = [
   "- Milestone descriptions must be 1–2 sentences explaining what must be completed in that phase and why it matters next.",
   "- Task mix must vary inside each milestone: include a blend of practical action types (execution, practice, lightweight research, outreach) while keeping friction low.",
   "- If the goal is financial or has a numeric target, set finance.targetAmount when inferable.",
-  "- If context is thin, infer pragmatic low-friction steps from the title/life area instead of generic advice.",
+  "- If context is thin, infer pragmatic low-friction steps from the title/theme instead of generic advice.",
 ].join("\n");
 
 export async function generateGoalRoadmap(input: {
@@ -288,7 +288,7 @@ export async function generateGoalRoadmap(input: {
 
   const userPrompt = `Goal title: ${input.title}
 Description / reason: ${input.description}
-Life area: ${input.lifeArea}
+Theme: ${input.lifeArea}
 Current starting point: ${input.startingPoint}
 Biggest obstacle: ${input.biggestObstacle}
 Time available per week: ${input.hoursPerWeek}

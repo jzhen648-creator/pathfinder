@@ -1,44 +1,79 @@
 import type { RefObject } from "react";
-import type { AreaData, MomentNode, Point, TreeGoalNode } from "./tree-types";
+import type { TreeRenderQuality } from "./tree-render-quality";
+import type { AreaData, MomentNode, Point, TreeGoalNode, TreeOrbitalMilestone } from "./tree-types";
+
+export type { TreeOrbitalMilestone };
 
 export type PanelState =
   | { type: "none" }
-  | { type: "foundations" }
   | { type: "area"; area: AreaData }
+  | { type: "hub"; area: AreaData; thread: AreaData["branches"][number] }
   | { type: "moment"; moment: MomentNode; area: AreaData }
   | { type: "goal"; goal: TreeGoalNode; area: AreaData };
 
 export type MarksResponse = { marks?: unknown[] };
 export type BranchesResponse = unknown[] | { branches?: unknown[]; goals?: unknown[] };
 
+/** Hub-scoped goal creation (conversational overlay or modal pre-selection). */
+export type AddGoalHubContext = {
+  branchId: string;
+  areaId: string;
+  branchLabel: string;
+  areaLabel: string;
+  anchorClient: { x: number; y: number };
+};
+
 export type TreeSVGProps = {
   areas: AreaData[];
   allAreasForForkGeometry?: AreaData[];
   focused: string | null;
+  /** Limb focus mode (tree map): fades non-focused limbs when non-null. */
+  focusedLimbId: string | null;
+  onToggleLimbFocus: (limbId: string) => void;
   panel: PanelState;
   onClear: () => void;
   onAreaClick: (area: AreaData) => void;
-  onAddGoalPlaceholderClick: (threadId: string) => void;
+  onHubClick: (area: AreaData, thread: AreaData["branches"][number]) => void;
   onMomentClick: (moment: MomentNode, area: AreaData) => void;
   onGoalClick: (goal: TreeGoalNode, area: AreaData) => void;
-  onFoundationsClick: () => void;
   exportRootRef?: RefObject<HTMLDivElement | null>;
   showElementGuide?: boolean;
+  /** Dev-only: when set, overrides feature flag default luminous preset for this map. */
+  renderQualityDevPreset?: TreeRenderQuality | null;
 };
+
+export type TreePanelPresentation = "sheet" | "rail";
 
 export type TreePanelProps = {
   panel: PanelState;
   areas: AreaData[];
+  /** Goal detail: `rail` = left overlay column (does not shrink the map); others use bottom `sheet`. */
+  panelPresentation?: TreePanelPresentation;
   onClose: () => void;
-  onCreateBranchFromMoment: (input: {
-    limbId: string;
-    parentBranchId: string;
-    turningPointId: string;
-    label: string;
-  }) => Promise<{ ok: boolean; error?: string }>;
-  onAddGoal: () => void;
+  onOpenArea: (area: AreaData) => void;
+  onOpenHub: (area: AreaData, thread: AreaData["branches"][number]) => void;
+  onAddGoal: (hub: AddGoalHubContext) => void;
   onDeleteGoal: (goalId: string) => Promise<{ ok: boolean; error?: string }>;
+  onUpdateGoal: (goalId: string, body: { title: string }) => Promise<{ ok: boolean; error?: string }>;
   onToggleSubtask: (subtaskId: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Append one canonical `Milestone` from tree UX (POST `/api/goals/[id]/milestones`). */
+  onAppendCanonicalTreeMilestone: (
+    goalId: string,
+    title: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Relational milestones: explicit symbolic completion (`PATCH …/milestones/[id]`). */
+  onSetMilestoneCompletion: (
+    goalId: string,
+    milestoneId: string,
+    completed: boolean,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Open another goal in this panel (same hub or elsewhere on the tree). */
+  onNavigateToGoal: (goalId: string) => void;
+  /** Goal evolution: create a successor goal linked via `parentGoalId` (POST `/api/goals/[id]/fork`). */
+  onContinueGoal: (
+    goalId: string,
+    body: { title: string },
+  ) => Promise<{ ok: boolean; error?: string; newGoalId?: string }>;
 };
 
 export type ViewMode = "tree" | "timeline" | "branch";

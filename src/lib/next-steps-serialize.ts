@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { LIFE_AREAS } from "@/lib/life-areas";
+import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
 import { coerceRoadmapLifeAreaId } from "@/lib/roadmap/roadmap-data";
 import type { LimbId } from "@/lib/types";
 
@@ -8,6 +9,9 @@ const KNOWN = new Set(LIFE_AREAS.map((l) => l.id));
 export function goalLifeAreaToLimbId(lifeArea: string): LimbId {
   const t = lifeArea.trim();
   if (t === "Personal Growth") return "becoming";
+  if (t === "Money") return "finance";
+  if (t === "Relationships") return "people";
+  if (t === "Health") return "health";
   const hit = LIFE_AREAS.find((l) => l.label === t);
   if (hit) return hit.id as LimbId;
   return KNOWN.has(t as LimbId) ? (t as LimbId) : "work";
@@ -97,6 +101,7 @@ export function nextStepsGoalFromApi(
 
   for (const ms of api.milestones) {
     for (const s of ms.subtasks) {
+      if (isScaffoldingSubtaskTitle(s.title)) continue;
       let dueLabel: string | null = null;
       if (!s.isCompleted && !firstIncompleteAssignedDue && dueStr) {
         dueLabel = dueStr;
@@ -158,6 +163,7 @@ export function buildNextStepsGoals(goals: GoalRow[], marks: MarkRow[]): NextSte
     for (const ms of milestones) {
       const subs = [...ms.subtasks].sort((a, b) => a.position - b.position);
       for (const s of subs) {
+        if (isScaffoldingSubtaskTitle(s.title)) continue;
         let dueLabel: string | null = null;
         if (!s.isCompleted && !firstIncompleteAssignedDue && dueStr) {
           dueLabel = dueStr;

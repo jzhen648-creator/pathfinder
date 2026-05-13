@@ -204,6 +204,7 @@ function rotateAreaAroundTrunk(spec: AreaForkSpec, deg: number): AreaForkSpec {
 
 function rotateBranchSpecAboutPivot(branch: BranchForkSpec, pivot: Point, rad: number): BranchForkSpec {
   return {
+    ...branch,
     forkPoint: rotatePoint(branch.forkPoint, pivot, rad),
     tip: rotatePoint(branch.tip, pivot, rad),
     branchPieces: branch.branchPieces.map((p) => rotateCubicPiece(p, pivot, rad)),
@@ -217,6 +218,7 @@ export function rotateBranchAroundFork(branch: BranchForkSpec, deg: number): Bra
   const rad = (deg * Math.PI) / 180;
   const pivot = branch.forkPoint;
   return {
+    ...branch,
     forkPoint: { ...branch.forkPoint },
     tip: rotatePoint(branch.tip, pivot, rad),
     branchPieces: branch.branchPieces.map((p) => rotateCubicPiece(p, pivot, rad)),

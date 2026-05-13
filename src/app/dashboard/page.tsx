@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateDMY } from "@/lib/date";
 import { GoalCardActions } from "@/components/dashboard/goal-card-actions";
+import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -70,12 +71,16 @@ export default async function DashboardPage() {
           <div className="space-y-4">
             {user.goals.map((goal) => {
               const totalSubtasks = goal.milestones.reduce(
-                (sum, milestone) => sum + milestone.subtasks.length,
+                (sum, milestone) =>
+                  sum + milestone.subtasks.filter((s) => !isScaffoldingSubtaskTitle(s.title)).length,
                 0,
               );
               const completedSubtasks = goal.milestones.reduce(
                 (sum, milestone) =>
-                  sum + milestone.subtasks.filter((subtask) => subtask.isCompleted).length,
+                  sum +
+                  milestone.subtasks.filter(
+                    (s) => !isScaffoldingSubtaskTitle(s.title) && s.isCompleted,
+                  ).length,
                 0,
               );
               const progress = totalSubtasks
@@ -104,6 +109,7 @@ export default async function DashboardPage() {
                           .map((m) => ({
                             id: m.id,
                             title: m.title,
+                            completedAt: m.completedAt,
                             subtasks: [...m.subtasks]
                               .sort((a, b) => a.position - b.position)
                               .map((s) => ({
@@ -131,14 +137,6 @@ export default async function DashboardPage() {
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Link
-                      href={`/roadmap/${goal.id}`}
-                      className="rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-3 py-1.5 text-sm text-indigo-200 transition hover:border-indigo-400/60 hover:bg-indigo-500/20"
-                    >
-                      View roadmap <span className="ml-1 text-indigo-300/90">Continue →</span>
-                    </Link>
                   </div>
                 </article>
               );

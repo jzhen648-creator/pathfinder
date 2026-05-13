@@ -1,6 +1,6 @@
 "use client";
 
-import { LifeMapV2CreateMarkModal } from "@/components/map/life-map-v2-create-mark-modal";
+import { CreateMarkModal } from "@/components/roadmap/create-mark-modal";
 import {
   MOCK_PROFILE_LABELS,
   getMockScenario,
@@ -9,7 +9,7 @@ import {
 } from "@/data/mock-data";
 import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { PF_ROADMAP_THEME_CSS } from "@/components/shell/pf-roadmap-theme";
-import type { ApiBranchRow } from "@/lib/life-map-v2-layout";
+import type { ApiBranchRow } from "@/lib/api-branch-row";
 import { isEnabled } from "@/lib/flags";
 import {
   useCallback,
@@ -736,7 +736,7 @@ export function RoadmapShell() {
           <div className="rm-sidebar-divider" />
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <div className="mb-1.5 px-5 text-[10px] font-medium uppercase tracking-wider text-[var(--rm-text3)]">
-              Life areas
+              Themes
             </div>
             {ROADMAP_LIFE_AREA_COLUMN_ORDER.map((limbId) => {
               const limb = getLifeArea(limbId);
@@ -880,7 +880,7 @@ export function RoadmapShell() {
                 className="shrink-0 rounded-lg border-0 px-3 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
                 style={{ background: "var(--rm-ink900)" }}
               >
-                + Add mark
+                + Add timeline note
               </button>
             ) : null}
             <div
@@ -1341,7 +1341,7 @@ export function RoadmapShell() {
       </div>
 
       {!useMockData ? (
-        <LifeMapV2CreateMarkModal
+        <CreateMarkModal
           open={addMarkOpen}
           onClose={() => setAddMarkOpen(false)}
           branches={branches as unknown as ApiBranchRow[]}

@@ -14,7 +14,7 @@ export function badgeStatusFromGoalBloom(s: TreeGoalNode["bloomStatus"]): "bloom
 }
 
 export function roadmapGoalShowsProgressPulse(status: TreeGoalNode["bloomStatus"]): boolean {
-  return status === "BUD" || status === "GROWING" || status === "BRANCHED";
+  return status === "BUD" || status === "GROWING";
 }
 
 export function statusBadgeStyle(status: "bloomed" | "growing" | "ended"): CSSProperties {

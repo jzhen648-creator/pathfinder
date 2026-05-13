@@ -1,16 +1,26 @@
-import { SPINE_ORIGIN, BRANCH_SLOTS } from "./tree-geometry";
-import type { AreaBranchData, AreaData, GoalBloomStatus, MomentNode, TreeGoalNode } from "./tree-types";
+import { normalizeGoalBloomForDisplay } from "@/lib/goal-bloom-lifecycle";
+import { resolveOrbitalMilestonesForTreeGoal } from "./milestone-tree-projection";
+import type { AreaData, DomainHubData, GoalBloomStatus, MomentNode, TreeGoalNode, TreeMilestoneNode } from "./tree-types";
 
 export type RawBranch = {
   id: string;
   limbId: string;
   parentBranchId?: string | null;
   turningPointId?: string | null;
+  /** Legacy / explicit API alias for taxonomy thread title. */
   threadType?: string | null;
+  /** Prisma: canonical thread / taxonomy label (matches `NEW_PROFILE_ROOT_BRANCH_TEMPLATES`). */
+  label?: string | null;
   name?: string | null;
   bloomStatus?: string | null;
   createdAt?: string | Date | null;
 };
+
+/** Display title for a branch thread: prefer explicit `threadType`, then Prisma `label`, then `name`. */
+function branchThreadTitle(b: RawBranch): string {
+  const raw = (b.threadType ?? b.label ?? b.name ?? "").trim();
+  return raw.length > 0 ? raw : "Branch";
+}
 
 export type RawTreeGoalPayload = {
   id: string;
@@ -22,6 +32,7 @@ export type RawTreeGoalPayload = {
   positionAngle: number | null;
   parentGoalId: string | null;
   year?: number | null;
+  /** 1–5 life-importance (DB); mapped to {@link TreeGoalNode.significanceTier} for render authority. */
   significance?: number | null;
   isTurningPoint?: boolean | null;
   future?: boolean | null;
@@ -29,6 +40,7 @@ export type RawTreeGoalPayload = {
     id: string;
     title: string;
     position: number;
+    completedAt?: string | Date | null;
     subtasks: Array<{ id: string; title?: string | null; position?: number | null; isCompleted: boolean }>;
   }>;
   forkedGoals: { id: string }[];
@@ -38,31 +50,82 @@ function isRoadmapTreeGoal(g: RawTreeGoalPayload): boolean {
   return g.goalType !== "moment" && g.goalType !== "event";
 }
 
+/** Milestone payload shape for {@link normalizeGoalBloomForDisplay} (legacy BRANCHED → lifecycle). */
+function milestonesLifecycleFromRaw(g: RawTreeGoalPayload) {
+  const milestoneRows = Array.isArray(g.milestones) ? g.milestones : [];
+  return milestoneRows.map((m) => ({
+    completedAt: m.completedAt ?? null,
+    subtasks: (Array.isArray(m.subtasks) ? m.subtasks : []).map((s) => ({
+      isCompleted: Boolean(s.isCompleted),
+      title: typeof s.title === "string" ? s.title : null,
+    })),
+  }));
+}
+
 function nestTreeGoalsForBranch(branchId: string, flat: RawTreeGoalPayload[]): TreeGoalNode[] {
   const onBranch = flat.filter((g) => g.branchId === branchId && isRoadmapTreeGoal(g));
-  const nodes: TreeGoalNode[] = onBranch.map((g) => ({
-    id: g.id,
-    branchId: g.branchId ?? branchId,
-    title: g.title,
-    bloomStatus: (["BUD", "GROWING", "BLOOMED", "BRANCHED", "ENDED"].includes(g.bloomStatus)
-      ? g.bloomStatus
-      : "BUD") as GoalBloomStatus,
-    positionAngle: g.positionAngle,
-    parentGoalId: g.parentGoalId,
-    forkedGoalIds: g.forkedGoals.map((f) => f.id),
-    milestones: g.milestones.map((m) => ({
-      id: m.id,
-      title: m.title,
-      position: m.position,
-      subtasks: m.subtasks.map((s, si) => ({
-        id: s.id,
-        title: typeof s.title === "string" && s.title.trim().length > 0 ? s.title : `Subtask ${si + 1}`,
-        position: typeof s.position === "number" ? s.position : si,
-        isCompleted: s.isCompleted,
-      })),
-    })),
-    childGoals: [],
-  }));
+  const nodes: TreeGoalNode[] = onBranch.map((g) => {
+    const milestoneRows = Array.isArray(g.milestones) ? g.milestones : [];
+    const roadmapMs = milestoneRows.map((m) => {
+      const subRows = Array.isArray(m.subtasks) ? m.subtasks : [];
+      const completedAtIso =
+        m.completedAt == null
+          ? null
+          : typeof m.completedAt === "string"
+            ? m.completedAt
+            : m.completedAt.toISOString();
+      return {
+        id: m.id,
+        title: m.title,
+        position: m.position,
+        completedAt: completedAtIso,
+        subtasks: subRows.map((s, si) => ({
+          id: s.id,
+          title: typeof s.title === "string" && s.title.trim().length > 0 ? s.title : `Subtask ${si + 1}`,
+          position: typeof s.position === "number" ? s.position : si,
+          isCompleted: s.isCompleted,
+        })),
+      };
+    });
+    const bloomStatus = normalizeGoalBloomForDisplay(
+      {
+        goalType: g.goalType,
+        future: Boolean(g.future),
+        year: g.year ?? null,
+        bloomStatus: typeof g.bloomStatus === "string" ? g.bloomStatus : "BUD",
+      },
+      milestonesLifecycleFromRaw(g),
+      { goalId: g.id },
+    ) as GoalBloomStatus;
+    return {
+      id: g.id,
+      branchId: g.branchId ?? branchId,
+      title: g.title,
+      description: g.description ?? null,
+      bloomStatus,
+      positionAngle: g.positionAngle,
+      parentGoalId: g.parentGoalId,
+      forkedGoalIds: (Array.isArray(g.forkedGoals) ? g.forkedGoals : []).map((f) => f.id),
+      milestones: roadmapMs,
+      orbitalMilestones: resolveOrbitalMilestonesForTreeGoal({
+        relationalMilestones: roadmapMs.map((m) => ({
+          id: m.id,
+          title: m.title,
+          position: m.position,
+          completedAt: m.completedAt ?? null,
+          subtasks: m.subtasks.map((s) => ({
+            isCompleted: s.isCompleted,
+            title: s.title,
+          })),
+        })),
+      }),
+      significanceTier:
+        typeof g.significance === "number" && Number.isFinite(g.significance)
+          ? Math.max(1, Math.min(5, Math.round(g.significance)))
+          : null,
+      childGoals: [],
+    };
+  });
   const byId = Object.fromEntries(nodes.map((n) => [n.id, n] as const));
   const roots: TreeGoalNode[] = [];
   for (const n of nodes) {
@@ -95,12 +158,16 @@ export const LIFE_AREA_CONFIG: Record<string, { label: string; color: string }> 
   becoming: { label: "Who I'm Becoming", color: "#7F77DD" },
   people: { label: "People & Relationships", color: "#D4537E" },
   health: { label: "Health & Body", color: "#D85A30" },
+  pleasures: { label: "Pleasures", color: "#38BDF8" },
 };
 
 /** @deprecated Use `LIFE_AREA_CONFIG`. */
 export const LIMB_CONFIG = LIFE_AREA_CONFIG;
 
-export const LIFE_AREA_ORDER = ["finance", "work", "becoming", "people", "health"] as const;
+export const LIFE_AREA_ORDER = ["finance", "work", "becoming", "people", "health", "pleasures"] as const;
+
+/** `limbId`s omitted from the life-tree SVG (`mapToTreeData`). API/DB branches unchanged. */
+export const TREE_DISABLED_LIFE_AREA_IDS: ReadonlySet<string> = new Set(["pleasures"]);
 
 function deriveBloomStatus(mark: RawMark, branch: RawBranch): MomentNode["bloomStatus"] {
   if (mark.future) return "GROWING";
@@ -114,19 +181,6 @@ function asDateMs(input: string | Date | null | undefined): number {
   if (!input) return 0;
   const ms = new Date(input).getTime();
   return Number.isFinite(ms) ? ms : 0;
-}
-
-function seededUnit(seed: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i += 1) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 1000) / 1000;
-}
-
-function seededSigned(seed: string): number {
-  return seededUnit(seed) * 2 - 1;
 }
 
 /** Single tree-only bud when a thread has no real marks (avoids empty branches without stacking five fillers). */
@@ -163,33 +217,22 @@ function padThreadMoments(branch: RawBranch, realMoments: MomentNode[]): MomentN
   return [...realMoments, ...synth].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
 }
 
-/** Life-area + branch-line records only; fork SVG geometry is derived from this data in `tree-forks` (straight layout). */
+const HUBS_PER_ENABLED_LIFE_AREA = 4;
+
+/** Life-area + domain hub rows only; fork SVG geometry is derived from this data in `tree-forks`. */
 export function mapToTreeData(
   branches: RawBranch[],
   marks: RawMark[],
   goals: RawTreeGoalPayload[] = [],
 ): AreaData[] {
-  return LIFE_AREA_ORDER.map((lifeAreaId) => {
+  return LIFE_AREA_ORDER.filter((lifeAreaId) => !TREE_DISABLED_LIFE_AREA_IDS.has(lifeAreaId)).map((lifeAreaId) => {
     const config = LIFE_AREA_CONFIG[lifeAreaId];
-    const origin = SPINE_ORIGIN[lifeAreaId];
 
     const rootBranches = branches
       .filter((b) => b.limbId === lifeAreaId && !b.parentBranchId)
       .sort((a, b) => asDateMs(a.createdAt) - asDateMs(b.createdAt));
-    const slots = BRANCH_SLOTS[lifeAreaId] ?? [];
 
-    const areaBranches: AreaBranchData[] = rootBranches.map((branch, idx) => {
-      const slot = slots[idx] ?? slots[slots.length - 1];
-      const fallbackSlot = {
-        defaultFromT: 0.1,
-        p1: origin.p0,
-        p2: origin.p0,
-        sw: 2,
-      };
-      const safeSlot = slot ?? fallbackSlot;
-
-      const fromT = safeSlot.defaultFromT;
-
+    const areaBranches: DomainHubData[] = rootBranches.map((branch) => {
       const timelineFromGoals: MomentNode[] = goals
         .filter((g) => g.branchId === branch.id && (g.goalType === "moment" || g.goalType === "event"))
         .map((g) => ({
@@ -199,9 +242,16 @@ export function mapToTreeData(
           description: g.description ?? null,
           year: g.year ?? null,
           significance: Math.min(3, Math.max(1, g.significance ?? 1)),
-          bloomStatus: (["BUD", "GROWING", "BLOOMED", "BRANCHED", "ENDED"].includes(g.bloomStatus)
-            ? g.bloomStatus
-            : "BUD") as MomentNode["bloomStatus"],
+          bloomStatus: normalizeGoalBloomForDisplay(
+            {
+              goalType: g.goalType,
+              future: Boolean(g.future),
+              year: g.year ?? null,
+              bloomStatus: typeof g.bloomStatus === "string" ? g.bloomStatus : "BUD",
+            },
+            milestonesLifecycleFromRaw(g),
+            { goalId: g.id },
+          ) as MomentNode["bloomStatus"],
           isTurningPoint: Boolean(g.isTurningPoint),
           future: Boolean(g.future),
           value: null,
@@ -227,75 +277,48 @@ export function mapToTreeData(
       const mergedTimeline = [...timelineFromGoals, ...fromMarks].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
 
       const branchMarks: MomentNode[] = padThreadMoments(branch, mergedTimeline);
-      const childBranches = branches
-        .filter((b) => b.parentBranchId === branch.id)
-        .sort((a, b) => asDateMs(a.createdAt) - asDateMs(b.createdAt));
-      const siblings = childBranches.map((b) => ({
-        id: b.id,
-        label: b.threadType ?? b.name ?? "Branch",
-      }));
-      const childCount = childBranches.length;
-      const splitMomentIndex = (() => {
-        if (childCount === 0 || branchMarks.length === 0) return -1;
-        const turningMarkId = childBranches.find((b) => b.turningPointId)?.turningPointId ?? null;
-        if (turningMarkId) {
-          const idx = branchMarks.findIndex((m) => m.id === turningMarkId);
-          if (idx >= 0) return idx;
-        }
-        const firstChildYear = (() => {
-          const ms = asDateMs(childBranches[0]?.createdAt);
-          if (ms <= 0) return null;
-          return new Date(ms).getFullYear();
-        })();
-        if (firstChildYear !== null) {
-          const idx = branchMarks.findIndex((m) => m.year !== null && m.year >= firstChildYear);
-          if (idx >= 0) return idx;
-        }
-        return Math.max(0, Math.floor(branchMarks.length * 0.6));
-      })();
-      const splitT = (() => {
-        if (childCount === 0) return undefined;
-        const spacingVariance = seededSigned(`${branch.id}:split-t`) * 0.06;
-        if (branchMarks.length <= 1 || splitMomentIndex < 0) return 0.55;
-        const progress = splitMomentIndex / Math.max(1, branchMarks.length - 1);
-        return Math.min(0.74, Math.max(0.28, 0.24 + progress * 0.5 + spacingVariance));
-      })();
-      const growthTransfer = Math.min(0.5, Math.max(0.12, childCount * 0.16 + seededSigned(`${branch.id}:flow`) * 0.06));
-      const postSplitStrokeWidth =
-        childCount > 0 ? Math.max(1, Number((safeSlot.sw * (1 - growthTransfer)).toFixed(2))) : undefined;
-      const postSplitP1 =
-        childCount > 0
-          ? {
-              x:
-                safeSlot.p1.x +
-                (safeSlot.p2.x >= safeSlot.p1.x ? 1 : -1) * (10 + childCount * 5 + seededSigned(`${branch.id}:p1x`) * 7),
-              y: safeSlot.p1.y - (8 + childCount * 2 + seededUnit(`${branch.id}:p1y`) * 5),
-            }
-          : undefined;
 
       const goalRoots = nestTreeGoalsForBranch(branch.id, goals);
 
       return {
         id: branch.id,
-        type: branch.threadType ?? branch.name ?? "Branch",
-        fromT,
-        p1: safeSlot.p1,
-        p2: safeSlot.p2,
-        strokeWidth: safeSlot.sw,
+        type: branchThreadTitle(branch),
         moments: branchMarks,
         goals: goalRoots,
-        siblings,
-        splitT,
-        postSplitP1,
-        postSplitStrokeWidth,
       };
     });
+    let hubs: DomainHubData[] = areaBranches;
+    if (hubs.length > HUBS_PER_ENABLED_LIFE_AREA) {
+      hubs = hubs.slice(0, HUBS_PER_ENABLED_LIFE_AREA);
+    }
+    while (hubs.length < HUBS_PER_ENABLED_LIFE_AREA) {
+      const slot = hubs.length;
+      hubs = [
+        ...hubs,
+        {
+          id: `tree-hub-pad-${lifeAreaId}-${slot}`,
+          type: "—",
+          moments: [],
+          goals: [],
+        },
+      ];
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      if (rootBranches.length !== HUBS_PER_ENABLED_LIFE_AREA) {
+        // eslint-disable-next-line no-console -- dev invariant for anchor-first tree (four root branches per area)
+        console.warn(
+          `[tree-data] theme "${lifeAreaId}" has ${rootBranches.length} root branches; expected ${HUBS_PER_ENABLED_LIFE_AREA}. Padded/truncated for fork geometry.`,
+        );
+      }
+    }
+
     return {
       id: lifeAreaId,
       label: config?.label ?? lifeAreaId,
       color: config?.color ?? "#94A3B8",
       summary: null,
-      branches: areaBranches,
+      branches: hubs,
     };
   });
 }

@@ -47,7 +47,7 @@ const SYSTEM_PROMPT = [
   "Do NOT echo the user's answer back verbatim. React to it — notice a detail, reflect meaning, or give a brief affirming observation.",
   "Never say 'Great!' alone, never use corporate filler, and never repeat the same transition phrase twice in a conversation.",
   "When a next question is provided, ask it naturally at the end of your reply. You may rephrase it in your own voice as long as you preserve its intent.",
-  "When asked to validate the final goal, briefly reflect the whole picture (life area + title + deadline + discovery details) and give honest encouragement before we move to evaluation.",
+  "When asked to validate the final goal, briefly reflect the whole picture (theme + title + deadline + discovery details) and give honest encouragement before we move to evaluation.",
   "Tone: grounded, curious, encouraging without being sycophantic.",
 ].join(" ");
 
@@ -57,7 +57,7 @@ function buildUserPrompt(input: z.infer<typeof chatSchema>) {
     .join("\n");
 
   const contextLines: string[] = [];
-  if (input.goalContext?.lifeArea) contextLines.push(`Life area: ${input.goalContext.lifeArea}`);
+  if (input.goalContext?.lifeArea) contextLines.push(`Theme: ${input.goalContext.lifeArea}`);
   if (input.goalContext?.title) contextLines.push(`Goal title: ${input.goalContext.title}`);
   if (input.goalContext?.description)
     contextLines.push(`Reason / description: ${input.goalContext.description}`);

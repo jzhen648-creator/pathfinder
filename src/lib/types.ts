@@ -1,11 +1,11 @@
 /**
  * Pathfinder Type Definitions
  *
- * HIERARCHY:
- * Self → Life area (catalog) → Branch (DB)
+ * HIERARCHY (product language → code):
+ * Self → **Theme** (catalog; type `LifeAreaId`) → **Hub** (root `Branch` row)
  *   → Moment (DB) → Turning Point (special Moment)
  *
- * `Branch.limbId` stores the life area id (same string ids as `LifeAreaId`).
+ * `Branch.limbId` stores the theme id (same string ids as `LifeAreaId`).
  *
  * Path = visual only, no data
  * Gap = calculated only, no data
@@ -20,14 +20,15 @@ export type Self = {
   email: string;
 };
 
-// ── LIFE AREA (catalog) ───────────
+// ── LIFE AREA (catalog) — product word: "theme" ───────────
 // Config only — never stored in database
 export type LifeAreaId =
   | "work"
   | "health"
   | "becoming"
   | "people"
-  | "finance";
+  | "finance"
+  | "pleasures";
 
 /** @deprecated Use `LifeAreaId`. */
 export type LimbId = LifeAreaId;
@@ -39,7 +40,7 @@ export type LifeArea = {
   color: string;
   angle: number;
   emptyPrompt: string;
-  /** One warm question for a brand-new map when the user picks this life area first. */
+  /** One warm question for a brand-new map when the user picks this theme first. */
   firstMarkQuestion: string;
   addPrompt: string;
   examples: string[];
@@ -50,7 +51,7 @@ export type Limb = LifeArea;
 
 // ── BRANCH ───────────────────────────────
 // Stored in database
-// One per life area by default
+// One root Branch per hub slot per theme by default
 // More created at Turning Points
 export type Branch = {
   id: string;
@@ -92,8 +93,8 @@ export type Moment = {
   isTurningPoint: boolean;
   location: string | null;
   timelineNote: string | null;
-  // Optional tag inside a life area (e.g. People → family | friends | romance | community).
-  // Free-form string so new life areas can define their own vocabulary later.
+  // Optional tag inside a theme (e.g. People → family | friends | romance | community).
+  // Free-form string so new themes can define their own vocabulary later.
   subtype?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -126,7 +127,7 @@ export type Reframe = {
   createdAt: string;
 };
 
-// Curated subtype vocabulary per life area. Used by the detail panel picker.
+// Curated subtype vocabulary per theme. Used by the detail panel picker.
 // Keep short; free-form values are still allowed at the type level.
 export const LIFE_AREA_SUBTYPES: Record<LifeAreaId, string[]> = {
   people: ["family", "friends", "romance", "community"],
@@ -134,14 +135,14 @@ export const LIFE_AREA_SUBTYPES: Record<LifeAreaId, string[]> = {
   health: [],
   finance: [],
   becoming: [],
+  pleasures: [],
 };
 
 /** @deprecated Use `LIFE_AREA_SUBTYPES`. */
 export const LIMB_SUBTYPES = LIFE_AREA_SUBTYPES;
 
-// ── TURNING POINT ────────────────────────
-// A Moment where isTurningPoint is true
-// Creates two child Branches when confirmed
+// ── TURNING POINT (legacy) ────────────────────────
+/** @deprecated Hub splits from timeline moments are removed (2026-05). Kept for historical types only. */
 export type TurningPoint = Moment & {
   isTurningPoint: true;
   leftBranchId: string | null;

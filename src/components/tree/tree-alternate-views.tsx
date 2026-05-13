@@ -26,7 +26,7 @@ export function TimelineView({ areas, focused, onAreaClick, onMomentClick }: Tim
                   style={{
                     position: "absolute",
                     left: x,
-                    fontSize: 10,
+                    fontSize: 14,
                     color: "var(--color-text-tertiary)",
                     transform: "translateX(-50%)",
                   }}
@@ -56,7 +56,7 @@ export function TimelineView({ areas, focused, onAreaClick, onMomentClick }: Tim
                   border: "none",
                   background: "transparent",
                   color: area.color,
-                  fontSize: 12,
+                  fontSize: 16,
                   fontWeight: 600,
                   marginBottom: 8,
                   cursor: "pointer",
@@ -135,7 +135,7 @@ export function BranchView({ areas, selectedThreadId, onSelectThread, onMomentCl
                 background: active ? "var(--color-background-secondary)" : "transparent",
                 color: active ? area.color : "var(--color-text-secondary)",
                 padding: "6px 10px",
-                fontSize: 11,
+                fontSize: 13,
                 cursor: "pointer",
                 opacity: getOpacity(focused, area.id),
               }}
@@ -148,7 +148,7 @@ export function BranchView({ areas, selectedThreadId, onSelectThread, onMomentCl
 
       {selected ? (
         <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: 12 }}>
-          <div style={{ color: selected.area.color, fontWeight: 600, fontSize: 14, marginBottom: 8 }}>
+          <div style={{ color: selected.area.color, fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
             {selected.thread.type} · {selected.area.label}
           </div>
           <div style={{ display: "grid", gap: 8 }}>
@@ -167,13 +167,13 @@ export function BranchView({ areas, selectedThreadId, onSelectThread, onMomentCl
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <span style={{ color: "var(--color-text-primary)", fontSize: 13, fontWeight: 600 }}>{moment.label}</span>
-                    <span style={{ color: "var(--color-text-tertiary)", fontSize: 11 }}>{moment.year ?? "Unknown"}</span>
+                    <span style={{ color: "var(--color-text-primary)", fontSize: 15, fontWeight: 600 }}>{moment.label}</span>
+                    <span style={{ color: "var(--color-text-tertiary)", fontSize: 13 }}>{moment.year ?? "Unknown"}</span>
                   </div>
-                  <div style={{ color: "var(--color-text-secondary)", fontSize: 12, marginBottom: 6 }}>
+                  <div style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 6 }}>
                     {moment.description ?? "No description yet."}
                   </div>
-                  <div style={{ color: "var(--color-text-tertiary)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <div style={{ color: "var(--color-text-tertiary)", fontSize: 12, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     significance {moment.significance} · status {statusFromMoment(moment)}
                     {moment.value !== null ? ` · value ${moment.value}` : ""}
                   </div>
@@ -187,11 +187,11 @@ export function BranchView({ areas, selectedThreadId, onSelectThread, onMomentCl
                 borderTop: "1px solid var(--color-border-tertiary)",
                 paddingTop: 10,
                 color: "var(--color-text-secondary)",
-                fontSize: 12,
+                fontSize: 14,
                 lineHeight: 1.6,
               }}
             >
-              AI reflection: This thread shows a coherent arc from
+              AI reflection: This hub shows a coherent arc from
               {" "}
               <strong>{moments[0]?.label ?? "early goals"}</strong>
               {" "}
@@ -203,7 +203,7 @@ export function BranchView({ areas, selectedThreadId, onSelectThread, onMomentCl
           ) : null}
         </div>
       ) : (
-        <div style={{ color: "var(--color-text-tertiary)", fontSize: 12 }}>No branches yet.</div>
+        <div style={{ color: "var(--color-text-tertiary)", fontSize: 14 }}>No hubs yet.</div>
       )}
     </div>
   );

@@ -28,7 +28,7 @@ export function TreeRenderStatsHud({ marksRef }: { marksRef: MutableRefObject<nu
         padding: "5px 9px",
         borderRadius: 8,
         fontFamily: "ui-monospace, monospace",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 600,
         letterSpacing: "0.02em",
         color: "#E7E5E4",

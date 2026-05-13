@@ -5,8 +5,8 @@ export const PF_ROADMAP_THEME_CSS = `
 .pf-roadmap {
   --font-pf-roadmap-sans: "DM Sans", system-ui, sans-serif;
   --font-pf-roadmap-serif: "Lora", Georgia, serif;
-  --rm-canvas: #F5F3EE;
-  --rm-canvas2: #EDEBE4;
+  --rm-canvas: #F8F7F4;
+  --rm-canvas2: #F1F0EA;
   --rm-ink900: #1A1C1E;
   --rm-ink700: #3D4046;
   --rm-ink500: #6B7280;
@@ -20,9 +20,9 @@ export const PF_ROADMAP_THEME_CSS = `
 }
 @media (prefers-color-scheme: dark) {
   .pf-roadmap {
-    --rm-canvas: #16181A;
-    --rm-canvas2: #1E2022;
-    --rm-bgEl: #242628;
+    --rm-canvas: #1c1e22;
+    --rm-canvas2: #25282c;
+    --rm-bgEl: #2a2d32;
     --rm-border: #2E3236;
     --rm-text1: #E8EAEC;
     --rm-text2: #9CA3AF;

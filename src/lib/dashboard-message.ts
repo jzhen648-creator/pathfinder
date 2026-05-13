@@ -44,7 +44,7 @@ async function generateMessage(input: DashboardMessageInput) {
           content: `Name: ${input.name}
 Active goals: ${activeGoals}
 Total XP: ${input.totalXp}
-Life area rank summary: ${input.rankSummary}
+Theme rank summary: ${input.rankSummary}
 Tasks completed this week: ${input.tasksCompletedThisWeek}
 Recently completed milestones: ${milestones}
 

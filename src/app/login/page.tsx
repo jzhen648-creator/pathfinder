@@ -4,6 +4,12 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+function safePostLoginPath(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  if (raw.includes("://")) return "/dashboard";
+  return raw;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -101,7 +107,10 @@ export default function LoginPage() {
                 return;
               }
 
-              router.push("/dashboard");
+              const callback = safePostLoginPath(
+                new URLSearchParams(window.location.search).get("callbackUrl"),
+              );
+              router.push(callback);
               router.refresh();
             } catch {
               setError("Something went wrong. Please try again.");

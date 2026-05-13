@@ -19,9 +19,10 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    users: users.map((user) => ({
+    users: users.map((user, index) => ({
       id: user.id,
-      name: user.name?.trim() || user.email,
+      /** Short labels in the tree dev picker (1, 2, … by creation order). */
+      name: String(index + 1),
       email: user.email,
     })),
   });

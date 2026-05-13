@@ -33,6 +33,7 @@ model User {
   trunkEntries               TrunkEntry[]
 }
 
+/// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation. **`BRANCHED`**: deprecated for goals — continuation topology must not set bloom; see `ONTOLOGY.md`.
 enum BloomStatus {
   BUD
   GROWING
@@ -214,13 +215,15 @@ model Goal {
   // False when the roadmap was produced by the deterministic fallback
   // because the AI provider failed or ran out of credits. UI can surface this.
   aiGenerated Boolean     @default(true)
+  /// Lifecycle maturity only (**BUD** / **GROWING** **BLOOMED** / **ENDED**). Not driven by continuation count; **`BRANCHED`** is legacy on goals.
   bloomStatus    BloomStatus @default(BUD)
   bloomedAt      DateTime?
   endedAt        DateTime?
   endReason      String?
-  /** Forked sub-goals and former Moment parent links share this relation. */
+  /// Predecessor goal when this goal is a **continuation** (evolved from / next chapter). Not a subgoal hierarchy; multiple rows may share one parent.
   parentGoalId   String?
   parentGoal     Goal?       @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
+  /// Successor goals (**continuations**). Relation name is legacy (`GoalFork`); semantics are longitudinal evolution, not nesting.
   forkedGoals    Goal[]      @relation("GoalFork")
   positionAngle  Float?
   year            Int        @default(2026)
@@ -267,6 +270,8 @@ model Milestone {
   title       String
   description String
   position    Int
+  /// Explicit symbolic completion (petal “done”). Subtasks remain optional supporting depth.
+  completedAt DateTime?
   goalId      String
   goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
   subtasks    Subtask[]

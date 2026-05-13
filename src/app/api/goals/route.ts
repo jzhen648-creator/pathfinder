@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { getLifeArea } from "@/lib/life-areas";
+import {
+  buildFallbackRoadmap,
+  generateGoalRoadmap,
+  RoadmapGenerationError,
+} from "@/lib/milestone-generator";
+import { persistGeneratedRoadmapForGoal } from "@/lib/persist-generated-roadmap";
 import { prisma } from "@/lib/prisma";
 import {
   createGoalPayloadSchema,
@@ -22,8 +29,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUserId = session?.user?.id;
+  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(request.url);
+  const requestedUserId = url.searchParams.get("userId");
+  const userId =
+    process.env.NODE_ENV === "development" && requestedUserId
+      ? requestedUserId
+      : sessionUserId;
 
   let body: unknown;
   try {
@@ -82,6 +96,11 @@ export async function POST(request: Request) {
   const unit = measurable && input.unit.trim().length > 0 ? input.unit.trim() : null;
   const lifeArea = getLifeArea(branchRecord.limbId)?.label ?? "Other";
 
+  const sigRaw = Number(input.significance);
+  const significance = Number.isFinite(sigRaw)
+    ? Math.min(5, Math.max(1, Math.round(sigRaw)))
+    : 3;
+
   try {
     const goal = await prisma.goal.create({
       data: {
@@ -93,19 +112,63 @@ export async function POST(request: Request) {
         branchId: branchRecord.id,
         limbId: branchRecord.limbId,
         deadline,
-        significance: input.significance,
+        significance,
         bloomStatus: "BUD",
         aiGenerated: false,
         future,
         year,
         month,
-        targetAmount: measurable ? targetNum : null,
-        currentAmount: measurable ? currentNum : null,
-        unit: measurable ? unit : null,
+        // Only send measurement fields when used. Omitting avoids "Unknown argument `unit`"
+        // if @prisma/client is behind schema (e.g. generate failed while dev server had DLL locked).
+        ...(measurable
+          ? {
+              targetAmount: targetNum,
+              currentAmount: currentNum,
+              ...(unit ? { unit } : {}),
+            }
+          : {}),
       },
     });
 
-    await recomputeGoalBloomStatus(goal.id);
+    try {
+      await recomputeGoalBloomStatus(goal.id);
+    } catch (recErr) {
+      console.error("[POST /api/goals] recomputeGoalBloomStatus failed", recErr);
+    }
+
+    if (input.generateRoadmap) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { onboardingProfileText: true },
+      });
+      const deadlineStr = deadline ? deadline.toISOString().slice(0, 10) : "No fixed deadline";
+      const roadmapInput = {
+        title,
+        description: description || title,
+        lifeArea,
+        startingPoint: "Starting from where I am now",
+        biggestObstacle: "Time and consistency",
+        hoursPerWeek: "A few hours per week",
+        deadline: deadlineStr,
+        profileContext: user?.onboardingProfileText ?? undefined,
+      };
+      let roadmap;
+      try {
+        roadmap = await generateGoalRoadmap(roadmapInput);
+      } catch (err) {
+        if (err instanceof RoadmapGenerationError) {
+          roadmap = buildFallbackRoadmap(roadmapInput);
+        } else {
+          console.error("[POST /api/goals] generateRoadmap failed", err);
+        }
+      }
+      if (roadmap) {
+        const persisted = await persistGeneratedRoadmapForGoal(goal.id, userId, roadmap);
+        if (!persisted.ok) {
+          console.error("[POST /api/goals] persistGeneratedRoadmap failed", persisted.error);
+        }
+      }
+    }
 
     const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
 
@@ -118,6 +181,17 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     console.error("[POST /api/goals] create failed", err);
-    return NextResponse.json({ error: "Could not create goal" }, { status: 500 });
+    const isDev = process.env.NODE_ENV === "development";
+    let message = "Could not create goal";
+    if (isDev) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        message = `${err.code}: ${err.message}`;
+      } else if (err instanceof Error) {
+        message = err.message;
+      } else {
+        message = String(err);
+      }
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

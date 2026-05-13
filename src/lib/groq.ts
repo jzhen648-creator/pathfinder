@@ -10,11 +10,11 @@ export class GroqNotConfiguredError extends Error {
 }
 
 export function hasGroqKey() {
-  return Boolean(process.env.GROQ_API_KEY);
+  return Boolean(process.env.GROQ_API_KEY?.trim());
 }
 
 function getGroqClient() {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) throw new GroqNotConfiguredError();
   return new Groq({ apiKey });
 }
@@ -41,6 +41,27 @@ export async function generateText(input: {
         role: m.role,
         content: m.content,
       })),
+    ],
+  });
+
+  return completion.choices[0]?.message?.content?.trim() ?? "";
+}
+
+export async function generateJsonCompletion(input: {
+  system: string;
+  user: string;
+  maxTokens?: number;
+  temperature?: number;
+}): Promise<string> {
+  const client = getGroqClient();
+  const completion = await client.chat.completions.create({
+    model: GROQ_MODEL,
+    temperature: input.temperature ?? 0.2,
+    max_tokens: input.maxTokens ?? 1024,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: input.system },
+      { role: "user", content: input.user },
     ],
   });
 

@@ -4,13 +4,14 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const createBranchSchema = z.object({
-  limbId: z.string().min(1),
-  label: z.string().nullable().optional(),
-  parentBranchId: z.string().nullable().optional(),
-  turningPointId: z.string().nullable().optional(),
-  mapAngleOffset: z.number().default(0),
-});
+/** Root hub rows only. Hub splits from timeline moments (`parentBranchId` / `turningPointId`) were removed in 2026-05. */
+const createBranchSchema = z
+  .object({
+    limbId: z.string().min(1),
+    label: z.string().nullable().optional(),
+    mapAngleOffset: z.number().default(0),
+  })
+  .strict();
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -64,8 +65,8 @@ export async function POST(request: Request) {
       userId,
       limbId: input.limbId,
       label: input.label ?? null,
-      parentBranchId: input.parentBranchId ?? null,
-      turningPointId: input.turningPointId ?? null,
+      parentBranchId: null,
+      turningPointId: null,
       mapAngleOffset: input.mapAngleOffset,
     },
   });

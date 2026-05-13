@@ -3,77 +3,22 @@
  *
  * Run: npx prisma db seed
  *
- * Creates 4 test accounts:
- * test-empty@pathfinder.com    - no nodes
- * test-sparse@pathfinder.com   - 3 nodes
- * test-full@pathfinder.com     - full mock data
- * test-mobile@pathfinder.com   - mobile testing
+ * Creates 4 test accounts (no tree data). For Branch/Mark fixtures use:
+ *   npm run seed:tree
  *
  * Password for all accounts: pathfinder123
  */
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { getLegacyMockLifeData } from "../src/data/mock-data";
-import type { Moment } from "../src/lib/types";
-
-/** Mock nodes may carry legacy fields not present on the canonical `Moment` type. */
-type LegacySeedMoment = Moment & {
-  connectedTo?: unknown[];
-  practicalData?: unknown | null;
-};
 
 const prisma = new PrismaClient();
-
-type LegacyLifeMapNodeDelegate = {
-  upsert: (args: {
-    where: { id: string };
-    update: Record<string, never>;
-    create: {
-      id: string;
-      userId: string;
-      label: string;
-      description: string | null;
-      branch: string;
-      year: number;
-      month: number | null;
-      future: boolean;
-      significance: number;
-      connectedTo: unknown[];
-      practicalData: unknown | null;
-      timelineNote: null;
-    };
-  }) => Promise<unknown>;
-};
-
-async function upsertNode(userId: string, prefix: string, node: LegacySeedMoment) {
-  const lifeMapNode = (prisma as unknown as { lifeMapNode: LegacyLifeMapNodeDelegate }).lifeMapNode;
-  await lifeMapNode.upsert({
-    where: { id: `${prefix}-${node.id}` },
-    update: {},
-    create: {
-      id: `${prefix}-${node.id}`,
-      userId,
-      label: node.label,
-      description: node.description,
-      branch: node.branchId,
-      year: node.year,
-      month: node.month ?? null,
-      future: Boolean(node.future),
-      significance: Number(node.significance ?? 1),
-      connectedTo: node.connectedTo ?? [],
-      practicalData: node.practicalData ?? null,
-      timelineNote: null,
-    },
-  });
-}
 
 async function main() {
   console.log("Seeding test accounts...");
   const passwordHash = await bcrypt.hash("pathfinder123", 10);
-  const mockLifeData = getLegacyMockLifeData("alex", "extensive");
 
-  const emptyUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "test-empty@pathfinder.com" },
     update: {},
     create: {
@@ -84,9 +29,9 @@ async function main() {
       birthPlace: "London, UK",
     },
   });
-  console.log("Created empty account:", emptyUser.email);
+  console.log("Created empty account: test-empty@pathfinder.com");
 
-  const sparseUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "test-sparse@pathfinder.com" },
     update: {},
     create: {
@@ -97,14 +42,9 @@ async function main() {
       birthPlace: "Manchester, UK",
     },
   });
+  console.log("Created sparse account: test-sparse@pathfinder.com");
 
-  const sparseNodes = mockLifeData.nodes.slice(0, 3);
-  for (const node of sparseNodes) {
-    await upsertNode(sparseUser.id, "sparse", node);
-  }
-  console.log("Created sparse account:", sparseUser.email);
-
-  const fullUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "test-full@pathfinder.com" },
     update: {},
     create: {
@@ -115,12 +55,9 @@ async function main() {
       birthPlace: "London, UK",
     },
   });
-  for (const node of mockLifeData.nodes) {
-    await upsertNode(fullUser.id, "full", node);
-  }
-  console.log("Created full account:", fullUser.email);
+  console.log("Created full account: test-full@pathfinder.com");
 
-  const mobileUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: "test-mobile@pathfinder.com" },
     update: {},
     create: {
@@ -131,12 +68,10 @@ async function main() {
       birthPlace: "Bristol, UK",
     },
   });
-  for (const node of mockLifeData.nodes) {
-    await upsertNode(mobileUser.id, "mobile", node);
-  }
-  console.log("Created mobile account:", mobileUser.email);
+  console.log("Created mobile account: test-mobile@pathfinder.com");
 
-  console.log("Seeding complete.");
+  console.log("");
+  console.log("Seeding complete. Tree data: npm run seed:tree (profiles 1 & 2 — fulltree@ / mygoals@ pathfinder.test / password123).");
   console.log("");
   console.log("Test accounts:");
   console.log("  test-empty@pathfinder.com / pathfinder123");
@@ -148,4 +83,3 @@ async function main() {
 main()
   .catch(console.error)
   .finally(() => prisma.$disconnect());
-

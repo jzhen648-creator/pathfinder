@@ -23,7 +23,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: "Next Steps · Pathfinder",
-  description: "Goal progress and subtasks across life areas",
+  description: "Goal progress and subtasks across themes",
 };
 
 export default function NextStepsLayout({ children }: Readonly<{ children: React.ReactNode }>) {

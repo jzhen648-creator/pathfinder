@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { LIMB_CONFIG } from "@/components/tree/tree-data";
+import { LIFE_AREA_CONFIG, LIFE_AREA_ORDER } from "@/components/tree/tree-data";
 import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import type { CreateGoalGoalType } from "@/lib/validation/create-goal";
 import {
@@ -15,7 +15,7 @@ import {
 export type AddGoalBranchOption = {
   id: string;
   lifeAreaId: string;
-  /** Human-readable label for this branch line */
+  /** Human-readable label for this hub */
   label: string;
 };
 
@@ -25,11 +25,10 @@ const GOAL_LABELS: Record<CreateGoalGoalType, string> = {
   identity: "Identity (who I'm becoming)",
 };
 
-/** Matches `LIFE_AREA_ORDER` in tree-data once that export lands in the tree commit. */
-const LIFE_AREA_ORDER_LIST = ["finance", "work", "becoming", "people", "health"] as const;
+const LIFE_AREA_ORDER_LIST = [...LIFE_AREA_ORDER];
 
 function lifeAreaGroupLabel(lifeAreaId: string): string {
-  return LIMB_CONFIG[lifeAreaId]?.label ?? lifeAreaId;
+  return LIFE_AREA_CONFIG[lifeAreaId]?.label ?? lifeAreaId;
 }
 
 type FormValues = CreateGoalPayloadInput;
@@ -54,7 +53,10 @@ export type AddGoalModalProps = {
   /** When set (e.g. branch pick), selects this DB branch until the user changes it. */
   defaultBranchId?: string | null;
   onGoalCreated?: (detail: { branchLabel: string; title: string }) => void;
-  /** Reserved for dev mock-user goal creation; wiring lands in a follow-up commit. */
+  /**
+   * Development: same as GET /api/branches?userId= — create the goal for that user’s branch row
+   * (tree mock-user picker). Ignored in production.
+   */
   devGoalsUserId?: string | null;
 };
 
@@ -64,7 +66,7 @@ export function AddGoalModal({
   branches,
   defaultBranchId = null,
   onGoalCreated,
-  devGoalsUserId: _devGoalsUserId = null,
+  devGoalsUserId = null,
 }: AddGoalModalProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -115,7 +117,11 @@ export function AddGoalModal({
       setServerError(null);
       const deadlineTrim = values.goalType === "project" ? values.deadline.trim() : "";
       try {
-        const res = await fetch("/api/goals", {
+        const devQ =
+          process.env.NODE_ENV === "development" && devGoalsUserId?.trim()
+            ? `?userId=${encodeURIComponent(devGoalsUserId.trim())}`
+            : "";
+        const res = await fetch(`/api/goals${devQ}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -146,7 +152,7 @@ export function AddGoalModal({
             ? raw.branchLabel.trim()
             : typeof raw?.branch?.name === "string"
               ? raw.branch.name
-              : "your branch";
+              : "your hub";
 
         window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
 
@@ -195,7 +201,7 @@ export function AddGoalModal({
             <h2 id="add-goal-title" className="text-xl font-semibold text-white">
               Add goal
             </h2>
-            <p className="mt-1 text-sm text-zinc-400">Place it on a branch and tune the basics.</p>
+            <p className="mt-1 text-sm text-zinc-400">Place it on a hub and tune the basics.</p>
           </div>
           <button
             type="button"
@@ -260,7 +266,7 @@ export function AddGoalModal({
 
           <div>
             <label htmlFor="add-goal-branch" className="mb-1 block text-xs text-zinc-500">
-              Branch <span className="text-rose-300">*</span>
+              Hub <span className="text-rose-300">*</span>
             </label>
             <select
               id="add-goal-branch"
@@ -269,7 +275,7 @@ export function AddGoalModal({
               disabled={submitting}
               {...form.register("branchId")}
             >
-              <option value="">Choose a branch</option>
+              <option value="">Choose a hub</option>
               {LIFE_AREA_ORDER_LIST.map((lifeAreaId) => {
                 const opts = grouped.get(lifeAreaId) ?? [];
                 if (!opts.length) return null;
@@ -432,7 +438,7 @@ export function AddGoalModal({
             </button>
           </div>
           {branches.length === 0 ? (
-            <p className="text-center text-xs text-amber-200/90">Add at least one branch before creating goals.</p>
+            <p className="text-center text-xs text-amber-200/90">Add at least one hub before creating goals.</p>
           ) : null}
         </form>
       </div>

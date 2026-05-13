@@ -154,7 +154,7 @@ export async function POST(request: Request) {
   }
   if (branch.limbId !== input.limbId) {
     return NextResponse.json(
-      { error: "branchId must belong to the same life area (limbId) as the mark." },
+      { error: "branchId must belong to the same theme (limbId) as the mark." },
       { status: 400 },
     );
   }

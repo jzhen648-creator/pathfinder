@@ -29,7 +29,7 @@ export function PfChromeTopbar({
     <header className="flex h-12 shrink-0 items-center border-b px-5" style={{ borderColor: border, background: bg }}>
       <span className="text-[17px] italic leading-none" style={{ color: text1, fontFamily: serif }}>
         Pathfinder{" "}
-        <span className="ml-1.5 font-sans text-[13px] not-italic opacity-40">your life map</span>
+        <span className="ml-1.5 font-sans text-[13px] not-italic opacity-40">Life map</span>
       </span>
       <div className="ml-auto flex items-center gap-2">
         <div
@@ -48,7 +48,6 @@ export function PfChromeViewsNav({ shell }: { shell: PfChromeShell }) {
   const pathname = usePathname();
   const activeHref = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const ns = shell === "nextSteps";
-  const compactClassicNav = shell === "roadmap";
   const ink100 = ns ? "var(--ns-ink100,#ECEEF0)" : "var(--rm-ink100,#ECEEF0)";
   const text1 = ns ? "var(--ns-text1,#1A1C1E)" : "var(--rm-text1,#1A1C1E)";
   const text3 = ns ? "var(--ns-text3,#6B7280)" : "var(--rm-text3,#6B7280)";
@@ -116,27 +115,6 @@ export function PfChromeViewsNav({ shell }: { shell: PfChromeShell }) {
           ≡
         </span>
         Next Steps
-      </Link>
-      <Link
-        href="/life-map"
-        className={linkClass("/life-map")}
-        style={{
-          ...linkStyle("/life-map"),
-          ...(compactClassicNav
-            ? { fontSize: 12, opacity: activeHref("/life-map") ? 1 : 0.78 }
-            : {}),
-        }}
-        onMouseEnter={(e) => {
-          if (!activeHref("/life-map")) (e.currentTarget as HTMLAnchorElement).style.background = ink100;
-        }}
-        onMouseLeave={(e) => {
-          if (!activeHref("/life-map")) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-        }}
-      >
-        <span className="opacity-70" aria-hidden>
-          ↺
-        </span>
-        Classic map
       </Link>
     </nav>
   );

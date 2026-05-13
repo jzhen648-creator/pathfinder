@@ -16,11 +16,11 @@ async function takeSnapshot() {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("http://localhost:3000/life-map");
+  await page.goto("http://localhost:3001/tree");
   await page.waitForTimeout(2000);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const filename = `life-map-${timestamp}.png`;
+  const filename = `tree-${timestamp}.png`;
   const filepath = path.join(dir, filename);
 
   await page.screenshot({ path: filepath, fullPage: true });

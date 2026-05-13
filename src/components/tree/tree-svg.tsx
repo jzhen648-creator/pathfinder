@@ -6,23 +6,32 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
   type PointerEvent,
 } from "react";
 import {
-  AREA_LABEL_CONFIG,
-  TREE_TRUNK_FILL_PATH,
+  lifeAreaTrunkForkLabelLayout,
+  limbIconCenterNearLifeAreaLabel,
+  limbLabelDecorHullCorners,
+  themeGatewayClusterHitBounds,
   TREE_TRUNK_MIRROR_X,
+  TREE_TRUNK_PRESSURE_LAYERS,
   VIEWBOX_HEIGHT,
   VIEWBOX_WIDTH,
 } from "./tree-geometry";
-import type { AreaBranchData, Point, TreeGoalNode } from "./tree-types";
+import { deriveTrunkCenterlineX, TRUNK_BASE_Y, TRUNK_CROWN_Y } from "./tree-trunk-geometry";
+import type { DomainHubData, Point, TreeGoalNode } from "./tree-types";
 import {
+  areaForkStemFirstC2,
   BRANCH_LAYOUT_BEND_SAMPLE_TS,
   branchDefaultBendHandlePoints,
   branchPointAtUniformFraction,
-  buildStraightForksRecord,
+  buildAreaForksRecord,
   closestGlobalTOnLimb,
+  compareBranchIndicesForStemOrder,
+  connectiveBowPathD,
   getAreaSlotRender,
+  isHubGatewayLayout,
   limbPathBetweenGlobalT,
   limbPointAtUniformFraction,
   limbStrokeEndPoint,
@@ -39,48 +48,122 @@ import {
 import { TreeElementGuideTag } from "./tree-element-guide-tag";
 import { TreeRenderStatsHud } from "./tree-render-stats-hud";
 import { renderGoalsSubtree } from "./tree-render-goals-subtree";
+import { resolveTreeRenderQualityFactors } from "./tree-render-quality";
+import {
+  authorityRenderFactors,
+  countGoalSubtreeNodes,
+  deriveGoalVisualAuthoritySpec,
+} from "./goal-visual-authority";
+import {
+  deriveGoalBranchVitalityStroke,
+  deriveGoalNodeRenderState,
+} from "./goal-node-render-phase";
 import {
   arcLengthMomentStationSegment,
   buildRenderedBranchMainPath,
   branchGuideStationTs,
+  domainClusterBranchOutwardFromCatalog,
+  domainClusterGatewaySpreadNormalForForkSpec,
+  domainClusterHubPointFromCatalog,
   getOpacity,
-  goalTAlongThread,
-  momentCatalogClipGlobalT,
+  goalHexRotationRadFromTangentOut,
+  goalMarkerTangentOutForPlacement,
+  goalScreenPositionForLifeAreaThread,
   momentPositionAtArcOffsetFromStationLo,
   pathPointAtT,
+  pathTangentAtT,
+  polylinePathApproxBetweenT,
   pickThreadMomentsForTree,
   resolvedChainMomentPos,
+  rootGoalCatalogT,
+  threadCatalogPathBetweenGlobalT,
 } from "./tree-branch-geometry";
-import { clientToWorldSvg } from "./tree-view-coords";
+import { shouldDomainClusterThread } from "./tree-renderer-grammar";
+import { clientToWorldSvg, storedTreePointToClientSvg } from "./tree-view-coords";
 import {
   hasAreaOverride,
   hasCrossedLayoutDragThreshold,
   upsertAreaLayout,
 } from "./tree-view-layout-overrides";
+import { limbBackdropSurfaceTint } from "./tree-color-accents";
+import {
+  buildEcologicalCarryStreaks,
+  buildEcologicalFilaments,
+  ecologicalPocketVoidSkip,
+  irregularStemSampleTs,
+  pocketEllipseShapeJitter,
+  pocketHullBleedEligible,
+  type EcologicalPocketPoint,
+} from "./tree-render-ecological-field";
+import {
+  getLimbDepthStaging,
+  intraLimbBranchDepthMul,
+  type LimbStagingContext,
+} from "./tree-render-staging";
+import {
+  branchConduitPressureOpacityMul,
+  branchIndexDepthRenderingMul,
+  branchLongitudinalWidthSampleAvg01,
+  branchMidRunConstrictionWidthMul,
+  branchStrokeOpacityEnvelopeMul01,
+  canopyOccupancyRhythmMaterialMul,
+  conduitVitalityMaterialFactors,
+  junctionMaterialAccumulation,
+  milestoneClusterMaterialMul,
+  stableRenderJitter01,
+  svgDefSafeId,
+  threadMomentSignificanceMul,
+} from "./tree-render-materials";
+import {
+  computeLifeAreaLimbFloatNudgesPx,
+  computeLimbBackdropHull,
+  limbBackdropPrincipalVeilEllipse,
+} from "./tree-limb-backdrop-bounds";
+import { hubTrunkFilamentSpecs } from "./tree-hub-trunk-filaments";
 import {
   nodeRadius,
+  TREE_DEBUG_GEOM_ENABLED,
   TREE_LAYOUT_EDIT_ENABLED,
   TREE_LAYOUT_SCALE_ORIGIN_Y,
   TREE_LAYOUT_WORLD_SCALE,
-  TREE_MOMENT_DEV_LABELS_ENABLED,
+  TREE_MAP_SURFACE_FILL,
   TREE_RENDER_STATS_ENABLED,
+  TREE_THREAD_LABELS_ENABLED,
+  TREE_THREAD_MARKER_VISUALS_ENABLED,
   TREE_THREAD_VISIBLE_MOMENTS,
+  TREE_LIMB_ICON_SIZE_PX,
+  TREE_THEME_GATEWAY_ICON_PX,
+  TREE_DOMAIN_HUB_GLYPH_PX,
+  TREE_DOMAIN_HUB_LABEL_FONT_PX,
+  TREE_DOMAIN_HUB_LABEL_GAP_PX,
+  TREE_THREAD_PATH_LABEL_FONT_PX,
+  TREE_LIFE_AREA_TITLE_FONT_PX,
+  CONDUIT_THREAD_STROKE_SCALE,
+  snapTreeSvgScalar,
 } from "./tree-view-constants";
+import { FLAGS } from "@/lib/flags";
+import { branchIconForSlot, limbIconForLifeArea, normalizedLimbIconSize } from "@/components/icons";
+import { TreeIconMedallion, iconMedallionRadii } from "./tree-icon-medallion";
+import { TreeFocusPathPulse } from "./tree-focus-path-pulse";
+import type { LifeAreaId } from "@/lib/types";
+import { THEME_STAR_CENTER } from "./tree-area-anchors";
 import type { LayoutPointerDrag, TreeSVGProps } from "./tree-view-types";
 
 export function TreeSVG({
   areas,
   allAreasForForkGeometry = areas,
   focused,
+  focusedLimbId,
+  onToggleLimbFocus,
   panel,
   onClear,
   onAreaClick,
-  onAddGoalPlaceholderClick,
+  onHubClick,
   onMomentClick,
   onGoalClick,
-  onFoundationsClick,
   exportRootRef,
   showElementGuide = false,
+  renderQualityDevPreset = null,
 }: TreeSVGProps) {
   const selectedMomentId = panel.type === "moment" ? panel.moment.id : null;
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -101,15 +184,12 @@ export function TreeSVG({
       return next;
     });
   }, []);
-  const [layoutDevPanelCollapsed, setLayoutDevPanelCollapsed] = useState(false);
+  const [layoutDevPanelCollapsed, setLayoutDevPanelCollapsed] = useState(true);
   const [layoutOverrides, setLayoutOverrides] = useState(loadLayoutOverrides);
-  const straightForkBases = useMemo(
-    () => buildStraightForksRecord(allAreasForForkGeometry),
-    [allAreasForForkGeometry],
-  );
+  const forkBases = useMemo(() => buildAreaForksRecord(allAreasForForkGeometry), [allAreasForForkGeometry]);
   const resolvedForks = useMemo(
-    () => applyLayoutOverrides(straightForkBases, layoutOverrides),
-    [layoutOverrides, straightForkBases],
+    () => applyLayoutOverrides(forkBases, layoutOverrides),
+    [layoutOverrides, forkBases],
   );
   useEffect(() => {
     saveLayoutOverrides(layoutOverrides);
@@ -123,13 +203,15 @@ export function TreeSVG({
   const initialPanScale = VIEWBOX_WIDTH / 1200;
   const baselineZoomScale = 1.28 * initialPanScale;
   const [transform, setTransform] = useState({
-    x: -260 * initialPanScale,
-    y: 72 * (VIEWBOX_HEIGHT / 1100),
+    x: -360 * initialPanScale,
+    y: 88 * (VIEWBOX_HEIGHT / 1100),
     scale: baselineZoomScale,
   });
   const zoomRatio = transform.scale / baselineZoomScale;
+  const treeRenderQuality = resolveTreeRenderQualityFactors(renderQualityDevPreset);
   const showMarksByZoom = zoomRatio >= 1.5;
-  const showAllGoalMilestonesByZoom = zoomRatio >= 2;
+  /** Limb backdrop & goals always account for hex orbitals when milestones exist (no zoom gate). */
+  const goalOrbitalsAlwaysVisibleForLayout = true;
   const [bloomPlayingIds, setBloomPlayingIds] = useState<Set<string>>(() => new Set());
   const prevGoalBloomRef = useRef<Map<string, TreeGoalNode["bloomStatus"]>>(new Map());
 
@@ -213,7 +295,7 @@ export function TreeSVG({
 
   const patchThreadBendAt = (areaId: string, threadIdx: number, bendIndex: number, pt: Point) => {
     setLayoutOverrides((prev) => {
-      const mergedForks = applyLayoutOverrides(buildStraightForksRecord(allAreasForForkGeometry), prev);
+      const mergedForks = applyLayoutOverrides(buildAreaForksRecord(allAreasForForkGeometry), prev);
       const baseThread = mergedForks[areaId]?.branches[threadIdx];
       if (!baseThread) return prev;
       const area = { ...(prev[areaId] ?? {}) } as AreaLayoutOverride;
@@ -304,8 +386,66 @@ export function TreeSVG({
   const gridXs = Array.from({ length: Math.floor(viewWidth / gridStep) + 1 }, (_, i) => i * gridStep);
   const gridYs = Array.from({ length: Math.floor(viewHeight / gridStep) + 1 }, (_, i) => i * gridStep);
 
+  /** Render-only vertical flow read off public centerline — not silhouette edits. */
+  const trunkVascularFlowPaths = useMemo(() => {
+    if (!FLAGS.TREE_TRUNK_VISIBLE) {
+      return { left: "", mid: "", right: "" };
+    }
+    const n = 28;
+    const yTop = TRUNK_CROWN_Y + 26;
+    const yBot = TRUNK_BASE_Y - 92;
+    const span = yBot - yTop;
+    const mk = (dx: number, phase: number) => {
+      let d = "";
+      for (let i = 0; i < n; i += 1) {
+        const u = i / (n - 1);
+        const y = yTop + u * span;
+        const cx = deriveTrunkCenterlineX(y);
+        const rib =
+          1.05 * Math.sin(u * Math.PI * 6.6 + phase) +
+          0.42 * Math.sin(u * Math.PI * 12.5 + phase * 1.6);
+        const x = cx + dx + rib * (Math.abs(dx) < 0.05 ? 1.35 : 0.32);
+        d += i === 0 ? `M${x},${y}` : ` L${x},${y}`;
+      }
+      return d;
+    };
+    return { left: mk(-4.4, 0.15), mid: mk(0, 1.05), right: mk(4.4, 2.35) };
+  }, []);
+
+  const limbStagingCtx: LimbStagingContext = useMemo(
+    () => ({
+      focusedAreaId: focused,
+      focusLimbMode: FLAGS.FOCUS_MODE,
+      focusedLimbId,
+    }),
+    [focused, focusedLimbId],
+  );
+
+  const areasRenderOrder = useMemo(
+    () =>
+      [...areas].sort(
+        (a, b) =>
+          getLimbDepthStaging(a.id, limbStagingCtx).sortKey - getLimbDepthStaging(b.id, limbStagingCtx).sortKey,
+      ),
+    [areas, limbStagingCtx],
+  );
+
+  /** Gentle hub repulsion so life-area wedges behave like separate floats—close but not stacked. */
+  const lifeAreaFloatNudgePx = useMemo(
+    () =>
+      computeLifeAreaLimbFloatNudgesPx(
+        areasRenderOrder.map((a) => a.id),
+        (id) => {
+          const spec = resolvedForks[id];
+          if (!spec) return null;
+          return isHubGatewayLayout(spec) ? spec.limbTip : spec.trunkAttach;
+        },
+      ),
+    [areasRenderOrder, resolvedForks],
+  );
+
   return (
-    <div style={{ width: "100%", height: "calc(100vh - 48px)", overflow: "hidden", display: "block", position: "relative", background: "#07060A" }}>
+    <div style={{ width: "100%", height: "calc(100vh - 48px)", overflow: "hidden", display: "block", position: "relative", background: TREE_MAP_SURFACE_FILL }}>
       {TREE_RENDER_STATS_ENABLED ? <TreeRenderStatsHud marksRef={renderMarksRef} /> : null}
       <div ref={exportRootRef} style={{ width: "100%", height: "100%", overflow: "hidden" }}>
       <svg
@@ -314,7 +454,7 @@ export function TreeSVG({
         width="100%"
         height="100%"
         style={{
-          background: "#07060A",
+          background: TREE_MAP_SURFACE_FILL,
           cursor: anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED ? "default" : isPanning ? "grabbing" : "grab",
           touchAction: "none",
         }}
@@ -361,61 +501,370 @@ export function TreeSVG({
         }}
       >
         <defs>
-          <linearGradient id="trunkBodyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3B2E1A" />
-            <stop offset="60%" stopColor="#261E0F" />
-            <stop offset="100%" stopColor="#14100A" />
+          {FLAGS.TREE_TRUNK_VISIBLE ? (
+            <>
+              {/* Vascular trunk: compressed luminous core, absorbed silhouette edge — matches bloom material logic. */}
+              <linearGradient
+                id="trunkInnerVeinGrad"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="0%"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor="#0C0A0C" stopOpacity={1} />
+                <stop offset="38%" stopColor="#7a6c62" stopOpacity={0.22} />
+                <stop offset="50%" stopColor="#e9e0d4" stopOpacity={0.36} />
+                <stop offset="62%" stopColor="#7a6c62" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#0B090B" stopOpacity={1} />
+              </linearGradient>
+              <radialGradient
+                id="trunkBodyGrad"
+                cx="50%"
+                cy="44%"
+                r="78%"
+                fx="50%"
+                fy="38%"
+                gradientUnits="objectBoundingBox"
+                gradientTransform="translate(0.5 0.5) scale(0.92 1.02) translate(-0.5 -0.5)"
+              >
+                <stop offset="0%" stopColor="#ebe3da" stopOpacity={0.17} />
+                <stop offset="18%" stopColor="#6a6058" stopOpacity={0.38} />
+                <stop offset="34%" stopColor="#3a3430" stopOpacity={0.62} />
+                <stop offset="48%" stopColor="#221e1c" stopOpacity={0.88} />
+                <stop offset="62%" stopColor="#161412" stopOpacity={1} />
+                <stop offset="100%" stopColor="#050408" stopOpacity={1} />
+              </radialGradient>
+              <radialGradient
+                id="trunkOuterMassGrad"
+                cx="50%"
+                cy="52%"
+                r="96%"
+                fx="48%"
+                fy="55%"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor="#121016" stopOpacity={0.08} />
+                <stop offset="55%" stopColor="#08070a" stopOpacity={0.55} />
+                <stop offset="100%" stopColor="#020203" stopOpacity={0.92} />
+              </radialGradient>
+              <radialGradient
+                id="trunkAtmosphericVeilGrad"
+                cx="50%"
+                cy="48%"
+                r="85%"
+                fx="50%"
+                fy="42%"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor="#c4b8aa" stopOpacity={0.03} />
+                <stop offset="40%" stopColor="#1c1816" stopOpacity={0.06} />
+                <stop offset="100%" stopColor="#050406" stopOpacity={0.14} />
+              </radialGradient>
+              <linearGradient id="trunkRootFlareGrad" x1="50%" y1="0%" x2="50%" y2="100%" gradientUnits="objectBoundingBox">
+                <stop offset="0%" stopColor="#141018" stopOpacity={0.55} />
+                <stop offset="55%" stopColor="#09080c" stopOpacity={0.88} />
+                <stop offset="100%" stopColor="#030305" stopOpacity={1} />
+              </linearGradient>
+            </>
+          ) : null}
+          <radialGradient id="treeEcoHazeBlob" cx="50%" cy="50%" r="50%" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stopColor="#6a6478" stopOpacity={0.045} />
+            <stop offset="70%" stopColor="#12101a" stopOpacity={0.012} />
+            <stop offset="100%" stopColor="#030305" stopOpacity={0} />
+          </radialGradient>
+          {/* Macro staging: vertical depth falloff (linear, not limb-local radial). */}
+          <linearGradient id="treeStageBackdropFalloff" x1="38%" y1="0%" x2="62%" y2="100%" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stopColor="#000006" stopOpacity={0.26} />
+            <stop offset="18%" stopColor="#020208" stopOpacity={0.11} />
+            <stop offset="44%" stopColor="#020208" stopOpacity={0.015} />
+            <stop offset="100%" stopColor="#010104" stopOpacity={0.16} />
           </linearGradient>
-          <filter id="tree-add-goal-glow" x="-100%" y="-100%" width="300%" height="300%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur" />
+          {/* Lower-field weight — compresses visual mass toward the base (asymmetric staging). */}
+          <linearGradient id="treeStageSouthWeight" x1="42%" y1="0%" x2="58%" y2="100%" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stopColor="#010102" stopOpacity={0} />
+            <stop offset="45%" stopColor="#010102" stopOpacity={0} />
+            <stop offset="100%" stopColor="#020208" stopOpacity={0.3} />
+          </linearGradient>
+          {/* Frame-edge vignette: biased off-center for directional flow toward crown / trunk. */}
+          <radialGradient id="treeStageEdgeVignette" cx="58%" cy="30%" r="88%" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stopColor="#010102" stopOpacity={0} />
+            <stop offset="42%" stopColor="#010102" stopOpacity={0} />
+            <stop offset="78%" stopColor="#030308" stopOpacity={0.24} />
+            <stop offset="100%" stopColor="#010106" stopOpacity={0.56} />
+          </radialGradient>
+          {/* Soft underlay only: blurs so energy reads diffuse, not a second crisp spline. */}
+          <filter
+            id="treeBranchStrokeEnergyUnderlay"
+            x="-60%"
+            y="-60%"
+            width="220%"
+            height="220%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.68" result="energyBlur" />
+          </filter>
+          <filter
+            id="treeEcoLowHaze"
+            x="-8%"
+            y="-8%"
+            width="116%"
+            height="116%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.0078"
+              numOctaves="2"
+              seed="418"
+              stitchTiles="stitch"
+              result="ecoN"
+            />
+            <feColorMatrix
+              in="ecoN"
+              type="matrix"
+              values="0.2 0 0 0 0  0 0.18 0 0 0  0 0 0.24 0 0  0 0 0 0.038 0"
+              result="ecoC"
+            />
+            <feGaussianBlur in="ecoC" stdDeviation="20" result="ecoB" />
+          </filter>
+          {/* Merge distributed hull pockets into soft mass (no concentric ring generator). */}
+          <filter
+            id="treeLimbHullPocketSoften"
+            x="-100%"
+            y="-100%"
+            width="300%"
+            height="300%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="7.4" />
+          </filter>
+          <filter
+            id="treeLimbHullBleedSoften"
+            x="-120%"
+            y="-120%"
+            width="340%"
+            height="340%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="11.2" />
+          </filter>
+          <filter
+            id="treeLimbHullFilamentSoften"
+            x="-80%"
+            y="-80%"
+            width="260%"
+            height="260%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5.6" />
+          </filter>
+          <filter
+            id="treeLimbHullCarrySoften"
+            x="-100%"
+            y="-100%"
+            width="300%"
+            height="300%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="14.5" />
+          </filter>
+          {/* Per–life-area membrane: one soft mass behind hull pockets (heavy blur). */}
+          <filter
+            id="treeAreaVeilMass"
+            x="-80%"
+            y="-80%"
+            width="260%"
+            height="260%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="16" />
+          </filter>
+          {/* Life-area gateway: soft outer aura + mid bloom + crisp glyph (no concentric rings — avoids conduit clash). */}
+          <filter
+            id="treeGatewayIconAura"
+            x="-150%"
+            y="-150%"
+            width="400%"
+            height="400%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="26" result="gwAuraOuter" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="gwAuraMid" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6.5" result="gwAuraNear" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="gwAuraTight" />
+            <feComponentTransfer in="gwAuraOuter" result="gwAuraOuterDim">
+              <feFuncA type="linear" slope="0.38" intercept="0" />
+            </feComponentTransfer>
+            <feComponentTransfer in="gwAuraMid" result="gwAuraMidDim">
+              <feFuncA type="linear" slope="0.55" intercept="0" />
+            </feComponentTransfer>
+            <feComponentTransfer in="gwAuraNear" result="gwAuraNearDim">
+              <feFuncA type="linear" slope="0.72" intercept="0" />
+            </feComponentTransfer>
+            <feComponentTransfer in="gwAuraTight" result="gwAuraTightDim">
+              <feFuncA type="linear" slope="0.88" intercept="0" />
+            </feComponentTransfer>
             <feMerge>
-              <feMergeNode in="blur" />
+              <feMergeNode in="gwAuraOuterDim" />
+              <feMergeNode in="gwAuraMidDim" />
+              <feMergeNode in="gwAuraNearDim" />
+              <feMergeNode in="gwAuraTightDim" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          {/* Wide ambient halo for medallion discs — smooth falloff without a hard rim. */}
+          <filter
+            id="treeMedallionAmbientHalo"
+            x="-180%"
+            y="-180%"
+            width="460%"
+            height="460%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="28" result="haloFar" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="haloMid" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5.5" result="haloNear" />
+            <feComponentTransfer in="haloFar" result="haloFarDim">
+              <feFuncA type="linear" slope="0.42" intercept="0" />
+            </feComponentTransfer>
+            <feComponentTransfer in="haloMid" result="haloMidDim">
+              <feFuncA type="linear" slope="0.58" intercept="0" />
+            </feComponentTransfer>
+            <feComponentTransfer in="haloNear" result="haloNearDim">
+              <feFuncA type="linear" slope="0.75" intercept="0" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode in="haloFarDim" />
+              <feMergeNode in="haloMidDim" />
+              <feMergeNode in="haloNearDim" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
         </defs>
-        <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+        <g
+          transform={`translate(${snapTreeSvgScalar(transform.x)}, ${snapTreeSvgScalar(transform.y)}) scale(${transform.scale})`}
+          style={{ filter: "brightness(1.12)" }}
+        >
           <g
-            transform={`translate(${TREE_TRUNK_MIRROR_X}, ${TREE_LAYOUT_SCALE_ORIGIN_Y}) scale(${TREE_LAYOUT_WORLD_SCALE}) translate(${-TREE_TRUNK_MIRROR_X}, ${-TREE_LAYOUT_SCALE_ORIGIN_Y})`}
+            transform={`translate(-28,20) rotate(-1.35 ${TREE_TRUNK_MIRROR_X} ${TRUNK_CROWN_Y + (TRUNK_BASE_Y - TRUNK_CROWN_Y) * 0.4}) translate(${TREE_TRUNK_MIRROR_X}, ${TREE_LAYOUT_SCALE_ORIGIN_Y}) scale(${TREE_LAYOUT_WORLD_SCALE}) translate(${-TREE_TRUNK_MIRROR_X}, ${-TREE_LAYOUT_SCALE_ORIGIN_Y})`}
           >
-          {/* Tapered trunk: ground → single crown fork (no stroke continuing up into Becoming). */}
-          <path d={TREE_TRUNK_FILL_PATH} fill="url(#trunkBodyGrad)" />
-
-          <path d="M600,1355 C555,1365 505,1375 458,1387" fill="none" stroke="#2A2318" strokeWidth={9} strokeLinecap="round" />
-          <path d="M600,1355 C645,1365 695,1375 742,1387" fill="none" stroke="#2A2318" strokeWidth={9} strokeLinecap="round" />
-          <path d="M458,1387 C428,1397 400,1407 376,1417" fill="none" stroke="#1E1A12" strokeWidth={5} strokeLinecap="round" />
-          <path d="M742,1387 C772,1397 800,1407 824,1417" fill="none" stroke="#1E1A12" strokeWidth={5} strokeLinecap="round" />
-          <path d="M520,1370 C494,1380 470,1392 450,1403" fill="none" stroke="#1A1610" strokeWidth={4} strokeLinecap="round" />
-          <path d="M680,1370 C706,1380 730,1392 750,1403" fill="none" stroke="#1A1610" strokeWidth={4} strokeLinecap="round" />
-          <text
-            x="600"
-            y="1387"
-            textAnchor="middle"
-            fontSize={9}
-            fontWeight={500}
-            letterSpacing={5}
-            fill="#3A3228"
-            fontFamily="Georgia,serif"
-            opacity={0.7}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (panMoved.current) return;
-              onFoundationsClick();
-            }}
-            style={{ cursor: "pointer" }}
-          >
-            FOUNDATIONS
-          </text>
-          {showElementGuide ? (
-            <g data-tree-export-skip="1" pointerEvents="none">
-              <TreeElementGuideTag x={600} y={1402} text="foundations" />
-            </g>
+          {FLAGS.TREE_TRUNK_VISIBLE ? (
+            <>
+              {/* Vascular column: root flare → layered mass → luminous vein + restrained veil (anchor composition). */}
+              <path
+                d={TREE_TRUNK_PRESSURE_LAYERS.rootFlareD}
+                fill="url(#trunkRootFlareGrad)"
+                opacity={0.82}
+              />
+              <path d={TREE_TRUNK_PRESSURE_LAYERS.outerD} fill="url(#trunkOuterMassGrad)" opacity={0.58} />
+              <path d={TREE_TRUNK_PRESSURE_LAYERS.bodyD} fill="url(#trunkBodyGrad)" />
+              <g pointerEvents="none" aria-hidden data-tree-trunk-vascular-flow="1">
+                <path
+                  d={trunkVascularFlowPaths.left}
+                  fill="none"
+                  stroke="#a89888"
+                  strokeWidth={1.05}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.052}
+                />
+                <path
+                  d={trunkVascularFlowPaths.mid}
+                  fill="none"
+                  stroke="#c4b8aa"
+                  strokeWidth={0.92}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.062}
+                />
+                <path
+                  d={trunkVascularFlowPaths.right}
+                  fill="none"
+                  stroke="#8a7c72"
+                  strokeWidth={1.05}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.046}
+                />
+              </g>
+            </>
           ) : null}
+          {/* Sparse low-frequency haze — render-only ecological cohesion; behind limbs/branches. */}
+          <rect
+            x={0}
+            y={0}
+            width={viewWidth}
+            height={viewHeight}
+            fill="#06050a"
+            filter="url(#treeEcoLowHaze)"
+            opacity={0.16}
+            pointerEvents="none"
+            aria-hidden
+            data-tree-eco-atmosphere="1"
+          />
+          <g pointerEvents="none" aria-hidden data-tree-eco-drift="1" opacity={0.5}>
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              additive="sum"
+              values="0,0; 2.4,-1.2; -1.8,0.95; 0,0"
+              keyTimes="0;0.36;0.74;1"
+              dur="300s"
+              repeatCount="indefinite"
+            />
+            <ellipse
+              cx={viewWidth * 0.4}
+              cy={viewHeight * 0.36}
+              rx={viewWidth * 0.26}
+              ry={viewHeight * 0.2}
+              fill="url(#treeEcoHazeBlob)"
+              transform={`rotate(-6 ${viewWidth * 0.4} ${viewHeight * 0.36})`}
+            />
+            <ellipse
+              cx={viewWidth * 0.62}
+              cy={viewHeight * 0.4}
+              rx={viewWidth * 0.24}
+              ry={viewHeight * 0.19}
+              fill="url(#treeEcoHazeBlob)"
+              transform={`rotate(5 ${viewWidth * 0.62} ${viewHeight * 0.4})`}
+            />
+            <ellipse
+              cx={viewWidth * 0.5}
+              cy={viewHeight * 0.54}
+              rx={viewWidth * 0.32}
+              ry={viewHeight * 0.16}
+              fill="url(#treeEcoHazeBlob)"
+              opacity={0.75}
+            />
+          </g>
+          <rect
+            x={0}
+            y={0}
+            width={viewWidth}
+            height={viewHeight}
+            fill="url(#treeStageBackdropFalloff)"
+            opacity={0.42}
+            pointerEvents="none"
+            aria-hidden
+            data-tree-compose-backdrop="1"
+          />
+          <rect
+            x={0}
+            y={0}
+            width={viewWidth}
+            height={viewHeight}
+            fill="url(#treeStageSouthWeight)"
+            opacity={0.32}
+            pointerEvents="none"
+            aria-hidden
+            data-tree-compose-south="1"
+          />
+          {/* Vein + luminous veil render after limb/branch strokes (see emergence blend group) so overlap reads as embedded emergence, not hard under-stack clipping. */}
 
-          {areas.map((area) => {
+          {areasRenderOrder.map((area) => {
             const slots = getAreaSlotRender(area.id, resolvedForks);
             if (!slots) return null;
-            const cfg = AREA_LABEL_CONFIG[area.id];
             const forkSpec = resolvedForks[area.id];
             const branchForkTs =
               forkSpec != null
@@ -426,20 +875,33 @@ export function TreeSVG({
                 : [];
             const sortedBranchIdx = area.branches
               .map((_, i) => i)
-              .sort((a, b) => branchForkTs[a]! - branchForkTs[b]!);
+              .sort((a, b) =>
+                forkSpec != null ? compareBranchIndicesForStemOrder(forkSpec, a, b) : a - b,
+              );
+            const dcGatewaySpreadNormal = domainClusterGatewaySpreadNormalForForkSpec(forkSpec);
+
+            const goalPanelPulseGoalId =
+              FLAGS.FOCUS_MODE && panel.type === "goal" && panel.area.id === area.id
+                ? panel.goal.id
+                : null;
+            const limbFocusPulseActive =
+              FLAGS.FOCUS_MODE && (focusedLimbId === area.id || goalPanelPulseGoalId != null);
+            const limbGroupOpacity = getOpacity(focused, area.id);
+            const depthStage = getLimbDepthStaging(area.id, limbStagingCtx);
+            const composedLimbOpacity = limbGroupOpacity * depthStage.groupOpacityMul;
 
             type BranchLayoutRow = {
-              thread: AreaBranchData;
+              thread: DomainHubData;
               idx: number;
               threadSlot: { path: string; strokeWidth: number };
-              threadOpacity: number;
-              threadForTree: AreaBranchData;
+              threadLineOpacity: number;
+              threadForTree: DomainHubData;
               threadMainDraw: string;
               threadCatalogFull: string;
               nextGoalSlotT: number;
-              /** Catalog t at chord end for default moment placement (matches stroke tip / placeholder cap). */
+              /** Catalog t at chord end for default moment placement (matches stroke tip). */
               momentChordTEnd: number;
-              placeholderPt: Point;
+              threadDomainCluster: boolean;
             };
 
             const branchLayoutRows: BranchLayoutRow[] = [];
@@ -447,10 +909,17 @@ export function TreeSVG({
               const thread = area.branches[idx]!;
               const threadSlot = slots.branchStrokes[idx];
               if (!threadSlot) continue;
-              const threadOpacity = focused === area.id ? 0.88 : 0.85;
+              /** Branch/thread line only (was 0.85 / 0.88); nodes & glows stay full-strength elsewhere. */
+              const threadLineOpacityBase = focused === area.id ? 0.34 : 0.318;
+              const threadLineOpacity = threadLineOpacityBase * depthStage.branchStrokeOpacityMul;
               const threadSpec = forkSpec?.branches[idx];
-              const treeMoments = pickThreadMomentsForTree(thread.moments, TREE_THREAD_VISIBLE_MOMENTS);
-              const threadForTree: AreaBranchData = { ...thread, moments: treeMoments };
+              /** Synthetic timeline pads must not force the moment-thread fork geometry — People domain hubs need the short conduit path. */
+              const momentsForTreeNav =
+                shouldDomainClusterThread(area.id, thread)
+                  ? thread.moments.filter((m) => m.synthetic !== true)
+                  : thread.moments;
+              const treeMoments = pickThreadMomentsForTree(momentsForTreeNav, TREE_THREAD_VISIBLE_MOMENTS);
+              const threadForTree: DomainHubData = { ...thread, moments: treeMoments };
               const {
                 strokePath: threadMainDraw,
                 catalogFullPath: threadCatalogFull,
@@ -463,36 +932,445 @@ export function TreeSVG({
                 threadSlot.path,
                 threadSpec,
                 layoutOverrides[area.id],
+                sortedBranchIdx.indexOf(idx),
+                sortedBranchIdx.length,
+                dcGatewaySpreadNormal,
               );
-              const placeholderPt = pathPointAtT(threadCatalogFull, nextGoalSlotT);
+              const threadDomainCluster = shouldDomainClusterThread(area.id, thread);
               branchLayoutRows.push({
                 thread,
                 idx,
                 threadSlot,
-                threadOpacity,
+                threadLineOpacity,
                 threadForTree,
                 threadMainDraw,
                 threadCatalogFull,
                 nextGoalSlotT,
                 momentChordTEnd,
-                placeholderPt,
+                threadDomainCluster,
               });
             }
 
-            /** Life-area title sits at the stem base (crown junction), not out by the add-goal placeholder. */
+            /** Life-area title: trunk fork for dendrites; hub limbs anchor at the gateway (conduit node). */
             const areaLabelAnchor: Point = forkSpec
-              ? forkSpec.trunkAttach
+              ? isHubGatewayLayout(forkSpec)
+                ? forkSpec.limbTip
+                : forkSpec.trunkAttach
               : pathPointAtT(slots.limb, 0);
+
+            const lifeAreaLabel = lifeAreaTrunkForkLabelLayout(
+              area.id,
+              forkSpec?.trunkAttach ?? pathPointAtT(slots.limb, 0),
+              forkSpec != null && isHubGatewayLayout(forkSpec)
+                ? { hubGatewayNode: forkSpec.limbTip }
+                : undefined,
+            );
+            const limbLabelDecorHull = limbLabelDecorHullCorners(
+              lifeAreaLabel,
+              area.label,
+              TREE_LIMB_ICON_SIZE_PX,
+            );
+
+            const hubGatewayLayout = forkSpec != null && isHubGatewayLayout(forkSpec);
+
+            const limbBackdropHull = hubGatewayLayout
+              ? null
+              : computeLimbBackdropHull({
+              areaId: area.id,
+              limbPath: slots.limb,
+              limbStrokeWidth: slots.limbStrokeWidth,
+              forkSpec,
+              branchForkTs,
+              sortedBranchIdx,
+              branches: branchLayoutRows.map((row) => ({
+                thread: row.thread,
+                threadForTree: row.threadForTree,
+                idx: row.idx,
+                threadMainDraw: row.threadMainDraw,
+                threadCatalogFull: row.threadCatalogFull,
+                threadSlotStrokeWidth: row.threadSlot.strokeWidth,
+                nextGoalSlotT: row.nextGoalSlotT,
+                momentChordTEnd: row.momentChordTEnd,
+                kFork: sortedBranchIdx.indexOf(row.idx),
+              })),
+              momentPositions: layoutOverrides[area.id]?.momentPositions,
+              showMarksByZoom,
+              showAllGoalMilestonesByZoom: goalOrbitalsAlwaysVisibleForLayout,
+              goalHighlightId: panel.type === "goal" ? panel.goal.id : undefined,
+              trunkExcludeCenter: areaLabelAnchor,
+            });
+
+            const hubMomentCount = area.branches.reduce((s, br) => s + br.moments.length, 0);
+            const hubGoalCount = area.branches.reduce((s, br) => s + br.goals.length, 0);
+            const hubDensity = Math.min(
+              1,
+              branchLayoutRows.length * 0.14 + hubMomentCount * 0.042 + hubGoalCount * 0.018,
+            );
+            const hubStemPt = pathPointAtT(slots.limb, 0.32);
+
+            const floatNudge = lifeAreaFloatNudgePx[area.id] ?? { x: 0, y: 0 };
+            const floatTranslateCss =
+              Math.abs(floatNudge.x) > 0.02 || Math.abs(floatNudge.y) > 0.02
+                ? `translate(${floatNudge.x}px, ${floatNudge.y}px) `
+                : "";
+            const limbTransformOrigin = `${TREE_TRUNK_MIRROR_X}px ${TRUNK_CROWN_Y + (TRUNK_BASE_Y - TRUNK_CROWN_Y) * 0.38}px`;
 
             return (
               <g
                 key={area.id}
+                data-tree-limb-depth-plane={depthStage.plane}
                 style={{
-                  opacity: getOpacity(focused, area.id),
-                  transition: "opacity 300ms ease",
+                  opacity: composedLimbOpacity,
+                  transition: FLAGS.FOCUS_MODE ? "opacity 350ms ease" : "opacity 300ms ease",
+                  filter: depthStage.limbVisualFilter,
+                  ...(floatTranslateCss || depthStage.limbComposeTransform
+                    ? {
+                        transform: `${floatTranslateCss}${depthStage.limbComposeTransform ?? ""}`.trim(),
+                        transformOrigin: limbTransformOrigin,
+                      }
+                    : {}),
                 }}
               >
-                {/* Full stem kept for hit-target only; visible stem is drawn per-thread so it doesn’t extend past other forks. */}
+                {limbBackdropHull ? (
+                  <g
+                    data-tree-limb-area-veil="1"
+                    pointerEvents="none"
+                    aria-hidden
+                    style={{ opacity: depthStage.hullMassPresenceMul * 0.92 }}
+                  >
+                    {(() => {
+                      const veilClipId = svgDefSafeId(`veilClip-${area.id}`);
+                      const veil = limbBackdropPrincipalVeilEllipse(limbBackdropHull);
+                      const veilTint = limbBackdropSurfaceTint(area.color);
+                      const hullAttr = limbBackdropHull.pointsAttr;
+                      return (
+                        <>
+                          <defs>
+                            <clipPath id={veilClipId} clipPathUnits="userSpaceOnUse">
+                              <polygon points={hullAttr} />
+                            </clipPath>
+                          </defs>
+                          <g clipPath={`url(#${veilClipId})`}>
+                            <ellipse
+                              cx={veil.cx}
+                              cy={veil.cy}
+                              rx={veil.rx}
+                              ry={veil.ry}
+                              transform={`rotate(${veil.rotDeg.toFixed(2)}, ${veil.cx}, ${veil.cy})`}
+                              fill={veilTint}
+                              fillOpacity={0.078}
+                              stroke="none"
+                              filter="url(#treeAreaVeilMass)"
+                            />
+                          </g>
+                        </>
+                      );
+                    })()}
+                  </g>
+                ) : null}
+                {limbBackdropHull ? (() => {
+                  const hullSid = svgDefSafeId(`hull-${area.id}`);
+                  const limbTint = limbBackdropSurfaceTint(area.color);
+                  const pocketMul = 0.74 + hubDensity * 0.52;
+
+                  type HullPocket = {
+                    k: string;
+                    cx: number;
+                    cy: number;
+                    rx: number;
+                    ry: number;
+                    rot: number;
+                    op: number;
+                    em01: number;
+                  };
+                  const pocketsRaw: HullPocket[] = [];
+
+                  irregularStemSampleTs(area.id).forEach((t, si) => {
+                    const p = pathPointAtT(slots.limb, t);
+                    const w = stableRenderJitter01(`${area.id}:stem:${si}`);
+                    const wy = stableRenderJitter01(`${area.id}:stemy:${si}`);
+                    const em01 = Math.max(0.12, 1 - t * 0.72);
+                    pocketsRaw.push({
+                      k: `stem-${area.id}-${si}`,
+                      cx: p.x + (w - 0.5) * 14,
+                      cy: p.y + (wy - 0.5) * 11,
+                      rx: 16 + w * 31,
+                      ry: 10 + wy * 23,
+                      rot: -32 + w * 64,
+                      op: (0.0105 + hubDensity * 0.016) * pocketMul * (0.85 + em01 * 0.2),
+                      em01,
+                    });
+                  });
+
+                  if (forkSpec) {
+                    const a = forkSpec.trunkAttach;
+                    const w = stableRenderJitter01(`${area.id}:attach`);
+                    pocketsRaw.push({
+                      k: `attach-${area.id}`,
+                      cx: a.x + (w - 0.5) * 9,
+                      cy: a.y - 5 + w * 6,
+                      rx: 21 + w * 18,
+                      ry: 14 + w * 13,
+                      rot: 4 + w * 22,
+                      op: 0.0205 * pocketMul,
+                      em01: 0.96,
+                    });
+                    if (stableRenderJitter01(`${area.id}:knot`) > 0.48) {
+                      const w2 = stableRenderJitter01(`${area.id}:knot2`);
+                      pocketsRaw.push({
+                        k: `knot-${area.id}-a`,
+                        cx: a.x + (w2 - 0.5) * 16,
+                        cy: a.y + 8 + w2 * 10,
+                        rx: 11 + w2 * 14,
+                        ry: 9 + w2 * 11,
+                        rot: w2 * 50,
+                        op: 0.024 * pocketMul,
+                        em01: 0.98,
+                      });
+                    }
+                    if (stableRenderJitter01(`${area.id}:knotb`) > 0.62) {
+                      const w3 = stableRenderJitter01(`${area.id}:knot3`);
+                      pocketsRaw.push({
+                        k: `knot-${area.id}-b`,
+                        cx: a.x - 10 + w3 * 20,
+                        cy: a.y - 2 + w3 * 8,
+                        rx: 9 + w3 * 12,
+                        ry: 8 + w3 * 10,
+                        rot: -20 + w3 * 40,
+                        op: 0.017 * pocketMul,
+                        em01: 0.9,
+                      });
+                    }
+                  }
+
+                  if (hubDensity > 0.055) {
+                    const hubCount = stableRenderJitter01(`${area.id}:hubct`) > 0.52 ? 5 : 3;
+                    const baseAng = stableRenderJitter01(`${area.id}:hubbase`) * Math.PI * 2;
+                    for (let i = 0; i < hubCount; i += 1) {
+                      const w = stableRenderJitter01(`${area.id}:hub${i}`);
+                      const ang =
+                        baseAng +
+                        (i / hubCount) * Math.PI * 1.85 +
+                        (w - 0.5) * 0.55 +
+                        stableRenderJitter01(`${area.id}:hubang${i}`) * 0.35;
+                      const rad = 10 + hubDensity * (18 + w * 22);
+                      pocketsRaw.push({
+                        k: `hub-${area.id}-${i}`,
+                        cx: hubStemPt.x + Math.cos(ang) * rad,
+                        cy: hubStemPt.y + Math.sin(ang) * (rad * 0.72),
+                        rx: 13 + w * 24,
+                        ry: 9 + w * 17,
+                        rot: w * 78 - 40,
+                        op: (0.011 + hubDensity * 0.017) * (0.72 + i * 0.07 + w * 0.12),
+                        em01: 0.88,
+                      });
+                    }
+                  }
+
+                  for (const row of branchLayoutRows) {
+                    const kFork = sortedBranchIdx.indexOf(row.idx);
+                    const sig = threadMomentSignificanceMul(row.thread);
+                    const dens =
+                      pocketMul *
+                      (0.86 + 0.055 * sig + 0.011 * row.thread.goals.length + 0.007 * row.thread.moments.length);
+
+                    let tt = 0.048 + stableRenderJitter01(`${row.thread.id}:seg0`) * 0.05;
+                    let segIdx = 0;
+                    while (tt < 0.93 && segIdx < 7) {
+                      const tag = `s${segIdx}`;
+                      const pt = pathPointAtT(row.threadMainDraw, tt);
+                      const w = stableRenderJitter01(`${row.thread.id}:${tag}x`);
+                      const wy = stableRenderJitter01(`${row.thread.id}:${tag}y`);
+                      const em01 = Math.max(0.1, 1 - tt * 0.92);
+                      const tipFade = tt > 0.82 ? 0.68 : 1;
+                      const skipMid =
+                        segIdx === 2 && stableRenderJitter01(`${row.thread.id}:skipmid`) > 0.58;
+                      if (!skipMid) {
+                        pocketsRaw.push({
+                          k: `${row.thread.id}-${tag}-${tt.toFixed(3)}`,
+                          cx: pt.x + (w - 0.5) * 13,
+                          cy: pt.y + (wy - 0.5) * 11,
+                          rx: 11 + w * 24 * (0.75 + sig * 0.28),
+                          ry: 8 + w * 17,
+                          rot: -38 + w * 74,
+                          op:
+                            (0.0065 + 0.0095 * em01 + 0.002 * sig) *
+                            dens *
+                            tipFade *
+                            (segIdx === 0 ? 1.12 : 1),
+                          em01,
+                        });
+                      }
+                      tt += 0.11 + stableRenderJitter01(`${row.thread.id}:segstep${segIdx}`) * 0.2;
+                      segIdx += 1;
+                    }
+
+                    const br = forkSpec?.branches[row.idx];
+                    if (br && kFork > 0) {
+                      const w = stableRenderJitter01(`${row.thread.id}:fork`);
+                      pocketsRaw.push({
+                        k: `${row.thread.id}-fork`,
+                        cx: br.forkPoint.x + (w - 0.5) * 8,
+                        cy: br.forkPoint.y + (stableRenderJitter01(`${row.thread.id}:forky`) - 0.5) * 8,
+                        rx: 14 + w * 16,
+                        ry: 10 + w * 11,
+                        rot: w * 42,
+                        op: 0.0145 * dens * (0.85 + sig * 0.2),
+                        em01: 0.78,
+                      });
+                    }
+
+                    const tm = pickThreadMomentsForTree(row.thread.moments, TREE_THREAD_VISIBLE_MOMENTS);
+                    const momentLayout = layoutOverrides[area.id]?.momentPositions;
+                    tm.forEach((moment, momentIdx) => {
+                      if (stableRenderJitter01(`${moment.id}:voidms`) > 0.78) return;
+                      const pos = resolvedChainMomentPos(
+                        area.id,
+                        row.idx,
+                        { ...row.thread, moments: tm },
+                        momentIdx,
+                        row.threadCatalogFull,
+                        momentLayout,
+                        row.momentChordTEnd,
+                      );
+                      const w = stableRenderJitter01(`${moment.id}:ms`);
+                      pocketsRaw.push({
+                        k: `${moment.id}-ms`,
+                        cx: pos.x + (w - 0.5) * 7,
+                        cy: pos.y + (stableRenderJitter01(`${moment.id}:msy`) - 0.5) * 7,
+                        rx: 8 + w * 14,
+                        ry: 6 + w * 11,
+                        rot: w * 48,
+                        op: 0.0074 * dens * (0.88 + 0.038 * Math.min(5, moment.significance)),
+                        em01: 0.52 + Math.min(5, moment.significance) * 0.04,
+                      });
+                    });
+                  }
+
+                  const pockets = pocketsRaw
+                    .filter((pk) => !ecologicalPocketVoidSkip(pk.k, pk.em01))
+                    .slice(0, 62);
+
+                  const filamentPts: EcologicalPocketPoint[] = pockets.map((pk) => ({
+                    cx: pk.cx,
+                    cy: pk.cy,
+                    op: pk.op,
+                    k: pk.k,
+                    emergence01: pk.em01,
+                  }));
+                  const filaments = buildEcologicalFilaments(filamentPts, area.id, 13);
+
+                  const attachPt = forkSpec?.trunkAttach ?? hubStemPt;
+                  const carryStreaks = buildEcologicalCarryStreaks({
+                    areaId: area.id,
+                    attachX: attachPt.x,
+                    attachY: attachPt.y,
+                    driftX: hubStemPt.x - attachPt.x + (stableRenderJitter01(`${area.id}:cdx`) - 0.5) * 28,
+                    driftY: hubStemPt.y - attachPt.y + (stableRenderJitter01(`${area.id}:cdy`) - 0.5) * 22,
+                    hubDensity,
+                  });
+
+                  return (
+                    <g
+                      data-tree-limb-hull-volume="1"
+                      pointerEvents={FLAGS.FOCUS_MODE ? "visiblePainted" : "none"}
+                      style={{
+                        opacity: depthStage.hullMassPresenceMul,
+                        ...(FLAGS.FOCUS_MODE ? { cursor: "pointer" } : {}),
+                      }}
+                    >
+                      <defs>
+                        <clipPath id={`limbHullClip-${hullSid}`}>
+                          <polygon points={limbBackdropHull.pointsAttr} />
+                        </clipPath>
+                      </defs>
+                      <g pointerEvents="none" data-tree-limb-hull-bleed="1" aria-hidden>
+                        {pockets.map((pk) => {
+                          if (!pocketHullBleedEligible(pk.k, pk.em01)) return null;
+                          const ej = pocketEllipseShapeJitter(`${pk.k}:bleed`);
+                          return (
+                            <ellipse
+                              key={`${pk.k}::bleed`}
+                              cx={pk.cx + ej.dcx * 0.4}
+                              cy={pk.cy + ej.dcy * 0.4}
+                              rx={pk.rx * 1.32 * ej.rxMul}
+                              ry={pk.ry * 1.26 * ej.ryMul}
+                              fill={limbTint}
+                              fillOpacity={Math.min(0.028, pk.op * 0.16)}
+                              transform={`rotate(${pk.rot * 0.6}, ${pk.cx}, ${pk.cy})`}
+                              filter="url(#treeLimbHullBleedSoften)"
+                            />
+                          );
+                        })}
+                      </g>
+                      <g
+                        clipPath={`url(#limbHullClip-${hullSid})`}
+                        pointerEvents="none"
+                        data-tree-limb-hull-density="1"
+                      >
+                        <polygon points={limbBackdropHull.pointsAttr} fill={limbTint} fillOpacity={0.019} />
+                        {pockets.map((pk) => {
+                          const ej = pocketEllipseShapeJitter(pk.k);
+                          return (
+                            <ellipse
+                              key={pk.k}
+                              cx={pk.cx + ej.dcx}
+                              cy={pk.cy + ej.dcy}
+                              rx={pk.rx * ej.rxMul}
+                              ry={pk.ry * ej.ryMul}
+                              fill={limbTint}
+                              fillOpacity={Math.min(0.048, pk.op)}
+                              transform={`rotate(${pk.rot}, ${pk.cx + ej.dcx}, ${pk.cy + ej.dcy})`}
+                              filter="url(#treeLimbHullPocketSoften)"
+                            />
+                          );
+                        })}
+                        {filaments.map((f) => (
+                          <path
+                            key={f.k}
+                            d={f.d}
+                            fill="none"
+                            stroke={limbTint}
+                            strokeWidth={f.strokeWidth}
+                            strokeLinecap="round"
+                            strokeOpacity={f.strokeOpacity}
+                            filter="url(#treeLimbHullFilamentSoften)"
+                          />
+                        ))}
+                      </g>
+                      <g pointerEvents="none" data-tree-limb-hull-carry="1" aria-hidden>
+                        {carryStreaks.map((st) => (
+                          <ellipse
+                            key={st.k}
+                            cx={st.cx}
+                            cy={st.cy}
+                            rx={st.rx}
+                            ry={st.ry}
+                            fill={limbTint}
+                            fillOpacity={st.fillOpacity}
+                            transform={`rotate(${st.rot}, ${st.cx}, ${st.cy})`}
+                            filter="url(#treeLimbHullCarrySoften)"
+                          />
+                        ))}
+                      </g>
+                      {FLAGS.FOCUS_MODE ? (
+                        <polygon
+                          points={limbBackdropHull.pointsAttr}
+                          fill="transparent"
+                          stroke="none"
+                          pointerEvents="visiblePainted"
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (panMoved.current) return;
+                            onToggleLimbFocus(area.id);
+                          }}
+                        />
+                      ) : null}
+                    </g>
+                  );
+                })() : null}
+                {/* Full stem: hit-target (+ hull sampling). Hub limbs omit visible per-thread stem strokes — trunk→gateway reads as gateway + branches only; geometry stays on this path. */}
                 <path
                   d={slots.limb}
                   fill="none"
@@ -502,29 +1380,48 @@ export function TreeSVG({
                   onClick={(e) => {
                     e.stopPropagation();
                     if (panMoved.current) return;
-                    onAreaClick(area);
+                    if (FLAGS.FOCUS_MODE) {
+                      onToggleLimbFocus(area.id);
+                    } else {
+                      onAreaClick(area);
+                    }
                   }}
                   style={{ cursor: "pointer" }}
                 />
 
-                {branchLayoutRows.map((row) => {
-                  const {
-                    thread,
-                    idx,
-                    threadSlot,
-                    threadOpacity,
-                    threadForTree,
-                    threadMainDraw,
-                    threadCatalogFull,
-                    nextGoalSlotT,
-                    momentChordTEnd,
-                  } = row;
-                  const branchStations = branchGuideStationTs(thread, nextGoalSlotT);
-                  const threadGuideNearFork = pathPointAtT(threadMainDraw, 0.07);
-                  const momentCount = Math.max(1, threadForTree.moments.length);
-                  const goalsOnThread = thread.goals;
+                {FLAGS.TREE_TRUNK_VISIBLE && forkSpec != null && isHubGatewayLayout(forkSpec) ? (
+                  <g pointerEvents="none" aria-hidden data-tree-hub-trunk-filaments="1">
+                    {hubTrunkFilamentSpecs(slots.limb, area.id).map((f) => (
+                      <path
+                        key={f.key}
+                        d={f.d}
+                        fill="none"
+                        stroke={area.color}
+                        strokeWidth={f.strokeWidth}
+                        strokeOpacity={f.strokeOpacity}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        filter="url(#treeLimbHullFilamentSoften)"
+                      />
+                    ))}
+                  </g>
+                ) : null}
 
+                {branchLayoutRows.map((row) => {
+                  const { thread, idx, threadSlot, threadMainDraw, threadLineOpacity, threadCatalogFull } =
+                    row;
+                  const threadSpec = forkSpec?.branches[idx];
+                  const goalsOnThread = thread.goals;
                   const kFork = sortedBranchIdx.indexOf(idx);
+                  const threadDcStroke = shouldDomainClusterThread(area.id, thread);
+                  const domainHubPt = threadDcStroke
+                    ? domainClusterHubPointFromCatalog(
+                        threadCatalogFull,
+                        kFork,
+                        sortedBranchIdx.length,
+                        dcGatewaySpreadNormal,
+                      )
+                    : null;
                   const limbSegT0 = kFork <= 0 ? 0 : branchForkTs[sortedBranchIdx[kFork - 1]!]!;
                   const limbSegT1 = branchForkTs[idx] ?? 0;
                   const limbSegPath =
@@ -532,40 +1429,165 @@ export function TreeSVG({
                       ? limbPathBetweenGlobalT(forkSpec, limbSegT0, limbSegT1)
                       : "";
 
+                  /** Hub transport stroke (trunk→gateway) — quieter than branch conduits + gateway node. */
+                  const isHubLimbStem = forkSpec != null && isHubGatewayLayout(forkSpec);
+                  const stemStrokeW = isHubLimbStem ? 0.62 : 1;
+                  const stemStrokeOp = isHubLimbStem ? 0.48 : 1;
+
+                  const emergenceRelax = 0.28;
+                  const narrowThread =
+                    threadSlot.strokeWidth < 2.85 * CONDUIT_THREAD_STROKE_SCALE ? 0.78 : 1;
+                  const depthMul = branchIndexDepthRenderingMul(kFork, sortedBranchIdx.length);
+                  const vitMat = conduitVitalityMaterialFactors(undefined);
+                  const occMat = canopyOccupancyRhythmMaterialMul(undefined);
+                  const strokeMul = depthMul.strokeWidthMul * vitMat.strokeWidthMul * occMat.strokeWidthMul;
+                  const lineOpMul = depthMul.lineOpacityMul * vitMat.lineOpacityMul * occMat.lineOpacityMul;
+                  const underlayOpMulVit = depthMul.underlayOpacityMul * vitMat.underlayOpacityMul;
+                  const sigMul = threadMomentSignificanceMul(thread);
+                  const jW = stableRenderJitter01(`${thread.id}:sw`);
+                  const jOp = stableRenderJitter01(`${thread.id}:op`);
+                  const longW = branchLongitudinalWidthSampleAvg01(thread.id, vitMat.longitudinalWaveAmpMul);
+                  const opEnv = branchStrokeOpacityEnvelopeMul01(thread.id);
+                  const clusterMom = milestoneClusterMaterialMul(thread.moments.length);
+                  const junction = junctionMaterialAccumulation({
+                    emergenceRelax01: emergenceRelax,
+                    kFork,
+                    momentCount: thread.moments.length,
+                    goalCount: goalsOnThread.length,
+                  });
+                  const pressureOp =
+                    branchConduitPressureOpacityMul({
+                      emergenceRelax01: emergenceRelax,
+                      momentCount: thread.moments.length,
+                      goalCount: goalsOnThread.length,
+                      significanceMul: sigMul,
+                    });
+                  const widthConst = branchMidRunConstrictionWidthMul(
+                    thread.id,
+                    thread.moments.length,
+                    goalsOnThread.length,
+                  );
+                  const coreStrokeW =
+                    threadSlot.strokeWidth *
+                    strokeMul *
+                    (0.976 + 0.048 * jW) *
+                    longW *
+                    widthConst;
+                  const strokeDebusy =
+                    goalsOnThread.length > 0 ? 0.82 : 1;
+                  const coreOpacity = Math.min(
+                    0.42,
+                    threadLineOpacity *
+                      lineOpMul *
+                      sigMul *
+                      (0.978 + 0.044 * jOp) *
+                      junction.coreOpMul *
+                      opEnv *
+                      clusterMom *
+                      pressureOp *
+                      strokeDebusy,
+                  );
+                  const underlayExtraW =
+                    (0.2 + 0.52 * emergenceRelax) *
+                    narrowThread *
+                    (0.88 + 0.12 * underlayOpMulVit) *
+                    strokeDebusy;
+                  const underlayOpacity =
+                    threadLineOpacity *
+                    (0.02 + 0.044 * emergenceRelax) *
+                    narrowThread *
+                    underlayOpMulVit *
+                    sigMul *
+                    0.82 *
+                    junction.underlayOpMul *
+                    (0.97 + 0.05 * opEnv) *
+                    (0.94 + 0.12 * emergenceRelax) *
+                    (0.98 + 0.04 * pressureOp) *
+                    Math.pow(occMat.lineOpacityMul, 0.82) *
+                    strokeDebusy;
+                  const boleFilmD =
+                    emergenceRelax > 0.035
+                      ? polylinePathApproxBetweenT(
+                          threadMainDraw,
+                          0,
+                          0.058 + emergenceRelax * 0.028,
+                          14,
+                        )
+                      : "";
+                  const warmFilmOp = Math.min(
+                    0.092,
+                    junction.warmFilmOpacity * 0.52 * strokeDebusy,
+                  );
+                  const warmFilmHueOp = Math.min(
+                    0.072,
+                    junction.warmFilmOpacity * 0.4 * strokeDebusy,
+                  );
+                  const milestonePoolD =
+                    thread.moments.length >= 2
+                      ? polylinePathApproxBetweenT(threadMainDraw, 0.28, 0.7, 18)
+                      : "";
+                  const milestonePoolOp =
+                    thread.moments.length >= 2
+                      ? Math.min(
+                          0.055,
+                          0.017 *
+                            clusterMom *
+                            sigMul *
+                            (1 + 0.35 * Math.min(4, thread.moments.length - 1)) *
+                            strokeDebusy,
+                        )
+                      : 0;
+
                   return (
-                    <g key={thread.id}>
-                      {limbSegPath ? (
+                    <g
+                      key={`${thread.id}::stroke`}
+                      style={{ opacity: intraLimbBranchDepthMul(kFork, sortedBranchIdx.length) }}
+                    >
+                      {limbSegPath && !isHubLimbStem ? (
                         <>
                           <path
                             d={limbSegPath}
                             fill="none"
                             stroke={area.color}
-                            strokeWidth={slots.limbStrokeWidth * 2.2}
-                            strokeLinecap="butt"
-                            opacity={0.18}
+                            strokeWidth={slots.limbStrokeWidth * 2.2 * stemStrokeW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={0.08 * stemStrokeOp}
                             pointerEvents="none"
                           />
                           <path
                             d={limbSegPath}
                             fill="none"
                             stroke={area.color}
-                            strokeWidth={slots.limbStrokeWidth * 1.3}
-                            strokeLinecap="butt"
-                            opacity={0.55}
+                            strokeWidth={slots.limbStrokeWidth * 1.3 * stemStrokeW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={0.24 * stemStrokeOp}
                             pointerEvents="none"
                           />
                           <path
                             d={limbSegPath}
                             fill="none"
                             stroke={area.color}
-                            strokeWidth={slots.limbStrokeWidth * 0.45}
-                            strokeLinecap="butt"
-                            opacity={0.95}
+                            strokeWidth={slots.limbStrokeWidth * 0.45 * stemStrokeW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={0.38 * stemStrokeOp}
+                            pointerEvents="none"
+                          />
+                          <path
+                            d={limbSegPath}
+                            fill="none"
+                            stroke="#e6ded4"
+                            strokeWidth={slots.limbStrokeWidth * 0.52 * stemStrokeW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={0.055 * stemStrokeOp}
                             pointerEvents="none"
                           />
                         </>
                       ) : null}
-                      {showElementGuide && limbSegPath ? (
+                      {showElementGuide && limbSegPath && !isHubLimbStem ? (
                         <g data-tree-export-skip="1" pointerEvents="none">
                           <TreeElementGuideTag
                             x={pathPointAtT(limbSegPath, 0.5).x}
@@ -574,21 +1596,361 @@ export function TreeSVG({
                           />
                         </g>
                       ) : null}
+                      {limbSegPath ? (
+                        <>
+                          <circle
+                            cx={pathPointAtT(threadMainDraw, 0.02).x}
+                            cy={pathPointAtT(threadMainDraw, 0.02).y}
+                            r={3.35 + 2.1 * stableRenderJitter01(`${thread.id}:junction`) + junction.diskOpacityAdd * 6}
+                            fill={area.color}
+                            fillOpacity={
+                              (0.036 +
+                                0.024 * depthMul.underlayOpacityMul * sigMul +
+                                junction.diskOpacityAdd) *
+                              stemStrokeOp
+                            }
+                            pointerEvents="none"
+                            aria-hidden
+                          />
+                          <circle
+                            cx={pathPointAtT(threadMainDraw, 0.02).x}
+                            cy={pathPointAtT(threadMainDraw, 0.02).y}
+                            r={1.45 + 0.55 * stableRenderJitter01(`${thread.id}:jwarm`)}
+                            fill="#ebe4dc"
+                            fillOpacity={
+                              (0.032 +
+                                0.05 * emergenceRelax * sigMul +
+                                junction.diskOpacityAdd * 0.45) *
+                              stemStrokeOp
+                            }
+                            pointerEvents="none"
+                            aria-hidden
+                          />
+                        </>
+                      ) : null}
                       <path
                         d={threadMainDraw}
                         fill="none"
                         stroke={area.color}
-                        strokeWidth={threadSlot.strokeWidth}
-                        strokeLinecap="butt"
-                        opacity={threadOpacity}
+                        strokeWidth={coreStrokeW + underlayExtraW}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        opacity={underlayOpacity}
+                        filter="url(#treeBranchStrokeEnergyUnderlay)"
                         pointerEvents="none"
                       />
+                      {milestonePoolD ? (
+                        <path
+                          d={milestonePoolD}
+                          fill="none"
+                          stroke={area.color}
+                          strokeWidth={coreStrokeW * 0.82}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          opacity={milestonePoolOp}
+                          pointerEvents="none"
+                        />
+                      ) : null}
+                      {boleFilmD ? (
+                        <>
+                          <path
+                            d={boleFilmD}
+                            fill="none"
+                            stroke="#d6cec3"
+                            strokeWidth={coreStrokeW * 1.08}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={warmFilmOp}
+                            pointerEvents="none"
+                          />
+                          <path
+                            d={boleFilmD}
+                            fill="none"
+                            stroke={area.color}
+                            strokeWidth={coreStrokeW * 0.9}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={warmFilmHueOp}
+                            pointerEvents="none"
+                          />
+                        </>
+                      ) : null}
+                      <path
+                            d={threadMainDraw}
+                            fill="none"
+                            stroke={area.color}
+                            strokeWidth={coreStrokeW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={coreOpacity}
+                            pointerEvents="none"
+                          />
+                      {threadDcStroke && domainHubPt ? (
+                        <g data-tree-domain-hub="1">
+                          <g pointerEvents="none" aria-hidden>
+                          {goalsOnThread.map((g, gi) => {
+                            const gp = goalScreenPositionForLifeAreaThread(
+                              area.id,
+                              thread,
+                              threadCatalogFull,
+                              gi,
+                              g.id,
+                              kFork,
+                              sortedBranchIdx.length,
+                              goalsOnThread.length,
+                              dcGatewaySpreadNormal,
+                            );
+                            const p0 = {
+                              x: snapTreeSvgScalar(domainHubPt.x),
+                              y: snapTreeSvgScalar(domainHubPt.y),
+                            };
+                            const p3 = { x: snapTreeSvgScalar(gp.x), y: snapTreeSvgScalar(gp.y) };
+                            return (
+                              <path
+                                key={`${thread.id}:domain-spoke:${g.id}`}
+                                d={connectiveBowPathD(p0, p3, THEME_STAR_CENTER)}
+                                fill="none"
+                                stroke={area.color}
+                                strokeWidth={Math.max(1.05, coreStrokeW * 0.36)}
+                                strokeOpacity={0.13}
+                                strokeLinecap="round"
+                              />
+                            );
+                          })}
+                          {(() => {
+                            const HubGlyph = branchIconForSlot(area.id as LifeAreaId, idx);
+                            const hcx = snapTreeSvgScalar(domainHubPt.x);
+                            const hcy = snapTreeSvgScalar(domainHubPt.y);
+                            const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
+                            const pulseDur =
+                              (2.6 + 0.9 * stableRenderJitter01(`${thread.id}:dhpulse`)).toFixed(2) + "s";
+                            return (
+                              <TreeIconMedallion
+                                cx={hcx}
+                                cy={hcy}
+                                color={area.color}
+                                artworkSpanPx={hubIconPx}
+                                tier="domainHub"
+                              >
+                                <g opacity={0.92}>
+                                  <animate
+                                    attributeName="opacity"
+                                    values="0.82;1;0.82"
+                                    dur={pulseDur}
+                                    repeatCount="indefinite"
+                                  />
+                                  <HubGlyph size={hubIconPx} color={area.color} opacity={1} />
+                                </g>
+                              </TreeIconMedallion>
+                            );
+                          })()}
+                          {(() => {
+                            const rawTitle = thread.type.trim() || "Domain";
+                            const domainTitle =
+                              rawTitle.length > 18 ? `${rawTitle.slice(0, 16)}…` : rawTitle;
+                            const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
+                            const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
+                            const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
+                            const fontSizePx = TREE_DOMAIN_HUB_LABEL_FONT_PX;
+                            const gyText =
+                              domainHubPt.y + hubDiscR + labelGapPx + fontSizePx * 0.5;
+                            return (
+                              <text
+                                x={snapTreeSvgScalar(domainHubPt.x)}
+                                y={snapTreeSvgScalar(gyText)}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fontSize={fontSizePx}
+                                fontWeight={800}
+                                fill={area.color}
+                                fillOpacity={0.98}
+                                stroke="#0C0A09"
+                                strokeWidth={1.4}
+                                paintOrder="stroke fill"
+                                style={{
+                                  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                                  letterSpacing: "0.03em",
+                                }}
+                              >
+                                {domainTitle}
+                              </text>
+                            );
+                          })()}
+                          </g>
+                          {(() => {
+                            const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
+                            const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
+                            const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
+                            const fontSizePx = TREE_DOMAIN_HUB_LABEL_FONT_PX;
+                            const gyText =
+                              domainHubPt.y + hubDiscR + labelGapPx + fontSizePx * 0.5;
+                            const hitW = hubDiscR * 2 + 24;
+                            const hitTop = domainHubPt.y - hubDiscR - 10;
+                            const hitH = gyText - hitTop + fontSizePx * 0.5 + 10;
+                            return (
+                              <rect
+                                x={domainHubPt.x - hitW / 2}
+                                y={hitTop}
+                                width={hitW}
+                                height={hitH}
+                                fill="transparent"
+                                style={{ cursor: "pointer" }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (panMoved.current) return;
+                                  onHubClick(area, thread);
+                                }}
+                              />
+                            );
+                          })()}
+                        </g>
+                      ) : null}
+                    </g>
+                  );
+                })}
+                {branchLayoutRows.map((row) => {
+                  const {
+                    thread,
+                    idx,
+                    threadSlot,
+                    threadLineOpacity,
+                    threadForTree,
+                    threadMainDraw,
+                    threadCatalogFull,
+                    nextGoalSlotT,
+                    momentChordTEnd,
+                  } = row;
+                  const branchStations = branchGuideStationTs(thread, nextGoalSlotT);
+                  const threadGuideNearFork = pathPointAtT(threadMainDraw, 0.07);
+                  const goalsOnThread = thread.goals;
+
+                  const kFork = sortedBranchIdx.indexOf(idx);
+                  const depthVit = branchIndexDepthRenderingMul(kFork, sortedBranchIdx.length);
+                  const vitMatDecor = conduitVitalityMaterialFactors(undefined);
+                  const occMatDecor = canopyOccupancyRhythmMaterialMul(undefined);
+                  const strokeMulDecor =
+                    depthVit.strokeWidthMul * vitMatDecor.strokeWidthMul * occMatDecor.strokeWidthMul;
+                  const longWVit = branchLongitudinalWidthSampleAvg01(
+                    `${thread.id}:vit`,
+                    vitMatDecor.longitudinalWaveAmpMul,
+                  );
+                  const widthConstVit = branchMidRunConstrictionWidthMul(
+                    thread.id,
+                    thread.moments.length,
+                    goalsOnThread.length,
+                  );
+                  const vitStrokeBase =
+                    threadSlot.strokeWidth *
+                    strokeMulDecor *
+                    longWVit *
+                    (0.97 + 0.06 * stableRenderJitter01(`${thread.id}:vsw`)) *
+                    widthConstVit;
+                  return (
+                    <g key={`${thread.id}::decor`}>
+                      {TREE_THREAD_LABELS_ENABLED
+                        ? (() => {
+                            /**
+                             * People domain hubs render title + slot icon at the hub (`data-tree-domain-hub`).
+                             * Avoid duplicating the same label along the fork.
+                             */
+                            if (shouldDomainClusterThread(area.id, thread)) return null;
+                            /**
+                             * Thread labels sit **just past the fork** on `threadMainDraw` (low t), staggered
+                             * slightly by branch index so parallel threads stay readable. Offset from the stroke
+                             * is small and uniform so each label clearly belongs to that branch, not mid-arc.
+                             */
+                            const segCount = Math.max(1, sortedBranchIdx.length);
+                            const labelPath = threadMainDraw;
+                            const dt = 0.032;
+                            const hubLayout =
+                              forkSpec != null && isHubGatewayLayout(forkSpec) && forkSpec.branches.length > 0;
+                            const labelSlotIdx = (() => {
+                              if (!hubLayout || !forkSpec) return kFork;
+                              const ordered = [...area.branches.keys()].sort((a, b) => {
+                                const ba = forkSpec.branches[a];
+                                const bb = forkSpec.branches[b];
+                                if (!ba || !bb) return a - b;
+                                const aa = Math.atan2(ba.tip.y - ba.forkPoint.y, ba.tip.x - ba.forkPoint.x);
+                                const ab = Math.atan2(bb.tip.y - bb.forkPoint.y, bb.tip.x - bb.forkPoint.x);
+                                return aa - ab;
+                              });
+                              return Math.max(0, ordered.indexOf(idx));
+                            })();
+
+                            const tNearFork = hubLayout ? 0.078 : 0.055;
+                            const tCeiling = Math.min(
+                              hubLayout ? 0.34 : 0.28,
+                              Math.max(tNearFork + (hubLayout ? 0.09 : 0.06), nextGoalSlotT - 0.02),
+                              Math.max(tNearFork + (hubLayout ? 0.09 : 0.06), momentChordTEnd - 0.02),
+                            );
+                            const band = Math.max(hubLayout ? 0.055 : 0.045, tCeiling - tNearFork);
+                            const slotU = segCount <= 1 ? 0.5 : (labelSlotIdx + 0.48) / segCount;
+                            const ltClamped = Math.min(0.9, Math.max(0.05, tNearFork + band * slotU));
+
+                            /** Flip normal by branch index so neighbors sit on opposite sides. */
+                            const side = labelSlotIdx % 2 === 0 ? 1 : -1;
+                            const raw = thread.type.trim() || "Branch";
+                            const label = raw.length > 22 ? `${raw.slice(0, 20)}…` : raw;
+
+                            const pt = pathPointAtT(labelPath, ltClamped);
+                            const t0 = pathPointAtT(labelPath, Math.max(0, ltClamped - dt));
+                            const t1 = pathPointAtT(labelPath, Math.min(1, ltClamped + dt));
+                            const dx = t1.x - t0.x;
+                            const dy = t1.y - t0.y;
+                            const len = Math.hypot(dx, dy) || 1;
+                            const nx = -dy / len;
+                            const ny = dx / len;
+                            const pad = hubLayout ? 10.5 + threadSlot.strokeWidth * 0.42 : 9;
+                            const lx = pt.x + nx * pad * side;
+                            const ly = pt.y + ny * pad * side;
+                            const textAnchor =
+                              Math.abs(nx) >= Math.abs(ny) * 0.85
+                                ? nx * side < -0.08
+                                  ? "end"
+                                  : nx * side > 0.08
+                                    ? "start"
+                                    : "middle"
+                                : "middle";
+                            return (
+                              <text
+                                data-tree-export-skip="1"
+                                x={lx}
+                                y={ly}
+                                textAnchor={textAnchor}
+                                dominantBaseline="middle"
+                                fontSize={TREE_THREAD_PATH_LABEL_FONT_PX}
+                                fontWeight={600}
+                                fill={area.color}
+                                fillOpacity={0.92}
+                                stroke="#0C0A09"
+                                strokeWidth={0.45}
+                                paintOrder="stroke fill"
+                                pointerEvents={FLAGS.FOCUS_MODE ? "visiblePainted" : "none"}
+                                style={{
+                                  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+                                  cursor: FLAGS.FOCUS_MODE ? "pointer" : undefined,
+                                }}
+                                onClick={
+                                  FLAGS.FOCUS_MODE
+                                    ? (e) => {
+                                        e.stopPropagation();
+                                        if (panMoved.current) return;
+                                        onToggleLimbFocus(area.id);
+                                      }
+                                    : undefined
+                                }
+                              >
+                                {label}
+                              </text>
+                            );
+                          })()
+                        : null}
                       {showElementGuide ? (
                         <g data-tree-export-skip="1" pointerEvents="none">
                           <TreeElementGuideTag
                             x={threadGuideNearFork.x}
                             y={threadGuideNearFork.y - 15}
-                            text={`thread · ${idx} · ${thread.type}`}
+                            text={`branchLine · ${idx} · ${thread.type}`}
                           />
                           {branchStations.length >= 2
                             ? branchStations.slice(0, -1).map((ta, si) => {
@@ -608,85 +1970,138 @@ export function TreeSVG({
                             : null}
                         </g>
                       ) : null}
-                      {thread.siblings && thread.siblings.length > 0 ? (() => {
-                        const split = Math.min(0.9, Math.max(0.2, thread.splitT ?? 0.58));
-                        const splitPos = pathPointAtT(threadMainDraw, split);
-                        const sBefore = Math.max(0, split - 0.04);
-                        const sAfter = Math.min(1, split + 0.04);
-                        const pBefore = pathPointAtT(threadMainDraw, sBefore);
-                        const pAfter = pathPointAtT(threadMainDraw, sAfter);
-                        const vx = pAfter.x - pBefore.x;
-                        const vy = pAfter.y - pBefore.y;
-                        const vLen = Math.hypot(vx, vy) || 1;
-                        const tx = vx / vLen;
-                        const ty = vy / vLen;
-                        const side = splitPos.x < TREE_TRUNK_MIRROR_X ? -1 : 1;
-                        const nxRaw = -ty;
-                        const nyRaw = tx;
-                        const nx = Math.abs(nxRaw) * side;
-                        const ny = nyRaw;
-                        return (
-                          <g>
-                            {thread.siblings.map((sib, sibIdx) => {
-                              const fan = thread.siblings!.length === 1
-                                ? 0
-                                : (sibIdx / (thread.siblings!.length - 1)) * 2 - 1;
-                              const dist = 48 + sibIdx * 4;
-                              const along = 18 + Math.abs(fan) * 10;
-                              const childPos = {
-                                x: splitPos.x + nx * dist + tx * along * 0.3,
-                                y: splitPos.y + ny * dist + ty * along * fan * 0.5,
-                              };
-                              const childPath = `M${splitPos.x},${splitPos.y} L${childPos.x},${childPos.y}`;
-                              const midFork = {
-                                x: (splitPos.x + childPos.x) / 2,
-                                y: (splitPos.y + childPos.y) / 2,
-                              };
-                              return (
-                                <g key={`${thread.id}-sib-${sib.id}`}>
-                                  <path d={childPath} fill="none" stroke={area.color} strokeWidth={thread.postSplitStrokeWidth ?? Math.max(1.2, threadSlot.strokeWidth * 0.7)} opacity={0.8} strokeLinecap="round" pointerEvents="none" />
-                                  <circle cx={childPos.x} cy={childPos.y} r={3.2} fill={area.color} opacity={0.92} pointerEvents="none" />
-                                  {showElementGuide ? (
-                                    <g data-tree-export-skip="1" pointerEvents="none">
-                                      <TreeElementGuideTag
-                                        x={midFork.x}
-                                        y={midFork.y + (sibIdx % 2 === 0 ? 9 : -9)}
-                                        text={`branch-fork-seg · ${idx} · ${sibIdx}`}
-                                      />
-                                    </g>
-                                  ) : null}
-                                </g>
-                              );
-                            })}
-                          </g>
-                        );
-                      })() : null}
 
-                      {goalsOnThread.length > 0
+                      {TREE_THREAD_MARKER_VISUALS_ENABLED && goalsOnThread.length > 0
                         ? goalsOnThread.map((g, gi) => {
-                            const t = goalTAlongThread(g, gi, thread.goals.length);
-                            const pos = pathPointAtT(threadCatalogFull, t);
+                            const threadDc = shouldDomainClusterThread(area.id, thread);
+                            const pos = goalScreenPositionForLifeAreaThread(
+                              area.id,
+                              thread,
+                              threadCatalogFull,
+                              gi,
+                              g.id,
+                              kFork,
+                              sortedBranchIdx.length,
+                              goalsOnThread.length,
+                              dcGatewaySpreadNormal,
+                            );
+                            const tc = rootGoalCatalogT(gi);
+                            const tangOut = goalMarkerTangentOutForPlacement(
+                              threadDc,
+                              threadCatalogFull,
+                              gi,
+                              pos,
+                              kFork,
+                              sortedBranchIdx.length,
+                              dcGatewaySpreadNormal,
+                            );
+                            const hexRotationRad = goalHexRotationRadFromTangentOut(tangOut);
+                            const threadSpec = forkSpec?.branches[idx];
+                            const orbitalDerived = FLAGS.GOAL_MILESTONES
+                              ? deriveGoalNodeRenderState({
+                                  bloomStatus: g.bloomStatus,
+                                  orbitalMilestones: g.orbitalMilestones ?? [],
+                                })
+                              : null;
+                            const branchVitality =
+                              orbitalDerived != null
+                                ? deriveGoalBranchVitalityStroke(g.id, orbitalDerived)
+                                : null;
+                            const goalVitalityAuthorityMul = authorityRenderFactors(
+                              deriveGoalVisualAuthoritySpec({
+                                goal: g,
+                                depth: 0,
+                                subtreeSize: countGoalSubtreeNodes(g),
+                                areaId: area.id,
+                              }).authorityMul,
+                            ).branchVitalityAuthorityMul;
+                            const tcVitStart =
+                              branchVitality != null ? Math.max(0.022, tc - branchVitality.deltaT) : tc;
+                            const tcVitMid =
+                              branchVitality != null ? tcVitStart + (tc - tcVitStart) * 0.42 : tc;
+                            const vitalityPathFar =
+                              branchVitality != null &&
+                              !threadDc &&
+                              tcVitMid > tcVitStart + 1e-6
+                                ? threadCatalogPathBetweenGlobalT(
+                                    threadSpec,
+                                    threadSlot.path,
+                                    tcVitStart,
+                                    tcVitMid,
+                                  )
+                                : "";
+                            const vitalityPathNear =
+                              branchVitality != null && !threadDc && tc > tcVitMid + 1e-6
+                                ? threadCatalogPathBetweenGlobalT(threadSpec, threadSlot.path, tcVitMid, tc)
+                                : "";
+                            const vQ = treeRenderQuality.branchVitalityMul;
+                            const vitOpFar =
+                              branchVitality != null
+                                ? Math.min(
+                                    0.78,
+                                    (threadLineOpacity +
+                                      branchVitality.opacityBoost *
+                                        0.55 *
+                                        vQ *
+                                        goalVitalityAuthorityMul) *
+                                      occMatDecor.lineOpacityMul,
+                                  )
+                                : threadLineOpacity * occMatDecor.lineOpacityMul;
+                            const vitOpNear =
+                              branchVitality != null
+                                ? Math.min(
+                                    0.86,
+                                    (threadLineOpacity +
+                                      branchVitality.opacityBoost * vQ * goalVitalityAuthorityMul) *
+                                      occMatDecor.lineOpacityMul,
+                                  )
+                                : threadLineOpacity * occMatDecor.lineOpacityMul;
                             return (
                               <g key={g.id}>
+                                {branchVitality && vitalityPathFar ? (
+                                  <path
+                                    d={vitalityPathFar}
+                                    fill="none"
+                                    stroke={area.color}
+                                    strokeWidth={vitStrokeBase}
+                                    strokeLinecap="round"
+                                    opacity={vitOpFar}
+                                    pointerEvents="none"
+                                  />
+                                ) : null}
+                                {branchVitality && vitalityPathNear ? (
+                                  <path
+                                    d={vitalityPathNear}
+                                    fill="none"
+                                    stroke={area.color}
+                                    strokeWidth={vitStrokeBase * 0.86}
+                                    strokeLinecap="round"
+                                    opacity={vitOpNear}
+                                    pointerEvents="none"
+                                  />
+                                ) : null}
                                 {renderGoalsSubtree(
                                   g,
                                   pos,
                                   area,
                                   area.color,
                                   panel,
-                                  showAllGoalMilestonesByZoom,
                                   bloomPlayingIds,
                                   onGoalClick,
                                   panMoved,
                                   0,
+                                  idx,
                                   showElementGuide,
+                                  hexRotationRad,
+                                  zoomRatio,
+                                  treeRenderQuality,
                                 )}
                               </g>
                             );
                           })
                         : null}
 
-                      {showMarksByZoom
+                      {TREE_THREAD_MARKER_VISUALS_ENABLED && showMarksByZoom
                         ? threadForTree.moments.map((moment, momentIdx) => {
                         const isSelected = selectedMomentId === moment.id;
                         const isGrowing = moment.bloomStatus === "GROWING" || moment.future;
@@ -703,102 +2118,15 @@ export function TreeSVG({
                           layoutOverrides[area.id]?.momentPositions,
                           momentChordTEnd,
                         );
-                        const miLo = Math.max(0, momentIdx - 1);
-                        const miHi = Math.min(momentCount - 1, momentIdx + 1);
-                        const pBefore = resolvedChainMomentPos(
-                          area.id,
-                          idx,
-                          threadForTree,
-                          miLo,
-                          threadCatalogFull,
-                          layoutOverrides[area.id]?.momentPositions,
-                          momentChordTEnd,
+                        const sx = snapTreeSvgScalar(pos.x);
+                        const sy = snapTreeSvgScalar(pos.y);
+                        /** Timeline stops on the stroke — dots only (branch slot icons belong on goals, not along the thread). */
+                        const momentDotR = Math.max(2.4, Math.min(r * 0.4, 4.2));
+                        const renderMomentMark = (opacity: number) => (
+                          <g transform={`translate(${sx},${sy})`} pointerEvents="none">
+                            <circle cx={0} cy={0} r={momentDotR} fill={area.color} opacity={opacity} />
+                          </g>
                         );
-                        const pAfter = resolvedChainMomentPos(
-                          area.id,
-                          idx,
-                          threadForTree,
-                          miHi,
-                          threadCatalogFull,
-                          layoutOverrides[area.id]?.momentPositions,
-                          momentChordTEnd,
-                        );
-                        let dx = pAfter.x - pBefore.x;
-                        let dy = pAfter.y - pBefore.y;
-                        if (dx * dx + dy * dy < 1e-12) {
-                          const tc = Math.min(momentChordTEnd, momentCatalogClipGlobalT(threadSlot.path, momentCount));
-                          const q0 = pathPointAtT(threadCatalogFull, Math.max(0, tc - 0.06));
-                          const q1 = pathPointAtT(threadCatalogFull, Math.min(momentChordTEnd, tc + 0.06));
-                          dx = q1.x - q0.x;
-                          dy = q1.y - q0.y;
-                        }
-                        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                        let nx = -dy / len;
-                        let ny = dx / len;
-                        if (
-                          (pos.x < TREE_TRUNK_MIRROR_X && nx > 0) ||
-                          (pos.x > TREE_TRUNK_MIRROR_X && nx < 0)
-                        ) {
-                          nx = -nx;
-                          ny = -ny;
-                        }
-                        const labelXMoment = pos.x + nx * (r + 5);
-                        const labelYMoment = pos.y + ny * (r + 5) + 3;
-                        const labelAnchor = nx < 0 ? "end" : "start";
-                        const threadShapeIdx = idx % 4;
-                        const renderMomentShape = (fill: string, opacity: number) => {
-                          if (threadShapeIdx === 1) {
-                            return (
-                              <rect
-                                width={r * 1.4}
-                                height={r * 1.4}
-                                x={pos.x - r * 0.7}
-                                y={pos.y - r * 0.7}
-                                transform={`rotate(45,${pos.x},${pos.y})`}
-                                fill={fill}
-                                opacity={opacity}
-                                pointerEvents="none"
-                              />
-                            );
-                          }
-                          if (threadShapeIdx === 2) {
-                            return (
-                              <rect
-                                width={r * 1.4}
-                                height={r * 1.4}
-                                x={pos.x - r * 0.7}
-                                y={pos.y - r * 0.7}
-                                fill={fill}
-                                opacity={opacity}
-                                pointerEvents="none"
-                              />
-                            );
-                          }
-                          if (threadShapeIdx === 3) {
-                            const topY = pos.y - r * 0.95;
-                            const leftX = pos.x - r * 0.9;
-                            const rightX = pos.x + r * 0.9;
-                            const baseY = pos.y + r * 0.9;
-                            return (
-                              <polygon
-                                points={`${pos.x},${topY} ${leftX},${baseY} ${rightX},${baseY}`}
-                                fill={fill}
-                                opacity={opacity}
-                                pointerEvents="none"
-                              />
-                            );
-                          }
-                          return (
-                            <circle
-                              cx={pos.x}
-                              cy={pos.y}
-                              r={r}
-                              fill={fill}
-                              opacity={opacity}
-                              pointerEvents="none"
-                            />
-                          );
-                        };
 
                         return (
                           <g
@@ -812,7 +2140,7 @@ export function TreeSVG({
                           >
                             {showElementGuide && momentIdx === 0 ? (
                               <g data-tree-export-skip="1" pointerEvents="none">
-                                <TreeElementGuideTag x={pos.x} y={pos.y + r + 14} text="timeline-moment" />
+                                <TreeElementGuideTag x={sx} y={sy + r + 14} text="timeline-moment" />
                               </g>
                             ) : null}
                             <g>
@@ -820,8 +2148,8 @@ export function TreeSVG({
                                 <>
                                   {[0, 1, 2, 3, 4, 5].map((i) => {
                                     const angle = (i / 6) * Math.PI * 2;
-                                    const px = pos.x + Math.cos(angle) * 9;
-                                    const py = pos.y + Math.sin(angle) * 9;
+                                    const px = sx + Math.cos(angle) * 9;
+                                    const py = sy + Math.sin(angle) * 9;
                                     return (
                                       <ellipse
                                         key={`${moment.id}-petal-${i}`}
@@ -836,20 +2164,21 @@ export function TreeSVG({
                                       />
                                     );
                                   })}
-                                  <circle cx={pos.x} cy={pos.y} r={5} fill="#FAC775" pointerEvents="none" />
-                                  <circle cx={pos.x} cy={pos.y} r={2.5} fill="#EF9F27" pointerEvents="none" />
+                                  <circle cx={sx} cy={sy} r={5} fill="#FAC775" pointerEvents="none" />
+                                  <circle cx={sx} cy={sy} r={2.5} fill="#EF9F27" pointerEvents="none" />
                                 </>
                               ) : isEnded ? (
                                 <>
-                                  {renderMomentShape("#181412", 0.85)}
-                                  <line x1={pos.x - 5} y1={pos.y - 5} x2={pos.x + 5} y2={pos.y + 5} stroke={area.color} strokeWidth={1.8} opacity={0.45} />
-                                  <line x1={pos.x + 5} y1={pos.y - 5} x2={pos.x - 5} y2={pos.y + 5} stroke={area.color} strokeWidth={1.8} opacity={0.45} />
+                                  <circle cx={sx} cy={sy} r={r} fill="#181412" opacity={0.85} pointerEvents="none" />
+                                  {renderMomentMark(0.9)}
+                                  <line x1={sx - 5} y1={sy - 5} x2={sx + 5} y2={sy + 5} stroke={area.color} strokeWidth={1.8} opacity={0.45} />
+                                  <line x1={sx + 5} y1={sy - 5} x2={sx - 5} y2={sy + 5} stroke={area.color} strokeWidth={1.8} opacity={0.45} />
                                 </>
                               ) : isGrowing ? (
                                 <>
                                   <circle
-                                    cx={pos.x}
-                                    cy={pos.y}
+                                    cx={sx}
+                                    cy={sy}
                                     r={r + 4}
                                     fill="none"
                                     stroke={area.color}
@@ -857,37 +2186,18 @@ export function TreeSVG({
                                     opacity={0.4}
                                     className="pulse-ring"
                                   />
-                                  {renderMomentShape(area.color, 0.65)}
+                                  {renderMomentMark(0.72)}
                                 </>
                               ) : (
-                                renderMomentShape(area.color, 0.85)
+                                renderMomentMark(0.82)
                               )}
                             </g>
-                            {isSelected ? <circle cx={pos.x} cy={pos.y} r={11} fill="none" stroke="#D1CEC4" strokeWidth={1} opacity={0.22} /> : null}
-                            {TREE_MOMENT_DEV_LABELS_ENABLED ? (
-                              <text
-                                x={labelXMoment}
-                                y={labelYMoment}
-                                textAnchor={labelAnchor}
-                                fontSize={6.5}
-                                fontWeight={450}
-                                fill="#78716C"
-                                fillOpacity={0.72}
-                                stroke="#020617"
-                                strokeWidth={0.65}
-                                strokeOpacity={0.35}
-                                paintOrder="stroke fill"
-                                pointerEvents="none"
-                                style={{ fontFamily: "ui-monospace, monospace" }}
-                              >
-                                {`${moment.label.slice(0, 3)}·${moment.id.slice(0, 3)}`}
-                              </text>
-                            ) : null}
+                            {isSelected ? <circle cx={sx} cy={sy} r={11} fill="none" stroke="#D1CEC4" strokeWidth={1} opacity={0.22} /> : null}
                             {TREE_LAYOUT_EDIT_ENABLED && layoutEditByAreaId[area.id] ? (
                               <circle
                                 data-layout-edit-handle="1"
-                                cx={pos.x}
-                                cy={pos.y}
+                                cx={sx}
+                                cy={sy}
                                 r={Math.max(r + 10, 14)}
                                 fill="rgba(34,211,238,0.06)"
                                 stroke="#22D3EE"
@@ -930,138 +2240,275 @@ export function TreeSVG({
                         );
                       })
                         : null}
-
-                      {(() => {
-                        const tip = row.placeholderPt;
-                        const hitR = 16;
-                        return (
-                          <g>
-                            <title>Add goal</title>
-                            {showElementGuide ? (
-                              <g data-tree-export-skip="1" pointerEvents="none">
-                                <TreeElementGuideTag x={tip.x} y={tip.y + 20} text="add-goal" />
-                              </g>
-                            ) : null}
-                            <circle
-                              cx={tip.x}
-                              cy={tip.y}
-                              r={11}
-                              fill={area.color}
-                              className="tree-add-goal-placeholder-glow"
-                              opacity={0.4}
-                              pointerEvents="none"
-                              filter="url(#tree-add-goal-glow)"
-                            />
-                            <circle
-                              cx={tip.x}
-                              cy={tip.y}
-                              r={4.2}
-                              fill={area.color}
-                              fillOpacity={0.92}
-                              stroke="#F5F0E6"
-                              strokeWidth={0.85}
-                              strokeOpacity={0.55}
-                              pointerEvents="none"
-                            />
-                            <circle
-                              cx={tip.x}
-                              cy={tip.y}
-                              r={hitR}
-                              fill="transparent"
-                              style={{ cursor: "pointer" }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (panMoved.current) return;
-                                onAddGoalPlaceholderClick(thread.id);
-                              }}
-                            />
-                          </g>
-                        );
-                      })()}
                     </g>
                   );
                 })}
 
-                <text
-                  x={areaLabelAnchor.x + cfg.dx}
-                  y={areaLabelAnchor.y + cfg.dy}
-                  textAnchor={cfg.anchor}
-                  fontSize={12}
-                  fontWeight={600}
-                  letterSpacing=".03em"
-                  fill={area.color}
-                  fillOpacity={0.98}
-                  stroke="#0A0908"
-                  strokeWidth={3.2}
-                  strokeLinejoin="round"
-                  paintOrder="stroke fill"
-                  onClick={(e) => {
+                {limbFocusPulseActive ? (
+                  <g data-tree-focus-path-pulse="1" pointerEvents="none" aria-hidden>
+                    {forkSpec != null && isHubGatewayLayout(forkSpec) ? (
+                      <TreeFocusPathPulse
+                        d={polylinePathApproxBetweenT(slots.limb, 0.52, 1, 14)}
+                        color={area.color}
+                        strokeWidth={Math.max(2.2, slots.limbStrokeWidth * 0.38)}
+                        phaseSec={0}
+                        durSec={2.85}
+                        opacity={focusedLimbId === area.id ? 0.46 : 0.38}
+                        dashPx={18}
+                        gapPx={30}
+                      />
+                    ) : null}
+                    {branchLayoutRows.flatMap((row, pulseIdx) => {
+                      const { thread, idx, threadMainDraw, threadCatalogFull, threadDomainCluster } = row;
+                      const kFork = sortedBranchIdx.indexOf(idx);
+                      const goalsOnThread = thread.goals;
+                      const goalPanelOnly =
+                        goalPanelPulseGoalId != null && focusedLimbId !== area.id;
+                      const threadHasGoalPanelTarget =
+                        goalPanelPulseGoalId != null &&
+                        goalsOnThread.some((g) => g.id === goalPanelPulseGoalId);
+                      if (goalPanelOnly && !threadHasGoalPanelTarget) return [];
+                      const domainHubPt = threadDomainCluster
+                        ? domainClusterHubPointFromCatalog(
+                            threadCatalogFull,
+                            kFork,
+                            sortedBranchIdx.length,
+                            dcGatewaySpreadNormal,
+                          )
+                        : null;
+                      const phaseBase = pulseIdx * 0.24;
+                      const threadDur = 2.3 + stableRenderJitter01(`${thread.id}:focus-pulse`) * 0.55;
+                      const limbWidePulse = focusedLimbId === area.id;
+                      const pulses = [
+                        <TreeFocusPathPulse
+                          key={`${thread.id}:focus-thread`}
+                          d={threadMainDraw}
+                          color={area.color}
+                          strokeWidth={limbWidePulse ? 2.35 : 2.15}
+                          phaseSec={phaseBase + 0.18}
+                          durSec={threadDur}
+                          opacity={limbWidePulse ? 0.56 : 0.62}
+                        />,
+                      ];
+                      if (threadDomainCluster && domainHubPt) {
+                        goalsOnThread.forEach((g, gi) => {
+                          if (goalPanelOnly && g.id !== goalPanelPulseGoalId) return;
+                          const gp = goalScreenPositionForLifeAreaThread(
+                            area.id,
+                            thread,
+                            threadCatalogFull,
+                            gi,
+                            g.id,
+                            kFork,
+                            sortedBranchIdx.length,
+                            goalsOnThread.length,
+                            dcGatewaySpreadNormal,
+                          );
+                          const spokeD = connectiveBowPathD(domainHubPt, gp, THEME_STAR_CENTER);
+                          const goalSelected = goalPanelPulseGoalId === g.id;
+                          pulses.push(
+                            <TreeFocusPathPulse
+                              key={`${thread.id}:focus-spoke:${g.id}`}
+                              d={spokeD}
+                              color={area.color}
+                              strokeWidth={goalSelected ? 2.9 : limbWidePulse ? 2.05 : 2.35}
+                              phaseSec={phaseBase + 0.42 + gi * 0.11}
+                              durSec={2.05 + stableRenderJitter01(`${g.id}:focus-pulse`) * 0.4}
+                              opacity={goalSelected ? 0.82 : limbWidePulse ? 0.5 : 0.68}
+                              dashPx={goalSelected || !limbWidePulse ? 18 : 14}
+                            />,
+                          );
+                        });
+                      }
+                      return pulses;
+                    })}
+                  </g>
+                ) : null}
+
+                {(() => {
+                  const isHubGw = forkSpec != null && isHubGatewayLayout(forkSpec);
+                  const LimbIc = limbIconForLifeArea(area.id as LifeAreaId);
+                  const ic = limbIconCenterNearLifeAreaLabel(lifeAreaLabel, area.label, TREE_LIMB_ICON_SIZE_PX);
+                  const icx = snapTreeSvgScalar(ic.x);
+                  const icy = snapTreeSvgScalar(ic.y);
+                  const dh = limbLabelDecorHull;
+                  const gatewayPt = isHubGw ? forkSpec!.limbTip : null;
+                  const themeMedallion =
+                    gatewayPt != null ? iconMedallionRadii(TREE_THEME_GATEWAY_ICON_PX, "theme") : null;
+                  const clusterHit =
+                    gatewayPt != null && themeMedallion != null
+                      ? themeGatewayClusterHitBounds(
+                          gatewayPt,
+                          lifeAreaLabel,
+                          area.label,
+                          themeMedallion.bloomR,
+                        )
+                      : null;
+                  let hitX0 = Math.min(dh[0]!.x, dh[1]!.x, dh[2]!.x, dh[3]!.x);
+                  let hitX1 = Math.max(dh[0]!.x, dh[1]!.x, dh[2]!.x, dh[3]!.x);
+                  let hitY0 = Math.min(dh[0]!.y, dh[1]!.y, dh[2]!.y, dh[3]!.y);
+                  let hitY1 = Math.max(dh[0]!.y, dh[1]!.y, dh[2]!.y, dh[3]!.y);
+                  if (clusterHit) {
+                    hitX0 = clusterHit.x0;
+                    hitY0 = clusterHit.y0;
+                    hitX1 = clusterHit.x1;
+                    hitY1 = clusterHit.y1;
+                  }
+                  const onLimbLabelRowClick = (e: MouseEvent<SVGGElement>) => {
                     e.stopPropagation();
                     if (panMoved.current) return;
-                    onAreaClick(area);
-                  }}
-                  style={{ cursor: "pointer" }}
-                >
-                  {area.label}
-                </text>
+                    // Hub theme gateway opens the detail rail; focus-mode dimming stays on limb hull / stem.
+                    if (clusterHit && gatewayPt) {
+                      onAreaClick(area);
+                      return;
+                    }
+                    if (FLAGS.FOCUS_MODE) {
+                      onToggleLimbFocus(area.id);
+                    } else {
+                      onAreaClick(area);
+                    }
+                  };
+                  return (
+                    <g
+                      data-tree-limb-label-row="1"
+                      data-tree-theme-cluster={clusterHit ? "1" : undefined}
+                      style={{ cursor: "pointer" }}
+                      onClick={onLimbLabelRowClick}
+                    >
+                      <rect
+                        x={hitX0}
+                        y={hitY0}
+                        width={Math.max(1, hitX1 - hitX0)}
+                        height={Math.max(1, hitY1 - hitY0)}
+                        fill="transparent"
+                        pointerEvents="all"
+                      />
+                      {clusterHit && gatewayPt ? (
+                        <g data-tree-gateway-node="1">
+                          <TreeIconMedallion
+                            cx={snapTreeSvgScalar(gatewayPt.x)}
+                            cy={snapTreeSvgScalar(gatewayPt.y)}
+                            color={area.color}
+                            artworkSpanPx={TREE_THEME_GATEWAY_ICON_PX}
+                            tier="theme"
+                          >
+                            <LimbIc
+                              size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_THEME_GATEWAY_ICON_PX)}
+                              color={area.color}
+                              opacity={1}
+                            />
+                          </TreeIconMedallion>
+                        </g>
+                      ) : (
+                        <g data-tree-limb-label-icon="1" pointerEvents="none">
+                          <g transform={`translate(${icx},${icy})`}>
+                            <LimbIc
+                              size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_LIMB_ICON_SIZE_PX)}
+                              color={area.color}
+                              opacity={0.92}
+                            />
+                          </g>
+                        </g>
+                      )}
+                      <text
+                        x={lifeAreaLabel.x}
+                        y={lifeAreaLabel.y}
+                        textAnchor={lifeAreaLabel.textAnchor}
+                        dominantBaseline="middle"
+                        fontSize={TREE_LIFE_AREA_TITLE_FONT_PX}
+                        fontWeight={700}
+                        letterSpacing=".04em"
+                        fill={area.color}
+                        fillOpacity={1}
+                        stroke="#0A0908"
+                        strokeWidth={4.5}
+                        strokeLinejoin="round"
+                        paintOrder="stroke fill"
+                        pointerEvents="none"
+                      >
+                        {area.label}
+                      </text>
+                    </g>
+                  );
+                })()}
                 {showElementGuide ? (
                   <g data-tree-export-skip="1" pointerEvents="none">
                     <TreeElementGuideTag
-                      x={areaLabelAnchor.x + cfg.dx}
-                      y={areaLabelAnchor.y + cfg.dy - 11}
+                      x={lifeAreaLabel.x}
+                      y={lifeAreaLabel.y - 11}
                       text={`life-area · ${area.id}`}
-                      anchor={cfg.anchor}
+                      anchor={lifeAreaLabel.textAnchor}
                     />
                   </g>
                 ) : null}
               </g>
             );
           })}
+          <rect
+            x={0}
+            y={0}
+            width={viewWidth}
+            height={viewHeight}
+            fill="url(#treeStageEdgeVignette)"
+            opacity={0.38}
+            pointerEvents="none"
+            aria-hidden
+            data-tree-compose-vignette="1"
+          />
+          {FLAGS.TREE_TRUNK_VISIBLE ? (
+            <>
+              {/* Luminous trunk film after strokes: overlap zone tints branch (cradle), avoids under-stack “slice” at silhouette. */}
+              <g pointerEvents="none" aria-hidden data-tree-trunk-emergence-blend="1">
+                <path d={TREE_TRUNK_PRESSURE_LAYERS.veinD} fill="url(#trunkInnerVeinGrad)" opacity={0.238} />
+                <path d={TREE_TRUNK_PRESSURE_LAYERS.veilD} fill="url(#trunkAtmosphericVeilGrad)" opacity={0.092} />
+              </g>
+            </>
+          ) : null}
           {showElementGuide ? (
             <g data-tree-export-skip="1" pointerEvents="none">
               <rect
                 x={118}
                 y={258}
                 width={200}
-                height={144}
+                height={158}
                 rx={6}
                 fill="rgba(8,6,10,0.9)"
                 stroke="#57534E"
                 strokeWidth={0.5}
               />
-              <text x={128} y={278} fill="#E7E5E4" fontSize={8.5} fontFamily="ui-monospace, monospace" fontWeight={600}>
+              <text x={128} y={278} fill="#E7E5E4" fontSize={10.5} fontFamily="ui-monospace, monospace" fontWeight={600}>
                 Tree map (use in chat)
               </text>
-              <text x={128} y={294} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
+              <text x={128} y={294} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
                 life-area · title + id
               </text>
-              <text x={128} y={306} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
+              <text x={128} y={306} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
                 stem-seg · trunk→fork piece
               </text>
-              <text x={128} y={318} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
-                thread · index + type (whole branch)
+              <text x={128} y={318} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
+                branchLine · index + type (whole branch)
               </text>
-              <text x={128} y={330} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
+              <text x={128} y={330} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
                 branch-seg · fork→goal→bud pieces
               </text>
-              <text x={128} y={342} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
+              <text x={128} y={342} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
                 branch-fork-seg · sibling sprout
               </text>
-              <text x={128} y={354} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
-                add-goal · placeholder bud
+              <text x={128} y={354} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
+                domain-hub · opens hub panel
               </text>
-              <text x={128} y={366} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
+              <text x={128} y={366} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
                 roadmap-goal · plan node
               </text>
-              <text x={128} y={378} fill="#A8A29E" fontSize={7} fontFamily="ui-monospace, monospace">
+              <text x={128} y={378} fill="#A8A29E" fontSize={8.5} fontFamily="ui-monospace, monospace">
                 timeline-moment · zoom to see
               </text>
-              <text x={128} y={392} fill="#78716C" fontSize={6.5} fontFamily="ui-monospace, monospace">
+              <text x={128} y={392} fill="#78716C" fontSize={8} fontFamily="ui-monospace, monospace">
                 PDF export hides these tags
               </text>
             </g>
           ) : null}
-          {process.env.NODE_ENV === "development" ? (
+          {TREE_DEBUG_GEOM_ENABLED ? (
             <g pointerEvents="none">
               {gridXs.map((x) => (
                 <line
@@ -1106,12 +2553,6 @@ export function TreeSVG({
                         <circle cx={th.tip.x} cy={th.tip.y} r={2} fill={area.color} opacity={0.85} />
                       </g>
                     ))}
-                    {area.branches.map((thread) => (
-                      <g key={`debug-spine-${area.id}-${thread.id}`}>
-                        <circle cx={thread.p1.x} cy={thread.p1.y} r={4.4} fill="#FBBF24" opacity={0.95} />
-                        <circle cx={thread.p2.x} cy={thread.p2.y} r={4.4} fill="#F472B6" opacity={0.95} />
-                      </g>
-                    ))}
                   </g>
                 );
               })}
@@ -1123,7 +2564,7 @@ export function TreeSVG({
                 const fs = resolvedForks[area.id];
                 if (!fs) return [];
                 const limbTipPt = limbStrokeEndPoint(fs);
-                const limbC2 = fs.limbPieces[0]?.c2;
+                const limbC2 = areaForkStemFirstC2(fs);
                 const limbNodes = [
                   <g key={`layout-limb-tip-${area.id}`} data-layout-edit-handle="1">
                     <circle
@@ -1371,7 +2812,7 @@ export function TreeSVG({
             border: "1px solid rgba(255,255,255,0.12)",
             boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
             maxWidth: 420,
-            fontSize: 12,
+            fontSize: 14,
             color: "#E7E5E4",
           }}
         >
@@ -1390,7 +2831,7 @@ export function TreeSVG({
                 background: "rgba(255,255,255,0.06)",
                 color: "#FAFAF9",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 500,
               }}
             >
@@ -1403,7 +2844,7 @@ export function TreeSVG({
                 type="button"
                 onClick={() => {
                   setLayoutOverrides((prev) => {
-                    const mergedForks = applyLayoutOverrides(buildStraightForksRecord(allAreasForForkGeometry), prev);
+                    const mergedForks = applyLayoutOverrides(buildAreaForksRecord(allAreasForForkGeometry), prev);
                     let maxMoments = 0;
                     let shortestArc = Infinity;
                     for (const area of areas) {
@@ -1453,7 +2894,7 @@ export function TreeSVG({
                   background: "rgba(52, 211, 153, 0.12)",
                   color: "#A7F3D0",
                   cursor: "pointer",
-                  fontSize: 11,
+                  fontSize: 13,
                 }}
               >
                 Distribute all evenly
@@ -1469,7 +2910,7 @@ export function TreeSVG({
                   border: "1px solid rgba(255,255,255,0.08)",
                 }}
               >
-              <span style={{ fontSize: 11, color: "#A8A29E", lineHeight: 1.45 }}>
+              <span style={{ fontSize: 13, color: "#A8A29E", lineHeight: 1.45 }}>
                 Turn on <strong style={{ color: "#E7E5E4", fontWeight: 600 }}>Edit layout</strong> per limb below to show handles on the tree (teal bends, yellow fork, purple rotate, cyan goals). Drag those handles or set limb rotation ° for that limb. Overrides auto-save locally; use import/export between sessions.
               </span>
               </div>
@@ -1486,7 +2927,7 @@ export function TreeSVG({
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              <span style={{ fontSize: 10, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
                 Limb layout
               </span>
               {areas.map((a, limbIdx) => (
@@ -1500,18 +2941,18 @@ export function TreeSVG({
                     borderBottom: limbIdx < areas.length - 1 ? "1px solid rgba(255,255,255,0.06)" : undefined,
                   }}
                 >
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
                     <input
                       type="checkbox"
                       checked={Boolean(layoutEditByAreaId[a.id])}
                       onChange={(e) => toggleAreaLayoutEdit(a.id, e.target.checked)}
                     />
                     <span style={{ color: "#FAFAF9", fontWeight: 500 }}>{a.label}</span>
-                    <span style={{ color: "#78716C", fontSize: 10 }}>Edit layout</span>
+                    <span style={{ color: "#78716C", fontSize: 12 }}>Edit layout</span>
                   </label>
                   {layoutEditByAreaId[a.id] ? (
                     <label
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 11, paddingLeft: 22 }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, paddingLeft: 22 }}
                     >
                       <span style={{ color: "#D6D3D1", flex: 1, minWidth: 0 }}>Limb rotation °</span>
                       <input
@@ -1539,7 +2980,7 @@ export function TreeSVG({
                           border: "1px solid rgba(255,255,255,0.15)",
                           background: "rgba(0,0,0,0.35)",
                           color: "#FAFAF9",
-                          fontSize: 11,
+                          fontSize: 13,
                         }}
                       />
                     </label>
@@ -1585,14 +3026,14 @@ export function TreeSVG({
                 background: "rgba(52, 211, 153, 0.12)",
                 color: "#A7F3D0",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
               }}
             >
               Reset all chains
             </button>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 2 }}>
-            <span style={{ width: "100%", fontSize: 10, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
+            <span style={{ width: "100%", fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
               Data and transfer
             </span>
             <button
@@ -1608,7 +3049,7 @@ export function TreeSVG({
                 background: "rgba(255,255,255,0.06)",
                 color: "#FAFAF9",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
               }}
             >
               Reset layout
@@ -1629,7 +3070,7 @@ export function TreeSVG({
                 background: "rgba(255,255,255,0.06)",
                 color: "#FAFAF9",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
               }}
             >
               Copy overrides JSON
@@ -1667,7 +3108,7 @@ export function TreeSVG({
                 background: "rgba(255,255,255,0.06)",
                 color: "#FAFAF9",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
               }}
             >
               Import geometry…
@@ -1686,7 +3127,7 @@ export function TreeSVG({
                 background: "rgba(251, 191, 36, 0.12)",
                 color: "#FDE68A",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
               }}
             >
               Reset to shipped geometry
@@ -1717,7 +3158,7 @@ export function TreeSVG({
                 background: "rgba(52, 211, 153, 0.12)",
                 color: "#A7F3D0",
                 cursor: "pointer",
-                fontSize: 11,
+                fontSize: 13,
               }}
             >
               Save geometry

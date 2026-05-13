@@ -1,4 +1,4 @@
-import type { Branch, Mark, Moment, Reframe } from "@/lib/types";
+import type { Branch, Mark, Reframe } from "@/lib/types";
 
 export type MockDensity = "min" | "med" | "extensive";
 export type MockProfileId = "alex" | "david";
@@ -58,7 +58,7 @@ const SEEDS: Seed[] = [
     { date: "2024-10-01", title: "Helped Sibling Plan Debt", description: "Shared strategy with family.", type: "achievement", sentiment: "positive" },
     { date: "2025-04-01", title: "Five Years Debt-Free", description: "Stability became normal.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "finance", name: "Savings", goal: "Reach £75k invested", goalValue: 75000, currentValue: 61000, unit: "£", statusExtensive: "active", events: [
+  { limbId: "finance", name: "Investing", goal: "Reach £75k invested", goalValue: 75000, currentValue: 61000, unit: "£", statusExtensive: "active", events: [
     { date: "2019-02-01", title: "Opened ISA", description: "Started monthly index investing.", type: "decision", sentiment: "positive", value: 500 },
     { date: "2020-03-01", title: "Stayed Invested", description: "Did not panic during volatility.", type: "realisation", sentiment: "positive", value: 4200 },
     { date: "2021-11-01", title: "Crossed £15k", description: "Compounding became visible.", type: "milestone", sentiment: "positive", value: 15000 },
@@ -122,7 +122,7 @@ const SEEDS: Seed[] = [
     { date: "2022-05-01", title: "Hosted Reunion", description: "Reconnected old and new circles.", type: "achievement", sentiment: "positive" },
     { date: "2025-03-01", title: "Smaller, Deeper Circle", description: "More trust, less noise.", type: "realisation", sentiment: "positive" },
   ]},
-  { limbId: "people", name: "Romantic", goal: "Build intentional partnership", statusExtensive: "active", events: [
+  { limbId: "people", name: "Romance", goal: "Build intentional partnership", statusExtensive: "active", events: [
     { date: "2019-03-01", title: "Met Sam", description: "Unexpected relationship start.", type: "milestone", sentiment: "positive" },
     { date: "2021-09-01", title: "Moved In Together", description: "Shared home began.", type: "achievement", sentiment: "positive" },
     { date: "2024-02-01", title: "Conflict Season", description: "Pressure increased friction.", type: "setback", sentiment: "negative" },
@@ -130,7 +130,7 @@ const SEEDS: Seed[] = [
     { date: "2025-01-01", title: "Paused Wedding Plans", description: "Prioritized communication work.", type: "decision", sentiment: "neutral", reframe: "Pausing protected honesty." },
     { date: "2025-10-01", title: "Counselling Progress", description: "Healthier patterns emerging.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "health", name: "Fitness", goal: "Sub-4 marathon", goalValue: 240, currentValue: 238, unit: "minutes", statusMed: "active", statusExtensive: "active", events: [
+  { limbId: "health", name: "Movement", goal: "Sub-4 marathon", goalValue: 240, currentValue: 238, unit: "minutes", statusMed: "active", statusExtensive: "active", events: [
     { date: "2016-02-01", title: "Wake-up Call", description: "Lowest energy period.", type: "setback", sentiment: "negative" },
     { date: "2016-06-01", title: "First 5k Attempt", description: "Finished by mixing run/walk.", type: "milestone", sentiment: "neutral", value: 45 },
     { date: "2019-09-01", title: "Half Marathon", description: "First major race finish.", type: "achievement", sentiment: "positive", value: 124 },
@@ -138,7 +138,7 @@ const SEEDS: Seed[] = [
     { date: "2024-03-01", title: "Consistent Training Block", description: "No missed weeks for two months.", type: "milestone", sentiment: "positive" },
     { date: "2025-10-01", title: "Marathon 3:58", description: "Broke the 4-hour target.", type: "achievement", sentiment: "positive", value: 238 },
   ]},
-  { limbId: "health", name: "Mental Health", goal: "Maintain stable wellbeing score", goalValue: 8, currentValue: 7, unit: "score", statusExtensive: "active", events: [
+  { limbId: "health", name: "Mind", goal: "Maintain stable wellbeing score", goalValue: 8, currentValue: 7, unit: "score", statusExtensive: "active", events: [
     { date: "2019-04-01", title: "Started Therapy", description: "Committed to weekly sessions.", type: "decision", sentiment: "positive", value: 4 },
     { date: "2020-03-01", title: "Anxiety Spike", description: "Concentration and sleep worsened.", type: "setback", sentiment: "negative", value: 3 },
     { date: "2021-01-01", title: "Boundary Rules", description: "No work after 8pm weekdays.", type: "decision", sentiment: "neutral", value: 5 },
@@ -146,7 +146,7 @@ const SEEDS: Seed[] = [
     { date: "2024-02-01", title: "Better Therapist Fit", description: "Progress accelerated.", type: "milestone", sentiment: "positive", value: 6 },
     { date: "2025-12-01", title: "Stable Baseline", description: "More resilient during hard weeks.", type: "achievement", sentiment: "positive", value: 7 },
   ]},
-  { limbId: "health", name: "Food & Body", goal: "Maintain steady energy and healthy body composition", goalValue: 8, currentValue: 7, unit: "score", statusExtensive: "active", events: [
+  { limbId: "health", name: "Nutrition", goal: "Maintain steady energy and healthy body composition", goalValue: 8, currentValue: 7, unit: "score", statusExtensive: "active", events: [
     { date: "2020-01-01", title: "Tracked meals and energy", description: "Started logging food patterns against energy dips.", type: "decision", sentiment: "neutral", value: 4 },
     { date: "2021-06-01", title: "Protein-first routine", description: "Improved satiety and reduced late crashes.", type: "milestone", sentiment: "positive", value: 5 },
     { date: "2022-09-01", title: "Travel eating relapse", description: "Old patterns returned during heavy travel periods.", type: "setback", sentiment: "negative", value: 4 },
@@ -154,7 +154,7 @@ const SEEDS: Seed[] = [
     { date: "2024-10-01", title: "Body metrics improving", description: "Energy and body composition trended in the right direction.", type: "decision", sentiment: "positive", value: 7 },
     { date: "2025-08-01", title: "Sustained healthy baseline", description: "Nutrition routine became automatic and steady.", type: "achievement", sentiment: "positive", value: 7 },
   ]},
-  { limbId: "becoming", name: "Mindset", goal: "Operate from long-term thinking", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Inner work", goal: "Operate from long-term thinking", statusExtensive: "active", events: [
     { date: "2017-01-01", title: "Noticed Avoidance Loop", description: "Started naming patterns.", type: "realisation", sentiment: "neutral" },
     { date: "2019-06-01", title: "Therapy Breakthrough", description: "Linked perfectionism and fear.", type: "achievement", sentiment: "positive" },
     { date: "2021-06-01", title: "Less Approval Seeking", description: "Lower reactivity to opinions.", type: "milestone", sentiment: "positive" },
@@ -170,7 +170,7 @@ const SEEDS: Seed[] = [
     { date: "2023-09-01", title: "Rebuilt Smaller Defaults", description: "Tiny daily floor restored momentum.", type: "decision", sentiment: "positive", value: 3 },
     { date: "2025-05-01", title: "Four Habits Stable", description: "Consistency resilient to busy periods.", type: "achievement", sentiment: "positive", value: 4 },
   ]},
-  { limbId: "becoming", name: "Identity", goal: "Live as a creator-led person", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Purpose", goal: "Live as a creator-led person", statusExtensive: "active", events: [
     { date: "2019-01-01", title: "Perspective Shift", description: "Saw wider life possibilities.", type: "realisation", sentiment: "positive" },
     { date: "2020-09-01", title: "Pivot to Product", description: "Moved closer to building work.", type: "decision", sentiment: "positive" },
     { date: "2023-06-01", title: "Became a Builder", description: "Identity shifted to creator.", type: "achievement", sentiment: "positive" },
@@ -189,11 +189,12 @@ const SEEDS: Seed[] = [
 ];
 
 const MIN_ENABLED: Record<Branch["limbId"], string[]> = {
-  finance: ["Debt", "Savings"],
+  finance: ["Debt", "Investing"],
   work: ["Career", "Skills"],
   people: ["Family", "Friendships"],
-  health: ["Fitness", "Mental Health"],
-  becoming: ["Mindset", "Habits"],
+  health: ["Movement", "Mind"],
+  becoming: ["Inner work", "Habits"],
+  pleasures: [],
 };
 
 /** min uses 4 marks/branch so tree spacing can be exercised (threads stay ≥3 moments); seeds already carry spaced dates. */
@@ -201,11 +202,12 @@ const MARK_COUNT: Record<MockDensity, number> = { min: 4, med: 4, extensive: 6 }
 const DAVID_MARK_COUNT: Record<MockDensity, number> = { min: 3, med: 6, extensive: 10 };
 
 const DAVID_MIN_ENABLED: Record<Branch["limbId"], string[]> = {
-  finance: ["Income", "Savings"],
+  finance: ["Income", "Investing"],
   work: ["Career", "Skills"],
   people: ["Family", "Friendships"],
-  health: ["Fitness", "Mental Health"],
-  becoming: ["Mindset", "Habits"],
+  health: ["Movement", "Mind"],
+  becoming: ["Inner work", "Habits"],
+  pleasures: [],
 };
 
 const DAVID_SEEDS: Seed[] = [
@@ -241,7 +243,7 @@ const DAVID_SEEDS: Seed[] = [
     { date: "1992-02-01", title: "Mortgage pressure", description: "High rates made repayments difficult.", type: "setback", sentiment: "negative" },
     { date: "2020-06-01", title: "Income shift at retirement", description: "Transitioned from salary to pension + advisory income.", type: "decision", sentiment: "neutral" },
   ]},
-  { limbId: "finance", name: "Savings", goal: "Maintain 25 years of secure drawdown", goalValue: 25, currentValue: 20, unit: "years", statusExtensive: "active", events: [
+  { limbId: "finance", name: "Investing", goal: "Maintain 25 years of secure drawdown", goalValue: 25, currentValue: 20, unit: "years", statusExtensive: "active", events: [
     { date: "1998-04-01", title: "Opened pension review cycle", description: "Started annual pension planning reviews.", type: "decision", sentiment: "positive", value: 8 },
     { date: "2015-03-01", title: "Rebalanced conservatively", description: "Moved allocation toward lower-volatility mix.", type: "decision", sentiment: "neutral", value: 14 },
     { date: "2023-03-01", title: "Adjusted drawdown guardrails", description: "Introduced spending bands to protect long-horizon runway.", type: "realisation", sentiment: "positive", value: 18 },
@@ -252,7 +254,7 @@ const DAVID_SEEDS: Seed[] = [
     { date: "2017-10-01", title: "Mortgage fully paid", description: "Reached full ownership.", type: "achievement", sentiment: "positive" },
     { date: "2027-05-01", title: "Accessibility upgrades planned", description: "Future-proofing stairs and bathroom layout.", type: "decision", sentiment: "neutral" },
   ]},
-  { limbId: "people", name: "Romantic", goal: "Sustain a respectful long-term marriage", statusExtensive: "active", events: [
+  { limbId: "people", name: "Romance", goal: "Sustain a respectful long-term marriage", statusExtensive: "active", events: [
     { date: "1982-05-01", title: "Met Julia", description: "Met future partner through mutual friends.", type: "milestone", sentiment: "positive" },
     { date: "1984-09-01", title: "Married", description: "Committed to shared life path.", type: "achievement", sentiment: "positive" },
     { date: "2015-02-01", title: "Counselling support", description: "Chose relationship support to repair and reset.", type: "decision", sentiment: "positive" },
@@ -271,24 +273,24 @@ const DAVID_SEEDS: Seed[] = [
     { date: "2022-10-01", title: "Launched skills workshops", description: "Started practical electronics workshops for teens.", type: "achievement", sentiment: "positive" },
     { date: "2025-04-01", title: "Volunteer mentor rota", description: "Built a rotating mentor roster so sessions stayed sustainable.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "health", name: "Fitness", goal: "Maintain blood pressure under control", statusExtensive: "active", events: [
+  { limbId: "health", name: "Movement", goal: "Maintain blood pressure under control", statusExtensive: "active", events: [
     { date: "2004-02-01", title: "Hypertension diagnosis", description: "Initial warning from GP.", type: "setback", sentiment: "negative" },
     { date: "2018-05-01", title: "Consistent good readings", description: "Sustained stability over multiple years.", type: "achievement", sentiment: "positive" },
     { date: "2026-02-01", title: "Cardio review stable", description: "Health markers remain in safe range.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "health", name: "Food & Body", goal: "Stay active and fuel well in later life", statusExtensive: "active", events: [
+  { limbId: "health", name: "Nutrition", goal: "Stay active and fuel well in later life", statusExtensive: "active", events: [
     { date: "2011-07-01", title: "Knee injury rehab period", description: "Adjusted diet and movement during recovery.", type: "setback", sentiment: "negative" },
     { date: "2015-05-01", title: "Strength routine restart", description: "Added low-impact resistance work to protect mobility.", type: "decision", sentiment: "positive" },
     { date: "2020-09-01", title: "Daily walking habit", description: "Locked in 8k step baseline.", type: "milestone", sentiment: "positive" },
     { date: "2023-01-01", title: "Simplified meal rhythm", description: "Switched to a repeatable weekly meal pattern with steadier energy.", type: "realisation", sentiment: "positive" },
   ]},
-  { limbId: "health", name: "Mental Health", goal: "Protect calm and purpose in later life", statusExtensive: "active", events: [
+  { limbId: "health", name: "Mind", goal: "Protect calm and purpose in later life", statusExtensive: "active", events: [
     { date: "2009-03-01", title: "Caregiver fatigue", description: "Family care responsibilities overwhelmed capacity.", type: "setback", sentiment: "negative" },
     { date: "2014-06-01", title: "Peer support circle", description: "Joined a monthly local support group for carers.", type: "decision", sentiment: "neutral" },
     { date: "2022-03-01", title: "New rhythm established", description: "Balanced work, family, and personal time.", type: "achievement", sentiment: "positive" },
     { date: "2025-11-01", title: "Reduced advisory days", description: "Lowered weekly workload to protect sleep and recovery.", type: "decision", sentiment: "positive" },
   ]},
-  { limbId: "becoming", name: "Mindset", goal: "Design a meaningful post-career chapter", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Inner work", goal: "Design a meaningful post-career chapter", statusExtensive: "active", events: [
     { date: "2017-01-01", title: "Questioned next chapter", description: "Started asking what retirement should mean.", type: "realisation", sentiment: "neutral" },
     { date: "2021-04-01", title: "Defined retirement themes", description: "Named service, family history, and mentoring as the core threads.", type: "decision", sentiment: "positive" },
     { date: "2026-04-01", title: "Purpose score feels aligned", description: "Current life feels coherent with values.", type: "achievement", sentiment: "positive" },
@@ -298,7 +300,7 @@ const DAVID_SEEDS: Seed[] = [
     { date: "2021-01-01", title: "Weekly study notes", description: "Started summarizing each study session to strengthen recall.", type: "milestone", sentiment: "positive" },
     { date: "2024-05-01", title: "Open-university module", description: "Completed later-life learning milestone.", type: "achievement", sentiment: "positive" },
   ]},
-  { limbId: "becoming", name: "Identity", goal: "Leave practical guidance and family stories documented", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Purpose", goal: "Leave practical guidance and family stories documented", statusExtensive: "active", events: [
     { date: "2023-06-01", title: "Started family archive", description: "Digitized photos, letters, and oral histories.", type: "decision", sentiment: "positive" },
     { date: "2025-02-01", title: "Recorded oral histories", description: "Completed interviews with relatives across three generations.", type: "achievement", sentiment: "positive" },
     { date: "2027-12-01", title: "Plan to finish memoir", description: "Future milestone for complete multi-decade life story.", type: "milestone", sentiment: "positive" },
@@ -336,18 +338,19 @@ function applyLondon1960NarrativeFork(branches: Branch[], marks: Mark[]) {
       "skills",
       "projects",
       "business",
-      "fitness",
-      "mental health",
-      "food & body",
+      "movement",
+      "mind",
+      "nutrition",
       "income",
-      "savings",
+      "investing",
+      "protection",
       "debt",
-      "romantic",
+      "romance",
       "family",
       "friendships",
       "habits",
-      "mindset",
-      "identity",
+      "inner work",
+      "purpose",
       "creativity",
     ].map((s) => s.toLowerCase()),
   );
@@ -430,17 +433,17 @@ function applyLondon1960NarrativeFork(branches: Branch[], marks: Mark[]) {
   // Alex-style Relationships / Health / Personal Growth
   setNarrativeForkFromLine("Friendships", [
     { name: "Family", angle: -14 },
-    { name: "Romantic", angle: 14 },
+    { name: "Romance", angle: 14 },
   ]);
-  setNarrativeForkFromLine("Mindset", [
+  setNarrativeForkFromLine("Inner work", [
     { name: "Habits", angle: -16 },
-    { name: "Identity", angle: 0 },
+    { name: "Purpose", angle: 0 },
     { name: "Creativity", angle: 16 },
   ]);
   // Money
-  // Alex: salary is the trunk; debt and savings open from first stable income.
+  // Alex: salary is the trunk; investing and debt open from first stable income.
   setNarrativeForkFromLine("Income", [
-    { name: "Savings", angle: -14 },
+    { name: "Investing", angle: -14 },
     { name: "Debt", angle: 14 },
   ]);
   // David: causal ordering — first stable income enables the first-home path.
@@ -453,10 +456,10 @@ function applyLondon1960NarrativeFork(branches: Branch[], marks: Mark[]) {
     debtBranch.turningPointId = null;
     debtBranch.mapAngleOffset = 14;
   }
-  // Savings is a long-running thread that emerges between income milestones.
-  setNarrativeForkFromLine("Income", [{ name: "Savings", angle: -14 }]);
+  // Investing is a long-running thread that emerges between income milestones.
+  setNarrativeForkFromLine("Income", [{ name: "Investing", angle: -14 }]);
   // Relationships
-  setNarrativeForkFromLine("Romantic", [
+  setNarrativeForkFromLine("Romance", [
     { name: "Family", angle: -14 },
     { name: "Friendships", angle: 14 },
   ]);
@@ -733,74 +736,3 @@ export const MOCK_PROFILE_LABELS: Record<MockProfileId, string> = {
 export const MOCK_DATA = MOCK_SCENARIOS.med;
 export const MOCK_BRANCHES = MOCK_DATA.branches;
 export const MOCK_MARKS = MOCK_DATA.marks;
-
-type LegacyMockLifeData = {
-  branches: Branch[];
-  moments: Moment[];
-  marks: Mark[];
-  nodes: Moment[];
-};
-
-function parseYearMonth(value: string): { year: number; month: number | null } {
-  const datePart = value.split("T")[0] ?? value;
-  const [yearRaw, monthRaw] = datePart.split("-");
-  const year = Number(yearRaw);
-  const month = Number(monthRaw);
-  return {
-    year: Number.isFinite(year) ? year : 2000,
-    month: Number.isFinite(month) && month >= 1 && month <= 12 ? month : null,
-  };
-}
-
-function buildLegacyMomentsFromScenario(scenario: MockScenario): Moment[] {
-  const marksByBranch = new Map<string, Mark[]>();
-  for (const mark of scenario.marks) {
-    const arr = marksByBranch.get(mark.branchId) ?? [];
-    arr.push(mark);
-    marksByBranch.set(mark.branchId, arr);
-  }
-  for (const arr of marksByBranch.values()) {
-    arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }
-
-  return scenario.marks.map((mark) => {
-    const branchMarks = marksByBranch.get(mark.branchId) ?? [];
-    const mapPosition = Math.max(0, branchMarks.findIndex((m) => m.id === mark.id));
-    const { year, month } = parseYearMonth(mark.date);
-    const significance = mark.type === "achievement" || mark.type === "decision" ? 3 : 2;
-    const future = mark.type === "milestone" && new Date(mark.date).getTime() > Date.now();
-
-    return {
-      id: mark.id,
-      userId: mark.userId,
-      limbId: mark.limbId,
-      branchId: mark.branchId,
-      label: mark.title,
-      description: mark.description ?? null,
-      year,
-      month,
-      mapPosition,
-      significance,
-      future,
-      isTurningPoint: mark.type === "decision",
-      location: null,
-      timelineNote: null,
-      createdAt: mark.createdAt,
-      updatedAt: mark.updatedAt,
-    };
-  });
-}
-
-export function getLegacyMockLifeData(
-  profileId: MockProfileId = "alex",
-  density: MockDensity = "extensive",
-): LegacyMockLifeData {
-  const scenario = getMockScenario(profileId, density);
-  const moments = buildLegacyMomentsFromScenario(scenario);
-  return {
-    branches: scenario.branches,
-    moments,
-    marks: scenario.marks,
-    nodes: moments,
-  };
-}

@@ -1,5 +1,31 @@
+/**
+ * Fork / branch geometry — **anchor-first**: gateways in {@link ./tree-area-anchors}; hub spokes use
+ * restrained connective bows (see {@link connectiveBowCubicPiece}), not transport rails.
+ */
 import type { AreaData, Point } from "./tree-types";
-import { TREE_FORK_LOWER, TREE_FORK_MIDDLE, TREE_FORK_TOP } from "./tree-geometry";
+import {
+  resolveAreaAnchors,
+  STRAIGHT_LIFE_AREA_IDS,
+  THEME_STAR_CENTER,
+  type StraightLifeAreaId,
+} from "./tree-area-anchors";
+import {
+  CONDUIT_CONNECTIVE_BOW_CONTROL_BLEND,
+  CONDUIT_CONNECTIVE_BOW_FRACTION_OF_CHORD,
+  CONDUIT_CONNECTIVE_BOW_MAX_PX,
+  CONDUIT_THREAD_STROKE_SCALE,
+  THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
+} from "./tree-view-constants";
+
+/**
+ * Four slots at the **corners of an axis-aligned square** around the gateway (diagonal directions,
+ * not N/E/S/W cardinals — those read as a diamond). Index `i` matches
+ * `NEW_PROFILE_ROOT_BRANCH_TEMPLATES` order per limb (0…3). Slot 0 aims toward top-right (−π/4),
+ * then +90° per slot (top-right → bottom-right → bottom-left → top-left).
+ */
+function hubBranchAngleRad(slotIndex: number): number {
+  return -Math.PI / 4 + slotIndex * (Math.PI / 2);
+}
 
 /** One SVG cubic Bézier segment: C c1 c2 end (start is implicit from previous point). */
 export type CubicPiece = {
@@ -20,15 +46,21 @@ export type BranchForkSpec = {
 
 /**
  * Explicit fork geometry for a life area + its branch lines.
- * Values are extracted from the previous AREA_SLOTS path strings — paths are rebuilt at render time.
+ * **Stem:** `trunkAttach` is **synthetic** (toward the trunk backdrop, not authored data); `limbTip`
+ * is the gateway. `limbPieces` connect them (typically one colinear cubic).
  */
 export type AreaForkSpec = {
+  /** Synthetic stem root — coincident with the theme gateway when there is no trunk bridge; see `buildAreaForkFromAnchors`. */
   trunkAttach: Point;
   limbTip: Point;
   limbPieces: CubicPiece[];
   branches: BranchForkSpec[];
   limbStrokeWidth: number;
 };
+
+function lerpPoint(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
 
 export function pathFromStart(start: Point, pieces: CubicPiece[]): string {
   let d = `M${start.x},${start.y}`;
@@ -38,8 +70,20 @@ export function pathFromStart(start: Point, pieces: CubicPiece[]): string {
   return d;
 }
 
+/** Stem cubics: trunk → gateway (`limbPieces` only). */
+export function stemSegmentsForSpec(spec: AreaForkSpec): { start: Point; pieces: CubicPiece[] } {
+  return { start: spec.trunkAttach, pieces: spec.limbPieces };
+}
+
+/** First stem segment `c2` (near-trunk bend handle), if any. */
+export function areaForkStemFirstC2(spec: AreaForkSpec): Point | undefined {
+  const { pieces } = stemSegmentsForSpec(spec);
+  return pieces[0]?.c2;
+}
+
 export function limbPath(spec: AreaForkSpec): string {
-  return pathFromStart(spec.trunkAttach, spec.limbPieces);
+  const { start, pieces } = stemSegmentsForSpec(spec);
+  return pathFromStart(start, pieces);
 }
 
 function cubicBezierPoint(t: number, p0: Point, p1: Point, p2: Point, p3: Point): Point {
@@ -50,14 +94,14 @@ function cubicBezierPoint(t: number, p0: Point, p1: Point, p2: Point, p3: Point)
   };
 }
 
-/** Point along life-area stem stroke at uniform multi-segment fraction `globalT` within [0,1], matching spine slot semantics. */
+/** Point along life-area stem stroke at uniform multi-segment fraction `globalT` within [0,1]. */
 export function limbPointAtUniformFraction(spec: AreaForkSpec, globalT: number): Point {
-  const segs = spec.limbPieces;
-  if (segs.length === 0) return spec.trunkAttach;
+  const { start, pieces: segs } = stemSegmentsForSpec(spec);
+  if (segs.length === 0) return start;
   const clamped = Math.max(0, Math.min(0.999999, globalT));
   const segIndex = Math.min(segs.length - 1, Math.floor(clamped * segs.length));
   const localT = clamped * segs.length - segIndex;
-  const p0 = segIndex === 0 ? spec.trunkAttach : segs[segIndex - 1].end;
+  const p0 = segIndex === 0 ? start : segs[segIndex - 1].end;
   const seg = segs[segIndex];
   return cubicBezierPoint(localT, p0, seg.c1, seg.c2, seg.end);
 }
@@ -89,8 +133,15 @@ export function branchDefaultBendHandlePoints(branch: BranchForkSpec): Point[] {
   return BRANCH_LAYOUT_BEND_SAMPLE_TS.map((t) => branchPointAtUniformFraction(branch, t));
 }
 
-function lerpPoint(a: Point, b: Point, t: number): Point {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+/** Top two stroke widths per life area read as dominant conduits (ties favor lower index). */
+export function branchConduitMajorFlags(strokeWidths: number[]): boolean[] {
+  const n = strokeWidths.length;
+  if (n === 0) return [];
+  if (n <= 2) return Array.from({ length: n }, () => true);
+  const indexed = strokeWidths.map((s, i) => ({ s, i }));
+  indexed.sort((a, b) => b.s - a.s || a.i - b.i);
+  const major = new Set(indexed.slice(0, 2).map((x) => x.i));
+  return strokeWidths.map((_, i) => major.has(i));
 }
 
 /** Left portion of cubic from {@link p0} through {@link seg}, parameter `t` ∈ (0,1] on this segment (De Casteljau). */
@@ -129,13 +180,12 @@ function splitCubicAt(
 
 /**
  * Stem subpath between uniform-global `t0` and `t1` (inclusive). Supports single `limbPieces`
- * segment (straight life-area template); multi-segment limbs fall back to {@link limbPathUntilGlobalT}(t1).
+ * segment; multi-segment limbs fall back to {@link limbPathUntilGlobalT}(t1).
  */
 export function limbPathBetweenGlobalT(spec: AreaForkSpec, t0: number, t1: number): string {
-  const segs = spec.limbPieces;
+  const { start: p0Stem, pieces: segs } = stemSegmentsForSpec(spec);
   if (segs.length === 0 || t1 <= t0 + 1e-9) return "";
   if (segs.length > 1) return limbPathUntilGlobalT(spec, t1);
-  const p0Stem = spec.trunkAttach;
   const seg = segs[0]!;
   const tA = Math.max(0, Math.min(1, t0));
   const tB = Math.max(tA, Math.min(1, t1));
@@ -151,14 +201,14 @@ export function limbPathBetweenGlobalT(spec: AreaForkSpec, t0: number, t1: numbe
 
 /** Closest uniform-global `t` on life-area stem to {@link p} (piecewise cubic, sampled per segment). */
 export function closestGlobalTOnLimb(spec: AreaForkSpec, p: Point): number {
-  const segs = spec.limbPieces;
+  const { start: stemStart, pieces: segs } = stemSegmentsForSpec(spec);
   const n = segs.length;
   if (n === 0) return 0;
   let bestDist = Infinity;
   let bestGlobalT = 0;
   const samples = 56;
   for (let i = 0; i < n; i++) {
-    const p0 = i === 0 ? spec.trunkAttach : segs[i - 1].end;
+    const p0 = i === 0 ? stemStart : segs[i - 1].end;
     const seg = segs[i];
     for (let s = 0; s <= samples; s++) {
       const u = s / samples;
@@ -174,7 +224,47 @@ export function closestGlobalTOnLimb(spec: AreaForkSpec, p: Point): number {
   return Math.min(1, Math.max(0, bestGlobalT));
 }
 
-/** Largest uniform-global `t` among branch fork projections onto the stem — stem stroke ends here so it doesn’t pass beyond branches. */
+/** True when all branches share the gateway as fork point (hub-and-spoke layout). */
+export function isHubGatewayLayout(spec: AreaForkSpec): boolean {
+  if (spec.branches.length === 0) return false;
+  const gw = spec.limbTip;
+  return spec.branches.every(
+    (b) => Math.hypot(b.forkPoint.x - gw.x, b.forkPoint.y - gw.y) < 0.75,
+  );
+}
+
+/**
+ * Stable ordering for sibling branches along the life-area stem (hull sampling, depth hints, layout rows).
+ *
+ * **Hub gateway layout:** polar angle from gateway toward branch tip.
+ *
+ * **Otherwise:** order by projected stem `t`, then index.
+ */
+export function compareBranchIndicesForStemOrder(
+  forkSpec: AreaForkSpec,
+  idxA: number,
+  idxB: number,
+): number {
+  const brA = forkSpec.branches[idxA];
+  const brB = forkSpec.branches[idxB];
+  if (!brA || !brB) return idxA - idxB;
+
+  if (isHubGatewayLayout(forkSpec)) {
+    const angA = Math.atan2(brA.tip.y - brA.forkPoint.y, brA.tip.x - brA.forkPoint.x);
+    const angB = Math.atan2(brB.tip.y - brB.forkPoint.y, brB.tip.x - brB.forkPoint.x);
+    const dAng = angA - angB;
+    if (Math.abs(dAng) > 1e-9) return dAng;
+    return idxA - idxB;
+  }
+
+  const tA = closestGlobalTOnLimb(forkSpec, brA.forkPoint);
+  const tB = closestGlobalTOnLimb(forkSpec, brB.forkPoint);
+  const dt = tA - tB;
+  if (Math.abs(dt) > 1e-9) return dt;
+  return idxA - idxB;
+}
+
+/** Largest uniform-global `t` among branch fork projections onto the stem — stem stroke ends here so it doesn't pass beyond branches. */
 export function maxForkGlobalT(spec: AreaForkSpec): number {
   if (spec.branches.length === 0) return 1;
   let m = 0;
@@ -185,9 +275,9 @@ export function maxForkGlobalT(spec: AreaForkSpec): number {
   return Math.min(0.999999, m);
 }
 
-/** Life-area stem {@link pathFromStart} clipped so stroke stops at furthest branch fork (matches rendered stem end). */
+/** Life-area stem {@link pathFromStart} clipped so stroke stops at uniform-global `globalTEnd`. */
 export function limbPathUntilGlobalT(spec: AreaForkSpec, globalTEnd: number): string {
-  const segs = spec.limbPieces;
+  const { start: stemStart, pieces: segs } = stemSegmentsForSpec(spec);
   const n = segs.length;
   if (n === 0) return "";
   const clamped = Math.max(0, Math.min(1, globalTEnd));
@@ -201,11 +291,11 @@ export function limbPathUntilGlobalT(spec: AreaForkSpec, globalTEnd: number): st
   for (let i = 0; i < segIndex; i++) {
     piecesOut.push(segs[i]);
   }
-  const p0 = segIndex === 0 ? spec.trunkAttach : segs[segIndex - 1].end;
+  const p0 = segIndex === 0 ? stemStart : segs[segIndex - 1].end;
   const seg = segs[segIndex];
   const lt = Math.max(1e-9, Math.min(1, localT));
   piecesOut.push(splitCubicLeftHalf(p0, seg, lt));
-  return pathFromStart(spec.trunkAttach, piecesOut);
+  return pathFromStart(stemStart, piecesOut);
 }
 
 /** Where the truncated life-area stem ends — use for labels instead of catalog {@link AreaForkSpec.limbTip}. */
@@ -222,6 +312,7 @@ export function translateBranchToForkPoint(branch: BranchForkSpec, forkPoint: Po
 function translateBranchSpec(branch: BranchForkSpec, d: Point): BranchForkSpec {
   const tr = (p: Point) => ({ x: p.x + d.x, y: p.y + d.y });
   return {
+    ...branch,
     forkPoint: tr(branch.forkPoint),
     tip: tr(branch.tip),
     branchPieces: branch.branchPieces.map((piece) => ({
@@ -237,10 +328,6 @@ export function branchMainPath(b: BranchForkSpec): string {
   return pathFromStart(b.forkPoint, b.branchPieces);
 }
 
-/**
- * Main branch stroke clipped so the tip sits near uniform-global `globalTEnd` (same segment
- * normalization as stem / tree-view {@code pathPointAtT}).
- */
 export function branchMainPathUntilGlobalT(b: BranchForkSpec, globalTEnd: number): string {
   const segs = b.branchPieces;
   const n = segs.length;
@@ -261,6 +348,61 @@ export function branchMainPathUntilGlobalT(b: BranchForkSpec, globalTEnd: number
   const lt = Math.max(1e-9, Math.min(1, localT));
   piecesOut.push(splitCubicLeftHalf(p0, seg, lt));
   return pathFromStart(b.forkPoint, piecesOut);
+}
+
+export function branchMainPathBetweenGlobalT(b: BranchForkSpec, t0: number, t1: number): string {
+  const segs = b.branchPieces;
+  const n = segs.length;
+  if (n === 0 || t1 <= t0 + 1e-9) return "";
+  const tA = Math.max(0, Math.min(1, t0));
+  const tB = Math.max(tA, Math.min(1, t1));
+  const tnA = tA * n;
+  const tnB = tB * n;
+  const idxA = Math.min(n - 1, Math.floor(tnA));
+  const idxB = Math.min(n - 1, Math.floor(tnB));
+  const uA = tnA - idxA;
+  const uB = tnB - idxB;
+  const fork = b.forkPoint;
+  const p0At = (i: number) => (i === 0 ? fork : segs[i - 1]!.end);
+
+  if (idxA === idxB) {
+    const p0 = p0At(idxA);
+    const seg = segs[idxA]!;
+    const ua = Math.max(1e-9, Math.min(1, uA));
+    const ub = Math.max(ua + 1e-9, Math.min(1 - 1e-9, uB));
+    if (ub - ua < 1e-9) return "";
+    const first = splitCubicAt(p0, seg, ua);
+    const denom = Math.max(1e-9, 1 - ua);
+    const u = (ub - ua) / denom;
+    if (u >= 1 - 1e-9) return pathFromStart(first.rightStart, [first.right]);
+    const uClamped = Math.min(1 - 1e-9, Math.max(1e-9, u));
+    const second = splitCubicAt(first.rightStart, first.right, uClamped);
+    return pathFromStart(first.rightStart, [second.left]);
+  }
+
+  const piecesOut: CubicPiece[] = [];
+  {
+    const p0 = p0At(idxA);
+    const seg = segs[idxA]!;
+    const ua = Math.max(1e-9, Math.min(1, uA));
+    const first = splitCubicAt(p0, seg, ua);
+    piecesOut.push(first.right);
+  }
+  for (let i = idxA + 1; i < idxB; i += 1) {
+    piecesOut.push(segs[i]!);
+  }
+  {
+    const p0 = p0At(idxB);
+    const seg = segs[idxB]!;
+    const ub = Math.max(1e-9, Math.min(1, uB));
+    piecesOut.push(splitCubicLeftHalf(p0, seg, ub));
+  }
+
+  const p0Start = p0At(idxA);
+  const segStart = segs[idxA]!;
+  const uaStart = Math.max(1e-9, Math.min(1, uA));
+  const firstStart = splitCubicAt(p0Start, segStart, uaStart);
+  return pathFromStart(firstStart.rightStart, piecesOut);
 }
 
 export function getAreaSlotRender(
@@ -289,140 +431,106 @@ export function colinearCubicPiece(p0: Point, p3: Point): CubicPiece {
   return { c1: lerpPoint(p0, p3, 1 / 3), c2: lerpPoint(p0, p3, 2 / 3), end: p3 };
 }
 
-type StraightLifeAreaTemplate = {
-  /** Junction where this life area leaves the trunk (lower / middle / top fork). */
-  trunkAttach: Point;
-  /** Direction from `trunkAttach` toward this life area's hub (radians, +y = down). */
-  limbStemDirRad: number;
-  /** Distance fork → hub along `limbStemDirRad`. */
-  limbStemLen: number;
-  /** Branch fan bisector at the hub (radians); usually matches `limbStemDirRad`. */
-  bisectorRad: number;
-  baseTipLen: number;
-  /** Extra length per branch index to reduce tip overlap. */
-  tipLenPerIndex: number;
-  limbStrokeWidth: number;
-};
-
-/** Lower pair: outward with net upward (negative sin θ). Middle: up-left / up-right. Top: straight up. */
-const STRAIGHT_LIFE_AREA_BY_ID: Record<string, StraightLifeAreaTemplate> = {
-  finance: {
-    trunkAttach: TREE_FORK_LOWER,
-    limbStemDirRad: (-179 * Math.PI) / 180,
-    limbStemLen: 192,
-    bisectorRad: (-179 * Math.PI) / 180,
-    baseTipLen: 430,
-    tipLenPerIndex: 46,
-    limbStrokeWidth: 7.5,
-  },
-  health: {
-    trunkAttach: TREE_FORK_LOWER,
-    limbStemDirRad: (-1 * Math.PI) / 180,
-    limbStemLen: 192,
-    bisectorRad: (-1 * Math.PI) / 180,
-    baseTipLen: 444,
-    tipLenPerIndex: 48,
-    limbStrokeWidth: 7.5,
-  },
-  work: {
-    trunkAttach: TREE_FORK_MIDDLE,
-    limbStemDirRad: (-159 * Math.PI) / 180,
-    limbStemLen: 198,
-    bisectorRad: (-159 * Math.PI) / 180,
-    baseTipLen: 436,
-    tipLenPerIndex: 46,
-    limbStrokeWidth: 7.5,
-  },
-  people: {
-    trunkAttach: TREE_FORK_MIDDLE,
-    limbStemDirRad: (-20 * Math.PI) / 180,
-    limbStemLen: 198,
-    bisectorRad: (-20 * Math.PI) / 180,
-    baseTipLen: 454,
-    tipLenPerIndex: 46,
-    limbStrokeWidth: 7.5,
-  },
-  becoming: {
-    trunkAttach: TREE_FORK_TOP,
-    limbStemDirRad: -Math.PI / 2,
-    limbStemLen: 182,
-    bisectorRad: -Math.PI / 2,
-    baseTipLen: 420,
-    tipLenPerIndex: 44,
-    limbStrokeWidth: 7,
-  },
-};
-
 /**
- * Degrees from life-area `bisectorRad` per branch index (narrow fan, max ±30° from base).
- * n=3: third branch (index 2) is 0° so it continues parallel to the stem; earlier indices fan the other way.
- * n≥6: linear from −30° to +30° inclusive (evenly spaced along the 60° window).
+ * Single cubic **p0 → p3** with restrained outward bow (connective / atmospheric only — not semantic rail).
+ * Bow lies on the chord side **opposite** `bowOrigin` (typically the shared theme composition centre).
  */
-function branchFanOffsetsDeg(n: number): number[] {
-  if (n <= 0) return [];
-  if (n === 1) return [0];
-  if (n === 2) return [-15, 15];
-  if (n === 3) return [-24, -12, 0];
-  if (n === 4) return [-30, -15, 0, 15];
-  if (n === 5) return [-30, -15, 0, 15, 30];
-  return Array.from({ length: n }, (_, i) => -30 + (60 * i) / (n - 1));
+export function connectiveBowCubicPiece(p0: Point, p3: Point, bowOrigin: Point): CubicPiece {
+  const dx = p3.x - p0.x;
+  const dy = p3.y - p0.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-4) return colinearCubicPiece(p0, p3);
+  const amp = Math.min(
+    CONDUIT_CONNECTIVE_BOW_MAX_PX,
+    len * CONDUIT_CONNECTIVE_BOW_FRACTION_OF_CHORD,
+  );
+  const cross = dx * (bowOrigin.y - p0.y) - dy * (bowOrigin.x - p0.x);
+  const nx = cross > 0 ? dy / len : -dy / len;
+  const ny = cross > 0 ? -dx / len : dx / len;
+  const ux = dx / len;
+  const uy = dy / len;
+  const b = CONDUIT_CONNECTIVE_BOW_CONTROL_BLEND * amp;
+  return {
+    c1: { x: p0.x + ux * (len / 3) + nx * b, y: p0.y + uy * (len / 3) + ny * b },
+    c2: { x: p0.x + ux * ((2 * len) / 3) + nx * b, y: p0.y + uy * ((2 * len) / 3) + ny * b },
+    end: p3,
+  };
 }
 
-function buildStraightAreaForkFromTemplate(tpl: StraightLifeAreaTemplate, area: AreaData | undefined): AreaForkSpec {
-  const n = area?.branches.length ?? 0;
-  const trunkAttach = tpl.trunkAttach;
-  const hub = {
-    x: trunkAttach.x + Math.cos(tpl.limbStemDirRad) * tpl.limbStemLen,
-    y: trunkAttach.y + Math.sin(tpl.limbStemDirRad) * tpl.limbStemLen,
+/** SVG `d` for one bowed connective segment (`M` + single `C`). */
+export function connectiveBowPathD(p0: Point, p3: Point, bowOrigin: Point): string {
+  return pathFromStart(p0, [connectiveBowCubicPiece(p0, p3, bowOrigin)]);
+}
+
+function emptyForkSpec(): AreaForkSpec {
+  return {
+    trunkAttach: { x: 0, y: 0 },
+    limbTip: { x: 0, y: 0 },
+    limbPieces: [],
+    branches: [],
+    limbStrokeWidth: 1,
   };
-  const limbPiece = colinearCubicPiece(trunkAttach, hub);
-  const offsetsDeg = branchFanOffsetsDeg(n);
+}
+
+/**
+ * Build fork geometry from authored gateways: theme node at {@link AreaAnchors.gateway}, up to four
+ * hub branches at square-corner directions (90° apart on the diagonal frame; no trunk-direction stem).
+ */
+export function buildAreaForkFromAnchors(
+  areaId: string,
+  area: AreaData | undefined,
+): AreaForkSpec {
+  const straightId = areaId as StraightLifeAreaId;
+  if (!STRAIGHT_LIFE_AREA_IDS.includes(straightId)) return emptyForkSpec();
+  const anchors = resolveAreaAnchors(straightId);
+
+  const gateway = { ...anchors.gateway };
+  const trunkAttach = { ...gateway };
+  /** Degenerate cubic so `pathPointAtT(slots.limb, t)` stays on the gateway when the trunk bridge is omitted. */
+  const stemPiece = colinearCubicPiece(gateway, gateway);
+  const limbStrokeWidth = anchors.limbStrokeWidth;
+  const n = Math.min(4, area?.branches.length ?? 0);
+  const strokeW = 2.5 * CONDUIT_THREAD_STROKE_SCALE;
   const branches: BranchForkSpec[] = [];
-  /** Branches 3 & 4 → swap their stem attachment along the stem (0-based indices 2 and 3). */
-  const stemTForBranchIndex = (i: number) => {
-    const t = (i + 1) / (n + 1);
-    if (n >= 4 && i === 2) return (3 + 1) / (n + 1);
-    if (n >= 4 && i === 3) return (2 + 1) / (n + 1);
-    return t;
-  };
   for (let i = 0; i < n; i += 1) {
-    const stemT = stemTForBranchIndex(i);
-    const forkPoint = lerpPoint(trunkAttach, hub, stemT);
-    const ang = tpl.bisectorRad + (offsetsDeg[i]! * Math.PI) / 180;
-    const L = tpl.baseTipLen + i * tpl.tipLenPerIndex;
+    const ang = hubBranchAngleRad(i);
     const tip = {
-      x: forkPoint.x + Math.cos(ang) * L,
-      y: forkPoint.y + Math.sin(ang) * L,
+      x: gateway.x + Math.cos(ang) * THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
+      y: gateway.y + Math.sin(ang) * THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
     };
-    const strokeWidth = area?.branches[i]?.strokeWidth ?? 2.5;
     branches.push({
-      forkPoint,
+      forkPoint: { ...gateway },
       tip,
-      branchPieces: [colinearCubicPiece(forkPoint, tip)],
-      strokeWidth,
+      branchPieces: [connectiveBowCubicPiece(gateway, tip, THEME_STAR_CENTER)],
+      strokeWidth: strokeW,
     });
   }
+
   return {
     trunkAttach,
-    limbTip: hub,
-    limbPieces: [limbPiece],
-    limbStrokeWidth: tpl.limbStrokeWidth,
+    limbTip: gateway,
+    limbPieces: [stemPiece],
+    limbStrokeWidth,
     branches,
   };
 }
 
-const STRAIGHT_LIFE_AREA_IDS = ["finance", "work", "becoming", "people", "health"] as const;
-
-/**
- * Straight-line fork geometry: three trunk fork heights (lower / middle / top); one life-area stem fork→hub;
- * each branch forks along that stem at an even fraction, then fans within ±30° of `bisectorRad` (60° max total).
- */
-export function buildStraightForksRecord(areas: AreaData[]): Record<string, AreaForkSpec> {
+export function buildAreaForksRecord(areas: AreaData[]): Record<string, AreaForkSpec> {
   const byId = Object.fromEntries(areas.map((a) => [a.id, a] as const));
   return Object.fromEntries(
-    STRAIGHT_LIFE_AREA_IDS.map((id) => {
-      const tpl = STRAIGHT_LIFE_AREA_BY_ID[id];
-      return [id, buildStraightAreaForkFromTemplate(tpl, byId[id])] as const;
-    }),
-  ) as Record<string, AreaForkSpec>;
+    STRAIGHT_LIFE_AREA_IDS.map((id) => [id, buildAreaForkFromAnchors(id, byId[id])] as const),
+  );
+}
+
+/** @deprecated Second argument is ignored (territorial negotiation removed). */
+export type BuildStraightForksOptions = {
+  skipTerritorialNegotiation?: boolean;
+};
+
+/** @deprecated Use {@link buildAreaForksRecord} */
+export function buildStraightForksRecord(
+  areas: AreaData[],
+  _options?: BuildStraightForksOptions,
+): Record<string, AreaForkSpec> {
+  return buildAreaForksRecord(areas);
 }

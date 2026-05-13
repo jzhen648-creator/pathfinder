@@ -1,5 +1,4 @@
 import { getServerSession } from "next-auth";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,7 +20,7 @@ type FinanceNode = {
 
 async function getReflection(nodes: FinanceNode[]) {
   if (nodes.length === 0) return "";
-  const response = await fetch(`${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/api/life-map/finance-reflection`, {
+  const response = await fetch(`${process.env.NEXTAUTH_URL ?? "http://localhost:3001"}/api/finance/reflection`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nodes }),
@@ -111,9 +110,6 @@ export default async function FinanceTrackerPage() {
                       : ""}
                   </p>
                 ) : null}
-                <Link href={`/?node=${node.id}`} className="mt-2 inline-block text-xs text-[#34D399] underline">
-                  View on life map
-                </Link>
               </article>
             ))}
             {nodes.length === 0 ? <p className="text-sm text-zinc-500">No finance story nodes yet.</p> : null}

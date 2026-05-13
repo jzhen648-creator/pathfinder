@@ -49,6 +49,7 @@ const LIMB_SHORT: Record<LimbId, string> = {
   becoming: "Becoming",
   finance: "Money",
   people: "People",
+  pleasures: "Pleasures",
 };
 
 function limbTextColors(limbId: LimbId, isDark: boolean): { sub: string; text: string } {

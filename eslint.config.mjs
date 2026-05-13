@@ -27,12 +27,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  {
-    files: ["**/pathfinder-home.tsx"],
-    rules: {
-      "@typescript-eslint/no-unused-vars": "off",
-    },
-  },
 ]);
 
 export default eslintConfig;

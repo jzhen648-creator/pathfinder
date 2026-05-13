@@ -14,7 +14,7 @@ export function TreeElementGuideTag({
       textAnchor={anchor}
       x={x}
       y={y}
-      fontSize={7}
+      fontSize={9}
       fontFamily="ui-monospace, monospace"
       fill="#F5F5F4"
       fillOpacity={0.94}
