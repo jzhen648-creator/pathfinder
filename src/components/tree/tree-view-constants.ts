@@ -225,6 +225,13 @@ export const TREE_THREAD_VISIBLE_MOMENTS = 5;
 export const TREE_GOAL_MAX_CHILDREN_PER_NODE = 3;
 export const TREE_GOAL_RENDER_MAX_DEPTH = 1;
 
+/** Evolved (forked) child offset along hub → parent ray, beyond the parent hex. */
+export const TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX = 112;
+export const TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX = 44;
+export const TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX = 30;
+export const TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX = 14;
+export const TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX = 6;
+
 export const BRANCH_T_PAST_LAST_MOMENT = 0.038;
 
 /** Branch-slot icons on roadmap goals (design grid scales with tree). */

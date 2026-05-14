@@ -41,6 +41,11 @@ import { roadmapGoalShowsProgressPulse } from "./tree-view-badges";
 import type { PanelState } from "./tree-view-types";
 import {
   snapTreeSvgScalar,
+  TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX,
+  TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX,
+  TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX,
+  TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX,
+  TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX,
   TREE_GOAL_HEX_VERTEX_RADIUS_PX,
   TREE_GOAL_MAX_CHILDREN_PER_NODE,
   TREE_GOAL_RENDER_MAX_DEPTH,
@@ -496,8 +501,12 @@ export function renderGoalsSubtree(
       const perpX = -uy;
       const perpY = ux;
       const side = ci % 2 === 0 ? 1 : -1;
-      const along = 62 + ci * 24 + depth * 14 + lenJitter;
-      const lateral = side * (10 + ci * 5);
+      const along =
+        TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX +
+        ci * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX +
+        depth * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX +
+        lenJitter;
+      const lateral = side * (TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX + ci * TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX);
       cpos = {
         x: snapTreeSvgScalar(x + ux * along + perpX * lateral),
         y: snapTreeSvgScalar(y + uy * along + perpY * lateral),
