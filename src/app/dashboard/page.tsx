@@ -54,7 +54,7 @@ export default async function DashboardPage() {
                 href="/tree"
                 className="rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200 transition hover:bg-cyan-400/20"
               >
-                Back to tree
+                Open life tree
               </Link>
               <Link
                 href="/next-steps"

@@ -23,7 +23,7 @@ import { getLifeArea } from "@/lib/life-areas";
 import { themePanelCopy } from "@/lib/theme-catalog";
 import { buildThemeSnapshot } from "@/lib/theme-snapshot";
 import type { TreeGoalNode } from "./tree-types";
-import type { TreePanelProps } from "./tree-view-types";
+import type { TreePanelProps, EvolveGoalCommitBody } from "./tree-view-types";
 
 function goalAchievedAfterCompletingMilestone(
   milestones: {
@@ -92,11 +92,6 @@ function hubGoalStageSummary(goal: TreeGoalNode): {
   return { done, total, subtaskDone, subtaskTotal, progressPct, usesStages: total > 0 };
 }
 
-function defaultEvolutionTitle(goalTitle: string): string {
-  const t = goalTitle.trim();
-  return t ? `Next: ${t}` : "Next chapter";
-}
-
 export function TreePanel({
   panel,
   areas,
@@ -111,7 +106,8 @@ export function TreePanel({
   onAppendCanonicalTreeMilestone,
   onSetMilestoneCompletion,
   onNavigateToGoal,
-  onContinueGoal,
+  onProposeEvolveGoal,
+  onCommitEvolveGoal,
 }: TreePanelProps) {
   const [goalDeleteBusy, setGoalDeleteBusy] = useState(false);
   const [goalDeleteError, setGoalDeleteError] = useState<string | null>(null);
@@ -129,9 +125,13 @@ export function TreePanel({
   const [suggestMilestonesLoading, setSuggestMilestonesLoading] = useState(false);
   const [suggestedMilestoneTitles, setSuggestedMilestoneTitles] = useState<string[]>([]);
   const [continueGoalOpen, setContinueGoalOpen] = useState(false);
-  const [continueGoalTitle, setContinueGoalTitle] = useState("");
   const [continueGoalBusy, setContinueGoalBusy] = useState(false);
   const [continueGoalError, setContinueGoalError] = useState<string | null>(null);
+  const [evolveWhatsDifferent, setEvolveWhatsDifferent] = useState("");
+  const [evolveCorrection, setEvolveCorrection] = useState("");
+  const [evolveProposal, setEvolveProposal] = useState<EvolveGoalCommitBody["proposal"] | null>(null);
+  const [evolveUsedFallback, setEvolveUsedFallback] = useState(false);
+  const [evolvePhase, setEvolvePhase] = useState<"draft" | "review">("draft");
   const [goalEditOpen, setGoalEditOpen] = useState(false);
   const [goalEditTitle, setGoalEditTitle] = useState("");
   const [goalEditBusy, setGoalEditBusy] = useState(false);
@@ -154,9 +154,13 @@ export function TreePanel({
     setSuggestMilestonesLoading(false);
     setSuggestedMilestoneTitles([]);
     setContinueGoalOpen(false);
-    setContinueGoalTitle("");
     setContinueGoalBusy(false);
     setContinueGoalError(null);
+    setEvolveWhatsDifferent("");
+    setEvolveCorrection("");
+    setEvolveProposal(null);
+    setEvolveUsedFallback(false);
+    setEvolvePhase("draft");
     setGoalEditOpen(false);
     setGoalEditTitle("");
     setGoalEditBusy(false);
@@ -192,9 +196,13 @@ export function TreePanel({
     [onAppendCanonicalTreeMilestone],
   );
 
-  const openEvolveFlow = useCallback((goalTitle: string) => {
+  const openEvolveFlow = useCallback(() => {
     setContinueGoalError(null);
-    setContinueGoalTitle(defaultEvolutionTitle(goalTitle));
+    setEvolveWhatsDifferent("");
+    setEvolveCorrection("");
+    setEvolveProposal(null);
+    setEvolveUsedFallback(false);
+    setEvolvePhase("draft");
     setContinueGoalOpen(true);
     setBloomCelebrateGoalId(null);
   }, []);
@@ -1427,7 +1435,7 @@ export function TreePanel({
               <button
                 type="button"
                 disabled={continueGoalBusy}
-                onClick={() => openEvolveFlow(goal.title)}
+                onClick={() => openEvolveFlow()}
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
@@ -2058,7 +2066,7 @@ export function TreePanel({
             <button
               type="button"
               disabled={continueGoalBusy}
-              onClick={() => openEvolveFlow(goal.title)}
+              onClick={() => openEvolveFlow()}
               style={{
                 fontSize: 14,
                 fontWeight: 600,
@@ -2135,7 +2143,9 @@ export function TreePanel({
               role="dialog"
               aria-labelledby="continue-goal-dialog-title"
               style={{
-                width: "min(400px, 100%)",
+                width: "min(440px, 100%)",
+                maxHeight: "min(90vh, 720px)",
+                overflowY: "auto",
                 borderRadius: 12,
                 border: "1px solid var(--color-border-secondary)",
                 background: "var(--color-background-primary)",
@@ -2151,58 +2161,171 @@ export function TreePanel({
                 Evolve this goal
               </div>
               <p style={{ fontSize: 13, color: "var(--color-text-tertiary)", margin: "0 0 14px", lineHeight: 1.45, opacity: 0.92 }}>
-                Starts the next chapter on this hub. The completed goal stays on the map as achieved.
+                {evolvePhase === "draft"
+                  ? "Describe what is different in the next chapter. We will propose a title, deadline, and milestones before anything is saved."
+                  : "Edit the proposal, or say what is off and revise before committing."}
               </p>
-              <label style={{ display: "grid", gap: 6, marginBottom: 14 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
-                  Title
-                </span>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  autoFocus
-                  value={continueGoalTitle}
-                  disabled={continueGoalBusy}
-                  onChange={(e) => {
-                    setContinueGoalTitle(e.target.value);
-                    if (continueGoalError) setContinueGoalError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const title = formatUserInput(continueGoalTitle);
-                      if (!title || continueGoalBusy) return;
-                      void (async () => {
-                        setContinueGoalBusy(true);
-                        setContinueGoalError(null);
-                        const result = await onContinueGoal(goal.id, { title });
-                        setContinueGoalBusy(false);
-                        if (!result.ok) {
-                          setContinueGoalError(result.error ?? "Could not create goal.");
-                          return;
+              {evolvePhase === "draft" ? (
+                <label style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                    What is different now?
+                  </span>
+                  <textarea
+                    autoFocus
+                    rows={4}
+                    value={evolveWhatsDifferent}
+                    disabled={continueGoalBusy}
+                    onChange={(e) => {
+                      setEvolveWhatsDifferent(e.target.value);
+                      if (continueGoalError) setContinueGoalError(null);
+                    }}
+                    placeholder="e.g. I finished the course — now I want to build a portfolio project, not study more theory."
+                    style={{
+                      padding: "9px 11px",
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border-secondary)",
+                      background: "var(--color-background-primary)",
+                      color: "var(--color-text-primary)",
+                      fontSize: 15,
+                      resize: "vertical",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                </label>
+              ) : evolveProposal ? (
+                <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
+                  {evolveUsedFallback ? (
+                    <p style={{ fontSize: 12, color: "var(--color-text-tertiary)", margin: 0, opacity: 0.9 }}>
+                      Offline template — edit freely or revise with a correction below.
+                    </p>
+                  ) : null}
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>Title</span>
+                    <input
+                      type="text"
+                      value={evolveProposal.title}
+                      disabled={continueGoalBusy}
+                      onChange={(e) =>
+                        setEvolveProposal((p) => (p ? { ...p, title: e.target.value } : p))
+                      }
+                      style={{
+                        padding: "9px 11px",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-border-secondary)",
+                        background: "var(--color-background-primary)",
+                        color: "var(--color-text-primary)",
+                        fontSize: 16,
+                      }}
+                    />
+                  </label>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                      Description
+                    </span>
+                    <textarea
+                      rows={3}
+                      value={evolveProposal.description}
+                      disabled={continueGoalBusy}
+                      onChange={(e) =>
+                        setEvolveProposal((p) => (p ? { ...p, description: e.target.value } : p))
+                      }
+                      style={{
+                        padding: "9px 11px",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-border-secondary)",
+                        background: "var(--color-background-primary)",
+                        color: "var(--color-text-primary)",
+                        fontSize: 15,
+                        resize: "vertical",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </label>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                      Target date
+                    </span>
+                    <input
+                      type="date"
+                      value={evolveProposal.targetDate ?? ""}
+                      disabled={continueGoalBusy}
+                      onChange={(e) =>
+                        setEvolveProposal((p) =>
+                          p ? { ...p, targetDate: e.target.value.trim() || null } : p,
+                        )
+                      }
+                      style={{
+                        padding: "9px 11px",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-border-secondary)",
+                        background: "var(--color-background-primary)",
+                        color: "var(--color-text-primary)",
+                        fontSize: 15,
+                      }}
+                    />
+                  </label>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                      Milestones
+                    </span>
+                    {evolveProposal.milestoneTitles.map((mt, mi) => (
+                      <input
+                        key={`evolve-ms-${mi}`}
+                        type="text"
+                        value={mt}
+                        disabled={continueGoalBusy}
+                        onChange={(e) =>
+                          setEvolveProposal((p) => {
+                            if (!p) return p;
+                            const next = [...p.milestoneTitles];
+                            next[mi] = e.target.value;
+                            return { ...p, milestoneTitles: next };
+                          })
                         }
-                        setContinueGoalOpen(false);
-                        setContinueGoalTitle("");
-                        if (result.newGoalId) onNavigateToGoal(result.newGoalId);
-                      })();
-                    }
-                  }}
-                  style={{
-                    padding: "9px 11px",
-                    borderRadius: 8,
-                    border: "1px solid var(--color-border-secondary)",
-                    background: "var(--color-background-primary)",
-                    color: "var(--color-text-primary)",
-                    fontSize: 16,
-                  }}
-                />
-              </label>
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: "1px solid var(--color-border-secondary)",
+                          background: "var(--color-background-primary)",
+                          color: "var(--color-text-primary)",
+                          fontSize: 14,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                      Not quite — actually…
+                    </span>
+                    <textarea
+                      rows={2}
+                      value={evolveCorrection}
+                      disabled={continueGoalBusy}
+                      onChange={(e) => {
+                        setEvolveCorrection(e.target.value);
+                        if (continueGoalError) setContinueGoalError(null);
+                      }}
+                      placeholder="e.g. Less about portfolio — more about freelancing first clients."
+                      style={{
+                        padding: "9px 11px",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-border-secondary)",
+                        background: "var(--color-background-primary)",
+                        color: "var(--color-text-primary)",
+                        fontSize: 14,
+                        resize: "vertical",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </label>
+                </div>
+              ) : null}
               {continueGoalError ? (
                 <p style={{ color: "var(--color-text-danger, #f87171)", fontSize: 14, margin: "0 0 12px" }}>
                   {continueGoalError}
                 </p>
               ) : null}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: 10 }}>
                 <button
                   type="button"
                   disabled={continueGoalBusy}
@@ -2223,23 +2346,105 @@ export function TreePanel({
                 >
                   Cancel
                 </button>
+                {evolvePhase === "review" ? (
+                  <button
+                    type="button"
+                    disabled={continueGoalBusy || !formatUserInput(evolveCorrection)}
+                    onClick={() => {
+                      const correction = formatUserInput(evolveCorrection);
+                      if (!correction || !evolveProposal || continueGoalBusy) return;
+                      void (async () => {
+                        setContinueGoalBusy(true);
+                        setContinueGoalError(null);
+                        const result = await onProposeEvolveGoal(goal.id, {
+                          whatsDifferent: evolveWhatsDifferent.trim() || undefined,
+                          correction,
+                          previousProposal: evolveProposal,
+                        });
+                        setContinueGoalBusy(false);
+                        if (!result.ok || !result.proposal) {
+                          setContinueGoalError(result.error ?? "Could not revise proposal.");
+                          return;
+                        }
+                        setEvolveProposal(result.proposal);
+                        setEvolveUsedFallback(Boolean(result.usedFallback));
+                        setEvolveCorrection("");
+                      })();
+                    }}
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border-secondary)",
+                      background: "transparent",
+                      color: "var(--color-text-secondary)",
+                      cursor:
+                        continueGoalBusy || !formatUserInput(evolveCorrection) ? "wait" : "pointer",
+                      opacity: continueGoalBusy || !formatUserInput(evolveCorrection) ? 0.65 : 1,
+                    }}
+                  >
+                    {continueGoalBusy ? "Revising…" : "Revise proposal"}
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  disabled={continueGoalBusy || !formatUserInput(continueGoalTitle)}
+                  disabled={
+                    continueGoalBusy ||
+                    (evolvePhase === "review"
+                      ? !evolveProposal || !formatUserInput(evolveProposal.title)
+                      : false)
+                  }
                   onClick={() => {
-                    const title = formatUserInput(continueGoalTitle);
-                    if (!title || continueGoalBusy) return;
+                    if (continueGoalBusy) return;
+                    if (evolvePhase === "draft") {
+                      void (async () => {
+                        setContinueGoalBusy(true);
+                        setContinueGoalError(null);
+                        const result = await onProposeEvolveGoal(goal.id, {
+                          whatsDifferent: evolveWhatsDifferent.trim() || undefined,
+                        });
+                        setContinueGoalBusy(false);
+                        if (!result.ok || !result.proposal) {
+                          setContinueGoalError(result.error ?? "Could not propose next chapter.");
+                          return;
+                        }
+                        setEvolveProposal(result.proposal);
+                        setEvolveUsedFallback(Boolean(result.usedFallback));
+                        setEvolvePhase("review");
+                      })();
+                      return;
+                    }
+                    if (!evolveProposal) return;
+                    const title = formatUserInput(evolveProposal.title);
+                    if (!title) return;
+                    const proposal = {
+                      ...evolveProposal,
+                      title,
+                      description: evolveProposal.description.trim(),
+                      milestoneTitles: evolveProposal.milestoneTitles
+                        .map((t) => t.trim())
+                        .filter(Boolean),
+                    };
                     void (async () => {
                       setContinueGoalBusy(true);
                       setContinueGoalError(null);
-                      const result = await onContinueGoal(goal.id, { title });
+                      const result = await onCommitEvolveGoal(goal.id, {
+                        title,
+                        description: proposal.description,
+                        deadline: proposal.targetDate ?? undefined,
+                        proposal,
+                      });
                       setContinueGoalBusy(false);
                       if (!result.ok) {
                         setContinueGoalError(result.error ?? "Could not create goal.");
                         return;
                       }
                       setContinueGoalOpen(false);
-                      setContinueGoalTitle("");
+                      setEvolveProposal(null);
+                      setEvolveWhatsDifferent("");
+                      setEvolveCorrection("");
+                      setEvolvePhase("draft");
                       if (result.newGoalId) onNavigateToGoal(result.newGoalId);
                     })();
                   }}
@@ -2251,12 +2456,17 @@ export function TreePanel({
                     border: `1px solid ${area.color}`,
                     background: area.color,
                     color: "#0a0a0c",
-                    cursor:
-                      continueGoalBusy || !formatUserInput(continueGoalTitle) ? "wait" : "pointer",
-                    opacity: continueGoalBusy || !formatUserInput(continueGoalTitle) ? 0.65 : 1,
+                    cursor: continueGoalBusy ? "wait" : "pointer",
+                    opacity: continueGoalBusy ? 0.65 : 1,
                   }}
                 >
-                  {continueGoalBusy ? "Creating…" : "Create goal"}
+                  {continueGoalBusy
+                    ? evolvePhase === "draft"
+                      ? "Proposing…"
+                      : "Creating…"
+                    : evolvePhase === "draft"
+                      ? "Propose next chapter"
+                      : "Create goal"}
                 </button>
               </div>
             </div>

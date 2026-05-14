@@ -157,6 +157,9 @@ export const LIFE_AREA_SYNTHETIC_STEM_LENGTH_PX = 60;
  */
 export const LIFE_AREA_GATEWAY_OUTWARD_CLUSTER_SHIFT_PX = 150;
 
+/** Gap (px) before hub / theme medallions where domain-cluster conduits terminate. */
+export const DOMAIN_CLUSTER_ICON_STROKE_INSET_PX = 34;
+
 /** Truncate rendered conduit / catalog chord — goals occupy space around the hub, not a long axial tail. */
 export const DOMAIN_CLUSTER_STROKE_TIP_CAP = 0.58;
 /**

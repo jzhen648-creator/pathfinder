@@ -186,6 +186,7 @@ export function renderGoalsSubtree(
   /** Viewport scale / baseline — biases finest hairlines only; orbitals stay visible at all zooms. */
   zoomRatio = 2.65,
   renderQuality: TreeRenderQualityFactors,
+  domainHubPt: { x: number; y: number } | null = null,
 ) {
   const x = snapTreeSvgScalar(pos.x);
   const y = snapTreeSvgScalar(pos.y);
@@ -484,14 +485,32 @@ export function renderGoalsSubtree(
       h ^= c.id.charCodeAt(k)!;
       h = Math.imul(h, 16777619);
     }
-    const angJitter = (((h >>> 0) % 19) - 9) * 0.034;
     const lenJitter = (((h >>> 9) % 11) - 5) * 0.95;
-    const ang = (ci / Math.max(1, n)) * Math.PI * 2 - Math.PI / 2 + angJitter + depth * 0.09;
-    const len = 54 + depth * 12 + lenJitter;
-    const cpos = {
-      x: snapTreeSvgScalar(x + Math.cos(ang) * len),
-      y: snapTreeSvgScalar(y + Math.sin(ang) * len),
-    };
+    let cpos: { x: number; y: number };
+    if (domainHubPt && c.parentGoalId) {
+      const dx = x - domainHubPt.x;
+      const dy = y - domainHubPt.y;
+      const rayLen = Math.hypot(dx, dy) || 1;
+      const ux = dx / rayLen;
+      const uy = dy / rayLen;
+      const perpX = -uy;
+      const perpY = ux;
+      const side = ci % 2 === 0 ? 1 : -1;
+      const along = 62 + ci * 24 + depth * 14 + lenJitter;
+      const lateral = side * (10 + ci * 5);
+      cpos = {
+        x: snapTreeSvgScalar(x + ux * along + perpX * lateral),
+        y: snapTreeSvgScalar(y + uy * along + perpY * lateral),
+      };
+    } else {
+      const angJitter = (((h >>> 0) % 19) - 9) * 0.034;
+      const ang = (ci / Math.max(1, n)) * Math.PI * 2 - Math.PI / 2 + angJitter + depth * 0.09;
+      const len = 54 + depth * 12 + lenJitter;
+      cpos = {
+        x: snapTreeSvgScalar(x + Math.cos(ang) * len),
+        y: snapTreeSvgScalar(y + Math.sin(ang) * len),
+      };
+    }
     return (
       <g key={c.id}>
         <path
@@ -518,6 +537,7 @@ export function renderGoalsSubtree(
           0,
           zoomRatio,
           renderQuality,
+          domainHubPt,
         )}
       </g>
     );

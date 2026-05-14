@@ -201,12 +201,13 @@ export function TreeSVG({
   });
 
   const initialPanScale = VIEWBOX_WIDTH / 1200;
-  const baselineZoomScale = 1.28 * initialPanScale;
+  const baselineZoomScale = 0.88 * initialPanScale;
   const [transform, setTransform] = useState({
-    x: -360 * initialPanScale,
-    y: 88 * (VIEWBOX_HEIGHT / 1100),
+    x: VIEWBOX_WIDTH / 2 - baselineZoomScale * (VIEWBOX_WIDTH * 0.5),
+    y: VIEWBOX_HEIGHT / 2 - baselineZoomScale * (VIEWBOX_HEIGHT * 0.42),
     scale: baselineZoomScale,
   });
+  const didInitialFitRef = useRef(false);
   const zoomRatio = transform.scale / baselineZoomScale;
   const treeRenderQuality = resolveTreeRenderQualityFactors(renderQualityDevPreset);
   const showMarksByZoom = zoomRatio >= 1.5;
@@ -443,6 +444,43 @@ export function TreeSVG({
       ),
     [areasRenderOrder, resolvedForks],
   );
+
+  useEffect(() => {
+    if (didInitialFitRef.current || areas.length === 0) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const cw = svg.clientWidth;
+    const ch = svg.clientHeight;
+    if (cw < 40 || ch < 40) return;
+
+    const hubs: { x: number; y: number }[] = [];
+    for (const area of areas) {
+      const spec = resolvedForks[area.id];
+      if (!spec) continue;
+      const nudge = lifeAreaFloatNudgePx[area.id] ?? { x: 0, y: 0 };
+      const p = isHubGatewayLayout(spec) ? spec.limbTip : spec.trunkAttach;
+      hubs.push({ x: p.x + nudge.x, y: p.y + nudge.y });
+    }
+    if (hubs.length === 0) return;
+
+    const pad = 150;
+    const minX = Math.min(...hubs.map((h) => h.x)) - pad;
+    const maxX = Math.max(...hubs.map((h) => h.x)) + pad;
+    const minY = Math.min(...hubs.map((h) => h.y)) - pad;
+    const maxY = Math.max(...hubs.map((h) => h.y)) + pad;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const fitScale = Math.min(0.9 * viewWidth / contentW, 0.9 * viewHeight / contentH);
+    const s = Math.min(3, Math.max(0.28, fitScale));
+    setTransform({
+      scale: s,
+      x: viewWidth / 2 - s * cx,
+      y: viewHeight / 2 - s * cy,
+    });
+    didInitialFitRef.current = true;
+  }, [areas, lifeAreaFloatNudgePx, resolvedForks, viewHeight, viewWidth]);
 
   return (
     <div style={{ width: "100%", height: "calc(100vh - 48px)", overflow: "hidden", display: "block", position: "relative", background: TREE_MAP_SURFACE_FILL }}>
@@ -1747,7 +1785,7 @@ export function TreeSVG({
                           {(() => {
                             const rawTitle = thread.type.trim() || "Domain";
                             const domainTitle =
-                              rawTitle.length > 18 ? `${rawTitle.slice(0, 16)}…` : rawTitle;
+                              rawTitle.length > 28 ? `${rawTitle.slice(0, 26)}…` : rawTitle;
                             const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
                             const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
                             const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
@@ -1825,6 +1863,15 @@ export function TreeSVG({
                   const goalsOnThread = thread.goals;
 
                   const kFork = sortedBranchIdx.indexOf(idx);
+                  const threadDcForGoals = shouldDomainClusterThread(area.id, thread);
+                  const domainHubPt = threadDcForGoals
+                    ? domainClusterHubPointFromCatalog(
+                        threadCatalogFull,
+                        kFork,
+                        sortedBranchIdx.length,
+                        dcGatewaySpreadNormal,
+                      )
+                    : null;
                   const depthVit = branchIndexDepthRenderingMul(kFork, sortedBranchIdx.length);
                   const vitMatDecor = conduitVitalityMaterialFactors(undefined);
                   const occMatDecor = canopyOccupancyRhythmMaterialMul(undefined);
@@ -1890,7 +1937,7 @@ export function TreeSVG({
                             /** Flip normal by branch index so neighbors sit on opposite sides. */
                             const side = labelSlotIdx % 2 === 0 ? 1 : -1;
                             const raw = thread.type.trim() || "Branch";
-                            const label = raw.length > 22 ? `${raw.slice(0, 20)}…` : raw;
+                            const label = raw.length > 34 ? `${raw.slice(0, 32)}…` : raw;
 
                             const pt = pathPointAtT(labelPath, ltClamped);
                             const t0 = pathPointAtT(labelPath, Math.max(0, ltClamped - dt));
@@ -2095,6 +2142,7 @@ export function TreeSVG({
                                   hexRotationRad,
                                   zoomRatio,
                                   treeRenderQuality,
+                                  domainHubPt,
                                 )}
                               </g>
                             );

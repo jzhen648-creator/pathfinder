@@ -69,11 +69,36 @@ export type TreePanelProps = {
   ) => Promise<{ ok: boolean; error?: string }>;
   /** Open another goal in this panel (same hub or elsewhere on the tree). */
   onNavigateToGoal: (goalId: string) => void;
-  /** Goal evolution: create a successor goal linked via `parentGoalId` (POST `/api/goals/[id]/fork`). */
-  onContinueGoal: (
+  /** Goal evolution: propose → revise → commit (POST `/api/goals/[id]/fork/propose` + `/fork`). */
+  onProposeEvolveGoal: (
     goalId: string,
-    body: { title: string },
+    body: {
+      whatsDifferent?: string;
+      correction?: string;
+      previousProposal?: EvolveGoalCommitBody["proposal"];
+    },
+  ) => Promise<{
+    ok: boolean;
+    error?: string;
+    proposal?: EvolveGoalCommitBody["proposal"];
+    usedFallback?: boolean;
+  }>;
+  onCommitEvolveGoal: (
+    goalId: string,
+    body: EvolveGoalCommitBody,
   ) => Promise<{ ok: boolean; error?: string; newGoalId?: string }>;
+};
+
+export type EvolveGoalCommitBody = {
+  title: string;
+  description?: string;
+  deadline?: string;
+  proposal?: {
+    title: string;
+    description: string;
+    targetDate: string | null;
+    milestoneTitles: string[];
+  };
 };
 
 export type ViewMode = "tree" | "timeline" | "branch";

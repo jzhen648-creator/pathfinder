@@ -241,8 +241,65 @@ export function TreeView() {
     window.setTimeout(() => setTreeToast(null), 2400);
   }, []);
 
-  const handleContinueGoal = useCallback(
-    async (goalId: string, body: { title: string }) => {
+  const handleProposeEvolveGoal = useCallback(
+    async (
+      goalId: string,
+      body: {
+        whatsDifferent?: string;
+        correction?: string;
+        previousProposal?: {
+          title: string;
+          description: string;
+          targetDate: string | null;
+          milestoneTitles: string[];
+        };
+      },
+    ) => {
+      try {
+        const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/fork/propose`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          proposal?: {
+            title: string;
+            description: string;
+            targetDate: string | null;
+            milestoneTitles: string[];
+          };
+          usedFallback?: boolean;
+        };
+        if (!res.ok) {
+          return { ok: false, error: String(data.error ?? `Could not propose evolve (${res.status})`) };
+        }
+        if (!data.proposal) {
+          return { ok: false, error: "No proposal returned." };
+        }
+        return { ok: true, proposal: data.proposal, usedFallback: data.usedFallback };
+      } catch {
+        return { ok: false, error: "Network error while proposing evolve." };
+      }
+    },
+    [],
+  );
+
+  const handleCommitEvolveGoal = useCallback(
+    async (
+      goalId: string,
+      body: {
+        title: string;
+        description?: string;
+        deadline?: string;
+        proposal?: {
+          title: string;
+          description: string;
+          targetDate: string | null;
+          milestoneTitles: string[];
+        };
+      },
+    ) => {
       try {
         const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/fork`, {
           method: "POST",
@@ -251,7 +308,7 @@ export function TreeView() {
         });
         const data = (await res.json().catch(() => ({}))) as { error?: string; goal?: { id?: string } };
         if (!res.ok) {
-          return { ok: false, error: String(data.error ?? `Could not continue goal (${res.status})`) };
+          return { ok: false, error: String(data.error ?? `Could not evolve goal (${res.status})`) };
         }
         const newGoalId = typeof data.goal?.id === "string" ? data.goal.id : undefined;
         window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
@@ -259,10 +316,10 @@ export function TreeView() {
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
         });
-        showTreeToast("Related goal created.");
+        showTreeToast("Next chapter created.");
         return { ok: true, newGoalId };
       } catch {
-        return { ok: false, error: "Network error while continuing goal." };
+        return { ok: false, error: "Network error while evolving goal." };
       }
     },
     [loadData, showTreeToast],
@@ -571,7 +628,8 @@ export function TreeView() {
         }}
         onAddGoal={handleAddGoalOnHub}
         onNavigateToGoal={handleNavigateToGoal}
-        onContinueGoal={handleContinueGoal}
+        onProposeEvolveGoal={handleProposeEvolveGoal}
+        onCommitEvolveGoal={handleCommitEvolveGoal}
       />
     );
 
@@ -793,7 +851,9 @@ export function TreeView() {
                 >
                   {mockUsers.map((user) => (
                     <option key={user.id} value={user.id} title={user.email}>
-                      {user.name}
+                      {user.email.includes("fulltree@")
+                        ? `${user.name} (demo marks)`
+                        : user.name}
                     </option>
                   ))}
                 </select>

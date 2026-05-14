@@ -538,7 +538,7 @@ export function TreeGoalNodeSvg({
         letterSpacing: "0.04em",
       }}
     >
-      {truncateGoalTitle(title, 30)}
+      {truncateGoalTitle(title, 44)}
     </text>
   ) : null;
 

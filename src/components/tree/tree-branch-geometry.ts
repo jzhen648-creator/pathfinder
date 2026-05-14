@@ -22,6 +22,7 @@ import {
   DOMAIN_CLUSTER_HUB_GATEWAY_ARC_SPREAD_PX,
   DOMAIN_CLUSTER_HUB_SLOT_RADIAL_OFFSETS_PX_N4,
   DOMAIN_CLUSTER_HUB_SLOT_RADIAL_SPREAD_PX,
+  DOMAIN_CLUSTER_ICON_STROKE_INSET_PX,
   DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_FLOOR_MUL,
   DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_PER_EXTRA,
   DOMAIN_CLUSTER_STROKE_TIP_CAP,
@@ -669,6 +670,16 @@ export function domainClusterHubAnchorFromCatalog(
     }
   }
   return { x, y };
+}
+
+/** Nudge a point away from `anchor` along the `anchor → target` ray (for icon stroke insets). */
+function retreatFromAnchorToward(anchor: Point, target: Point, distPx: number): Point {
+  const dx = target.x - anchor.x;
+  const dy = target.y - anchor.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-4 || distPx <= 0) return { ...anchor };
+  const step = Math.min(distPx, Math.max(0, len - 3));
+  return { x: anchor.x + (dx / len) * step, y: anchor.y + (dy / len) * step };
 }
 
 /**
@@ -1431,7 +1442,7 @@ export function buildRenderedBranchMainPath(
   if (thread.moments.length === 0) {
     const forkPoint = pathPointAtT(catalogFullPath, 0);
     const tipClipT = domainCluster ? DOMAIN_CLUSTER_STROKE_TIP_CAP : strokeTipT;
-    const hubPoint = domainCluster
+    const hubCenter = domainCluster
       ? domainClusterHubAnchorFromCatalog(
           catalogFullPath,
           threadIndexAlongLimb,
@@ -1439,12 +1450,20 @@ export function buildRenderedBranchMainPath(
           domainClusterGatewaySpreadNormal,
         )
       : pathPointAtT(catalogFullPath, strokeTipT);
+    const hubPoint =
+      domainCluster && forkPoint
+        ? retreatFromAnchorToward(hubCenter, forkPoint, DOMAIN_CLUSTER_ICON_STROKE_INSET_PX)
+        : hubCenter;
+    const forkStrokeStart =
+      domainCluster && forkPoint
+        ? retreatFromAnchorToward(forkPoint, hubCenter, DOMAIN_CLUSTER_ICON_STROKE_INSET_PX * 0.55)
+        : forkPoint;
     /** Domain cluster: conduit bends fork→hub; hub is fork-radial, not a high-`t` spline sample. */
     const tipPoint = pathPointAtT(catalogFullPath, tipClipT);
 
     let strokePath: string;
     if (domainCluster) {
-      strokePath = threadSmoothChainAsCubicsFromKnots([forkPoint, hubPoint], {
+      strokePath = threadSmoothChainAsCubicsFromKnots([forkStrokeStart, hubPoint], {
         catalogPath: catalogFullPath,
         tipCatalogT: DOMAIN_CLUSTER_STROKE_TIP_CAP,
         catalogTangentBlend: 0.63,
