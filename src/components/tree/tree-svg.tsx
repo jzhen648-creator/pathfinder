@@ -81,6 +81,7 @@ import {
 } from "./tree-branch-geometry";
 import { shouldDomainClusterThread } from "./tree-renderer-grammar";
 import { clientToWorldSvg, storedTreePointToClientSvg } from "./tree-view-coords";
+import { goalInSubtree, threadContainsGoal } from "./tree-view-goal-queries";
 import {
   hasAreaOverride,
   hasCrossedLayoutDragThreshold,
@@ -1740,6 +1741,10 @@ export function TreeSVG({
                               dcGatewaySpreadNormal,
                             );
                             const flowSegments = domainClusterGoalFlowSegments(domainHubPt, gp, g);
+                            const familyGoalSelected =
+                              panel.type === "goal" &&
+                              panel.area.id === area.id &&
+                              goalInSubtree(g, panel.goal.id);
                             return flowSegments.map((seg, si) => {
                               const isEvolvedLeg = si > 0;
                               const p0 = {
@@ -1758,9 +1763,24 @@ export function TreeSVG({
                                   stroke={area.color}
                                   strokeWidth={Math.max(
                                     1.05,
-                                    coreStrokeW * (isEvolvedLeg ? 0.42 : 0.36),
+                                    coreStrokeW *
+                                      (familyGoalSelected
+                                        ? isEvolvedLeg
+                                          ? 0.58
+                                          : 0.48
+                                        : isEvolvedLeg
+                                          ? 0.42
+                                          : 0.36),
                                   )}
-                                  strokeOpacity={isEvolvedLeg ? 0.22 : 0.13}
+                                  strokeOpacity={
+                                    familyGoalSelected
+                                      ? isEvolvedLeg
+                                        ? 0.52
+                                        : 0.38
+                                      : isEvolvedLeg
+                                        ? 0.22
+                                        : 0.13
+                                  }
                                   strokeLinecap="round"
                                 />
                               );
@@ -2325,7 +2345,7 @@ export function TreeSVG({
                         goalPanelPulseGoalId != null && focusedLimbId !== area.id;
                       const threadHasGoalPanelTarget =
                         goalPanelPulseGoalId != null &&
-                        goalsOnThread.some((g) => g.id === goalPanelPulseGoalId);
+                        threadContainsGoal(goalsOnThread, goalPanelPulseGoalId);
                       if (goalPanelOnly && !threadHasGoalPanelTarget) return [];
                       const domainHubPt = threadDomainCluster
                         ? domainClusterHubPointFromCatalog(
@@ -2351,7 +2371,7 @@ export function TreeSVG({
                       ];
                       if (threadDomainCluster && domainHubPt) {
                         goalsOnThread.forEach((g, gi) => {
-                          if (goalPanelOnly && g.id !== goalPanelPulseGoalId) return;
+                          if (goalPanelOnly && !goalInSubtree(g, goalPanelPulseGoalId!)) return;
                           const gp = goalScreenPositionForLifeAreaThread(
                             area.id,
                             thread,
@@ -2366,7 +2386,9 @@ export function TreeSVG({
                           const flowSegments = domainClusterGoalFlowSegments(domainHubPt, gp, g);
                           flowSegments.forEach((seg, si) => {
                             const spokeD = connectiveBowPathD(seg.from, seg.to, THEME_STAR_CENTER);
-                            const goalSelected = goalPanelPulseGoalId === g.id;
+                            const goalSelected =
+                              goalPanelPulseGoalId != null &&
+                              goalInSubtree(g, goalPanelPulseGoalId);
                             const evolvedLeg = si > 0;
                             pulses.push(
                               <TreeFocusPathPulse
@@ -2374,8 +2396,10 @@ export function TreeSVG({
                                 d={spokeD}
                                 color={area.color}
                                 strokeWidth={
-                                  goalSelected && !evolvedLeg
-                                    ? 2.9
+                                  goalSelected
+                                    ? evolvedLeg
+                                      ? 2.65
+                                      : 2.9
                                     : evolvedLeg
                                       ? limbWidePulse
                                         ? 1.85
@@ -2389,7 +2413,7 @@ export function TreeSVG({
                                 opacity={
                                   goalSelected
                                     ? evolvedLeg
-                                      ? 0.62
+                                      ? 0.78
                                       : 0.82
                                     : limbWidePulse
                                       ? 0.5

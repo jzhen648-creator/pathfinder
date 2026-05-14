@@ -38,3 +38,13 @@ export function findGoalInAreas(
   }
   return null;
 }
+
+/** True when `goalId` is this root goal or any nested evolved child. */
+export function goalInSubtree(root: TreeGoalNode, goalId: string): boolean {
+  if (root.id === goalId) return true;
+  return root.childGoals.some((c) => goalInSubtree(c, goalId));
+}
+
+export function threadContainsGoal(goals: TreeGoalNode[], goalId: string): boolean {
+  return findGoalInList(goals, goalId) != null;
+}
