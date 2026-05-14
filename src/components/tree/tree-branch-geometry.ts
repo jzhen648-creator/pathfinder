@@ -42,7 +42,14 @@ import {
   THREAD_GLOBAL_SHORTEN,
   GOAL_BRANCH_STROKE_GAP_INSET_FROM_GOAL_CENTER_PX,
   GOAL_THREAD_STROKE_KNOT_TOWARD_SCREEN_01,
+  TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX,
+  TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX,
+  TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX,
+  TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX,
+  TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX,
   TREE_GOAL_BRANCH_STROKE_GAP_RADIUS_PX,
+  TREE_GOAL_MAX_CHILDREN_PER_NODE,
+  TREE_GOAL_RENDER_MAX_DEPTH,
 } from "./tree-view-constants";
 
 export function pickThreadMomentsForTree<T>(items: T[], maxVisible: number): T[] {
@@ -758,6 +765,79 @@ export function goalScreenPositionForLifeAreaThread(
     branchCountOnLimb,
     goalsOnThreadCount,
   );
+}
+
+function evolvedChildLayoutJitter(childId: string): number {
+  let h = 2166136261;
+  for (let k = 0; k < childId.length; k += 1) {
+    h ^= childId.charCodeAt(k)!;
+    h = Math.imul(h, 16777619);
+  }
+  return (((h >>> 9) % 11) - 5) * 0.95;
+}
+
+/** Screen position for an evolved (forked) child along the hub → parent outward ray. */
+export function evolvedChildScreenPosition(
+  parentPt: Point,
+  domainHubPt: Point,
+  childIndex: number,
+  childId: string,
+  depth: number,
+): Point {
+  const dx = parentPt.x - domainHubPt.x;
+  const dy = parentPt.y - domainHubPt.y;
+  const rayLen = Math.hypot(dx, dy) || 1;
+  const ux = dx / rayLen;
+  const uy = dy / rayLen;
+  const perpX = -uy;
+  const perpY = ux;
+  const side = childIndex % 2 === 0 ? 1 : -1;
+  const lenJitter = evolvedChildLayoutJitter(childId);
+  const along =
+    TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX +
+    childIndex * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX +
+    depth * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX +
+    lenJitter;
+  const lateral =
+    side * (TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX + childIndex * TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX);
+  return {
+    x: parentPt.x + ux * along + perpX * lateral,
+    y: parentPt.y + uy * along + perpY * lateral,
+  };
+}
+
+export type EvolvedGoalFlowSegment = { from: Point; to: Point };
+
+/** Parent → evolved-child flow segments (recursive for nested evolutions). */
+export function evolvedGoalFlowSegments(
+  parentPt: Point,
+  domainHubPt: Point,
+  goal: TreeGoalNode,
+  depth = 0,
+): EvolvedGoalFlowSegment[] {
+  const segments: EvolvedGoalFlowSegment[] = [];
+  const children = goal.childGoals.slice(0, TREE_GOAL_MAX_CHILDREN_PER_NODE);
+  for (let ci = 0; ci < children.length; ci += 1) {
+    const child = children[ci]!;
+    const childPt = evolvedChildScreenPosition(parentPt, domainHubPt, ci, child.id, depth);
+    segments.push({ from: parentPt, to: childPt });
+    if (child.childGoals.length > 0 && depth < TREE_GOAL_RENDER_MAX_DEPTH) {
+      segments.push(...evolvedGoalFlowSegments(childPt, domainHubPt, child, depth + 1));
+    }
+  }
+  return segments;
+}
+
+/** Hub → root goal → evolved chain segments for domain-cluster flow lines. */
+export function domainClusterGoalFlowSegments(
+  hubPt: Point,
+  goalScreenPt: Point,
+  goal: TreeGoalNode,
+): EvolvedGoalFlowSegment[] {
+  return [
+    { from: hubPt, to: goalScreenPt },
+    ...evolvedGoalFlowSegments(goalScreenPt, hubPt, goal),
+  ];
 }
 
 /**

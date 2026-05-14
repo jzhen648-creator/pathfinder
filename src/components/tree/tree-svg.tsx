@@ -64,6 +64,7 @@ import {
   branchGuideStationTs,
   domainClusterBranchOutwardFromCatalog,
   domainClusterGatewaySpreadNormalForForkSpec,
+  domainClusterGoalFlowSegments,
   domainClusterHubPointFromCatalog,
   getOpacity,
   goalHexRotationRadFromTangentOut,
@@ -1738,22 +1739,32 @@ export function TreeSVG({
                               goalsOnThread.length,
                               dcGatewaySpreadNormal,
                             );
-                            const p0 = {
-                              x: snapTreeSvgScalar(domainHubPt.x),
-                              y: snapTreeSvgScalar(domainHubPt.y),
-                            };
-                            const p3 = { x: snapTreeSvgScalar(gp.x), y: snapTreeSvgScalar(gp.y) };
-                            return (
-                              <path
-                                key={`${thread.id}:domain-spoke:${g.id}`}
-                                d={connectiveBowPathD(p0, p3, THEME_STAR_CENTER)}
-                                fill="none"
-                                stroke={area.color}
-                                strokeWidth={Math.max(1.05, coreStrokeW * 0.36)}
-                                strokeOpacity={0.13}
-                                strokeLinecap="round"
-                              />
-                            );
+                            const flowSegments = domainClusterGoalFlowSegments(domainHubPt, gp, g);
+                            return flowSegments.map((seg, si) => {
+                              const isEvolvedLeg = si > 0;
+                              const p0 = {
+                                x: snapTreeSvgScalar(seg.from.x),
+                                y: snapTreeSvgScalar(seg.from.y),
+                              };
+                              const p3 = {
+                                x: snapTreeSvgScalar(seg.to.x),
+                                y: snapTreeSvgScalar(seg.to.y),
+                              };
+                              return (
+                                <path
+                                  key={`${thread.id}:domain-spoke:${g.id}:${si}`}
+                                  d={connectiveBowPathD(p0, p3, THEME_STAR_CENTER)}
+                                  fill="none"
+                                  stroke={area.color}
+                                  strokeWidth={Math.max(
+                                    1.05,
+                                    coreStrokeW * (isEvolvedLeg ? 0.42 : 0.36),
+                                  )}
+                                  strokeOpacity={isEvolvedLeg ? 0.22 : 0.13}
+                                  strokeLinecap="round"
+                                />
+                              );
+                            });
                           })}
                           {(() => {
                             const HubGlyph = branchIconForSlot(area.id as LifeAreaId, idx);
@@ -2352,20 +2363,42 @@ export function TreeSVG({
                             goalsOnThread.length,
                             dcGatewaySpreadNormal,
                           );
-                          const spokeD = connectiveBowPathD(domainHubPt, gp, THEME_STAR_CENTER);
-                          const goalSelected = goalPanelPulseGoalId === g.id;
-                          pulses.push(
-                            <TreeFocusPathPulse
-                              key={`${thread.id}:focus-spoke:${g.id}`}
-                              d={spokeD}
-                              color={area.color}
-                              strokeWidth={goalSelected ? 2.9 : limbWidePulse ? 2.05 : 2.35}
-                              phaseSec={phaseBase + 0.42 + gi * 0.11}
-                              durSec={2.05 + stableRenderJitter01(`${g.id}:focus-pulse`) * 0.4}
-                              opacity={goalSelected ? 0.82 : limbWidePulse ? 0.5 : 0.68}
-                              dashPx={goalSelected || !limbWidePulse ? 18 : 14}
-                            />,
-                          );
+                          const flowSegments = domainClusterGoalFlowSegments(domainHubPt, gp, g);
+                          flowSegments.forEach((seg, si) => {
+                            const spokeD = connectiveBowPathD(seg.from, seg.to, THEME_STAR_CENTER);
+                            const goalSelected = goalPanelPulseGoalId === g.id;
+                            const evolvedLeg = si > 0;
+                            pulses.push(
+                              <TreeFocusPathPulse
+                                key={`${thread.id}:focus-spoke:${g.id}:${si}`}
+                                d={spokeD}
+                                color={area.color}
+                                strokeWidth={
+                                  goalSelected && !evolvedLeg
+                                    ? 2.9
+                                    : evolvedLeg
+                                      ? limbWidePulse
+                                        ? 1.85
+                                        : 2.05
+                                      : limbWidePulse
+                                        ? 2.05
+                                        : 2.35
+                                }
+                                phaseSec={phaseBase + 0.42 + gi * 0.11 + si * 0.07}
+                                durSec={2.05 + stableRenderJitter01(`${g.id}:focus-pulse:${si}`) * 0.4}
+                                opacity={
+                                  goalSelected
+                                    ? evolvedLeg
+                                      ? 0.62
+                                      : 0.82
+                                    : limbWidePulse
+                                      ? 0.5
+                                      : 0.68
+                                }
+                                dashPx={goalSelected || !limbWidePulse ? 18 : 14}
+                              />,
+                            );
+                          });
                         });
                       }
                       return pulses;

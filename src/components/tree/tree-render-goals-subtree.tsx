@@ -35,17 +35,13 @@ import {
   goalAdaptiveOrbitalAttach,
   orbitalLayoutRadiusMul,
 } from "./tree-orbital-layout";
+import { evolvedChildScreenPosition } from "./tree-branch-geometry";
 import type { AreaData, TreeGoalNode } from "./tree-types";
 import { TreeElementGuideTag } from "./tree-element-guide-tag";
 import { roadmapGoalShowsProgressPulse } from "./tree-view-badges";
 import type { PanelState } from "./tree-view-types";
 import {
   snapTreeSvgScalar,
-  TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX,
-  TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX,
-  TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX,
-  TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX,
-  TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX,
   TREE_GOAL_HEX_VERTEX_RADIUS_PX,
   TREE_GOAL_MAX_CHILDREN_PER_NODE,
   TREE_GOAL_RENDER_MAX_DEPTH,
@@ -493,23 +489,16 @@ export function renderGoalsSubtree(
     const lenJitter = (((h >>> 9) % 11) - 5) * 0.95;
     let cpos: { x: number; y: number };
     if (domainHubPt && c.parentGoalId) {
-      const dx = x - domainHubPt.x;
-      const dy = y - domainHubPt.y;
-      const rayLen = Math.hypot(dx, dy) || 1;
-      const ux = dx / rayLen;
-      const uy = dy / rayLen;
-      const perpX = -uy;
-      const perpY = ux;
-      const side = ci % 2 === 0 ? 1 : -1;
-      const along =
-        TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX +
-        ci * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX +
-        depth * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX +
-        lenJitter;
-      const lateral = side * (TREE_EVOLVED_GOAL_SPAWN_LATERAL_BASE_PX + ci * TREE_EVOLVED_GOAL_SPAWN_LATERAL_PER_SIBLING_PX);
+      const raw = evolvedChildScreenPosition(
+        { x, y },
+        domainHubPt,
+        ci,
+        c.id,
+        depth,
+      );
       cpos = {
-        x: snapTreeSvgScalar(x + ux * along + perpX * lateral),
-        y: snapTreeSvgScalar(y + uy * along + perpY * lateral),
+        x: snapTreeSvgScalar(raw.x),
+        y: snapTreeSvgScalar(raw.y),
       };
     } else {
       const angJitter = (((h >>> 0) % 19) - 9) * 0.034;
@@ -522,15 +511,17 @@ export function renderGoalsSubtree(
     }
     return (
       <g key={c.id}>
-        <path
-          d={childGoalSpokePathD(branchOut.x, branchOut.y, x, y, cpos.x, cpos.y)}
-          fill="none"
-          stroke={areaColor}
-          strokeWidth={childSpokeWidth}
-          opacity={childSpokeOpacity}
-          strokeLinecap="round"
-          pointerEvents="none"
-        />
+        {!(domainHubPt && c.parentGoalId) ? (
+          <path
+            d={childGoalSpokePathD(branchOut.x, branchOut.y, x, y, cpos.x, cpos.y)}
+            fill="none"
+            stroke={areaColor}
+            strokeWidth={childSpokeWidth}
+            opacity={childSpokeOpacity}
+            strokeLinecap="round"
+            pointerEvents="none"
+          />
+        ) : null}
         {renderGoalsSubtree(
           c,
           cpos,
