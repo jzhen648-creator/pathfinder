@@ -602,17 +602,23 @@ function domainClusterBranchOutwardUnit(catalogFullPath: string): { fork: Point;
 /**
  * Slot-based radial offset around {@link DOMAIN_CLUSTER_HUB_RADIAL_RING_PX}. For four hubs, values
  * come from {@link DOMAIN_CLUSTER_HUB_SLOT_RADIAL_OFFSETS_PX_N4} (uniform zeros in the default layout).
- * Other slot counts use a linear ladder from the median (`DOMAIN_CLUSTER_HUB_SLOT_RADIAL_SPREAD_PX`).
+ * Six-hub Health & Body uses the same uniform ring; other counts use a linear ladder.
  */
 function domainClusterHubSlotRadialOffsetPx(slot: number, n: number): number {
   if (n === 4 && slot >= 0 && slot < 4) {
     return DOMAIN_CLUSTER_HUB_SLOT_RADIAL_OFFSETS_PX_N4[slot]!;
+  }
+  if (n === 6) {
+    return 0;
   }
   return domainClusterHubSlotSignedUnitFromMedian(slot, n) * DOMAIN_CLUSTER_HUB_SLOT_RADIAL_SPREAD_PX;
 }
 
 /** Gateway-arc stratification (px) — same slot ladder as radial, orthogonal axis (see {@link domainClusterGatewaySpreadNormalForForkSpec}). */
 function domainClusterHubSlotGatewayArcOffsetPx(slot: number, n: number): number {
+  if (n === 6) {
+    return 0;
+  }
   return domainClusterHubSlotSignedUnitFromMedian(slot, n) * DOMAIN_CLUSTER_HUB_GATEWAY_ARC_SPREAD_PX;
 }
 
@@ -677,16 +683,6 @@ export function domainClusterHubAnchorFromCatalog(
     }
   }
   return { x, y };
-}
-
-/** Nudge a point away from `anchor` along the `anchor → target` ray (for icon stroke insets). */
-function retreatFromAnchorToward(anchor: Point, target: Point, distPx: number): Point {
-  const dx = target.x - anchor.x;
-  const dy = target.y - anchor.y;
-  const len = Math.hypot(dx, dy);
-  if (len < 1e-4 || distPx <= 0) return { ...anchor };
-  const step = Math.min(distPx, Math.max(0, len - 3));
-  return { x: anchor.x + (dx / len) * step, y: anchor.y + (dy / len) * step };
 }
 
 /**
@@ -1530,14 +1526,20 @@ export function buildRenderedBranchMainPath(
           domainClusterGatewaySpreadNormal,
         )
       : pathPointAtT(catalogFullPath, strokeTipT);
-    const hubPoint =
-      domainCluster && forkPoint
-        ? retreatFromAnchorToward(hubCenter, forkPoint, DOMAIN_CLUSTER_ICON_STROKE_INSET_PX)
-        : hubCenter;
-    const forkStrokeStart =
-      domainCluster && forkPoint
-        ? retreatFromAnchorToward(forkPoint, hubCenter, DOMAIN_CLUSTER_ICON_STROKE_INSET_PX * 0.55)
-        : forkPoint;
+    let hubPoint = hubCenter;
+    let forkStrokeStart = forkPoint;
+    if (domainCluster && catalogFullPath.length >= 8) {
+      const { outward } = domainClusterBranchOutwardUnit(catalogFullPath);
+      const inset = DOMAIN_CLUSTER_ICON_STROKE_INSET_PX;
+      hubPoint = {
+        x: hubCenter.x - outward.x * inset,
+        y: hubCenter.y - outward.y * inset,
+      };
+      forkStrokeStart = {
+        x: forkPoint.x + outward.x * (inset * 0.55),
+        y: forkPoint.y + outward.y * (inset * 0.55),
+      };
+    }
     /** Domain cluster: conduit bends fork→hub; hub is fork-radial, not a high-`t` spline sample. */
     const tipPoint = pathPointAtT(catalogFullPath, tipClipT);
 

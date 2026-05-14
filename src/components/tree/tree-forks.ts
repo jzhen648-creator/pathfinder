@@ -18,13 +18,26 @@ import {
 } from "./tree-view-constants";
 
 /**
- * Four slots at the **corners of an axis-aligned square** around the gateway (diagonal directions,
- * not N/E/S/W cardinals — those read as a diamond). Index `i` matches
- * `NEW_PROFILE_ROOT_BRANCH_TEMPLATES` order per limb (0…3). Slot 0 aims toward top-right (−π/4),
- * then +90° per slot (top-right → bottom-right → bottom-left → top-left).
+ * Hub branch angle for slot `slotIndex` among `slotCount` spokes.
+ * Four slots use square-corner directions; six (Health & Body) use the same diamond corners plus
+ * top/bottom so the theme cluster matches other life areas.
  */
-function hubBranchAngleRad(slotIndex: number): number {
-  return -Math.PI / 4 + slotIndex * (Math.PI / 2);
+function hubBranchAngleRad(slotIndex: number, slotCount: number): number {
+  if (slotCount <= 4) {
+    return -Math.PI / 4 + slotIndex * (Math.PI / 2);
+  }
+  if (slotCount === 6) {
+    if (slotIndex < 4) {
+      return -Math.PI / 4 + slotIndex * (Math.PI / 2);
+    }
+    return slotIndex === 4 ? -Math.PI / 2 : Math.PI / 2;
+  }
+  return -Math.PI / 2 + slotIndex * ((2 * Math.PI) / slotCount);
+}
+
+/** Default hub spokes per theme (health has six). */
+export function defaultHubSlotCountForArea(areaId: string): number {
+  return areaId === "health" ? 6 : 4;
 }
 
 /** One SVG cubic Bézier segment: C c1 c2 end (start is implicit from previous point). */
@@ -473,8 +486,8 @@ function emptyForkSpec(): AreaForkSpec {
 }
 
 /**
- * Build fork geometry from authored gateways: theme node at {@link AreaAnchors.gateway}, up to four
- * hub branches at square-corner directions (90° apart on the diagonal frame; no trunk-direction stem).
+ * Build fork geometry from authored gateways: theme node at {@link AreaAnchors.gateway}, hub
+ * branches at square-corner directions (four) or diamond-plus-vertical (six on health).
  */
 export function buildAreaForkFromAnchors(
   areaId: string,
@@ -489,11 +502,12 @@ export function buildAreaForkFromAnchors(
   /** Degenerate cubic so `pathPointAtT(slots.limb, t)` stays on the gateway when the trunk bridge is omitted. */
   const stemPiece = colinearCubicPiece(gateway, gateway);
   const limbStrokeWidth = anchors.limbStrokeWidth;
-  const n = Math.min(4, area?.branches.length ?? 0);
+  const maxSlots = defaultHubSlotCountForArea(straightId);
+  const n = Math.min(maxSlots, area?.branches.length ?? 0);
   const strokeW = 2.5 * CONDUIT_THREAD_STROKE_SCALE;
   const branches: BranchForkSpec[] = [];
   for (let i = 0; i < n; i += 1) {
-    const ang = hubBranchAngleRad(i);
+    const ang = hubBranchAngleRad(i, maxSlots);
     const tip = {
       x: gateway.x + Math.cos(ang) * THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
       y: gateway.y + Math.sin(ang) * THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
