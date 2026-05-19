@@ -40,5 +40,11 @@ export async function POST(request: Request, props: RouteProps) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  return NextResponse.json(
+    {
+      ok: true,
+      bloomRecomputeFailed: result.bloomRecomputeFailed === true,
+    },
+    { status: 201 },
+  );
 }

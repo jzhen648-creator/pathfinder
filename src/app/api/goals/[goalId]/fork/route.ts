@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { evolveProposalSchema, roadmapFromEvolveProposal } from "@/lib/evolve-goal-proposal";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus, tryRecomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { persistGeneratedRoadmapForGoal } from "@/lib/persist-generated-roadmap";
 import { prisma } from "@/lib/prisma";
 import { getGoalWithProgress } from "@/lib/roadmap";
@@ -102,7 +102,7 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   // Parent lifecycle unchanged by fork in practice; harmless refresh if milestones ever move.
   // TODO(stabilization): ensure any future fork-copy of milestones triggers recompute on both goals.
-  await recomputeGoalBloomStatus(parent.id);
+  await tryRecomputeGoalBloomStatus(parent.id, "POST /api/goals/[goalId]/fork parent refresh");
 
   if (parsed.data.proposal) {
     const roadmap = roadmapFromEvolveProposal(parsed.data.proposal, refreshed.lifeArea);

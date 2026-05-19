@@ -1,9 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import type { GeneratedRoadmap } from "@/lib/milestone-generator";
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { tryRecomputeGoalBloomStatus } from "@/lib/goal-bloom";
 
-type PersistResult = { ok: true } | { ok: false; error: string; status: number };
+type PersistResult =
+  | { ok: true; bloomRecomputeFailed?: boolean }
+  | { ok: false; error: string; status: number };
 
 /**
  * Replace relational milestones for a goal with an AI-generated roadmap.
@@ -90,8 +92,8 @@ export async function persistGeneratedRoadmapForGoal(
       });
     });
 
-    await recomputeGoalBloomStatus(goalId);
-    return { ok: true };
+    const recompute = await tryRecomputeGoalBloomStatus(goalId, "persistGeneratedRoadmapForGoal");
+    return { ok: true, bloomRecomputeFailed: !recompute.ok };
   } catch (err) {
     console.error("[persistGeneratedRoadmapForGoal]", err);
     return { ok: false, error: "Could not persist roadmap", status: 500 };

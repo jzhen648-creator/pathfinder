@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { tryRecomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { getGoalWithProgress } from "@/lib/roadmap";
 
 type RouteProps = {
@@ -47,7 +47,7 @@ export async function PATCH(_request: Request, { params }: RouteProps) {
   });
 
   // Primary production hook today for relational bloom persistence after milestone graph changes.
-  await recomputeGoalBloomStatus(subtask.milestone.goalId);
+  await tryRecomputeGoalBloomStatus(subtask.milestone.goalId, "PATCH /api/subtasks/[subtaskId]/complete");
 
   const goal = await getGoalWithProgress(subtask.milestone.goalId, userId);
 

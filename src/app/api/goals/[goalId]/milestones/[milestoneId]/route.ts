@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { tryRecomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { prisma } from "@/lib/prisma";
 
 const patchBodySchema = z.object({
@@ -128,26 +128,27 @@ export async function PATCH(request: Request, props: RouteProps) {
       goalId: updated.goalId,
     });
 
+    let bloomRecomputeFailed = false;
     if (skipBloomRecompute) {
       console.warn(logPrefix, "SKIP recomputeGoalBloomStatus (PATHFINDER_SKIP_MILESTONE_PATCH_BLOOM_RECOMPUTE=1)");
     } else {
       console.info(logPrefix, "recomputeGoalBloomStatus enter", { goalId });
-      try {
-        await recomputeGoalBloomStatus(goalId);
+      const recompute = await tryRecomputeGoalBloomStatus(goalId, logPrefix);
+      if (recompute.ok) {
         console.info(logPrefix, "recomputeGoalBloomStatus exit ok", { goalId });
-      } catch (e) {
-        const err = e instanceof Error ? e : new Error(String(e));
-        console.error(logPrefix, "FAILED during recomputeGoalBloomStatus", {
+      } else {
+        bloomRecomputeFailed = true;
+        console.warn(logPrefix, "recomputeGoalBloomStatus failed after milestone update; returning committed write", {
           goalId,
-          message: err.message,
-          stack: err.stack,
-          cause: err.cause,
         });
-        throw Object.assign(err, { phase: "recomputeGoalBloomStatus" });
       }
     }
 
-    const payload = { ok: true as const, skippedBloomRecompute: skipBloomRecompute };
+    const payload = {
+      ok: true as const,
+      skippedBloomRecompute: skipBloomRecompute,
+      bloomRecomputeFailed,
+    };
     console.info(logPrefix, "success response", payload);
     return NextResponse.json(payload);
   } catch (e) {

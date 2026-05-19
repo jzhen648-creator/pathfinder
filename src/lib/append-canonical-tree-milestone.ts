@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { tryRecomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { TREE_ORBITAL_MAX_VISIBLE } from "@/components/tree/milestone-tree-projection";
 
 function maxMilestonePosition(milestones: { position: number }[]): number {
   return milestones.reduce((acc, m) => Math.max(acc, m.position), -1);
 }
 
-type AppendResult = { ok: true } | { ok: false; error: string; status: number };
+type AppendResult =
+  | { ok: true; bloomRecomputeFailed?: boolean }
+  | { ok: false; error: string; status: number };
 
 /** Append one canonical `Milestone` from the tree panel (POST `/api/goals/[id]/milestones`). */
 export async function appendCanonicalTreeMilestoneForGoal(
@@ -52,8 +54,8 @@ export async function appendCanonicalTreeMilestoneForGoal(
       });
     });
 
-    await recomputeGoalBloomStatus(goalId);
-    return { ok: true };
+    const recompute = await tryRecomputeGoalBloomStatus(goalId, "appendCanonicalTreeMilestoneForGoal");
+    return { ok: true, bloomRecomputeFailed: !recompute.ok };
   } catch (e: unknown) {
     const code =
       e && typeof e === "object" && "code" in e && typeof (e as { code: unknown }).code === "string"

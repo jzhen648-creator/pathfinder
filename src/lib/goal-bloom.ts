@@ -156,3 +156,29 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     });
   }
 }
+
+export type GoalBloomRecomputeResult = { ok: true } | { ok: false; error: unknown };
+
+/**
+ * Best-effort wrapper for callers that have already committed the primary user write.
+ * Recompute keeps persisted bloom current, but a recompute failure must not turn a
+ * successful milestone/roadmap write into an apparent failed write.
+ */
+export async function tryRecomputeGoalBloomStatus(
+  goalId: string,
+  context: string,
+): Promise<GoalBloomRecomputeResult> {
+  try {
+    await recomputeGoalBloomStatus(goalId);
+    return { ok: true };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error(`[${context}] recomputeGoalBloomStatus failed after committed write`, {
+      goalId,
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause,
+    });
+    return { ok: false, error };
+  }
+}
