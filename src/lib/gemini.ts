@@ -72,6 +72,10 @@ function getGeminiApiKey() {
   return apiKey;
 }
 
+export function hasGeminiTranscriptionKey() {
+  return Boolean(process.env.GEMINI_API_KEY?.trim());
+}
+
 function inferAudioMimeType(blob: Blob, filename: string) {
   if (blob.type) return blob.type;
   const lower = filename.toLowerCase();

@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import {
   GeminiProviderError,
   GeminiNotConfiguredError,
-  hasGeminiKey,
+  hasGeminiTranscriptionKey,
   transcribeAudioBlob,
 } from "@/lib/gemini";
 
@@ -16,9 +16,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasGeminiKey()) {
+  if (!hasGeminiTranscriptionKey()) {
     return NextResponse.json(
-      { error: "GEMINI_API_KEY not configured." },
+      { error: "Voice transcription requires GEMINI_API_KEY." },
       { status: 503 },
     );
   }

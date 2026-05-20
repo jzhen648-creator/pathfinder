@@ -38,6 +38,10 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<"checking" | "available" | "unavailable">(
+    "checking",
+  );
+  const [unavailableReason, setUnavailableReason] = useState<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -63,6 +67,43 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       releaseStream();
     };
   }, [releaseStream]);
+
+  useEffect(() => {
+    if (!enabled || !isBrowserSupported) {
+      setAvailability("unavailable");
+      setUnavailableReason(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setAvailability("checking");
+    setUnavailableReason(null);
+
+    void fetch("/api/transcribe/status", { signal: controller.signal })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as {
+          available?: boolean;
+          reason?: string | null;
+          error?: string;
+        };
+        if (res.ok && data.available) {
+          setAvailability("available");
+          setUnavailableReason(null);
+          return;
+        }
+        setAvailability("unavailable");
+        setUnavailableReason(
+          data.reason ?? data.error ?? "Voice transcription is unavailable.",
+        );
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setAvailability("unavailable");
+        setUnavailableReason("Voice transcription is unavailable.");
+      });
+
+    return () => controller.abort();
+  }, [enabled, isBrowserSupported]);
 
   const stopListening = useCallback((): Promise<string> => {
     return new Promise((resolve) => {
@@ -137,7 +178,10 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [releaseStream]);
 
   const startListening = useCallback(async () => {
-    if (!enabled || !isBrowserSupported) return;
+    if (!enabled || !isBrowserSupported || availability !== "available") {
+      if (unavailableReason) setError(unavailableReason);
+      return;
+    }
 
     setError(null);
     chunksRef.current = [];
@@ -201,16 +245,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         setError(micUnavailableMessage());
       }
     }
-  }, [enabled, isBrowserSupported, releaseStream]);
+  }, [availability, enabled, isBrowserSupported, releaseStream, unavailableReason]);
 
   const clearError = useCallback(() => setError(null), []);
 
   return {
     isBrowserSupported,
-    isActive: enabled && isBrowserSupported,
+    isActive: enabled && isBrowserSupported && availability === "available",
     listening,
     transcribing,
     error,
+    unavailableReason,
     startListening,
     stopListening,
     clearError,

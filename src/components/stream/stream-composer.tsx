@@ -84,6 +84,7 @@ export function StreamComposer({
 
   const canSend = Boolean(value.trim()) && !disabled && !busy;
   const showMic = voice.isBrowserSupported && voiceOptions?.enabled !== false;
+  const voiceDisabledReason = voice.unavailableReason ?? "Hold to speak";
 
   const appendTranscript = (spoken: string) => {
     const chunk = spoken.trim();
@@ -147,7 +148,7 @@ export function StreamComposer({
             onPointerCancel={(e) => void handlePointerUp(e)}
             aria-label="Hold to speak"
             aria-pressed={voice.listening}
-            title="Hold to speak"
+            title={voice.isActive ? "Hold to speak" : voiceDisabledReason}
             style={micButtonStyle(
               voice.listening,
               disabled || busy || !voice.isActive,
