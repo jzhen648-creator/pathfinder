@@ -19,8 +19,8 @@ import { buildStreamHubUiFromThread, buildStreamThemeUiFromArea } from "@/lib/st
 import type { LifeAreaId } from "@/lib/types";
 import type { TreeFirstRunConfig } from "@/types/first-run";
 import type { StreamHubUiContext, StreamThemeUiContext } from "@/types/stream";
-import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
-import { PF_ROADMAP_THEME_CSS } from "@/components/shell/pf-roadmap-theme";
+import { TreeCanvasHud } from "@/components/tree/tree-canvas-hud";
+import { PF_TREE_CANVAS_CSS, TREE_DETAIL_RAIL_WIDTH_PX } from "@/components/tree/tree-canvas-shell";
 import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { FLAGS } from "@/lib/flags";
 import type { ApiBranchRow } from "@/lib/api-branch-row";
@@ -48,7 +48,7 @@ import {
   normalizeGoalsFromBranches,
   normalizeMarks,
 } from "./tree-view-normalize";
-import { countRoadmapGoalsInArea, findGoalInAreas, findMarkInAreas } from "./tree-view-goal-queries";
+import { findGoalInAreas, findMarkInAreas } from "./tree-view-goal-queries";
 import {
   TREE_ELEMENT_GUIDE_ENABLED,
   TREE_MAP_SURFACE_FILL,
@@ -143,6 +143,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [treeToast, setTreeToast] = useState<{ msg: string; color: string } | null>(null);
   const [birthYear, setBirthYear] = useState<number | null>(null);
   const [addAreaOpen, setAddAreaOpen] = useState(false);
+  const [themesDrawerOpen, setThemesDrawerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -1015,18 +1016,20 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          backgroundColor: "#0f0f0f",
-          color: "#94a3b8",
-          fontSize: 16,
-        }}
-      >
-        Growing your tree...
+      <div className="pf-tree-canvas">
+        <style>{PF_TREE_CANVAS_CSS}</style>
+        <div
+          className="pf-tree-canvas-shell"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--pf-tree-ink-dim)",
+            fontSize: 15,
+          }}
+        >
+          Growing your tree...
+        </div>
       </div>
     );
   }
@@ -1115,6 +1118,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         panel={panel}
         areas={visibleAreas}
         panelPresentation={detailRailOpen ? "rail" : "sheet"}
+        panelSurface="canvas"
         onClose={clearAll}
         onOpenArea={handleAreaClick}
         onOpenHub={handleHubClick}
@@ -1260,240 +1264,88 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
       />
     );
 
+  const detailRailWidthPx = panel?.type === "goal" ? 480 : TREE_DETAIL_RAIL_WIDTH_PX;
+
   return (
-    <div className="pf-roadmap min-h-dvh overflow-hidden text-(--rm-text1)">
-      <style>{PF_ROADMAP_THEME_CSS}</style>
-      <div className="pf-roadmap-shell bg-(--rm-canvas)">
-        <PfChromeTopbar shell="roadmap" avatarInitials="PF" avatarTitle="Profile" />
-        <aside className="rm-sidebar">
-          <PfChromeViewsNav shell="roadmap" />
-          <div className="rm-sidebar-divider" />
-          <div className="mb-1.5 px-5 text-[10px] font-medium uppercase tracking-wider text-(--rm-text3)">
-            Themes
-          </div>
-          {areas.map((area) => {
-            const off = hiddenAreaIds.has(area.id);
-            return (
-              <button
-                key={area.id}
-                type="button"
-                className={`rm-tree-toggle${off ? " rm-off" : ""}`}
-                title={`${countRoadmapGoalsInArea(area)} roadmap pursuits in this theme`}
-                onClick={() => toggleArea(area.id)}
-              >
-                <div className="rm-tree-dot" style={{ background: area.color }} />
-                <span className="rm-tree-name">{area.label}</span>
-                <span className="shrink-0 text-[10px] tabular-nums text-(--rm-text3)">
-                  {countRoadmapGoalsInArea(area)}
-                </span>
-                <div className="rm-toggle-pill" />
-              </button>
-            );
-          })}
-        </aside>
-
-        <main className="rm-main" style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <div className="pf-tree-canvas min-h-dvh overflow-hidden">
+      <style>{PF_TREE_CANVAS_CSS}</style>
+      <div className="pf-tree-canvas-shell">
+        <div className="pf-tree-canvas-stage">
           <div
             style={{
-              padding: "10px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              borderBottom: "1px solid var(--rm-border, #D8D9DC)",
-              background: "var(--rm-bgEl, #FFFFFF)",
-              flexShrink: 0,
+              position: "absolute",
+              inset: 0,
+              ...(viewMode === "tree" || viewMode === "timeline"
+                ? { overflow: "hidden" }
+                : { overflowX: "hidden", overflowY: "auto" }),
             }}
           >
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                letterSpacing: ".1em",
-                color: "var(--rm-text3, #6B7280)",
-              }}
-            >
-              TREE VIEW
-            </span>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              {TREE_ELEMENT_GUIDE_ENABLED ? (
-                <label
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    fontSize: 13,
-                    color: "var(--color-text-secondary)",
-                    cursor: "pointer",
-                    userSelect: "none",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={showTreeElementGuide}
-                    onChange={(e) => setShowTreeElementGuide(e.target.checked)}
-                  />
-                  Element labels
-                </label>
-              ) : null}
-              {viewMode === "tree" ? (
-                <button
-                  type="button"
-                  disabled={Boolean(streamSession)}
-                  title={streamSession ? "Exit Stream to edit the map" : "Drag pursuits to move or nest them"}
-                  onClick={() => {
-                    if (editMapMode) {
-                      requestExitEditMap();
-                      return;
-                    }
-                    clearEditMapDraft();
-                    setEditMapMode(true);
-                  }}
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    border: editMapMode
-                      ? "0.5px solid rgba(129, 140, 248, 0.55)"
-                      : "0.5px solid var(--color-border-secondary)",
-                    background: editMapMode ? "rgba(99, 102, 241, 0.18)" : "transparent",
-                    color: editMapMode ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
-                    cursor: streamSession ? "not-allowed" : "pointer",
-                    opacity: streamSession ? 0.5 : 1,
-                  }}
-                >
-                  {editMapMode
-                    ? editMapPendingOps.length > 0
-                      ? `Done editing (${editMapPendingOps.length})`
-                      : "Done editing"
-                    : "Edit map"}
-                </button>
-              ) : null}
-              {([
-                { id: "tree", label: "Tree" },
-                { id: "timeline", label: "Timeline" },
-                { id: "branch", label: "Branch" },
-              ] as const).map((opt) => {
-                const active = viewMode === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setViewMode(opt.id)}
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1,
-                      padding: "6px 10px",
-                      borderRadius: 999,
-                      border: "0.5px solid var(--color-border-secondary)",
-                      background: active ? "var(--color-background-secondary)" : "transparent",
-                      color: active ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => void handleExportTreePdf()}
-                disabled={exportingPdf}
-                style={{
-                  fontSize: 13,
-                  lineHeight: 1,
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  border: "0.5px solid var(--color-border-secondary)",
-                  color: "var(--color-text-secondary)",
-                  cursor: exportingPdf ? "wait" : "pointer",
-                  background: "transparent",
-                  opacity: exportingPdf ? 0.65 : 1,
-                }}
-              >
-                {exportingPdf ? "Exporting…" : "Export PDF"}
-              </button>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {focused ? (
-                <button
-                  onClick={clearAll}
-                  title="Exit focus — show all limbs at equal emphasis (does not reset zoom)"
-                  aria-label="Exit focus"
-                  style={{
-                    fontSize: 14,
-                    color: "var(--color-text-secondary)",
-                    background: "none",
-                    border: "0.5px solid var(--color-border-secondary)",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    padding: "3px 10px",
-                  }}
-                >
-                  Exit focus
-                </button>
-              ) : null}
-            </div>
+            {mapViews}
           </div>
 
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              position: "relative",
+          <TreeCanvasHud
+            areas={areas}
+            hiddenAreaIds={hiddenAreaIds}
+            panel={panel}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            userName={firstRun.userName}
+            showElementGuide={showTreeElementGuide}
+            onShowElementGuideChange={setShowTreeElementGuide}
+            showElementGuideToggle={TREE_ELEMENT_GUIDE_ENABLED}
+            editMapMode={editMapMode}
+            editMapPendingCount={editMapPendingOps.length}
+            onEditMapToggle={() => {
+              if (editMapMode) {
+                requestExitEditMap();
+                return;
+              }
+              clearEditMapDraft();
+              setEditMapMode(true);
             }}
-          >
-            <div
+            editMapDisabled={Boolean(streamSession)}
+            exportingPdf={exportingPdf}
+            onExportPdf={() => void handleExportTreePdf()}
+            focused={focused}
+            onClearFocus={clearAll}
+            themesOpen={themesDrawerOpen}
+            onThemesOpenChange={setThemesDrawerOpen}
+            onToggleArea={toggleArea}
+          />
+
+          {viewMode === "tree" && dormantLimbIds.length > 0 ? (
+            <button
+              type="button"
+              className="pf-tree-hud-btn"
               style={{
-                flex: 1,
-                minHeight: 0,
-                position: "relative",
-                ...(viewMode === "tree" || viewMode === "timeline"
-                  ? { overflow: "hidden" }
-                  : { overflowX: "hidden", overflowY: "auto" }),
+                position: "absolute",
+                bottom: 72,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 26,
+              }}
+              onClick={() => setAddAreaOpen(true)}
+            >
+              Add another area
+            </button>
+          ) : null}
+
+          {detailRailOpen ? (
+            <aside
+              role="complementary"
+              aria-label={detailRailLabel}
+              className="pf-tree-detail-rail"
+              style={{
+                width: detailRailWidthPx,
+                maxWidth: `min(${detailRailWidthPx}px, 92vw)`,
               }}
             >
-              {mapViews}
-            </div>
-            {viewMode === "tree" && dormantLimbIds.length > 0 ? (
-              <button
-                type="button"
-                className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-[#141414]/90 px-4 py-2 text-xs text-zinc-400 shadow-lg backdrop-blur-sm transition hover:border-indigo-400/40 hover:text-indigo-200"
-                onClick={() => setAddAreaOpen(true)}
-              >
-                Add another area
-              </button>
-            ) : null}
-            {detailRailOpen ? (
-              <aside
-                role="complementary"
-                aria-label={detailRailLabel}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 360,
-                  maxWidth: "min(360px, 100%)",
-                  zIndex: 30,
-                  display: "flex",
-                  flexDirection: "column",
-                  background: "var(--rm-bgEl, var(--color-background-primary))",
-                  boxShadow: "10px 0 28px rgba(0,0,0,0.2)",
-                  overflow: "hidden",
-                  animation: "treeGoalRailIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both",
-                }}
-              >
-                {treePanelEl}
-              </aside>
-            ) : (
-              treePanelEl
-            )}
-          </div>
-        </main>
+              {treePanelEl}
+            </aside>
+          ) : (
+            treePanelEl
+          )}
+        </div>
       </div>
 
 
@@ -1550,7 +1402,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
             position: "fixed",
             inset: 0,
             right: STREAM_PANEL_WIDTH_PX,
-            background: "rgba(0,0,0,0.3)",
+            background: "rgba(0,0,0,0.4)",
             pointerEvents: "none",
             zIndex: 199990,
           }}

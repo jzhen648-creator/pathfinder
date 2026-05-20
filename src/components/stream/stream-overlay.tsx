@@ -40,30 +40,173 @@ const STREAM_ASSISTANT_MESSAGE_STYLE: CSSProperties = {
   color: "var(--color-text-secondary)",
 };
 
-/** Reserved height for narrative strip so the composer does not jump when extraction starts. */
-
-const STREAM_NARRATIVE_MIN_HEIGHT_PX = 96;
-
-const STREAM_NARRATIVE_MAX_HEIGHT_PX = 200;
-
 type Phase = "input" | "extracting" | "confirm";
 
-export const STREAM_PANEL_WIDTH_PX = 380;
+/** Stream is a map overlay now; keep exported width at 0 so the tree no longer pans for a side rail. */
+export const STREAM_PANEL_WIDTH_PX = 0;
 
 const STREAM_PANEL_SLIDE_CSS = `
 
-@keyframes streamPanelSlideIn {
-
-  from { transform: translateX(100%); }
-
-  to { transform: translateX(0); }
-
+@keyframes streamOverlayFloatIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.pf-stream-panel {
+@keyframes streamOverlayCenteredFloatIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
-  animation: streamPanelSlideIn 250ms ease-out both;
+.pf-stream-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  pointer-events: none;
+  color: var(--rm-text1, var(--color-text-primary));
+}
 
+.pf-stream-overlay-root > * {
+  pointer-events: auto;
+}
+
+.pf-stream-click-away {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.pf-stream-back-btn {
+  position: absolute;
+  top: 68px;
+  left: 22px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(11, 10, 15, 0.6);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: var(--font-pf-roadmap-sans), "Inter", system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.pf-stream-state-badge {
+  position: absolute;
+  top: 68px;
+  right: 22px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(11, 10, 15, 0.55);
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-pf-roadmap-mono), "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.pf-stream-state-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--stream-accent, rgba(255, 255, 255, 0.55));
+  box-shadow: 0 0 7px var(--stream-accent, rgba(255, 255, 255, 0.45));
+}
+
+.pf-stream-confirm-float {
+  position: absolute;
+  top: 110px;
+  right: 36px;
+  z-index: 3;
+  width: min(480px, calc(100vw - 72px));
+  height: min(72vh, 640px);
+  animation: streamOverlayFloatIn 220ms ease-out both;
+}
+
+.pf-stream-confirm-float > div {
+  height: 100%;
+}
+
+.pf-stream-composer-float {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  z-index: 4;
+  width: min(720px, calc(100vw - 96px));
+  transform: translateX(-50%);
+  animation: streamOverlayCenteredFloatIn 220ms ease-out both;
+}
+
+.pf-stream-narrative-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 202px;
+  z-index: 4;
+  width: min(720px, calc(100vw - 96px));
+  transform: translateX(-50%);
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(11, 10, 15, 0.78);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 14px;
+  line-height: 1.5;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  animation: streamOverlayCenteredFloatIn 220ms ease-out both;
+}
+
+.pf-stream-narrative-pill strong {
+  display: block;
+  margin-bottom: 5px;
+  color: rgba(255, 255, 255, 0.42);
+  font-family: var(--font-pf-roadmap-mono), "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .pf-stream-confirm-float {
+    right: 18px;
+    left: 18px;
+    width: auto;
+  }
+
+  .pf-stream-composer-float,
+  .pf-stream-narrative-pill {
+    width: calc(100vw - 36px);
+  }
+}
+
+@media (max-height: 680px) {
+  .pf-stream-confirm-float {
+    top: 88px;
+    height: 48vh;
+  }
+
+  .pf-stream-confirm-float > div {
+    height: 100%;
+  }
 }
 
 `;
@@ -281,258 +424,61 @@ export function StreamOverlay(props: StreamOverlayProps) {
   const shell = (
     <>
       <style dangerouslySetInnerHTML={{ __html: PF_ROADMAP_THEME_CSS }} />
-
       <style dangerouslySetInnerHTML={{ __html: STREAM_CARD_ANIMATION_CSS }} />
-
       <style dangerouslySetInnerHTML={{ __html: STREAM_CARD_VARIANT_CSS }} />
-
       <style dangerouslySetInnerHTML={{ __html: responsiveActionsCss }} />
-
       <style dangerouslySetInnerHTML={{ __html: STREAM_PANEL_SLIDE_CSS }} />
-
       <style dangerouslySetInnerHTML={{ __html: STREAM_COMPOSER_CSS }} />
 
       <div
-        className="pf-roadmap pf-stream-shell pf-stream-panel"
+        className="pf-roadmap pf-stream-shell pf-stream-overlay-root"
         role="dialog"
         aria-modal="false"
         aria-labelledby="stream-overlay-title"
-        style={{
-          position: "fixed",
-
-          right: 0,
-
-          top: 0,
-
-          bottom: 0,
-
-          width: STREAM_PANEL_WIDTH_PX,
-
-          zIndex: 200000,
-
-          display: "flex",
-
-          flexDirection: "column",
-
-          background: "#111210",
-
-          borderLeft: "1px solid rgba(255,255,255,0.08)",
-
-          boxShadow: "-12px 0 40px rgba(0,0,0,0.35)",
-
-          color: "var(--rm-text1, var(--color-text-primary))",
-
-          ["--stream-accent" as string]: accent,
-        }}
+        style={{ ["--stream-accent" as string]: accent }}
       >
-        <header
-          style={{
-            flexShrink: 0,
-
-            padding: "16px 22px",
-
-            borderBottom: "1px solid var(--color-border-tertiary)",
-
-            display: "flex",
-
-            alignItems: "flex-start",
-
-            justifyContent: "space-between",
-
-            gap: 16,
+        <button
+          type="button"
+          className="pf-stream-click-away"
+          aria-label="Close Stream"
+          onClick={() => {
+            if (!busy) onClose();
           }}
-        >
-          <div>
-            <p
-              style={{
-                margin: 0,
+          disabled={busy}
+        />
 
-                fontSize: 11,
+        <button type="button" className="pf-stream-back-btn" onClick={onClose} disabled={busy}>
+          ← Back to map
+        </button>
 
-                fontWeight: 600,
+        <div className="pf-stream-state-badge">C · Stream active</div>
 
-                letterSpacing: ".07em",
+        <h2 id="stream-overlay-title" style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}>
+          {headerSubtitle} · {headerTitle}
+        </h2>
 
-                textTransform: "uppercase",
-
-                color: "var(--color-text-tertiary)",
-              }}
-            >
-              {headerSubtitle}
-            </p>
-
-            <h2
-              id="stream-overlay-title"
-              style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 600 }}
-            >
-              {headerTitle}
-            </h2>
+        {extracting ? (
+          <div className="pf-stream-narrative-pill" aria-live="polite" aria-busy="true">
+            <strong>Listening</strong>
+            {narrative || "Making sense of this…"}
           </div>
+        ) : null}
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            aria-label="Close"
-            style={{
-              border: "none",
-
-              background: "transparent",
-
-              color: "var(--color-text-tertiary)",
-
-              fontSize: 22,
-
-              cursor: "pointer",
-
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
-        </header>
-
-        {phase !== "confirm" ? (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              minHeight: 0,
-            }}
-          >
-            <div
-              aria-live="polite"
-              aria-busy={extracting}
-              aria-hidden={!extracting}
-              style={{
-                flex: 1,
-
-                minHeight: extracting ? STREAM_NARRATIVE_MIN_HEIGHT_PX : 0,
-
-                maxHeight: extracting
-                  ? STREAM_NARRATIVE_MAX_HEIGHT_PX
-                  : undefined,
-
-                overflow: extracting ? "auto" : "hidden",
-
-                padding: extracting ? "16px 22px 12px" : 0,
-
-                borderBottom: extracting
-                  ? "1px solid var(--color-border-tertiary)"
-                  : "1px solid transparent",
-
-                opacity: extracting ? 1 : 0,
-
-                pointerEvents: extracting ? "auto" : "none",
-              }}
-            >
-              <p
-                style={{
-                  margin: "0 0 8px",
-
-                  fontSize: 11,
-
-                  fontWeight: 600,
-
-                  letterSpacing: ".07em",
-
-                  textTransform: "uppercase",
-
-                  color: "var(--color-text-tertiary)",
-                }}
-              >
-                Listening…
-              </p>
-
-              <div
-                style={{
-                  fontSize: 15,
-
-                  lineHeight: 1.55,
-
-                  color: "var(--color-text-secondary)",
-
-                  whiteSpace: "pre-wrap",
-
-                  minHeight: 24,
-                }}
-              >
-                {narrative || "…"}
-              </div>
-
-              <p
-                style={{
-                  margin: "10px 0 0",
-                  fontSize: 13,
-                  color: "var(--color-text-tertiary)",
-                }}
-              >
-                {narrative
-                  ? "Mapping what belongs on your tree…"
-                  : "Making sense of this…"}
-              </p>
-            </div>
-
-            <div
-              style={{
-                flexShrink: 0,
-
-                padding: "16px 22px 20px",
-
-                borderTop: extracting
-                  ? "none"
-                  : "1px solid var(--color-border-tertiary)",
-              }}
-            >
-              <StreamComposer
-                value={draft}
-                onChange={setDraft}
-                placeholder={placeholder}
-                disabled={composerDisabled}
-                busy={busy}
-                accent={accent}
-                onSend={() => void handleExtract()}
-                onVoiceUsed={() => setVoiceUsedInSession(true)}
-                voiceOptions={{ enabled: true }}
-              />
-
-              {error ? (
-                <p style={STREAM_ASSISTANT_MESSAGE_STYLE}>{error}</p>
-              ) : null}
-            </div>
-          </div>
-        ) : extraction ? (
-          <>
+        {phase === "confirm" && extraction ? (
+          <div className="pf-stream-confirm-float">
             {error ? (
               <p
                 style={{
                   ...STREAM_ASSISTANT_MESSAGE_STYLE,
-                  margin: 0,
-                  padding: "8px 22px",
+                  margin: "0 0 10px",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "rgba(11, 10, 15, 0.78)",
                 }}
               >
                 {error}
               </p>
             ) : null}
-
-            {narrative ? (
-              <div
-                style={{
-                  margin: "14px 22px 0",
-                  padding: "12px 14px",
-                  borderRadius: 10,
-                  border: `1px solid ${accent}44`,
-                  background: `${accent}10`,
-                  fontSize: 15,
-                  lineHeight: 1.5,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                {narrative}
-              </div>
-            ) : null}
-
             {props.mode === "theme" ? (
               <StreamConfirmation
                 mode="theme"
@@ -560,8 +506,35 @@ export function StreamOverlay(props: StreamOverlayProps) {
                 onExtracted={onExtracted}
               />
             )}
-          </>
+          </div>
         ) : null}
+
+        <div className="pf-stream-composer-float">
+          <StreamComposer
+            value={draft}
+            onChange={setDraft}
+            placeholder={placeholder}
+            disabled={composerDisabled}
+            busy={busy}
+            accent={accent}
+            proposalCount={extraction ? extraction.pursuits.length + extraction.milestones.length + extraction.marks.length : 0}
+            onSend={() => void handleExtract()}
+            onVoiceUsed={() => setVoiceUsedInSession(true)}
+            voiceOptions={{ enabled: true }}
+          />
+
+          {error && phase !== "confirm" ? (
+            <p
+              style={{
+                ...STREAM_ASSISTANT_MESSAGE_STYLE,
+                margin: "10px 0 0",
+                padding: "0 2px",
+              }}
+            >
+              {error}
+            </p>
+          ) : null}
+        </div>
       </div>
     </>
   );

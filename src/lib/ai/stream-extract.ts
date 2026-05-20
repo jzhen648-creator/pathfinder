@@ -11,7 +11,7 @@ import {
   type StreamThemeContextInput,
 } from "@/types/stream";
 
-export const STREAM_THEME_EXTRACT_MAX_TOKENS = 1536;
+export const STREAM_THEME_EXTRACT_MAX_TOKENS = 4000;
 export const STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD = 0.65;
 
 const STREAM_EXTRACT_BOUNDARY_PAIRS = [
@@ -31,7 +31,7 @@ const STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT = [
   "- Purpose / Inner life: meaning, direction, values, identity, or existential reflection with unclear action area.",
   "- Safety net / Assets: insurance, buffers, emergency funds, savings, debt protection, or investable reserves.",
   "- Appearance / Inner life: body image, confidence, mirrors/photos, grooming, shame, self-worth, or presentation.",
-  "For each such item, put it only in ambiguous[] with { id, label, reason, confidence }. In theme-scoped extraction, also include the best-fit hubId slug so the unresolved node appears on the tree.",
+  "For each such item, put it only in ambiguous[] with { id, label, reason, confidence }. Keep labels 2-8 words and max 40 characters when possible. In theme-scoped extraction, also include the best-fit hubId slug so the unresolved node appears on the tree.",
 ].join("\n");
 
 function stripNullObjectFields(row: Record<string, unknown>, keys: string[]): void {
@@ -71,6 +71,24 @@ function sanitizePursuitRef(raw: unknown): SanitizedPursuitRef | null {
   return null;
 }
 
+function flatRefString(row: Record<string, unknown>, key: string): string {
+  return typeof row[key] === "string" ? row[key].trim() : "";
+}
+
+function sanitizeFlatPursuitRef(
+  row: Record<string, unknown>,
+  existingGoalIdKey: string,
+  clientKeyKey: string,
+): SanitizedPursuitRef | null {
+  const goalId = flatRefString(row, existingGoalIdKey);
+  if (goalId) return { kind: "existing", goalId };
+
+  const clientKey = flatRefString(row, clientKeyKey);
+  if (clientKey) return { kind: "new", clientKey };
+
+  return null;
+}
+
 function sanitizeExtractedMark(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const row = { ...(raw as Record<string, unknown>) };
@@ -81,13 +99,11 @@ function sanitizeExtractedMark(raw: unknown): unknown {
 function sanitizeExtractedPursuit(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = { ...(raw as Record<string, unknown>) };
-  if (row.parentRef === null) {
-    delete row.parentRef;
-  } else if (row.parentRef !== undefined) {
-    const parentRef = sanitizePursuitRef(row.parentRef);
-    if (parentRef) row.parentRef = parentRef;
-    else delete row.parentRef;
-  }
+  const parentRef =
+    sanitizePursuitRef(row.parentRef) ??
+    sanitizeFlatPursuitRef(row, "parentExistingGoalId", "parentClientKey");
+  if (parentRef) row.parentRef = parentRef;
+  else delete row.parentRef;
   stripNullObjectFields(row, ["clientKey", "hubId"]);
   return row;
 }
@@ -95,7 +111,9 @@ function sanitizeExtractedPursuit(raw: unknown): Record<string, unknown> | null 
 function sanitizeExtractedMilestone(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = { ...(raw as Record<string, unknown>) };
-  const pursuitRef = sanitizePursuitRef(row.pursuitRef);
+  const pursuitRef =
+    sanitizePursuitRef(row.pursuitRef) ??
+    sanitizeFlatPursuitRef(row, "pursuitExistingGoalId", "pursuitClientKey");
   if (!pursuitRef) return null;
   stripNullObjectFields(row, ["hubId"]);
   return { ...row, pursuitRef };
@@ -177,7 +195,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "Uncertainty about one item must not suppress other confident items. Put only the uncertain item in ambiguous[] and continue extracting the rest.",
   "When the user is changing the shape of an existing map goal — evolving it, picking it back up, stretching the target, pausing it, or pivoting from it — still emit the relevant pursuit update instead of dropping the item.",
   "",
-  "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitRef on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
+  "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitExistingGoalId or pursuitClientKey on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
   "",
   "## Pursuit titles (distilled, plain language)",
   "",
@@ -190,13 +208,13 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "Rules:",
   "- Aim for ~3–8 words: the umbrella outcome or life theme.",
   "- Do NOT stack procedures, brands, modalities, or comma-separated methods in a pursuit title.",
-  "- Put named treatments, tactics, appointments, providers, and sub-steps in milestones[] (or parentRef child pursuits only when Rule 6A applies — see Hierarchy inference).",
+  "- Put named treatments, tactics, appointments, providers, and sub-steps in milestones[] (or child pursuits with flat parent fields only when Rule 6A applies — see Hierarchy inference).",
   "- Marks and milestones may keep slightly more specific wording than the pursuit title; the pursuit title stays the simplest umbrella.",
   "",
   "1. Read before writing",
   "   - Process ALL existing hub data before extracting anything.",
   "   - Never propose a new pursuit whose title clearly matches an existing pursuit on this hub (same intent, paraphrase, or obvious synonym).",
-  "   - Exception: a higher/later target for the same activity is a continuation (Rule 6B), not a duplicate peer — use parentRef instead of skipping or duplicating.",
+  "   - Exception: a higher/later target for the same activity is a continuation (Rule 6B), not a duplicate peer — use parentExistingGoalId or parentClientKey instead of skipping or duplicating.",
   "   - Never propose a mark whose title clearly matches an existing mark on this hub.",
   "",
   "2. Completion over creation",
@@ -235,10 +253,11 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "5. Honest about uncertainty",
   "   - If you cannot tell whether something is done vs in progress vs not started, do NOT guess.",
   `   - If your confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} for an item's status or hub fit, do NOT guess.`,
+  "   - If hub placement, user intent, or pursuit-vs-mark classification is unclear, err toward flagging: put the item only in ambiguous[] with confidence below 0.6.",
   `   - Explicit low-confidence boundary pairs: ${STREAM_EXTRACT_BOUNDARY_PAIR_TEXT}. If the current hub is one side of a boundary pair and the item could belong to the other side, use ambiguous[] unless this hub is clearly stronger.`,
   STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT,
   "   - Add it to ambiguous[] only; the app will surface it as a needsResolution node for the user.",
-  `   - Add an entry to ambiguous[] with a stable id (use a short slug like "amb-1"), a label describing the item, confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}, and an optional reason.`,
+  `   - Add an entry to ambiguous[] with a stable id (use a short slug like "amb-1"), a 2-8 word label describing the item (max 40 characters when possible), confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}, and an optional reason.`,
   "   - Do not place uncertain items in marks, pursuits, or milestones — only in ambiguous[]. They appear on the tree immediately for the user to resolve by tapping the node.",
   "",
   "6. One clarifying question max",
@@ -255,21 +274,22 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "8. Embellishment over duplication",
   "   - If the user adds detail to an existing pursuit or mark, do NOT create a duplicate row.",
   "   - For pursuits: use existingGoalId + unchanged bloomStatus. Update the pursuit title only if the new wording is a clearer or shorter distilled summary — never replace a short title with a longer verbatim list of methods.",
-  "   - Route new methods, treatments, steps, or tactics mentioned in the dump to milestones[] on that pursuit (pursuitRef existing goalId), not into the pursuit title.",
+  "   - Route new methods, treatments, steps, or tactics mentioned in the dump to milestones[] on that pursuit (pursuitExistingGoalId for existing goals), not into the pursuit title.",
   "   - For marks: add a new mark only when the detail is a genuinely distinct timeline moment, not a restatement.",
   "",
-  "## Overlap check (required before any new pursuit)",
+  "## Existing-pursuit-first checklist (required before any new pursuit)",
   "",
-  "For every candidate new pursuit, scan existing pursuits on this hub (including removed-from-map titles for dedup):",
+  "For every candidate new pursuit, scan same-hub existing pursuits first (including removed-from-map titles for dedup):",
   "",
   "1. Same intent / paraphrase / synonym → do not create; use existingGoalId, milestone, or ambiguous[] per other rules.",
-  "2. New mention is a subset, method, treatment, or tactic toward an existing pursuit's outcome → milestone on that pursuit (existing goalId), not a new pursuit and not a peer.",
-  "3. New mention is a later chapter / higher target on the same activity → Rule 6B continuation (parentRef), not a peer.",
-  "4. Genuinely separate outcome the user would track independently on this hub → new peer pursuit (distilled title).",
+  "2. Step, method, treatment, tactic, or named subtask toward an existing pursuit → milestone on that existing pursuit using pursuitExistingGoalId, not a new pursuit and not a peer.",
+  "3. Later chapter / higher target / next phase of an existing pursuit → continuation child using parentExistingGoalId, not a peer.",
+  "4. No plausible same-hub parent, predecessor, or duplicate exists → new peer pursuit with distilled title.",
+  "5. If you cannot decide between milestone vs new pursuit or mark vs pursuit, use ambiguous[] with confidence below 0.6.",
   "",
   "When one brain dump introduces an umbrella outcome AND specific methods:",
   "- One new pursuit with distilled title (e.g. \"Improve my teeth\").",
-  "- Methods as milestones on that pursuit (same session: clientKey + pursuitRef new).",
+  "- Methods as milestones on that pursuit (same session: clientKey + pursuitClientKey).",
   "- Never also create peer pursuits for each method.",
   "",
   "## Pursuit types (goalType)",
@@ -285,37 +305,37 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "## Linking milestones to pursuits",
   "",
-  "- For an existing pursuit: pursuitRef { \"kind\": \"existing\", \"goalId\": \"<id from hub context>\" }",
-  "- For a new pursuit in this extraction: assign a unique clientKey (e.g. \"pursuit-1\") on the pursuit object; milestone pursuitRef { \"kind\": \"new\", \"clientKey\": \"<same key>\" }",
+  "- For an existing pursuit: set milestone.pursuitExistingGoalId to the goalId from hub context and set pursuitClientKey to null.",
+  "- For a new pursuit in this extraction: assign a unique clientKey (e.g. \"pursuit-1\") on the pursuit object; set milestone.pursuitClientKey to the same key and pursuitExistingGoalId to null.",
   "- Every new pursuit that has milestones MUST have a clientKey.",
   "",
   "## Hierarchy inference (parent-child pursuits)",
   "",
-  "Milestone vs child pursuit (parentRef):",
+  "Milestone vs child pursuit (flat parent fields):",
   "- Milestone: a step, method, treatment, or tactic within the same outcome (how to get there).",
   "- Child pursuit (Rule 6A): a distinct sub-goal with its own deliverable that could stand as its own row (e.g. \"Open stocks and shares ISA\" under \"Build £1M ISA portfolio\") — use sparingly; prefer milestones when the user lists implementation options under one outcome.",
   "- When in doubt between a peer pursuit and a milestone on an existing umbrella pursuit, prefer the milestone.",
   "",
-  "Rule 6 — Two kinds of parent-child link (same parentRef mechanism):",
+  "Rule 6 — Two kinds of parent-child link (same flat parent field mechanism):",
   "",
   "A) Enabler / sub-component — one pursuit is a step toward another still-active goal (not a later chapter):",
   "   'Find a mentor' → child of 'Move into Head of Product'; 'Open a stocks and shares ISA' → child of 'Build £1M ISA portfolio'; 'Update LinkedIn' → child of 'Position for senior roles'.",
   "",
   "B) Continuation (longitudinal progression) — same activity on this hub, later chapter: higher numeric target, later deadline, or explicit 'next level' after an existing pursuit. NOT a duplicate — a successor row:",
-  "   - Existing: 'Reach 5,000 subscribers on YouTube by end of 2026'. User adds: 'Reach 10,000 subscribers on YouTube by end of 2027' → NEW pursuit with parentRef { kind: 'existing', goalId: <5k goal id> }. Do NOT leave both as peers (parentGoalId null).",
+  "   - Existing: 'Reach 5,000 subscribers on YouTube by end of 2026'. User adds: 'Reach 10,000 subscribers on YouTube by end of 2027' → NEW pursuit with parentExistingGoalId set to the 5k goal id. Do NOT leave both as peers (parentGoalId null).",
   "   - Existing: 'Build £500k ISA'. User: 'Grow ISA to £1M by 2030' → continuation child of the £500k pursuit.",
   "   - Existing: 'Run first marathon'. User: 'Run sub-3:30 marathon in 2027' → continuation, not a peer.",
   "   Signals: same domain/activity wording, escalating target or later end date, phrases like 'next', 'after that', 'once I hit X', 'stretch goal', 'phase 2', 'evolving into', 'next version', 'picking this back up', 'same goal but', or 'changed shape'.",
-  "   If an existing pursuit is a likely predecessor by intent, prefer parentRef to that existing goal over creating a fresh peer with no parentRef.",
+  "   If an existing pursuit is a likely predecessor by intent, prefer parentExistingGoalId to that existing goal over creating a fresh peer with no parent.",
   "   Counter-examples (stay peers): unrelated pursuits on the same hub ('Ship newsletter' + 'Learn Figma'); parallel tracks ('Client A revenue' + 'Client B revenue'); same topic but genuinely different goals with no progression ('Start YouTube channel' + 'Guest on podcasts').",
   "",
-  "Set parentRef on the child (never on the parent). kind 'existing' when parent is on this hub (goalId from hub context); kind 'new' when parent is created in this session (clientKey).",
-  "When uncertain between continuation and peer, prefer continuation only when progression is explicit; otherwise leave parentRef unset.",
+  "Set the flat parent fields on the child (never on the parent). Use parentExistingGoalId when parent is on this hub (goalId from hub context); use parentClientKey when parent is created in this session (clientKey).",
+  "When uncertain between continuation and peer, prefer continuation only when progression is explicit; otherwise leave parentExistingGoalId and parentClientKey unset.",
   "",
   "- Only infer hierarchy within this session or against existing hub pursuits — never cross-hub or cross-theme.",
-  "- New continuation pursuit: parentRef required when Rule 6B applies; do not also set existingGoalId (that is for updating the same row).",
-  "- Existing pursuit wrongly stored as a peer: you may set parentRef on an embellishment (existingGoalId + unchanged bloomStatus) to link it under the predecessor — same as reparenting an existing row.",
-  "- Never set parentRef on existingGoalId when bloomStatus is \"COMPLETE\" or \"ON_HOLD\" (status-only updates).",
+  "- New continuation pursuit: parentExistingGoalId or parentClientKey is required when Rule 6B applies; do not also set existingGoalId (that is for updating the same row).",
+  "- Existing pursuit wrongly stored as a peer: you may set parentExistingGoalId on an embellishment (existingGoalId + unchanged bloomStatus) to link it under the predecessor — same as reparenting an existing row.",
+  "- Never set parentExistingGoalId or parentClientKey on existingGoalId when bloomStatus is \"COMPLETE\" or \"ON_HOLD\" (status-only updates).",
   "",
   "Rule 9 — Pursuit status changes (no new row):",
   "When the user is only updating lifecycle status of an existing pursuit — not describing new work — use existingGoalId + bloomStatus. Never create a new pursuit for status-only updates. Do not add milestones on status-only updates.",
@@ -340,9 +360,9 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "RIGHT:",
   "  pursuits: []",
   "  milestones: [",
-  "    { \"title\": \"Onlay\", \"pursuitRef\": { \"kind\": \"existing\", \"goalId\": \"g1\" } },",
-  "    { \"title\": \"Composite bonding\", \"pursuitRef\": { \"kind\": \"existing\", \"goalId\": \"g1\" } },",
-  "    { \"title\": \"Get Invisalign\", \"pursuitRef\": { \"kind\": \"existing\", \"goalId\": \"g1\" } }",
+  "    { \"title\": \"Onlay\", \"pursuitExistingGoalId\": \"g1\", \"pursuitClientKey\": null },",
+  "    { \"title\": \"Composite bonding\", \"pursuitExistingGoalId\": \"g1\", \"pursuitClientKey\": null },",
+  "    { \"title\": \"Get Invisalign\", \"pursuitExistingGoalId\": \"g1\", \"pursuitClientKey\": null }",
   "  ]",
   "",
   "Example B — new umbrella + methods in one dump",
@@ -351,15 +371,15 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "RIGHT:",
   "  pursuits: [{ \"title\": \"Improve my teeth\", \"goalType\": \"project\", \"bloomStatus\": \"ACTIVE\", \"clientKey\": \"p1\" }]",
   "  milestones: [",
-  "    { \"title\": \"Composite bonding\", \"pursuitRef\": { \"kind\": \"new\", \"clientKey\": \"p1\" } },",
-  "    { \"title\": \"Get Invisalign\", \"pursuitRef\": { \"kind\": \"new\", \"clientKey\": \"p1\" } }",
+  "    { \"title\": \"Composite bonding\", \"pursuitExistingGoalId\": null, \"pursuitClientKey\": \"p1\" },",
+  "    { \"title\": \"Get Invisalign\", \"pursuitExistingGoalId\": null, \"pursuitClientKey\": \"p1\" }",
   "  ]",
   "",
   "Example C — embellishment: detail → milestones, not longer title",
   "Existing: \"Improve my teeth\" (g1)",
   "User: \"Also looking at composite bonding.\"",
   "WRONG: pursuits: [{ \"existingGoalId\": \"g1\", \"title\": \"Improve my teeth with composite bonding\", ... }]",
-  "RIGHT: milestones: [{ \"title\": \"Composite bonding\", \"pursuitRef\": { \"kind\": \"existing\", \"goalId\": \"g1\" } }]",
+  "RIGHT: milestones: [{ \"title\": \"Composite bonding\", \"pursuitExistingGoalId\": \"g1\", \"pursuitClientKey\": null }]",
   "",
   "## Output schema (exact keys)",
   "",
@@ -377,21 +397,23 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   '      "goalType": "project|practice|identity",',
   '      "bloomStatus": "ACTIVE|ON_HOLD|COMPLETE",',
   '      "existingGoalId": "string or omit/null — when updating, completing, pausing, or resuming an existing pursuit; use with unchanged bloomStatus for embellishment (distilled title only if clearer/shorter), or ACTIVE|ON_HOLD|COMPLETE for status changes; do not create a new row",',
-  '      "clientKey": "string or omit — required when this is a new pursuit referenced by milestones or as a parent via parentRef",',
-  '      "parentRef": "{ \\"kind\\": \\"existing\\", \\"goalId\\": \\"string\\" } | { \\"kind\\": \\"new\\", \\"clientKey\\": \\"string\\" } or omit — child only; never on pursuits with existingGoalId"',
+  '      "clientKey": "string or omit — required when this is a new pursuit referenced by milestones or as a parent via flat parent fields",',
+  '      "parentExistingGoalId": "string or null — existing parent goalId for continuation/child pursuits; null otherwise",',
+  '      "parentClientKey": "string or null — parent clientKey when parent is created in this extraction; null otherwise"',
   "    }",
   "  ],",
   '  "milestones": [',
   "    {",
   '      "title": "string",',
-  '      "pursuitRef": { "kind": "existing", "goalId": "string" } | { "kind": "new", "clientKey": "string" }',
+  '      "pursuitExistingGoalId": "string or null — existing pursuit goalId this milestone belongs to",',
+  '      "pursuitClientKey": "string or null — clientKey of new pursuit this milestone belongs to"',
   "    }",
   "  ],",
   '  "ambiguous": [',
   "    {",
   '      "id": "string",',
-  '      "label": "string",',
-  `      "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} for low-confidence boundary/status items",`,
+  '      "label": "2-8 words, max 40 characters when possible",',
+  `      "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; below 0.6 when hub, intent, or pursuit-vs-mark is unclear",`,
   '      "reason": "string or null"',
   "    }",
   "  ],",
@@ -409,6 +431,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "- Pursuit titles: distilled plain-language outcomes (~3–8 words when possible); never verbatim multi-clause dumps.",
   "- Milestone titles: short, actionable; may name a specific method or treatment.",
   "- Mark titles: concise moment labels; max ~80 characters.",
+  "- Ambiguous labels: 2-8 words, max 40 characters when possible.",
   "- Prefer fewer, higher-confidence items over speculative ones.",
   "- When in doubt between mark vs new pursuit for a DONE item, prefer a mark.",
 ].join("\n");
@@ -568,7 +591,7 @@ export async function runStreamExtract(
   const raw = await generateJsonCompletion({
     system: STREAM_EXTRACT_SYSTEM_PROMPT,
     user: buildStreamExtractUserMessage(hub, input),
-    maxTokens: 2048,
+    maxTokens: 4000,
     temperature: 0.2,
   });
 
@@ -608,6 +631,8 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "Extract every distinct concrete mark, pursuit, milestone/step, continuation, pause, resume, and status change.",
   "Uncertainty about one item must not suppress other confident items: put only that item in ambiguous[] and keep extracting.",
   "If an existing map goal evolves, resumes, stretches, pauses, or pivots, emit the pursuit update instead of dropping it.",
+  "Before writing the JSON response, scan the input once more. For each hub topic mentioned, confirm you have emitted at least one structured item (mark, pursuit, or milestone). If a topic has no structured item and you are confident about it, add it now.",
+  "If the user's input mentions N distinct concrete outcomes, do not return fewer than N-1 structured items without placing the remainder in ambiguous[].",
   "",
   "## Hub routing (critical)",
   "",
@@ -616,6 +641,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "- Route each item to the hub whose catalog scope and AI routing note best fit the user's intent.",
   "- Work & Career examples: promotions, roles, pivots → career; learning, credentials, mentors, deliberate practice → skills; shipping, portfolios, concrete deliverables → builds & launches.",
   `- When an item could fit two hubs and your routing confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}, use ambiguous[] instead of guessing. The app will surface it as a needsResolution node.`,
+  "- If hub placement, user intent, or pursuit-vs-mark classification is unclear, err toward flagging: put the item only in ambiguous[] with confidence below 0.6.",
   `- Explicit low-confidence boundary pairs: ${STREAM_EXTRACT_BOUNDARY_PAIR_TEXT}. If the user intent sits on one of these boundaries and neither side is clearly stronger, add one ambiguous[] item with confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} and the best-fit hubId slug for where the unresolved node should appear.`,
   STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT,
   "",
@@ -623,11 +649,11 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "narrativeSentence is a one-sentence, second-person reflection of what you heard. Keep it warm, specific, and at most 20 words.",
   "",
-  "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitRef on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
+  "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitExistingGoalId or pursuitClientKey on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
   "",
   "Pursuit titles (same as hub Stream): distilled plain-language outcomes (~3–8 words); never verbatim multi-clause dumps. Named methods, treatments, and sub-steps go in milestones[], not in the pursuit title.",
   "",
-  "Overlap check (per hub, before any new pursuit): (1) same intent → no new row; (2) subset/method/treatment toward existing outcome → milestone on that hub's existing pursuit; (3) later chapter → parentRef continuation; (4) genuinely separate outcome → new peer with distilled title. Umbrella + methods in one dump → one pursuit + milestones, never peer pursuits per method.",
+  "Existing-pursuit-first checklist (per hub, before any new pursuit): (1) same intent → no new row; (2) step/method/treatment/tactic toward existing outcome → milestone with pursuitExistingGoalId; (3) later chapter/higher target → continuation with parentExistingGoalId; (4) no plausible same-hub parent/predecessor/duplicate → new peer with distilled title; (5) unclear milestone-vs-pursuit or mark-vs-pursuit → ambiguous[] with confidence below 0.6. Umbrella + methods in one dump → one pursuit + milestones, never peer pursuits per method.",
   "",
   "1. Read before writing — check all provided hubs' existing pursuits and marks before extracting. A higher/later target for the same activity is a continuation (Rule 6B), not a duplicate peer.",
   "2. Completion over creation — complete existing pursuits (existingGoalId + COMPLETE) instead of duplicating.",
@@ -635,7 +661,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "Rule 9 — Pursuit status changes (no new row): finished → existingGoalId + COMPLETE; paused/on hold/shelved/dropping for now/deprioritised/back burner → existingGoalId + ON_HOLD; resuming/back on/picking up again → existingGoalId + ACTIVE. Never create a new pursuit for status-only updates. No milestones on status-only updates.",
   "4A. User-named steps → milestones on the matching pursuit (existing or new this session), even if one visit/session; not peer pursuits.",
   "4B. Do not invent milestone structure; never on practice/identity; max 5 per pursuit.",
-  `5. Honest about uncertainty — use ambiguous[] when status or hub is unclear, or when confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; include confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} on the ambiguous item.`,
+  `5. Honest about uncertainty — use ambiguous[] when status, hub placement, user intent, or pursuit-vs-mark classification is unclear, or when confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; use confidence below 0.6 for these flagged cases.`,
   "6. One clarifying question max (clarifyingQuestion) — still extract confident items.",
   "7. Cross-session deduplication — no duplicates of active OR removed-from-map pursuits/marks on the assigned hub.",
   "8. Embellishment — route new methods/treatments to milestones; never lengthen pursuit title with verbatim method lists.",
@@ -644,37 +670,37 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "## Hierarchy inference (parent-child pursuits)",
   "",
-  "Milestone vs child pursuit: prefer milestones for methods/treatments/tactics under one outcome; use parentRef child only for distinct sub-goals (Rule 6A). When in doubt, milestone.",
+  "Milestone vs child pursuit: prefer milestones for methods/treatments/tactics under one outcome; use flat parent fields for distinct sub-goals (Rule 6A). When in doubt, milestone; when classification itself is unclear, use ambiguous[].",
   "",
-  "Rule 6 — Two kinds of parent-child link (same parentRef mechanism):",
+  "Rule 6 — Two kinds of parent-child link (same flat parent field mechanism):",
   "",
   "A) Enabler / sub-component — step toward another still-active goal: 'Find a mentor' → child of 'Move into Head of Product'; 'Open a stocks and shares ISA' → child of 'Build £1M ISA portfolio'.",
   "",
-  "B) Continuation — same activity, later chapter/higher target/later deadline/next level. Existing '5k YouTube' + user wants '10k' → NEW pursuit with parentRef to 5k, not peer. Same for £500k ISA→£1M, first marathon→sub-3:30.",
+  "B) Continuation — same activity, later chapter/higher target/later deadline/next level. Existing '5k YouTube' + user wants '10k' → NEW pursuit with parentExistingGoalId set to the 5k goal id, not peer. Same for £500k ISA→£1M, first marathon→sub-3:30.",
   "   Signals: same activity wording, escalating numbers, later dates, 'next' / 'after that' / 'phase 2' / 'evolving into' / 'next version' / 'picking this back up' / 'same goal but' / 'changed shape'.",
-  "   If an existing pursuit is a likely predecessor by intent, prefer parentRef to that existing goal over creating a fresh peer with no parentRef.",
+  "   If an existing pursuit is a likely predecessor by intent, prefer parentExistingGoalId to that existing goal over creating a fresh peer with no parent.",
   "",
-  "Set parentRef on the child. kind 'existing' when parent is listed under #### Existing pursuits; kind 'new' when parent is created this session.",
+  "Set flat parent fields on the child. Use parentExistingGoalId when parent is listed under #### Existing pursuits; use parentClientKey when parent is created this session.",
   "",
   "- Only infer hierarchy within this session or against existing hub pursuits — never cross-hub or cross-theme.",
-  "- When a new pursuit is clearly a child, enabler, OR continuation of an EXISTING pursuit on this hub, set parentRef to { kind: 'existing', goalId: '<goalId from existing pursuits list>' }.",
-  "- If an existing pursuit has parentGoalId: null but clearly belongs under another existing pursuit on the same hub (especially continuations stored as peers), propose parentRef on that existing pursuit — embellishment card (existingGoalId + unchanged bloomStatus), not a new pursuit.",
-  "- Never set parentRef on a pursuit that has existingGoalId when bloomStatus is \"COMPLETE\" or \"ON_HOLD\" (status-only updates).",
+  "- When a new pursuit is clearly a child, enabler, OR continuation of an EXISTING pursuit on this hub, set parentExistingGoalId to the goalId from existing pursuits.",
+  "- If an existing pursuit has parentGoalId: null but clearly belongs under another existing pursuit on the same hub (especially continuations stored as peers), propose parentExistingGoalId on that existing pursuit — embellishment card (existingGoalId + unchanged bloomStatus), not a new pursuit.",
+  "- Never set parentExistingGoalId or parentClientKey on a pursuit that has existingGoalId when bloomStatus is \"COMPLETE\" or \"ON_HOLD\" (status-only updates).",
   "",
-  "Examples: £10k ISA→£15k ISA = continuation with parentRef; pause flat deposit = existingGoalId + ON_HOLD; dropping broker but keeping CEMAP = ON_HOLD broker plus concrete active CEMAP/planning items.",
+  "Examples: £10k ISA→£15k ISA = continuation with parentExistingGoalId; pause flat deposit = existingGoalId + ON_HOLD; dropping broker but keeping CEMAP = ON_HOLD broker plus concrete active CEMAP/planning items.",
   "",
-  "## Pursuit types, mark types, dates, pursuitRef, itemOrder",
+  "## Pursuit types, mark types, dates, flat milestone refs, itemOrder",
   "",
-  "Same rules as hub-scoped Stream: distilled pursuit titles; overlap check; 4A user-named steps → milestones; 4B no invented structure; goalType project|practice|identity; mark types checkpoint|setback|realisation|decision|achievement; ISO dates; clientKey for new pursuits referenced by milestones; itemOrder follows first mention in the brain dump.",
+  "Same rules as hub-scoped Stream: distilled pursuit titles; existing-pursuit-first checklist; 4A user-named steps → milestones; 4B no invented structure; goalType project|practice|identity; mark types checkpoint|setback|realisation|decision|achievement; ISO dates; clientKey for new pursuits referenced by milestones; itemOrder follows first mention in the brain dump.",
   "",
   "## Output schema (exact keys)",
   "",
   "{",
   '  "narrativeSentence": "one warm second-person sentence, 20 words max",',
   '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "type": "...", "hubId": "slug" }],',
-  '  "pursuits": [{ "title": "string", "goalType": "...", "bloomStatus": "...", "hubId": "slug", "existingGoalId": "optional", "clientKey": "optional", "parentRef": "optional" }],',
-  '  "milestones": [{ "title": "string", "hubId": "slug", "pursuitRef": { "kind": "existing"|"new", ... } }],',
-  `  "ambiguous": [{ "id": "string", "label": "string", "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} for low-confidence boundary/status items", "reason": "string or null", "hubId": "required slug for theme-scoped ambiguous items" }],`,
+  '  "pursuits": [{ "title": "string", "goalType": "...", "bloomStatus": "...", "hubId": "slug", "existingGoalId": "optional/null", "clientKey": "optional/null", "parentExistingGoalId": "optional/null", "parentClientKey": "optional/null" }],',
+  '  "milestones": [{ "title": "string", "hubId": "slug", "pursuitExistingGoalId": "string or null", "pursuitClientKey": "string or null" }],',
+  `  "ambiguous": [{ "id": "string", "label": "2-8 words, max 40 characters when possible", "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; below 0.6 when hub, intent, or pursuit-vs-mark is unclear", "reason": "string or null", "hubId": "required slug for theme-scoped ambiguous items" }],`,
   '  "itemOrder": [{ "kind": "mark"|"pursuit"|"milestone", "index": 0 }],',
   '  "clarifyingQuestion": "string or null"',
   "}",

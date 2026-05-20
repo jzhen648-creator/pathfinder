@@ -64,7 +64,7 @@ export const THEME_GATEWAY_HUB_SPOKE_LENGTH_PX = 640;
  * Kept readable above milestone/preview noise but quieter than hub branch conduits.
  */
 export const TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX = 1.4;
-export const TREE_DOMAIN_GATEWAY_SPOKE_OPACITY = 0.6;
+export const TREE_DOMAIN_GATEWAY_SPOKE_OPACITY = 0.78;
 
 /**
  * **Connective-only** bow on hub-first conduits: amplitude as a fraction of chord length, capped in px.
@@ -297,16 +297,16 @@ export const TREE_BRANCH_ICON_SIZE_PX = 46;
 export const TREE_LIMB_ICON_SIZE_PX = 42;
 
 /** Theme gateway (life-area) icon at the hub node on the tree map SVG. */
-export const TREE_THEME_GATEWAY_ICON_PX = 96;
+export const TREE_THEME_GATEWAY_ICON_PX = 88;
 
 /** Gap (px) between theme gateway glyph bottom and life-area title (middle baseline). */
 export const TREE_THEME_GATEWAY_LABEL_GAP_PX = 12;
 
 /** Domain hub glyph on each thread row (`tree-svg` domain cluster). */
-export const TREE_DOMAIN_HUB_GLYPH_PX = 72;
+export const TREE_DOMAIN_HUB_GLYPH_PX = 66;
 
 /** Smaller domain-hub glyph when trunk layout is on — theme gateway stays primary. */
-export const TREE_DOMAIN_HUB_GLYPH_PX_TRUNK = 52;
+export const TREE_DOMAIN_HUB_GLYPH_PX_TRUNK = 46;
 
 /** Thread type label under the domain hub glyph. */
 export const TREE_DOMAIN_HUB_LABEL_FONT_PX = 19;

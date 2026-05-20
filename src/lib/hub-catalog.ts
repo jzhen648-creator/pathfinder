@@ -1,5 +1,5 @@
 import type { LifeAreaId } from "./types";
-import { hubMatchKey, normalizeHubLabelKey } from "./taxonomy";
+import { normalizeHubLabelKey } from "./taxonomy";
 
 export { hubMatchKey, normalizeHubLabelKey } from "./taxonomy";
 
@@ -34,7 +34,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Pay off credit card (→ Liabilities)",
       ],
       aiRoutingNote:
-        "Route here when the item is about earning or cash inflow, not investing, insuring, or repaying debt.",
+        "Route here when the item is about earning or cash inflow — salary, bonus, freelance, or side income. If money is being saved, invested, or moved into an account after it arrives, that's Assets or Safety net. Visa costs, rent, and living expenses are not income items unless the user is negotiating pay to cover them.",
       examples: [
         "Negotiate a raise",
         "Start freelance income",
@@ -58,7 +58,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Mortgage balance payoff (→ Liabilities)",
       ],
       aiRoutingNote:
-        "Route here for investing, saving for growth, or net-worth building — not salary, insurance, or debt payments.",
+        "Route here for building net worth — ISA contributions, investments, savings pots with a growth goal, and property equity. If the pot is purely for emergencies or downside protection (not growth), it's Safety net. If the user mentions a specific savings target tied to a life event (visa fund, rent buffer, travel), prefer Safety net unless they explicitly frame it as investing.",
       examples: [
         "Open a stocks & shares ISA",
         "Increase pension contributions",
@@ -82,7 +82,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Negotiate salary (→ Income)",
       ],
       aiRoutingNote:
-        "Route here for insurance, emergency funds, and downside protection — not investment growth or debt repayment.",
+        "Route here for buffers, emergency funds, insurance, and protection against specific life shocks — visa costs, rent pressure, redundancy cushion, medical cover. The key signal is fear of a bad outcome, not desire for growth. If the user mentions a named life risk (visa, rent spike, job loss), this hub almost always wins over Assets even if the mechanism is a savings pot.",
       examples: [
         "Hit 6-month emergency fund",
         "Review income protection insurance",
@@ -106,7 +106,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Income protection policy (→ Safety net)",
       ],
       aiRoutingNote:
-        "Route here only for money you owe creditors — never for giving, earning, or investing.",
+        "Route here for money owed to creditors — credit cards, loans, overdrafts, buy-now-pay-later balances. The signal is a named debt with a balance or repayment plan. Do not route visa application fees, rent deposits, or one-off costs here — those are Safety net. Do not route mortgage equity building here — that is Assets.",
       examples: [
         "Pay off credit card",
         "Refinance mortgage",
@@ -132,7 +132,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Close friendship with former colleague (→ Friendships)",
       ],
       aiRoutingNote:
-        "Route here for role, employer, promotion, or career direction — not learning plans or shipped work products.",
+        "Route here for role, employer, promotion, redundancy, job search, and career direction — what the user does for work and where it's going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Skills. If they're shipping a portfolio piece or publishing content, that's Builds & Launches. Career covers the role itself; the other two cover the inputs and outputs. Extract all three when present in the same dump.",
       examples: [
         "Land Head of Product role",
         "Plan promotion to director",
@@ -156,7 +156,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Weekend trip with friends (→ Joy)",
       ],
       aiRoutingNote:
-        "Route here for learning, credentials, practice, and professional network for growth — not job offers or finished deliverables.",
+        "Route here for learning, qualifications, courses, certifications, practice, and skill-building — the inputs that compound into capability. CEMAP, language learning, technical practice, and reading lists belong here even when motivated by a career goal. If the user names a specific qualification or course, this hub almost always wins over Career. Do not collapse a Skills item into a Career pursuit just because they share a target role.",
       examples: [
         "Complete CeMAP qualification",
         "Deepen SQL for analytics",
@@ -180,7 +180,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Hobby game dev with no ship goal (→ Joy)",
       ],
       aiRoutingNote:
-        "Route here when the user describes building, shipping, or releasing a tangible work output — not career moves or skill study alone. When a new target is a clear next chapter of an existing shipped/growth pursuit on this hub (same channel or product, higher metric, later date), extract it as a continuation (parentRef to the earlier pursuit), not a peer.",
+        "Route here when the user describes building, shipping, or releasing a tangible work output — YouTube videos, portfolio pieces, products, side projects with a deliverable. The signal is something that gets published or completed, not learned or earned. When a new target is a clear next chapter of an existing shipped pursuit (same channel or product, higher metric, later date), extract it as a continuation with parentRef, not a peer pursuit.",
       examples: [
         "Ship Pathfinder v1",
         "Finish case-study portfolio",
@@ -207,7 +207,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Plan concert trip (→ Joy)",
       ],
       aiRoutingNote:
-        "Route here for meaning, values, spirituality, intentional giving, and life direction — not therapy, grief processing, habits for mental health, or entertainment. If the core question is 'what do I believe / what matters', Purpose; if 'how do I heal or change patterns', Inner life.",
+        "Route here for meaning, values, spirituality, life direction, and intentional giving — the 'what do I believe and what matters' questions. If the core work is healing, processing patterns, or therapy, that's Inner life. If it's leisure or refuel, that's Joy. Purpose is about direction; Inner life is about repair. When the user is genuinely uncertain which one applies, route to ambiguous[] rather than guessing.",
       examples: [
         "Write a personal mission",
         "Refine my north star",
@@ -231,7 +231,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Girls' weekend trip (→ Joy)",
       ],
       aiRoutingNote:
-        "Route here for therapy, grief, shadow patterns, identity shifts, and personal rituals that process inner experience — never for north-star/values questions (Purpose), job skills, or cosmetic body projects.",
+        "Route here for therapy, grief, shadow patterns, identity shifts, emotional processing, and personal rituals that work on inner experience. The signal is repair, healing, or pattern change. Not for values questions (Purpose), not for skills or work (Skills/Career), not for body projects (Appearance). If the user mentions therapy by name, this hub wins over Purpose. Loneliness, self-criticism, and emotional flinching belong here.",
       examples: [
         "Start therapy",
         "Process anxiety before the move",
@@ -255,7 +255,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Skincare routine for confidence in body (→ Appearance)",
       ],
       aiRoutingNote:
-        "Route here for hobbies, travel, culture, and play — not work outputs, therapy, or physical medical/aesthetic treatment plans. If someone would feel guilty calling it work, it belongs here.",
+        "Route here for hobbies, travel, culture, play, and refuel — things that are ends in themselves, not means to a goal. If the user would feel guilty calling it work, it belongs here. Reading, gaming, weekend trips, concerts, walks, time with friends as recreation. If a friendship activity is framed as social belonging (Friendships) or family care (Family), prefer those hubs; Joy is for the activity itself.",
       examples: [
         "Revive weekend hiking",
         "Plan Japan trip",
@@ -281,7 +281,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Couples therapy for partnership (→ Romance)",
       ],
       aiRoutingNote:
-        "Route here for parents, children, siblings, and family care — not partners or friends.",
+        "Route here for parents, siblings, children, in-laws, and family care — including emotional dynamics like a parent going silent or pressure to introduce a partner. If the user mentions a parent or sibling by relation (Mum, Dad, brother), this is Family even when the emotion is about the user's own state. Do not route partner or fiancé items here — those are Romance.",
       examples: [
         "Weekly call with dad",
         "Co-parenting schedule",
@@ -305,7 +305,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Individual therapy for self only (→ Inner life)",
       ],
       aiRoutingNote:
-        "Route here for spouse, partner, dating, or romantic commitment — not friends or relatives.",
+        "Route here for spouse, partner, fiancé, dating, engagement, and romantic commitment — including the admin that comes with it (spousal visa, wedding planning, moving in). Spousal visa applications are Romance, not Family, even when families are involved. If the user mentions a girlfriend, boyfriend, or partner by role, this hub wins.",
       examples: [
         "Plan engagement",
         "Repair after major conflict",
@@ -329,7 +329,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Family reunion (→ Family)",
       ],
       aiRoutingNote:
-        "Route here for friends, community, and social belonging — not professional networking or family/romantic partners.",
+        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Career) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friendships over Joy.",
       examples: [
         "Reconnect with old friend",
         "Host monthly dinner club",
@@ -355,7 +355,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Hair transplant (→ Appearance)",
       ],
       aiRoutingNote:
-        "Route here for exercise, sport, and movement practice — not diet, sleep, or cosmetic procedures.",
+        "Route here for exercise, running, gym, sport, walking, and movement practice — physical activity for its own sake or for fitness. Couch-to-5k, 10k training, strength work all belong here. If the user mentions a completed run or workout as a moment of pride, extract it as a mark. When the input contains both Movement and Nutrition items in the same dump, extract both — do not collapse one into the other.",
       examples: [
         "Start 3× strength program",
         "Train for half marathon",
@@ -379,7 +379,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Teeth whitening (→ Appearance)",
       ],
       aiRoutingNote:
-        "Route here for eating, drinking, and food habits — not workouts, sleep, or cosmetic body projects.",
+        "Route here for eating, drinking, food habits, and meal patterns — what the user puts in their body. If the input mentions meal prep, cutting takeaways, or food as comfort, this is Nutrition even if it appears inside a broader health dump. Do not suppress a Nutrition item just because Movement items appear in the same input — extract both.",
       examples: [
         "Simplify weekday dinners",
         "Cut late-night snacking",
@@ -403,7 +403,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "General fat loss via diet (→ Nutrition)",
       ],
       aiRoutingNote:
-        "Route here for intentional look/feel body projects (teeth, hair, skin, cosmetic) — not therapy, training, or pure financial purchases.",
+        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, style. The signal is presentation and how the user looks. Photo flinching, mirror avoidance, and not feeling comfortable in pictures belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Appearance and Inner life flagged.",
       examples: [
         "Plan Invisalign",
         "Book dermatologist for acne",
@@ -427,7 +427,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Strength deload week (→ Movement)",
       ],
       aiRoutingNote:
-        "Route here for sleep, rest, recovery, and deliberate downtime — not entertainment or exercise programming.",
+        "Route here for sleep, recovery, downtime, lights-out rules, and deliberate rest — the deliberate practice of resting. Lights-out times, sleep hygiene, naps, recovery days from training all belong here. Not for entertainment as leisure (Joy) and not for medical sleep treatments framed primarily as a health condition. If the user names a specific bedtime rule or sleep target, this hub wins.",
       examples: [
         "Fix 10pm wind-down",
         "Block recovery weekend after launch",

@@ -22,6 +22,7 @@ export const STREAM_COMPOSER_CSS = `
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
 }
 .pf-stream-composer textarea {
   width: 100%;
@@ -31,8 +32,8 @@ export const STREAM_COMPOSER_CSS = `
   resize: vertical;
   min-height: 110px;
   max-height: 40vh;
-  padding: 14px 52px 14px 16px;
-  font-family: var(--font-pf-roadmap-sans), system-ui, sans-serif;
+  padding: 16px 58px 36px 18px;
+  font-family: "Lora", var(--font-pf-roadmap-serif), Georgia, serif;
   font-size: 15px;
   line-height: 1.6;
   letter-spacing: 0.003em;
@@ -49,10 +50,39 @@ export const STREAM_COMPOSER_CSS = `
 .pf-stream-composer-actions {
   position: absolute;
   right: 10px;
-  bottom: 10px;
+  top: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.pf-stream-composer-footer {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-pf-roadmap-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+  pointer-events: none;
+}
+.pf-stream-composer-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pf-stream-composer-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1D9E75;
+  box-shadow: 0 0 6px #1D9E75;
 }
 `;
 
@@ -65,6 +95,7 @@ export type StreamComposerProps = {
   onSend: () => void;
   onVoiceUsed?: () => void;
   accent?: string;
+  proposalCount?: number;
   voiceOptions?: UseVoiceInputOptions;
 };
 
@@ -77,6 +108,7 @@ export function StreamComposer({
   onSend,
   onVoiceUsed,
   accent,
+  proposalCount = 0,
   voiceOptions,
 }: StreamComposerProps) {
   const voice = useVoiceInput(voiceOptions ?? { enabled: true });
@@ -167,6 +199,13 @@ export function StreamComposer({
         >
           <StreamSendIcon />
         </button>
+      </div>
+      <div className="pf-stream-composer-footer" aria-hidden>
+        <span>
+          <i className="pf-stream-composer-live-dot" />
+          Listening · {proposalCount} {proposalCount === 1 ? "proposal" : "proposals"} so far
+        </span>
+        <span>⌘↵ send · ⎋ exit</span>
       </div>
       {voice.transcribing || voice.listening ? (
         <p

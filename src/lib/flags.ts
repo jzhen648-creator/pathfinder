@@ -16,7 +16,7 @@ export const FLAGS = {
    * Goal bloom luminous preset: restrained / balanced / cinematic.
    * Cinematic explores tighter fields + jewel cores (deterministic SVG only — no particles).
    */
-  TREE_GOAL_RENDER_QUALITY: "balanced" as TreeRenderQuality,
+  TREE_GOAL_RENDER_QUALITY: "restrained" as TreeRenderQuality,
   /** Tree: NL + Gemini parse → confirm, for goals (`/api/goals/parse`) and moments (`/api/marks/parse`) instead of full modals. */
   CONVERSATIONAL_GOAL_CREATE: true,
   /**

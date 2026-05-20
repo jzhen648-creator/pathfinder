@@ -119,15 +119,13 @@ export async function POST(request: Request) {
           byBranch.set(resolved.branchId, list);
         }
         for (const [branchId, items] of byBranch) {
-          const row = themeContext.hubs.find((h) => h.branchId === branchId);
-          if (!row) continue;
-          const { created } = await commitAmbiguousItemsToBranch(
+          const { committed } = await commitAmbiguousItemsToBranch(
             userId,
             branchId,
             themeId as LifeAreaId,
             items,
           );
-          committedAmbiguousCount += created;
+          committedAmbiguousCount += committed;
         }
         return NextResponse.json({ ...result, committedAmbiguousCount });
       } catch (err) {
@@ -241,13 +239,13 @@ export async function POST(request: Request) {
       const result = await runStreamExtract(hubContext, input);
       let committedAmbiguousCount = 0;
       if (result.ambiguous.length > 0) {
-        const { created } = await commitAmbiguousItemsToBranch(
+        const { committed } = await commitAmbiguousItemsToBranch(
           userId,
           branch.id,
           branch.limbId,
           result.ambiguous,
         );
-        committedAmbiguousCount = created;
+        committedAmbiguousCount = committed;
       }
       return NextResponse.json({ ...result, committedAmbiguousCount });
     } catch (err) {

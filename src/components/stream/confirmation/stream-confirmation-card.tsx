@@ -228,7 +228,7 @@ function StandardBody({
           </div>
         </div>
       ) : (
-        <div className="pf-stream-confirm-actions" style={actionsColumnStyle}>
+        <div className="pf-stream-confirm-actions" style={{ ...actionsColumnStyle, flexDirection: "row", alignItems: "center", gap: 6 }}>
           <button
             type="button"
             onClick={onAdd}
@@ -239,11 +239,22 @@ function StandardBody({
               cursor: commitInFlight ? "wait" : "pointer",
             }}
           >
-            {commitInFlight ? "Saving…" : "Add"}
+            {commitInFlight ? "Saving…" : "Confirm"}
           </button>
           <button type="button" onClick={onSkip} disabled={commitInFlight} style={ghostBtn()}>
             Skip
           </button>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontFamily: "var(--font-pf-roadmap-mono), ui-monospace, monospace",
+              fontSize: 10.5,
+              color: "rgba(255,255,255,0.32)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            ⌘↵
+          </span>
         </div>
       )}
     </>

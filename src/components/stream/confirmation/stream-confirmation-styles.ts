@@ -110,14 +110,14 @@ export const STREAM_CARD_VARIANT_CSS = `
 
 .pf-stream-shell .pf-stream-card-detail {
   margin: 0;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-  line-height: 1.45;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.66);
+  line-height: 1.55;
+  text-wrap: pretty;
 }
 
 .pf-stream-shell .pf-stream-card--mark {
-  border-left: 3px solid ${STREAM_MARK_AMBER};
-  background: rgba(255, 200, 100, 0.04);
+  background: rgba(11, 10, 15, 0.84);
   animation: streamCardInPeer 200ms ease-out;
 }
 
@@ -134,7 +134,6 @@ export const STREAM_CARD_VARIANT_CSS = `
 }
 
 .pf-stream-shell .pf-stream-card--pursuit-peer {
-  border-left: 3px solid var(--stream-accent, var(--color-border-tertiary));
   animation: streamCardInPeer 200ms ease-out;
 }
 
@@ -161,7 +160,6 @@ export const STREAM_CARD_VARIANT_CSS = `
 
 .pf-stream-shell .pf-stream-card--milestone {
   border: 1px solid var(--color-border-tertiary);
-  border-left: 2px dashed var(--color-border-tertiary);
   animation: streamCardInMilestone 200ms ease-out;
 }
 
@@ -213,29 +211,28 @@ export const selectStyle: CSSProperties = {
 };
 
 export function primaryBtn(accent: string): CSSProperties {
+  void accent;
   return {
-    width: "100%",
-    fontSize: 15,
-    fontWeight: 600,
-    padding: "12px 16px",
+    fontSize: 13,
+    fontWeight: 500,
+    padding: "9px 16px",
     borderRadius: 10,
     border: "none",
-    background: accent,
-    color: "#0c0a09",
+    background: "rgba(255, 255, 255, 0.94)",
+    color: "#0A0911",
     cursor: "pointer",
   };
 }
 
 export function ghostBtn(): CSSProperties {
   return {
-    width: "100%",
-    fontSize: 15,
-    fontWeight: 600,
-    padding: "12px 16px",
+    fontSize: 13,
+    fontWeight: 500,
+    padding: "9px 14px",
     borderRadius: 10,
-    border: "1px solid var(--color-border-tertiary)",
+    border: "none",
     background: "transparent",
-    color: "var(--color-text-primary)",
+    color: "rgba(255, 255, 255, 0.55)",
     cursor: "pointer",
   };
 }

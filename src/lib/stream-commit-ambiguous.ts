@@ -26,9 +26,10 @@ export async function commitAmbiguousItemsToBranch(
   branchId: string,
   limbId: string,
   items: AmbiguousItem[],
-): Promise<{ created: number; markIds: string[] }> {
+): Promise<{ created: number; committed: number; markIds: string[] }> {
   const markIds: string[] = [];
   let created = 0;
+  let committed = 0;
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
@@ -53,12 +54,15 @@ export async function commitAmbiguousItemsToBranch(
               branchId,
               streamAmbiguousId: item.id,
               archived: false,
+              needsResolution: true,
             },
             select: { id: true },
           })
         : null;
       if (existing) {
         markIds.push(existing.id);
+        created += 1;
+        committed += 1;
         continue;
       }
 
@@ -82,10 +86,11 @@ export async function commitAmbiguousItemsToBranch(
       });
       markIds.push(mark.id);
       created += 1;
+      committed += 1;
     }
   });
 
-  return { created, markIds };
+  return { created, committed, markIds };
 }
 
 async function getUnresolvedAmbiguousMark(

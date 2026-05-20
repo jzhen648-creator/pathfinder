@@ -1,5 +1,6 @@
 /** Deterministic limb-color derivatives for jewel-like highlights (no procedural noise). */
 
+import { TREE_CINEMATIC_VFX_ENABLED } from "./tree-cinematic-vfx";
 import { TREE_MAP_SURFACE_RGB } from "./tree-view-constants";
 
 export type Rgb = { r: number; g: number; b: number };
@@ -97,7 +98,7 @@ export function limbJewelHighlightStopColor(baseHex: string, chromaMix: number):
   const base = parseHexRgb(baseHex);
   if (!base) return rgbToHex(INNER_BLOOM_HOT);
   const sat = saturateRgbAroundLuma(base, 1 + chromaMix * 0.55);
-  const t = 0.38 + chromaMix * 0.28;
+  const t = (0.38 + chromaMix * 0.28) * (TREE_CINEMATIC_VFX_ENABLED ? 0.52 : 1);
   return rgbToHex(mixRgb(sat, INNER_BLOOM_HOT, t));
 }
 
@@ -114,7 +115,7 @@ export function limbCoherenceAbsorptionEdgeHex(baseHex: string, depth: number): 
   const base = parseHexRgb(baseHex);
   const deep: Rgb = { r: 22, g: 10, b: 34 };
   if (!base) return rgbToHex(deep);
-  const t = Math.max(0.35, Math.min(1, depth));
+  const t = Math.max(0.35, Math.min(1, depth)) * (TREE_CINEMATIC_VFX_ENABLED ? 0.62 : 1);
   return rgbToHex(mixRgb(base, deep, t));
 }
 

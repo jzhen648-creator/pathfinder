@@ -65,8 +65,8 @@ export type TrunkThemeSlotSpec = {
 type FanSpec = { center: number; halfSpan: number };
 
 const TRUNK_STROKE_HALF_W_PX = 24;
-/** Minimum center-to-center gap between adjacent domain-hub icons (72px glyph + label margin). */
-const TRUNK_HUB_MIN_CENTER_GAP_PX = 228;
+/** Minimum center-to-center gap between adjacent domain hubs. Tuned so hubs read as local gateway clusters. */
+const TRUNK_HUB_MIN_CENTER_GAP_PX = 168;
 /** Fraction of fan arc allowed on the trunk (inward) side of the outward ray — keeps sibling domain hubs on the outer arc. */
 const TRUNK_HUB_FAN_INWARD_FRAC = 0.06;
 /** Angular half-span of the domain-hub fan on the outward side (~108° at default). */
@@ -87,7 +87,7 @@ export const TREE_TRUNK_GATEWAY_SPOKE_LENGTH_PX = 620;
 export const TREE_TRUNK_DOMAIN_HUB_RING_PX = 498;
 export const TREE_TRUNK_HUB_GATEWAY_ARC_SPREAD_PX = 188;
 export const TREE_TRUNK_HUB_SLOT_RADIAL_OFFSETS_N4: readonly [number, number, number, number] = [
-  0, 54, 0, 54,
+  0, 22, 0, 22,
 ];
 
 /**
@@ -120,10 +120,10 @@ function hubFanArcSlotIndex(
 }
 /** Extra radius for lower same-side themes (finance, health) so clusters do not stack. */
 const TRUNK_SIDE_HUB_LOWER_THEME_LANE_PX = 118;
-export const TREE_TRUNK_GOAL_BASE_RADIUS_PX = 180;
-export const TREE_TRUNK_GOAL_RING_MAX_PX = 244;
-/** Hub disc (~64px) + hex (~48px) + orbital ring (~54px) + margin — floor for hub→goal center. */
-const TRUNK_GOAL_MIN_RADIUS_FROM_HUB_PX = 218;
+export const TREE_TRUNK_GOAL_BASE_RADIUS_PX = 150;
+export const TREE_TRUNK_GOAL_RING_MAX_PX = 214;
+/** Hub medallion + pursuit hex clearance — close enough to read as goals gathered by the hub. */
+const TRUNK_GOAL_MIN_RADIUS_FROM_HUB_PX = 154;
 /** 1–2 goals: narrow wedge along hub spoke (legacy default). */
 const TRUNK_GOAL_WEDGE_HALF_RAD_BASE = Math.PI * 0.09;
 /** Odd-index pursuits sit one ring farther out (staggered arc). */
@@ -151,7 +151,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     attachT: 0,
     side: "center",
     limbRiseY: 520,
-    hubOrbitRadius: 280,
+    hubOrbitRadius: 236,
     hubSpokeLength: 600,
   },
   {
@@ -162,7 +162,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     limbRiseY: 380,
     hubFanHalfSpanDeg: 92,
     hubFanCenterOffsetRad: -0.34,
-    hubOrbitRadius: 340,
+    hubOrbitRadius: 236,
     hubSpokeLength: 680,
   },
   {
@@ -173,7 +173,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     limbRiseY: 420,
     hubFanHalfSpanDeg: 88,
     hubFanCenterOffsetRad: 0.12,
-    hubOrbitRadius: 335,
+    hubOrbitRadius: 232,
     hubSpokeLength: 640,
   },
   {
@@ -183,7 +183,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     limbOffsetX: 450,
     limbRiseY: -100,
     hubFanHalfSpanDeg: 80,
-    hubOrbitRadius: 335,
+    hubOrbitRadius: 248,
     hubSpokeLength: 540,
   },
   {
@@ -193,7 +193,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     limbOffsetX: 510,
     limbRiseY: -60,
     hubFanHalfSpanDeg: 72,
-    hubOrbitRadius: 340,
+    hubOrbitRadius: 252,
     hubSpokeLength: 580,
   },
 ] as const;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
+import { TREE_CINEMATIC_VFX, TREE_CINEMATIC_VFX_ENABLED } from "./tree-cinematic-vfx";
 
 export type IconMedallionTier = "theme" | "domainHub" | "goal";
 
@@ -24,9 +25,9 @@ const TIER_PAD_PX: Record<IconMedallionTier, number> = {
 };
 
 const TIER_BLOOM_MUL: Record<IconMedallionTier, number> = {
-  theme: 1.55,
-  domainHub: 1.44,
-  goal: 1.34,
+  theme: TREE_CINEMATIC_VFX_ENABLED ? 1.42 : 1.55,
+  domainHub: TREE_CINEMATIC_VFX_ENABLED ? 1.32 : 1.44,
+  goal: TREE_CINEMATIC_VFX_ENABLED ? 1.18 : 1.34,
 };
 
 /** Disc radii derived from on-screen artwork span — keeps the ring hugging the glyph, not a generic circle. */
@@ -52,67 +53,130 @@ type TierGradients = {
 /** Radial falloff stops — smooth transitions instead of hard concentric fills. */
 const TIER_GRADIENTS: Record<IconMedallionTier, TierGradients> = {
   theme: {
-    bloom: [
-      [0, 0.18],
-      [0.38, 0.1],
-      [0.68, 0.045],
-      [1, 0],
-    ],
-    body: [
-      [0, 0.9],
-      [0.52, 0.76],
-      [0.82, 0.34],
-      [1, 0],
-    ],
-    wash: [
-      [0, 0.42],
-      [0.42, 0.28],
-      [0.74, 0.1],
-      [1, 0],
-    ],
-    ring: 0.34,
+    bloom: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.18],
+          [0.42, 0.1],
+          [0.72, 0.045],
+          [1, 0],
+        ]
+      : [
+          [0, 0.18],
+          [0.38, 0.1],
+          [0.68, 0.045],
+          [1, 0],
+        ],
+    body: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.9],
+          [0.55, 0.76],
+          [0.85, 0.34],
+          [1, 0],
+        ]
+      : [
+          [0, 0.9],
+          [0.52, 0.76],
+          [0.82, 0.34],
+          [1, 0],
+        ],
+    wash: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.42],
+          [0.45, 0.28],
+          [0.78, 0.1],
+          [1, 0],
+        ]
+      : [
+          [0, 0.42],
+          [0.42, 0.28],
+          [0.74, 0.1],
+          [1, 0],
+        ],
+    ring: TREE_CINEMATIC_VFX_ENABLED ? 0.34 : 0.34,
   },
   domainHub: {
-    bloom: [
-      [0, 0.22],
-      [0.4, 0.13],
-      [0.7, 0.06],
-      [1, 0],
-    ],
-    body: [
-      [0, 1],
-      [0.54, 0.92],
-      [0.84, 0.42],
-      [1, 0],
-    ],
-    wash: [
-      [0, 0.34],
-      [0.44, 0.22],
-      [0.76, 0.08],
-      [1, 0],
-    ],
-    ring: 0.52,
+    bloom: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.22],
+          [0.4, 0.13],
+          [0.72, 0.06],
+          [1, 0],
+        ]
+      : [
+          [0, 0.22],
+          [0.4, 0.13],
+          [0.7, 0.06],
+          [1, 0],
+        ],
+    body: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 1],
+          [0.56, 0.92],
+          [0.86, 0.42],
+          [1, 0],
+        ]
+      : [
+          [0, 1],
+          [0.54, 0.92],
+          [0.84, 0.42],
+          [1, 0],
+        ],
+    wash: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.34],
+          [0.46, 0.22],
+          [0.78, 0.08],
+          [1, 0],
+        ]
+      : [
+          [0, 0.34],
+          [0.44, 0.22],
+          [0.76, 0.08],
+          [1, 0],
+        ],
+    ring: TREE_CINEMATIC_VFX_ENABLED ? 0.52 : 0.52,
   },
   goal: {
-    bloom: [
-      [0, 0.14],
-      [0.42, 0.09],
-      [0.72, 0.04],
-      [1, 0],
-    ],
-    body: [
-      [0, 0.86],
-      [0.56, 0.72],
-      [0.86, 0.28],
-      [1, 0],
-    ],
-    wash: [
-      [0, 0.28],
-      [0.46, 0.18],
-      [0.78, 0.07],
-      [1, 0],
-    ],
-    ring: 0.42,
+    bloom: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.14],
+          [0.42, 0.09],
+          [0.74, 0.04],
+          [1, 0],
+        ]
+      : [
+          [0, 0.14],
+          [0.42, 0.09],
+          [0.72, 0.04],
+          [1, 0],
+        ],
+    body: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.86],
+          [0.58, 0.72],
+          [0.88, 0.28],
+          [1, 0],
+        ]
+      : [
+          [0, 0.86],
+          [0.56, 0.72],
+          [0.86, 0.28],
+          [1, 0],
+        ],
+    wash: TREE_CINEMATIC_VFX_ENABLED
+      ? [
+          [0, 0.28],
+          [0.48, 0.18],
+          [0.8, 0.07],
+          [1, 0],
+        ]
+      : [
+          [0, 0.28],
+          [0.46, 0.18],
+          [0.78, 0.07],
+          [1, 0],
+        ],
+    ring: TREE_CINEMATIC_VFX_ENABLED ? 0.42 : 0.42,
   },
 };
 
@@ -190,8 +254,8 @@ export function TreeIconMedallion({
         <MedallionRadialGradient id={bodyId} cx={cx} cy={cy} r={r.discR} color={color} dark stops={grad.body} />
         <MedallionRadialGradient id={washId} cx={cx} cy={cy} r={r.discR} color={color} stops={grad.wash} />
         <radialGradient id={sheenId} gradientUnits="userSpaceOnUse" cx={cx} cy={cy - r.discR * 0.12} r={r.highlightR}>
-          <stop offset="0%" stopColor={color} stopOpacity={0.2} />
-          <stop offset="55%" stopColor={color} stopOpacity={0.08} />
+          <stop offset="0%" stopColor={color} stopOpacity={TREE_CINEMATIC_VFX_ENABLED ? 0.2 : 0.2} />
+          <stop offset="55%" stopColor={color} stopOpacity={TREE_CINEMATIC_VFX_ENABLED ? 0.08 : 0.08} />
           <stop offset="100%" stopColor={color} stopOpacity={0} />
         </radialGradient>
       </defs>
@@ -227,10 +291,16 @@ export function TreeIconMedallion({
       />
 
       <g transform={`translate(${cx},${cy})`}>
-        <g filter={`url(#${auraFilterId})`} opacity={0.92}>
-          {children}
-        </g>
-        {children}
+        {TREE_CINEMATIC_VFX.iconAuraPass ? (
+          <>
+            <g filter={`url(#${auraFilterId})`} opacity={0.92}>
+              {children}
+            </g>
+            {children}
+          </>
+        ) : (
+          children
+        )}
       </g>
     </g>
   );

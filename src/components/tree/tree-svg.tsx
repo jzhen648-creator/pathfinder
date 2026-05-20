@@ -113,6 +113,16 @@ import {
   trunkJunctionTintHex,
 } from "./tree-color-accents";
 import {
+  TREE_CINEMATIC_VFX,
+  TREE_CINEMATIC_VFX_ENABLED,
+  cinematicBlurStd,
+  limbBackdropHullPolygonOpacity,
+  limbBackdropVeilCenterOpacity,
+  limbBackdropVeilFillOpacity,
+  limbBackdropVeilMidOpacity,
+  treeCinematicMinimalLimbHull,
+} from "./tree-cinematic-vfx";
+import {
   buildEcologicalCarryStreaks,
   buildEcologicalFilaments,
   ecologicalPocketVoidSkip,
@@ -146,10 +156,6 @@ import {
   computeLimbBackdropHull,
   LIMB_BACKDROP_HULL_BLEED_OPACITY_MAX,
   LIMB_BACKDROP_HULL_POCKET_OPACITY_MAX,
-  LIMB_BACKDROP_HULL_POLYGON_OPACITY,
-  LIMB_BACKDROP_VEIL_CENTER_OPACITY,
-  LIMB_BACKDROP_VEIL_FILL_OPACITY,
-  LIMB_BACKDROP_VEIL_MID_OPACITY,
   limbBackdropPrincipalVeilEllipse,
 } from "./tree-limb-backdrop-bounds";
 import { hubTrunkFilamentSpecs } from "./tree-hub-trunk-filaments";
@@ -992,7 +998,11 @@ export function TreeSVG({
             height="220%"
             colorInterpolationFilters="sRGB"
           >
-            <feGaussianBlur in="SourceGraphic" stdDeviation="1.68" result="energyBlur" />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(1.68, TREE_CINEMATIC_VFX.branchEnergyBlur)}
+              result="energyBlur"
+            />
           </filter>
           <filter
             id="treeEcoLowHaze"
@@ -1016,7 +1026,11 @@ export function TreeSVG({
               values="0.2 0 0 0 0  0 0.18 0 0 0  0 0 0.24 0 0  0 0 0 0.038 0"
               result="ecoC"
             />
-            <feGaussianBlur in="ecoC" stdDeviation="20" result="ecoB" />
+            <feGaussianBlur
+              in="ecoC"
+              stdDeviation={cinematicBlurStd(20, 0.55)}
+              result="ecoB"
+            />
           </filter>
           {/* Merge distributed hull pockets into soft mass (no concentric ring generator). */}
           <filter
@@ -1068,7 +1082,10 @@ export function TreeSVG({
             height="260%"
             colorInterpolationFilters="sRGB"
           >
-            <feGaussianBlur in="SourceGraphic" stdDeviation="16" />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(16, TREE_CINEMATIC_VFX.limbVeilMassBlur / 16)}
+            />
           </filter>
           {/* Life-area gateway: soft outer aura + mid bloom + crisp glyph (no concentric rings — avoids conduit clash). */}
           <filter
@@ -1079,10 +1096,26 @@ export function TreeSVG({
             height="400%"
             colorInterpolationFilters="sRGB"
           >
-            <feGaussianBlur in="SourceGraphic" stdDeviation="26" result="gwAuraOuter" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="gwAuraMid" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="6.5" result="gwAuraNear" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="gwAuraTight" />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(26, TREE_CINEMATIC_VFX.gatewayAuraBlurMul)}
+              result="gwAuraOuter"
+            />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(14, TREE_CINEMATIC_VFX.gatewayAuraBlurMul)}
+              result="gwAuraMid"
+            />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(6.5, TREE_CINEMATIC_VFX.gatewayAuraBlurMul)}
+              result="gwAuraNear"
+            />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(2.2, TREE_CINEMATIC_VFX.gatewayAuraBlurMul)}
+              result="gwAuraTight"
+            />
             <feComponentTransfer in="gwAuraOuter" result="gwAuraOuterDim">
               <feFuncA type="linear" slope="0.38" intercept="0" />
             </feComponentTransfer>
@@ -1112,9 +1145,21 @@ export function TreeSVG({
             height="460%"
             colorInterpolationFilters="sRGB"
           >
-            <feGaussianBlur in="SourceGraphic" stdDeviation="28" result="haloFar" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="haloMid" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="5.5" result="haloNear" />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(28, TREE_CINEMATIC_VFX.medallionHaloBlurMul)}
+              result="haloFar"
+            />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(14, TREE_CINEMATIC_VFX.medallionHaloBlurMul)}
+              result="haloMid"
+            />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation={cinematicBlurStd(5.5, TREE_CINEMATIC_VFX.medallionHaloBlurMul)}
+              result="haloNear"
+            />
             <feComponentTransfer in="haloFar" result="haloFarDim">
               <feFuncA type="linear" slope="0.42" intercept="0" />
             </feComponentTransfer>
@@ -1134,7 +1179,9 @@ export function TreeSVG({
         </defs>
         <g
           transform={`translate(${snapTreeSvgScalar(transform.x)}, ${snapTreeSvgScalar(transform.y)}) scale(${transform.scale})`}
-          style={{ filter: "brightness(1.12)" }}
+          style={{
+            filter: TREE_CINEMATIC_VFX_ENABLED ? undefined : "brightness(1.12)",
+          }}
         >
           <g
             transform={`translate(-28,20) rotate(-1.35 ${TREE_TRUNK_MIRROR_X} ${TRUNK_CROWN_Y + (TRUNK_BASE_Y - TRUNK_CROWN_Y) * 0.4}) translate(${TREE_TRUNK_MIRROR_X}, ${TREE_LAYOUT_SCALE_ORIGIN_Y}) scale(${TREE_LAYOUT_WORLD_SCALE}) translate(${-TREE_TRUNK_MIRROR_X}, ${-TREE_LAYOUT_SCALE_ORIGIN_Y})`}
@@ -1245,12 +1292,17 @@ export function TreeSVG({
             height={viewHeight}
             fill="#06050a"
             filter="url(#treeEcoLowHaze)"
-            opacity={0.16}
+            opacity={TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.atmosphereEcoHaze : 0.16}
             pointerEvents="none"
             aria-hidden
             data-tree-eco-atmosphere="1"
           />
-          <g pointerEvents="none" aria-hidden data-tree-eco-drift="1" opacity={0.5}>
+          <g
+            pointerEvents="none"
+            aria-hidden
+            data-tree-eco-drift="1"
+            opacity={TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.atmosphereDrift : 0.5}
+          >
             <animateTransform
               attributeName="transform"
               type="translate"
@@ -1291,7 +1343,7 @@ export function TreeSVG({
             width={viewWidth}
             height={viewHeight}
             fill="url(#treeStageBackdropFalloff)"
-            opacity={0.42}
+            opacity={TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.stageFalloff : 0.42}
             pointerEvents="none"
             aria-hidden
             data-tree-compose-backdrop="1"
@@ -1302,7 +1354,7 @@ export function TreeSVG({
             width={viewWidth}
             height={viewHeight}
             fill="url(#treeStageSouthWeight)"
-            opacity={0.32}
+            opacity={TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.stageSouth : 0.32}
             pointerEvents="none"
             aria-hidden
             data-tree-compose-south="1"
@@ -1542,12 +1594,12 @@ export function TreeSVG({
                               <stop
                                 offset="0%"
                                 stopColor={veilTint}
-                                stopOpacity={LIMB_BACKDROP_VEIL_CENTER_OPACITY}
+                                stopOpacity={limbBackdropVeilCenterOpacity()}
                               />
                               <stop
                                 offset="52%"
                                 stopColor={veilTint}
-                                stopOpacity={LIMB_BACKDROP_VEIL_MID_OPACITY}
+                                stopOpacity={limbBackdropVeilMidOpacity()}
                               />
                               <stop
                                 offset="100%"
@@ -1564,7 +1616,7 @@ export function TreeSVG({
                               ry={veil.ry}
                               transform={`rotate(${veil.rotDeg.toFixed(2)}, ${veil.cx}, ${veil.cy})`}
                               fill={`url(#${veilGradId})`}
-                              fillOpacity={LIMB_BACKDROP_VEIL_FILL_OPACITY}
+                              fillOpacity={limbBackdropVeilFillOpacity()}
                               stroke="none"
                               filter="url(#treeAreaVeilMass)"
                             />
@@ -1574,7 +1626,17 @@ export function TreeSVG({
                     })()}
                   </g>
                 ) : null}
-                {limbBackdropHull ? (() => {
+                {limbBackdropHull && treeCinematicMinimalLimbHull() ? (
+                  <polygon
+                    points={limbBackdropHull.pointsAttr}
+                    fill={limbBackdropSurfaceTint(area.color)}
+                    fillOpacity={limbBackdropHullPolygonOpacity()}
+                    pointerEvents="none"
+                    data-tree-limb-hull-minimal="1"
+                    style={{ opacity: depthStage.hullMassPresenceMul * 0.5 }}
+                  />
+                ) : null}
+                {limbBackdropHull && !treeCinematicMinimalLimbHull() ? (() => {
                   const hullSid = svgDefSafeId(`hull-${area.id}`);
                   const limbTint = limbBackdropSurfaceTint(area.color);
                   const pocketMul = 0.74 + hubDensity * 0.52;
@@ -1827,7 +1889,7 @@ export function TreeSVG({
                         <polygon
                           points={limbBackdropHull.pointsAttr}
                           fill={limbTint}
-                          fillOpacity={LIMB_BACKDROP_HULL_POLYGON_OPACITY}
+                          fillOpacity={limbBackdropHullPolygonOpacity()}
                         />
                         {pockets.map((pk) => {
                           const ej = pocketEllipseShapeJitter(pk.k);
@@ -1895,7 +1957,9 @@ export function TreeSVG({
                       strokeWidth={slots.limbStrokeWidth * CONDUIT_LIMB_STEM_STROKE_SCALE * 1.15}
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      opacity={0.12}
+                      opacity={
+                        TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.limbStemOuterOpacity : 0.12
+                      }
                     />
                     <path
                       d={slots.limb}
@@ -1904,7 +1968,18 @@ export function TreeSVG({
                       strokeWidth={slots.limbStrokeWidth * CONDUIT_LIMB_STEM_STROKE_SCALE * 0.52}
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      opacity={0.4}
+                      opacity={
+                        TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.limbStemMidOpacity : 0.4
+                      }
+                    />
+                    <path
+                      d={slots.limb}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.76)"
+                      strokeWidth={Math.max(0.85, slots.limbStrokeWidth * CONDUIT_LIMB_STEM_STROKE_SCALE * 0.18)}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={TREE_CINEMATIC_VFX_ENABLED ? 0.34 : 0.18}
                     />
                   </g>
                 ) : null}
@@ -1918,10 +1993,17 @@ export function TreeSVG({
                         fill="none"
                         stroke={area.color}
                         strokeWidth={f.strokeWidth}
-                        strokeOpacity={f.strokeOpacity}
+                        strokeOpacity={
+                          f.strokeOpacity *
+                          (TREE_CINEMATIC_VFX_ENABLED
+                            ? TREE_CINEMATIC_VFX.hubTrunkFilamentOpacityMul
+                            : 1)
+                        }
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        filter="url(#treeLimbHullFilamentSoften)"
+                        filter={
+                          TREE_CINEMATIC_VFX_ENABLED ? undefined : "url(#treeLimbHullFilamentSoften)"
+                        }
                       />
                     ))}
                   </g>
@@ -2000,8 +2082,11 @@ export function TreeSVG({
                     widthConst;
                   const strokeDebusy =
                     goalsOnThread.length > 0 ? 0.82 : 1;
+                  const coreOpacityCap = TREE_CINEMATIC_VFX_ENABLED
+                    ? TREE_CINEMATIC_VFX.branchCoreOpacityCap
+                    : 0.42;
                   const coreOpacity = Math.min(
-                    0.42,
+                    coreOpacityCap,
                     threadLineOpacity *
                       lineOpMul *
                       sigMul *
@@ -2029,7 +2114,8 @@ export function TreeSVG({
                     (0.94 + 0.12 * emergenceRelax) *
                     (0.98 + 0.04 * pressureOp) *
                     Math.pow(occMat.lineOpacityMul, 0.82) *
-                    strokeDebusy;
+                    strokeDebusy *
+                    (TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.branchUnderlayMul : 1);
                   const boleFilmD =
                     emergenceRelax > 0.035
                       ? polylinePathApproxBetweenT(
@@ -2039,18 +2125,24 @@ export function TreeSVG({
                           14,
                         )
                       : "";
+                  const warmFilmMul = TREE_CINEMATIC_VFX_ENABLED
+                    ? TREE_CINEMATIC_VFX.branchWarmFilmMul
+                    : 1;
                   const warmFilmOp = Math.min(
                     0.092,
-                    junction.warmFilmOpacity * 0.52 * strokeDebusy,
+                    junction.warmFilmOpacity * 0.52 * strokeDebusy * warmFilmMul,
                   );
                   const warmFilmHueOp = Math.min(
                     0.072,
-                    junction.warmFilmOpacity * 0.4 * strokeDebusy,
+                    junction.warmFilmOpacity * 0.4 * strokeDebusy * warmFilmMul,
                   );
                   const milestonePoolD =
                     thread.moments.length >= 2
                       ? polylinePathApproxBetweenT(threadMainDraw, 0.28, 0.7, 18)
                       : "";
+                  const milestonePoolMul = TREE_CINEMATIC_VFX_ENABLED
+                    ? TREE_CINEMATIC_VFX.branchMilestonePoolMul
+                    : 1;
                   const milestonePoolOp =
                     thread.moments.length >= 2
                       ? Math.min(
@@ -2059,7 +2151,8 @@ export function TreeSVG({
                             clusterMom *
                             sigMul *
                             (1 + 0.35 * Math.min(4, thread.moments.length - 1)) *
-                            strokeDebusy,
+                            strokeDebusy *
+                            milestonePoolMul,
                         )
                       : 0;
 
@@ -2077,7 +2170,11 @@ export function TreeSVG({
                             strokeWidth={slots.limbStrokeWidth * 2.2 * stemStrokeW}
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            opacity={0.08 * stemStrokeOp}
+                            opacity={
+                              (TREE_CINEMATIC_VFX_ENABLED
+                                ? TREE_CINEMATIC_VFX.limbStemOuterOpacity
+                                : 0.08) * stemStrokeOp
+                            }
                             pointerEvents="none"
                           />
                           <path
@@ -2087,7 +2184,11 @@ export function TreeSVG({
                             strokeWidth={slots.limbStrokeWidth * 1.3 * stemStrokeW}
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            opacity={0.24 * stemStrokeOp}
+                            opacity={
+                              (TREE_CINEMATIC_VFX_ENABLED
+                                ? TREE_CINEMATIC_VFX.limbStemMidOpacity
+                                : 0.24) * stemStrokeOp
+                            }
                             pointerEvents="none"
                           />
                           <path
@@ -2097,7 +2198,11 @@ export function TreeSVG({
                             strokeWidth={slots.limbStrokeWidth * 0.45 * stemStrokeW}
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            opacity={0.38 * stemStrokeOp}
+                            opacity={
+                              (TREE_CINEMATIC_VFX_ENABLED
+                                ? TREE_CINEMATIC_VFX.limbStemCoreOpacity
+                                : 0.38) * stemStrokeOp
+                            }
                             pointerEvents="none"
                           />
                           <path
@@ -2107,7 +2212,9 @@ export function TreeSVG({
                             strokeWidth={slots.limbStrokeWidth * 0.52 * stemStrokeW}
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            opacity={0.055 * stemStrokeOp}
+                            opacity={
+                              (TREE_CINEMATIC_VFX_ENABLED ? 0.16 : 0.055) * stemStrokeOp
+                            }
                             pointerEvents="none"
                           />
                         </>
@@ -2121,7 +2228,7 @@ export function TreeSVG({
                           />
                         </g>
                       ) : null}
-                      {limbSegPath && !threadDcStroke ? (
+                      {limbSegPath && !threadDcStroke && !TREE_CINEMATIC_VFX_ENABLED ? (
                         <>
                           <circle
                             cx={pathPointAtT(threadMainDraw, 0.02).x}
@@ -2163,7 +2270,11 @@ export function TreeSVG({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         opacity={underlayOpacity}
-                        filter="url(#treeBranchStrokeEnergyUnderlay)"
+                        filter={
+                          TREE_CINEMATIC_VFX_ENABLED
+                            ? undefined
+                            : "url(#treeBranchStrokeEnergyUnderlay)"
+                        }
                         pointerEvents="none"
                       />
                       {milestonePoolD ? (
@@ -2210,6 +2321,16 @@ export function TreeSVG({
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             opacity={coreOpacity}
+                            pointerEvents="none"
+                          />
+                          <path
+                            d={threadMainDraw}
+                            fill="none"
+                            stroke="rgba(255,255,255,0.72)"
+                            strokeWidth={Math.max(0.75, coreStrokeW * 0.32)}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            opacity={TREE_CINEMATIC_VFX_ENABLED ? Math.min(0.24, coreOpacity * 0.48) : 0.08}
                             pointerEvents="none"
                           />
                         </>
@@ -2999,7 +3120,7 @@ export function TreeSVG({
             width={viewWidth}
             height={viewHeight}
             fill="url(#treeStageEdgeVignette)"
-            opacity={0.38}
+            opacity={TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.stageEdgeVignette : 0.38}
             pointerEvents="none"
             aria-hidden
             data-tree-compose-vignette="1"

@@ -84,11 +84,15 @@ export type TreeSVGProps = {
 
 export type TreePanelPresentation = "sheet" | "rail";
 
+export type TreePanelSurface = "roadmap" | "canvas";
+
 export type TreePanelProps = {
   panel: PanelState;
   areas: AreaData[];
   /** Goal detail: `rail` = left overlay column (does not shrink the map); others use bottom `sheet`. */
   panelPresentation?: TreePanelPresentation;
+  /** Visual tokens — `canvas` uses dark glass on the tree HUD. */
+  panelSurface?: TreePanelSurface;
   onClose: () => void;
   onOpenArea: (area: AreaData) => void;
   onOpenHub: (area: AreaData, thread: AreaData["branches"][number]) => void;

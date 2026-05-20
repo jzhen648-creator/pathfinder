@@ -22,7 +22,7 @@ const AI_PROVIDER_CONFIGS: Record<AiProvider, ProviderConfig> = {
     id: "groq",
     label: "Groq",
     baseURL: "https://api.groq.com/openai/v1",
-    model: "openai/gpt-oss-120b",
+    model: "llama-3.3-70b-versatile",
     apiKeyEnvVar: "GROQ_API_KEY",
   },
   deepseek: {
