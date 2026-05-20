@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+import {
+  DEV_LOGIN_EMAIL_DEFAULT,
+  DEV_LOGIN_PASSWORD,
+} from "@/lib/dev-login-credentials";
+
+const DEV_LOGIN_EMAIL =
+  process.env.NEXT_PUBLIC_DEV_PIN_USER_EMAIL ?? DEV_LOGIN_EMAIL_DEFAULT;
+
+const isDev = process.env.NODE_ENV === "development";
+
 function safePostLoginPath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/tree";
-  if (raw.includes("://")) return "/tree";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/onboarding";
+  if (raw.includes("://")) return "/onboarding";
+  if (raw === "/login" || raw.startsWith("/login/")) return "/onboarding";
   return raw;
 }
 
@@ -15,6 +26,45 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  const submitCredentials = useCallback(
+    async (email: string, password: string) => {
+      setError(null);
+      setIsSubmitting(true);
+
+      try {
+        const signInResult = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        });
+
+        if (signInResult?.error) {
+          setError("Invalid email or password.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const callback = safePostLoginPath(
+          new URLSearchParams(window.location.search).get("callbackUrl"),
+        );
+        router.push(callback);
+        router.refresh();
+      } catch {
+        setError("Something went wrong. Please try again.");
+        setIsSubmitting(false);
+      }
+    },
+    [router],
+  );
+
+  const handleDevLogin = useCallback(() => {
+    if (emailRef.current) emailRef.current.value = DEV_LOGIN_EMAIL;
+    if (passwordRef.current) passwordRef.current.value = DEV_LOGIN_PASSWORD;
+    void submitCredentials(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD);
+  }, [submitCredentials]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0f0f0f] px-4 py-10">
@@ -28,7 +78,7 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-zinc-400">
           {mode === "signin"
             ? "Sign in to continue."
-            : "Set up an account to start tracking goals."}
+            : "Set up an account to start tracking pursuits."}
         </p>
 
         <div className="mt-5 grid grid-cols-2 rounded-xl border border-white/10 bg-zinc-950/60 p-1">
@@ -95,23 +145,7 @@ export default function LoginPage() {
                 }
               }
 
-              const signInResult = await signIn("credentials", {
-                email,
-                password,
-                redirect: false,
-              });
-
-              if (signInResult?.error) {
-                setError("Invalid email or password.");
-                setIsSubmitting(false);
-                return;
-              }
-
-              const callback = safePostLoginPath(
-                new URLSearchParams(window.location.search).get("callbackUrl"),
-              );
-              router.push(callback);
-              router.refresh();
+              await submitCredentials(email, password);
             } catch {
               setError("Something went wrong. Please try again.");
               setIsSubmitting(false);
@@ -139,6 +173,7 @@ export default function LoginPage() {
               Email
             </label>
             <input
+              ref={emailRef}
               id="email"
               name="email"
               type="email"
@@ -153,6 +188,7 @@ export default function LoginPage() {
               Password
             </label>
             <input
+              ref={passwordRef}
               id="password"
               name="password"
               type="password"
@@ -175,6 +211,17 @@ export default function LoginPage() {
                 ? "Sign in"
                 : "Set up account"}
           </button>
+
+          {isDev && mode === "signin" ? (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleDevLogin}
+              className="w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-200 transition hover:border-amber-400/60 hover:bg-amber-500/15 disabled:opacity-60"
+            >
+              Dev login
+            </button>
+          ) : null}
         </form>
       </section>
     </main>

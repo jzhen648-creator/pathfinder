@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { defaultAppPathForSession } from "@/lib/onboarding-gate";
 
-export default function Home() {
+export default async function Home() {
   if (process.env.NODE_ENV === "production") {
-    redirect("/tree");
+    redirect(await defaultAppPathForSession());
   }
 
   return (
     <main>
       <h1>Pathfinder (development)</h1>
-      <p>Production <code>/</code> redirects to <Link href="/tree">/tree</Link>.</p>
+      <p>Production <code>/</code> redirects to onboarding or the tree based on profile state.</p>
 
       <h2>App</h2>
       <ul>
         <li>
-          <Link href="/tree">/tree</Link> (default home)
+          <Link href="/tree">/tree</Link> (default home after onboarding)
         </li>
         <li>
           <Link href="/roadmap">/roadmap</Link>

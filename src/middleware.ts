@@ -4,9 +4,16 @@ import type { NextRequest } from "next/server";
 
 const PUBLIC_FILE = /\.(?:ico|png|jpg|jpeg|svg|gif|webp|woff2?|ttf|eot|txt|webmanifest)$/i;
 
+const LOGIN_PATHS = ["/login"];
+const ONBOARDING_PATH = "/onboarding";
+
+function isLoginPath(pathname: string): boolean {
+  return LOGIN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 /**
  * Require a session for all pages except `/login`, and for `/api/*` except `/api/auth/*`.
- * Static assets under `/_next/*` and typical public file extensions are skipped via `config.matcher` + early exit.
+ * Incomplete onboarding → `/onboarding`; completed users cannot revisit onboarding.
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -33,7 +40,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === "/login" || pathname.startsWith("/login/")) {
+  if (isLoginPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (process.env.NODE_ENV === "development" && pathname.startsWith("/dev/")) {
     return NextResponse.next();
   }
 
@@ -44,15 +55,33 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Dev uses a pinned session user; JWT can be stale until re-login. Server pages gate
+  // onboarding — skipping middleware onboarding redirects avoids /tree ↔ /onboarding loops.
+  const skipOnboardingRedirects = process.env.NODE_ENV === "development";
+
+  if (!skipOnboardingRedirects) {
+    const onboardingCompleted = token.onboardingCompleted === true;
+
+    if (!onboardingCompleted && pathname !== ONBOARDING_PATH) {
+      const url = req.nextUrl.clone();
+      url.pathname = ONBOARDING_PATH;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
+    if (onboardingCompleted && pathname === ONBOARDING_PATH) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/tree";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Skip Next.js internals and static files unless they hit this middleware via a broad pattern.
-     * Public file extensions are released in the handler above.
-     */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
