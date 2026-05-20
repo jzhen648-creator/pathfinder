@@ -111,7 +111,7 @@ export function inferLikelyThemeHubSlugs(inputText: string, themeId: LifeAreaId,
       slug: normalizeForHubInference(hubLabel),
       score: scoreHubFromCatalog(input, themeId, hubLabel),
     }))
-    .filter((row) => row.score >= 2);
+    .filter((row) => row.score >= 4);
 
   return new Set(scored.map((row) => row.slug));
 }

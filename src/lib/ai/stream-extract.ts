@@ -11,7 +11,7 @@ import {
   type StreamThemeContextInput,
 } from "@/types/stream";
 
-export const STREAM_THEME_EXTRACT_MAX_TOKENS = 4096;
+export const STREAM_THEME_EXTRACT_MAX_TOKENS = 2048;
 export const STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD = 0.65;
 
 const STREAM_EXTRACT_BOUNDARY_PAIRS = [
@@ -170,6 +170,13 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "narrativeSentence is a one-sentence, second-person reflection of what you heard. Keep it warm, specific, and at most 20 words.",
   "",
+  "## Extraction coverage (do not stop early)",
+  "",
+  "Messy, contradictory, uncertain, or emotionally rambling input is normal Stream input. Do not summarize it into only the first one or two obvious cards.",
+  "Extract every distinct concrete item the user mentions: completed moments, new active pursuits, milestones/steps, continuations, pauses, resumes, and status changes.",
+  "Uncertainty about one item must not suppress other confident items. Put only the uncertain item in ambiguous[] and continue extracting the rest.",
+  "When the user is changing the shape of an existing map goal — evolving it, picking it back up, stretching the target, pausing it, or pivoting from it — still emit the relevant pursuit update instead of dropping the item.",
+  "",
   "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitRef on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
   "",
   "## Pursuit titles (distilled, plain language)",
@@ -298,7 +305,8 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "   - Existing: 'Reach 5,000 subscribers on YouTube by end of 2026'. User adds: 'Reach 10,000 subscribers on YouTube by end of 2027' → NEW pursuit with parentRef { kind: 'existing', goalId: <5k goal id> }. Do NOT leave both as peers (parentGoalId null).",
   "   - Existing: 'Build £500k ISA'. User: 'Grow ISA to £1M by 2030' → continuation child of the £500k pursuit.",
   "   - Existing: 'Run first marathon'. User: 'Run sub-3:30 marathon in 2027' → continuation, not a peer.",
-  "   Signals: same domain/activity wording, escalating target or later end date, phrases like 'next', 'after that', 'once I hit X', 'stretch goal', 'phase 2'.",
+  "   Signals: same domain/activity wording, escalating target or later end date, phrases like 'next', 'after that', 'once I hit X', 'stretch goal', 'phase 2', 'evolving into', 'next version', 'picking this back up', 'same goal but', or 'changed shape'.",
+  "   If an existing pursuit is a likely predecessor by intent, prefer parentRef to that existing goal over creating a fresh peer with no parentRef.",
   "   Counter-examples (stay peers): unrelated pursuits on the same hub ('Ship newsletter' + 'Learn Figma'); parallel tracks ('Client A revenue' + 'Client B revenue'); same topic but genuinely different goals with no progression ('Start YouTube channel' + 'Guest on podcasts').",
   "",
   "Set parentRef on the child (never on the parent). kind 'existing' when parent is on this hub (goalId from hub context); kind 'new' when parent is created in this session (clientKey).",
@@ -312,9 +320,9 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "Rule 9 — Pursuit status changes (no new row):",
   "When the user is only updating lifecycle status of an existing pursuit — not describing new work — use existingGoalId + bloomStatus. Never create a new pursuit for status-only updates. Do not add milestones on status-only updates.",
   "- Finished / done / launched / completed / achieved / wrapped up → existingGoalId + bloomStatus \"COMPLETE\".",
-  "- Paused / on hold / shelved / not pursuing right now / taking a break from → existingGoalId + bloomStatus \"ON_HOLD\".",
-  "- Resuming / back on / picking up again / active again (especially when the pursuit is currently ON_HOLD) → existingGoalId + bloomStatus \"ACTIVE\".",
-  "- Match by intent against existing pursuits on this hub (title, paraphrase, synonym) before choosing existingGoalId.",
+"- Paused / on hold / shelved / not pursuing right now / taking a break from / dropping for now / deprioritising / back burner → existingGoalId + bloomStatus \"ON_HOLD\".",
+"- Resuming / back on / picking up again / active again / returning to it (especially when the pursuit is currently ON_HOLD) → existingGoalId + bloomStatus \"ACTIVE\".",
+"- Match by intent against existing pursuits on this hub (title, paraphrase, synonym) before choosing existingGoalId. For pause/resume signals, prefer a likely existingGoalId match over creating a fresh peer.",
   "",
   "## Confirmation order (itemOrder)",
   "",
@@ -431,6 +439,12 @@ export function formatPreviousStreamSessionDumps(sessions: StreamSessionDumpRow[
     .join("\n\n");
 }
 
+export function shouldIncludeRemovedContext(input: string): boolean {
+  return /\b(again|archive|archived|before|bring back|deleted|previous|previously|re-?add|removed|restore|resume|resuming|used to|last time|old|past)\b/i.test(
+    input,
+  );
+}
+
 function formatHubCatalogForPrompt(copy: HubCatalogEntry, scope: "hub" | "theme"): string {
   const lines = [`About: ${copy.about}`, `AI routing: ${copy.aiRoutingNote}`];
   if (scope === "theme") {
@@ -449,6 +463,7 @@ export function buildStreamExtractUserMessage(
   input: string,
 ): string {
   const catalog = formatHubCatalogForPrompt(hubPanelCopy(hub.limbId, hub.hubLabel), "hub");
+  const includeRemovedContext = shouldIncludeRemovedContext(input);
   return [
     `Today's date: ${todayYmdUtc()}`,
     "",
@@ -467,12 +482,16 @@ export function buildStreamExtractUserMessage(
     "## Existing marks on this hub",
     JSON.stringify(hub.existingMarks, null, 2),
     "",
-    "## Removed from map (dedup only — hidden pursuits)",
-    JSON.stringify(hub.removedPursuits, null, 2),
-    "",
-    "## Removed from map (dedup only — hidden marks)",
-    JSON.stringify(hub.removedMarks, null, 2),
-    "",
+    ...(includeRemovedContext
+      ? [
+          "## Removed from map (dedup only — hidden pursuits)",
+          JSON.stringify(hub.removedPursuits, null, 2),
+          "",
+          "## Removed from map (dedup only — hidden marks)",
+          JSON.stringify(hub.removedMarks, null, 2),
+          "",
+        ]
+      : []),
     "## Previous Stream sessions on this hub (summary)",
     hub.previousStreamSessionSummary,
     "",
@@ -568,6 +587,14 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "Your job: return one warm narrativeSentence plus proposed marks, pursuits, and milestones with correct hub routing, plus flagged ambiguities — never write prose outside JSON, never explain, never ask questions in running text. Return ONLY one valid JSON object matching the schema below.",
   "",
+  "## Extraction coverage (read this before routing)",
+  "",
+  "Messy, contradictory, uncertain, or emotionally rambling input is normal Stream input. Do not summarize it into only the first one or two obvious cards.",
+  "Extract every distinct concrete item the user mentions across the provided hubs: completed moments, new active pursuits, milestones/steps, continuations, pauses, resumes, and status changes.",
+  "Uncertainty about one item must not suppress other confident items. Put only the uncertain item in ambiguous[] and continue extracting the rest.",
+  "When the user is changing the shape of an existing map goal — evolving it, picking it back up, stretching the target, pausing it, or pivoting from it — still emit the relevant pursuit update instead of dropping the item.",
+  "Do not stop early on long dumps or contradictory pivots. Process the whole input before finalizing JSON.",
+  "",
   "## Hub routing (critical)",
   "",
   "- Every mark, pursuit, and milestone MUST include hubId — the normalized slug from hub context (e.g. \"career\", \"skills\", \"builds & launches\" for Work & Career).",
@@ -590,8 +617,8 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "1. Read before writing — check all provided hubs' existing pursuits and marks before extracting. A higher/later target for the same activity is a continuation (Rule 6B), not a duplicate peer.",
   "2. Completion over creation — complete existing pursuits (existingGoalId + COMPLETE) instead of duplicating.",
-  "3. Classify: DONE → mark or complete pursuit; PAUSED → existingGoalId + ON_HOLD; RESUMING → existingGoalId + ACTIVE; otherwise → ACTIVE pursuit (new or embellishment).",
-  "Rule 9 — Pursuit status changes (no new row): finished → existingGoalId + COMPLETE; paused/on hold → existingGoalId + ON_HOLD; resuming → existingGoalId + ACTIVE. Never create a new pursuit for status-only updates. No milestones on status-only updates.",
+  "3. Classify: DONE → mark or complete pursuit; PAUSED / dropped / deprioritised → existingGoalId + ON_HOLD; RESUMING / picking back up → existingGoalId + ACTIVE; otherwise → ACTIVE pursuit (new or embellishment).",
+  "Rule 9 — Pursuit status changes (no new row): finished → existingGoalId + COMPLETE; paused/on hold/shelved/dropping for now/deprioritised/back burner → existingGoalId + ON_HOLD; resuming/back on/picking up again → existingGoalId + ACTIVE. Never create a new pursuit for status-only updates. No milestones on status-only updates.",
   "4A. User-named steps → milestones on the matching pursuit (existing or new this session), even if one visit/session; not peer pursuits.",
   "4B. Do not invent milestone structure; never on practice/identity; max 5 per pursuit.",
   `5. Honest about uncertainty — use ambiguous[] when status or hub is unclear, or when confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; include confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} on the ambiguous item.`,
@@ -610,7 +637,8 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "A) Enabler / sub-component — step toward another still-active goal: 'Find a mentor' → child of 'Move into Head of Product'; 'Open a stocks and shares ISA' → child of 'Build £1M ISA portfolio'.",
   "",
   "B) Continuation (longitudinal progression) — same activity on this hub, later chapter (higher target, later deadline, next level). Example: existing 'Reach 5,000 YouTube subscribers by 2026' + user wants '10,000 subscribers by 2027' → NEW pursuit with parentRef { kind: 'existing', goalId: <5k id> }, NOT a second peer. Same for '£500k ISA' → '£1M ISA by 2030', or 'first marathon' → 'sub-3:30 marathon'.",
-  "   Signals: same activity wording, escalating numbers, later dates, 'next' / 'after that' / 'phase 2'. Stay peers only when pursuits are unrelated or parallel, not a clear successor.",
+  "   Signals: same activity wording, escalating numbers, later dates, 'next' / 'after that' / 'phase 2' / 'evolving into' / 'next version' / 'picking this back up' / 'same goal but' / 'changed shape'. Stay peers only when pursuits are unrelated or parallel, not a clear successor.",
+  "   If an existing pursuit is a likely predecessor by intent, prefer parentRef to that existing goal over creating a fresh peer with no parentRef.",
   "",
   "Set parentRef on the child. kind 'existing' when parent is listed under #### Existing pursuits; kind 'new' when parent is created this session.",
   "",
@@ -618,6 +646,11 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "- When a new pursuit is clearly a child, enabler, OR continuation of an EXISTING pursuit on this hub, set parentRef to { kind: 'existing', goalId: '<goalId from existing pursuits list>' }.",
   "- If an existing pursuit has parentGoalId: null but clearly belongs under another existing pursuit on the same hub (especially continuations stored as peers), propose parentRef on that existing pursuit — embellishment card (existingGoalId + unchanged bloomStatus), not a new pursuit.",
   "- Never set parentRef on a pursuit that has existingGoalId when bloomStatus is \"COMPLETE\" or \"ON_HOLD\" (status-only updates).",
+  "",
+  "Examples:",
+  "- Existing 'Build £10k ISA by Christmas'; user says 'I want £15k by next tax year' → new Assets pursuit with parentRef to the £10k goal.",
+  "- Existing 'London flat deposit'; user says 'pause the flat deposit idea for now' → existingGoalId for that pursuit with bloomStatus \"ON_HOLD\", not a new peer.",
+  "- User says 'dropping mortgage broker for now, but keeping CEMAP and moving toward financial planning' → ON_HOLD for the matching mortgage-broker pursuit, plus separate active items for CEMAP/planning when concrete.",
   "",
   "## Pursuit types, mark types, dates, pursuitRef, itemOrder",
   "",
@@ -644,6 +677,7 @@ export function buildStreamThemeExtractUserMessage(
   theme: StreamThemeContextInput,
   input: string,
 ): string {
+  const includeRemovedContext = shouldIncludeRemovedContext(input);
   const hubBlocks = theme.hubs.map((h) =>
     [
       `### Hub: ${h.hubLabel}`,
@@ -668,12 +702,16 @@ export function buildStreamThemeExtractUserMessage(
       "",
       "#### Existing marks",
       JSON.stringify(h.existingMarks, null, 2),
-      "",
-      "#### Removed from map (dedup only — pursuits)",
-      JSON.stringify(h.removedPursuits, null, 2),
-      "",
-      "#### Removed from map (dedup only — marks)",
-      JSON.stringify(h.removedMarks, null, 2),
+      ...(includeRemovedContext
+        ? [
+            "",
+            "#### Removed from map (dedup only — pursuits)",
+            JSON.stringify(h.removedPursuits, null, 2),
+            "",
+            "#### Removed from map (dedup only — marks)",
+            JSON.stringify(h.removedMarks, null, 2),
+          ]
+        : []),
     ].join("\n"),
   );
 
