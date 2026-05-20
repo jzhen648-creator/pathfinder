@@ -1,36 +1,13 @@
 import { PrismaClient } from "@prisma/client";
+import { LOCKED_HUB_TEMPLATES } from "../src/lib/taxonomy";
 
 const prisma = new PrismaClient();
 
-const BRANCH_TEMPLATES: Array<{ limbId: string; name: string; order: number }> = [
-  { limbId: "finance", name: "Investing", order: 1 },
-  { limbId: "finance", name: "Home Ownership", order: 2 },
-  { limbId: "finance", name: "Debt Freedom", order: 3 },
-  { limbId: "finance", name: "Income Growth", order: 4 },
-  { limbId: "work", name: "Main Career", order: 1 },
-  { limbId: "work", name: "Side Hustle", order: 2 },
-  { limbId: "work", name: "Skills & Learning", order: 3 },
-  { limbId: "people", name: "Family", order: 1 },
-  { limbId: "people", name: "Friends", order: 2 },
-  { limbId: "people", name: "Romance", order: 3 },
-  { limbId: "health", name: "Fitness", order: 1 },
-  { limbId: "health", name: "Mental Health", order: 2 },
-  { limbId: "health", name: "Rest & Recovery", order: 3 },
-  { limbId: "becoming", name: "Mindset", order: 1 },
-  { limbId: "becoming", name: "Habits", order: 2 },
-  { limbId: "becoming", name: "Identity", order: 3 },
-];
-
-function inferMarkType(moment: {
-  isTurningPoint?: boolean | null;
-  future?: boolean | null;
-  significance?: number | null;
-}): "milestone" | "setback" | "realisation" | "decision" | "achievement" {
-  if (moment.isTurningPoint) return "decision";
-  if (moment.future) return "milestone";
-  if (Number(moment.significance ?? 1) >= 3) return "achievement";
-  return "milestone";
-}
+const BRANCH_TEMPLATES = LOCKED_HUB_TEMPLATES.map((t, order) => ({
+  limbId: t.limbId,
+  name: t.threadType,
+  order,
+}));
 
 function inferMarkSentiment(moment: {
   future?: boolean | null;
@@ -90,32 +67,34 @@ function inferJourneyBranchName(g: {
 }): string {
   const text = `${g.title ?? ""} ${g.description ?? ""}`.toLowerCase();
   if (g.limbId === "finance") {
-    if (/(debt|loan|paid off)/.test(text)) return "Debt Freedom";
-    if (/(salary|income|pay|profitable|revenue)/.test(text)) return "Income Growth";
-    if (/(flat|home|house|mortgage)/.test(text)) return "Home Ownership";
-    return "Investing";
+    if (/(debt|loan|paid off|mortgage|credit)/.test(text)) return "Liabilities";
+    if (/(salary|income|pay|profitable|revenue)/.test(text)) return "Income";
+    if (/(insurance|emergency|runway|safety)/.test(text)) return "Safety net";
+    return "Assets";
   }
   if (g.limbId === "work") {
-    if (/(side hustle|freelanc|startup|own thing)/.test(text)) return "Side Hustle";
-    if (/(skill|learn|course|cert)/.test(text)) return "Skills & Learning";
-    return "Main Career";
+    if (/(mentor|network|collaborat|peer|skill|learn|course|cert)/.test(text)) return "Skills";
+    if (/(project|ship|build|portfolio)/.test(text)) return "Builds & Launches";
+    return "Career";
   }
   if (g.limbId === "people") {
-    if (/(dad|mum|family|parent)/.test(text)) return "Family";
-    if (/(engag|partner|romance|sam)/.test(text)) return "Romance";
-    return "Friends";
+    if (/(dad|mum|family|parent|child)/.test(text)) return "Family";
+    if (/(engag|partner|romance|marri)/.test(text)) return "Romance";
+    if (/(volunteer|community|local group|neighbour|friend)/.test(text)) return "Friendships";
+    return "Friendships";
   }
   if (g.limbId === "health") {
-    if (/(burnout|anxiety|therapy|stress|mental)/.test(text)) return "Mental Health";
-    if (/(rest|sleep|recovery)/.test(text)) return "Rest & Recovery";
-    return "Fitness";
+    if (/(burnout|sleep|rest|recovery|downtime)/.test(text)) return "Rest";
+    if (/(meal|nutrition|eat|food)/.test(text)) return "Nutrition";
+    if (/(teeth|hair|skin|invisalign|cosmetic|upgrade)/.test(text)) return "Appearance";
+    return "Movement";
   }
   if (g.limbId === "becoming") {
-    if (/(habit|routine)/.test(text)) return "Habits";
-    if (/(identity|became|builder)/.test(text)) return "Identity";
-    return "Mindset";
+    if (/(hobby|trip|joy|culture|experience|creative)/.test(text)) return "Joy";
+    if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Inner life";
+    return "Purpose";
   }
-  return "Main Career";
+  return "Career";
 }
 
 async function main() {
@@ -162,7 +141,6 @@ async function main() {
         title: g.title,
         description: g.description || null,
         date,
-        type: inferMarkType(g),
         value: null,
         sentiment: inferMarkSentiment(g),
         archived: false,
@@ -175,7 +153,6 @@ async function main() {
         title: g.title,
         description: g.description || null,
         date,
-        type: inferMarkType(g),
         value: null,
         sentiment: inferMarkSentiment(g),
         archived: false,

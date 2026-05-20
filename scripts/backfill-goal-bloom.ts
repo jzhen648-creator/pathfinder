@@ -1,8 +1,6 @@
 /**
- * Re-runs bloom lifecycle for every non-ENDED goal so legacy **BRANCHED** rows (continuation topology)
- * migrate to **BUD** / **GROWING** / **BLOOMED**. Safe to run multiple times.
- *
- * Also repairs stale **BUD** rows when relational milestones exist (until mutation paths all call recompute).
+ * Re-runs bloom lifecycle for every non-ON_HOLD goal → **ACTIVE** / **COMPLETE**.
+ * Safe to run multiple times. Repairs stale **ACTIVE** rows when milestones imply completion.
  *
  * Run from repo root: npm run backfill:goal-bloom
  */
@@ -13,7 +11,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const goals = await prisma.goal.findMany({
-    where: { bloomStatus: { not: "ENDED" } },
+    where: { bloomStatus: { not: "ON_HOLD" } },
     select: { id: true },
   });
   let ok = 0;
@@ -25,7 +23,7 @@ async function main() {
       console.error(`recomputeGoalBloomStatus failed for ${g.id}`, e);
     }
   }
-  console.log(`Backfill complete: recomputed ${ok} / ${goals.length} goals (excluding ENDED).`);
+  console.log(`Backfill complete: recomputed ${ok} / ${goals.length} goals (excluding ON_HOLD).`);
 }
 
 main()

@@ -19,7 +19,7 @@ const exerciseBloomUpdate = process.argv.includes("--exercise-bloom-update");
 async function main() {
   const milestone = await prisma.milestone.findFirst({
     where: {
-      goal: { goalType: { notIn: ["moment", "event"] }, bloomStatus: { not: "ENDED" } },
+      goal: { goalType: { notIn: ["moment", "event"] }, bloomStatus: { not: "ON_HOLD" } },
     },
     include: {
       goal: { select: { id: true, goalType: true, bloomStatus: true } },

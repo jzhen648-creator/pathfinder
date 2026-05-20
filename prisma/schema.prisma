@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -15,12 +16,19 @@ model User {
   email                      String   @unique
   passwordHash               String
   onboardingCompleted        Boolean  @default(false)
+  /// First theme picked during onboarding (selection order); drives first-run Stream prompt.
+  onboardingPrimaryLimbId    String?
+  /// Post-onboarding welcome + first Stream commit; one-time.
+  firstRunCompleted          Boolean  @default(false)
   onboardingProfileText      String?
   onboardingProfileData      Json?
   careerEducationContextText String?
   lifeWheelRatings           Json?
   lifeWheelHistory           Json?
   lifeWheelAchievementAt     DateTime?
+  /// Last applied {@link TAXONOMY_VERSION} from hub-taxonomy-sync; null = never synced.
+  hubTaxonomyVersion         String?
+  hubTaxonomySyncedAt        DateTime?
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
   goals                      Goal[]
@@ -31,15 +39,14 @@ model User {
   sessions                   Session[]
   trunkSegments              TrunkSegment[]
   trunkEntries               TrunkEntry[]
+  streamSessions             StreamSession[]
 }
 
-/// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation. **`BRANCHED`**: deprecated for goals — continuation topology must not set bloom; see `ONTOLOGY.md`.
+/// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation.
 enum BloomStatus {
-  BUD
-  GROWING
-  BLOOMED
-  BRANCHED
-  ENDED
+  ACTIVE
+  ON_HOLD
+  COMPLETE
 }
 
 enum BranchStatus {
@@ -47,14 +54,6 @@ enum BranchStatus {
   paused
   achieved
   abandoned
-}
-
-enum MarkType {
-  milestone
-  setback
-  realisation
-  decision
-  achievement
 }
 
 enum MarkSentiment {
@@ -78,6 +77,11 @@ enum TrunkEntrySource {
   VOICE
   DOCUMENT
   AI_EXTRACTED
+}
+
+enum StreamInputMode {
+  text
+  voice
 }
 
 model Account {
@@ -133,7 +137,11 @@ model Branch {
   unit           String?
   status         BranchStatus @default(active)
   order          Int      @default(0)
-  bloomStatus         BloomStatus @default(BUD)
+  /// Progressive reveal: visible on tree/roadmap when true.
+  isActive       Boolean  @default(false)
+  /// Locked taxonomy hub (one of 17); protected from wipe scripts.
+  isSystemHub    Boolean  @default(false)
+  bloomStatus         BloomStatus @default(ACTIVE)
   bloomedAt           DateTime?
   endedAt             DateTime?
   endReason           String?
@@ -145,6 +153,7 @@ model Branch {
 
   @@index([userId])
   @@index([userId, limbId])
+  @@index([userId, isActive])
 }
 
 model Mark {
@@ -158,7 +167,6 @@ model Mark {
   title       String
   description String?
   date        DateTime
-  type        MarkType
   value       Float?
   sentiment   MarkSentiment @default(neutral)
   archived    Boolean  @default(false)
@@ -173,6 +181,16 @@ model Mark {
   subtype         String?
   year            Int?
   month           Int?
+  /// Explicit linear order along the parent hub's branch line. Co-sorted with `Goal.sequencePosition`
+  /// (same branch) to form the `sequencedNodes` list. Fractional to support midpoint inserts;
+  /// branches are reindexed when minimum sibling gap drops below the resolver epsilon.
+  sequencePosition Float?
+  /// Origin of this mark — `mark` (user/manual or legacy), `stream` (AI Stream-produced moment).
+  kind             String   @default("mark")
+  /// Stream ambiguous item placed on tree before user picks Done / In progress / Not started.
+  needsResolution  Boolean  @default(false)
+  /// Stable id from Stream extract `ambiguous[].id` (dedup on re-extract).
+  streamAmbiguousId String?
   reframes    Reframe[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -183,6 +201,7 @@ model Mark {
   @@index([archived])
   @@index([date])
   @@index([parentMarkId])
+  @@index([branchId, sequencePosition])
 }
 
 model Reframe {
@@ -197,9 +216,27 @@ model Reframe {
   @@index([date])
 }
 
+/// Theme-level Stream session — raw brain dump after commit for cross-session dedup.
+model StreamSession {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Life area id (`finance` | `work` | …) — same as limbId / themeId.
+  limbId       String
+  inputText    String
+  inputMode    StreamInputMode
+  itemsAdded   Int
+  itemsSkipped Int
+  createdAt    DateTime        @default(now())
+
+  @@index([userId, limbId, createdAt])
+}
+
 model Goal {
   id          String      @id @default(cuid())
   title       String
+  /// AI-generated compact label for tree canvas SVG only (never panel/roadmap/timeline).
+  shortLabel  String?
   description String
   lifeArea    String      @default("Other")
   goalType    String      @default("action")
@@ -209,14 +246,18 @@ model Goal {
   unit        String?
   /** Optional: timeline/event goals and ongoing commitments may have no deadline. */
   deadline    DateTime?
+  /// Swimlane / timeline span start; when null the UI uses {@link createdAt}.
+  timelineStart DateTime?
   // Cached raw roadmap returned by the AI model at creation time. Kept for
   // provenance + to avoid any future re-generation calls for the same goal.
   roadmapJson Json?
   // False when the roadmap was produced by the deterministic fallback
   // because the AI provider failed or ran out of credits. UI can surface this.
   aiGenerated Boolean     @default(true)
+  /// Soft-removed from tree / timeline; hidden from map. Revive via PATCH `archived: false`.
+  archived       Boolean     @default(false)
   /// Lifecycle maturity only (**BUD** / **GROWING** **BLOOMED** / **ENDED**). Not driven by continuation count; **`BRANCHED`** is legacy on goals.
-  bloomStatus    BloomStatus @default(BUD)
+  bloomStatus    BloomStatus @default(ACTIVE)
   bloomedAt      DateTime?
   endedAt        DateTime?
   endReason      String?
@@ -229,6 +270,10 @@ model Goal {
   year            Int        @default(2026)
   month           Int?
   mapPosition     Float      @default(0)
+  /// Explicit linear order along the parent hub's branch line. Co-sorted with `Mark.sequencePosition`
+  /// (same branch) to form the `sequencedNodes` list. Roadmap-root goals only; evolution children
+  /// (`parentGoalId != null`) keep parent-anchored satellite layout and have no sequence position.
+  sequencePosition Float?
   significance    Int        @default(1)
   future          Boolean    @default(false)
   isTurningPoint  Boolean    @default(false)
@@ -248,6 +293,8 @@ model Goal {
   @@index([parentGoalId])
   @@index([branchId])
   @@index([limbId])
+  @@index([archived])
+  @@index([branchId, sequencePosition])
 }
 
 // Caches the AI-generated evaluation for a specific (user, goal-inputs) tuple

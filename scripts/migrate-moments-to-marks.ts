@@ -3,12 +3,6 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-function markTypeForTimelineGoal(m: { isTurningPoint: boolean; future: boolean }): "decision" | "milestone" {
-  if (m.isTurningPoint) return "decision";
-  if (m.future) return "milestone";
-  return "milestone";
-}
-
 async function main() {
   const timelineGoals = await prisma.goal.findMany({
     where: { goalType: { in: ["moment", "event"] } },
@@ -40,7 +34,6 @@ async function main() {
         title: g.title,
         description: g.description || null,
         date,
-        type: markTypeForTimelineGoal(g),
         significance: g.significance,
         future: g.future,
         isTurningPoint: g.isTurningPoint,
