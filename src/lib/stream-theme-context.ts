@@ -1,0 +1,298 @@
+import type { PrismaClient, StreamInputMode } from "@prisma/client";
+
+import { formatPreviousStreamSessionDumps } from "@/lib/ai/stream-extract";
+
+import { hubPanelCopy, parseHubRedirectTarget } from "@/lib/hub-catalog";
+
+import { getLifeArea } from "@/lib/life-areas";
+
+import { getStreamSessionDelegate } from "@/lib/prisma-stream-session";
+
+import { resolveAllHubBranchesForTheme } from "@/lib/resolve-hub-branch";
+
+import type { LifeAreaId } from "@/lib/types";
+
+import type { StreamSessionCommitFields, StreamThemeContextInput, StreamThemeHubContextInput } from "@/types/stream";
+
+const HUB_INFERENCE_STOP_WORDS = new Set([
+  "about",
+  "after",
+  "belong",
+  "building",
+  "career",
+  "clearly",
+  "daily",
+  "different",
+  "goals",
+  "growth",
+  "hub",
+  "life",
+  "matters",
+  "money",
+  "outcome",
+  "plans",
+  "practice",
+  "route",
+  "separate",
+  "theme",
+  "thing",
+  "things",
+  "track",
+  "user",
+  "when",
+  "where",
+  "work",
+  "your",
+]);
+const HUB_INFERENCE_SHORT_TOKENS = new Set(["isa", "sql", "aws", "bupa"]);
+
+function normalizeForHubInference(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}&+£$]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripRedirectHint(value: string): string {
+  return value.replace(/\(→\s*[^)]+\)\s*$/u, "").trim();
+}
+
+function hubInferenceTokens(value: string): string[] {
+  const normalized = normalizeForHubInference(value);
+  if (!normalized) return [];
+  return normalized
+    .split(" ")
+    .filter((token) => {
+      if (HUB_INFERENCE_STOP_WORDS.has(token)) return false;
+      return token.length >= 4 || HUB_INFERENCE_SHORT_TOKENS.has(token) || /^[£$]?\d/.test(token);
+    });
+}
+
+function phraseMatches(input: string, phrase: string): boolean {
+  const normalized = normalizeForHubInference(stripRedirectHint(phrase));
+  return normalized.length >= 4 && input.includes(normalized);
+}
+
+function scoreHubFromCatalog(input: string, themeId: LifeAreaId, hubLabel: string): number {
+  const copy = hubPanelCopy(themeId, hubLabel);
+  const hubKey = normalizeForHubInference(hubLabel);
+  let score = 0;
+
+  if (hubKey && input.includes(hubKey)) score += 8;
+
+  for (const phrase of [...copy.belongsHere, ...copy.examples]) {
+    if (phraseMatches(input, phrase)) score += 6;
+  }
+
+  for (const phrase of [copy.about, copy.aiRoutingNote, ...copy.belongsHere, ...copy.examples]) {
+    const uniqueTokens = new Set(hubInferenceTokens(phrase));
+    for (const token of uniqueTokens) {
+      if (input.includes(token)) score += 2;
+    }
+  }
+
+  for (const phrase of copy.doesNotBelongHere) {
+    if (phraseMatches(input, phrase) || hubInferenceTokens(stripRedirectHint(phrase)).some((token) => input.includes(token))) {
+      score -= parseHubRedirectTarget(phrase) ? 2 : 1;
+    }
+  }
+
+  return score;
+}
+
+export function inferLikelyThemeHubSlugs(inputText: string, themeId: LifeAreaId, hubLabels: string[]): Set<string> {
+  const input = normalizeForHubInference(inputText);
+  if (!input) return new Set();
+
+  const scored = hubLabels
+    .map((hubLabel) => ({
+      hubLabel,
+      slug: normalizeForHubInference(hubLabel),
+      score: scoreHubFromCatalog(input, themeId, hubLabel),
+    }))
+    .filter((row) => row.score >= 2);
+
+  return new Set(scored.map((row) => row.slug));
+}
+
+/** Load inferred theme hubs with pursuits, marks, and prior session dumps for extract. */
+export async function buildStreamThemeContextInput(
+  prisma: PrismaClient,
+  userId: string,
+  themeId: LifeAreaId,
+  inputText?: string,
+): Promise<StreamThemeContextInput | null> {
+  const resolved = await resolveAllHubBranchesForTheme(prisma, userId, themeId);
+
+  if (resolved.length === 0) return null;
+
+  const inferredHubSlugs = inferLikelyThemeHubSlugs(
+    inputText ?? "",
+    themeId,
+    resolved.map((h) => h.hubLabel),
+  );
+  const scopedResolved =
+    inferredHubSlugs.size > 0
+      ? resolved.filter((h) => inferredHubSlugs.has(h.hubSlug))
+      : resolved;
+  const branchIds = scopedResolved.map((h) => h.branchId);
+
+  const streamSession = getStreamSessionDelegate(prisma);
+
+  const sessionQuery = streamSession
+    ? streamSession
+        .findMany({
+          where: { userId, limbId: themeId },
+          select: { inputText: true, inputMode: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+          take: 3,
+        })
+        .catch((err) => {
+          console.warn("[buildStreamThemeContextInput] StreamSession query failed", err);
+          return [] as Array<{ inputText: string; inputMode: StreamInputMode; createdAt: Date }>;
+        })
+    : Promise.resolve([]);
+
+  const [goals, archivedGoals, marks, archivedMarks, recentSessions] = await Promise.all([
+    prisma.goal.findMany({
+      where: {
+        userId,
+        branchId: { in: branchIds },
+        archived: false,
+        goalType: { notIn: ["moment", "event"] },
+      },
+      select: {
+        id: true,
+        branchId: true,
+        title: true,
+        goalType: true,
+        bloomStatus: true,
+        parentGoalId: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.goal.findMany({
+      where: {
+        userId,
+        branchId: { in: branchIds },
+        archived: true,
+        goalType: { notIn: ["moment", "event"] },
+      },
+      select: { branchId: true, title: true },
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.mark.findMany({
+      where: { userId, branchId: { in: branchIds }, archived: false },
+      select: { branchId: true, title: true, date: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.mark.findMany({
+      where: { userId, branchId: { in: branchIds }, archived: true },
+      select: { branchId: true, title: true, date: true },
+      orderBy: { date: "desc" },
+    }),
+    sessionQuery,
+  ]);
+
+  const goalsByBranch = new Map<string, StreamThemeHubContextInput["existingPursuits"]>();
+  const removedGoalsByBranch = new Map<string, StreamThemeHubContextInput["removedPursuits"]>();
+  for (const id of branchIds) {
+    goalsByBranch.set(id, []);
+    removedGoalsByBranch.set(id, []);
+  }
+  for (const g of goals) {
+    if (!g.branchId) continue;
+    goalsByBranch.get(g.branchId)?.push({
+      goalId: g.id,
+      title: g.title,
+      goalType: g.goalType,
+      bloomStatus: g.bloomStatus,
+      parentGoalId: g.parentGoalId ?? null,
+    });
+  }
+  for (const g of archivedGoals) {
+    if (!g.branchId) continue;
+    removedGoalsByBranch.get(g.branchId)?.push({ title: g.title });
+  }
+
+  const marksByBranch = new Map<string, StreamThemeHubContextInput["existingMarks"]>();
+  const removedMarksByBranch = new Map<string, StreamThemeHubContextInput["removedMarks"]>();
+  for (const id of branchIds) {
+    marksByBranch.set(id, []);
+    removedMarksByBranch.set(id, []);
+  }
+  for (const m of marks) {
+    marksByBranch.get(m.branchId)?.push({
+      title: m.title,
+      date: m.date.toISOString().slice(0, 10),
+    });
+  }
+  for (const m of archivedMarks) {
+    removedMarksByBranch.get(m.branchId)?.push({
+      title: m.title,
+      date: m.date.toISOString().slice(0, 10),
+    });
+  }
+
+  const hubs: StreamThemeHubContextInput[] = scopedResolved.map((h) => {
+    const copy = hubPanelCopy(themeId, h.hubLabel);
+    return {
+      hubId: h.hubSlug,
+      hubLabel: h.hubLabel,
+      about: copy.about,
+      aiRoutingNote: copy.aiRoutingNote,
+      belongsHere: copy.belongsHere,
+      doesNotBelongHere: copy.doesNotBelongHere,
+      branchId: h.branchId,
+      existingPursuits: goalsByBranch.get(h.branchId) ?? [],
+      existingMarks: marksByBranch.get(h.branchId) ?? [],
+      removedPursuits: removedGoalsByBranch.get(h.branchId) ?? [],
+      removedMarks: removedMarksByBranch.get(h.branchId) ?? [],
+    };
+  });
+
+  const themeName = getLifeArea(themeId)?.label ?? themeId;
+  const chronologicalSessions = [...recentSessions].reverse().map((s) => ({
+    inputText: s.inputText,
+    inputMode: s.inputMode,
+    createdAt: s.createdAt,
+  }));
+
+  return {
+    themeId,
+    themeName,
+    hubs,
+    previousThemeSessionContext: formatPreviousStreamSessionDumps(chronologicalSessions),
+  };
+}
+
+/** Persist theme Stream session after successful commit (fail-safe; outside tree transaction). */
+export async function recordStreamThemeSession(
+  prisma: PrismaClient,
+  userId: string,
+  limbId: string,
+  fields: StreamSessionCommitFields,
+): Promise<void> {
+  const streamSession = getStreamSessionDelegate(prisma);
+  if (!streamSession) {
+    console.warn(
+      "[recordStreamThemeSession] Prisma client missing streamSession — run npx prisma generate and restart the dev server",
+    );
+    return;
+  }
+  try {
+    await streamSession.create({
+      data: {
+        userId,
+        limbId,
+        inputText: fields.inputText,
+        inputMode: fields.inputMode,
+        itemsAdded: fields.itemsAdded,
+        itemsSkipped: fields.itemsSkipped,
+      },
+    });
+  } catch (err) {
+    console.warn("[recordStreamThemeSession] could not persist session", err);
+  }
+}
