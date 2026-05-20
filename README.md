@@ -35,11 +35,16 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Project brief
-See [BRIEF.md](./BRIEF.md) for a short overview of what Pathfinder does and how it is built.
+## Project brief & docs
 
-## Changelog & decisions
-See [CHANGELOG.md](./CHANGELOG.md) for a dated work log. Product and engineering notes (taxonomy, focus mode, Stream, and similar) live in [DECISIONS.md](./DECISIONS.md).
+| Doc | Purpose |
+|-----|---------|
+| [BRIEF.md](./BRIEF.md) | Short product summary (start here) |
+| [GLOSSARY.md](./GLOSSARY.md) / [ONTOLOGY.md](./ONTOLOGY.md) | Terms and entity relationships |
+| [CHANGELOG.md](./CHANGELOG.md) | Dated ship log |
+| [DECISIONS.md](./DECISIONS.md) | Why we built it this way |
+| [docs/STABILIZATION.md](./docs/STABILIZATION.md) | Dogfood QA checklist |
+| [docs/DIARY.md](./docs/DIARY.md) | Narrative “why” notes |
 
 ## Product philosophy
 See [PROJECT.md](./PROJECT.md) for the full vision,

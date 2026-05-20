@@ -82,4 +82,18 @@ A separate thread iterated **fork geometry**, **macro/archetype spacing**, **hub
 
 ---
 
+## 2026-05-19 — Evolve retired; Stream owns the next chapter
+
+We removed **Evolve this pursuit** and the fork/propose APIs. **Stream** replaces that flow: brain dump → structured pursuits, marks, and milestones. Continuation children (`parentGoalId`) still render on the hub ray via `continuationChildScreenPosition`; existing chains remain navigable in the panel.
+
+## 2026-05-19 — Tree interaction sprint (panels, marks, edit map)
+
+**Panels:** Theme / hub / pursuit moved to a consistent **left rail** and were simplified (Stream entry on theme + hub, status chips on pursuit, hub-only **Add mark**). Timeline notes left the bottom sheet for a **hover card** on the map — marks are hub-scoped, not pursuit checkpoints.
+
+**Stream ambiguous:** Items the model cannot classify no longer clog the confirmation queue. They land on the tree immediately as **unresolved** marks; the user resolves intent on the map. That matches “the map is the source of truth,” not “the queue is the source of truth.”
+
+**Edit map:** Manual reorganize (move hub, nest, reorder) had to coexist with pan and panel taps. We disabled pan in edit mode, use a small drag threshold, and **`POST …/reorganize`** instead of ad-hoc PATCHes. Limb **polygon/line** click targets came out the same week — they were stealing empty-map clicks and fighting edit mode; navigation is **nodes + theme gateway**, not invisible hulls.
+
+---
+
 *Add new dated sections below as the symbolic/interaction story evolves.*

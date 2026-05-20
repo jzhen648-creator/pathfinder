@@ -12,9 +12,12 @@ This document defines the **stabilization / QA phase** after ontology restructur
 |--------|-------------------|
 | **Goal** | One pursuit (`Goal`); roadmap types vs `moment`/`event` per schema. |
 | **Milestone** | **One** progression structure per goal: Prisma `Milestone` + optional `Subtask` rows only. Tree hex dots are a **projection** of those rows (`milestone-tree-projection.ts`). |
-| **Continuation** | `parentGoalId` / successors; `POST /api/goals/[id]/fork`. Not milestones; not branch taxonomy splits. |
+| **Continuation** | `parentGoalId` / successors; existing chains render on the tree. Not milestones; not branch taxonomy splits. New pursuits via **Stream** (fork API removed May 2026). |
 | **Bloom** | Lifecycle only (`BUD` / `GROWING` / `BLOOMED` / `ENDED`); not driven by continuation count. Deprecated **`BRANCHED`** on goals — see [`ONTOLOGY.md`](../ONTOLOGY.md). |
 | **Branch line** | Taxonomy `Branch` and SVG strokes — not continuations. |
+| **Timeline note** | Prisma `Mark` on a **hub** only; canvas = lateral diamond; detail = `MarkHoverCard`. |
+| **Unresolved Stream item** | `Mark.needsResolution` — resolve on tree, not in confirmation queue. |
+| **Edit map** | Drag reorganize pursuits; `POST /api/goals/[goalId]/reorganize`. |
 
 ---
 
@@ -41,10 +44,9 @@ This document defines the **stabilization / QA phase** after ontology restructur
 ## Continuation semantics (stable)
 
 - Continuations are **orthogonal** to milestones and bloom (except sharing the same `Goal` row).
-- UI: **Evolve this goal** (successor on same hub); parent stays **BLOOMED**, child starts **BUD** with `parentGoalId`.
-- **Goal achieved** banner when the last milestone completes or bloom transitions to `BLOOMED`; evolve is **gated** to bloomed goals in the panel.
-- **`POST /api/goals/[id]/fork`** returns **409** if the parent is not `BLOOMED` (after bloom recompute).
-- Tree panel: **Continued by** / **Continued from** — navigational links between parent and successor.
+- **`Goal.parentGoalId`** links successor goals to a predecessor; tree layout uses **`continuationChildScreenPosition`** (hub-ray satellites).
+- **Evolve / fork APIs removed (May 2026).** New pursuits and marks are added via **Stream** or hub/goal create flows — not via fork.
+- Tree panel: **Continuations** list and **Continues from** — navigational links between existing parent/child rows only.
 
 ---
 
@@ -84,7 +86,7 @@ During stabilization: **document** felt inconsistencies (see below); **do not** 
 |-------------|----------------|
 | **>6 relational milestones** | Hex shows **first 6 by `position`** only — tail milestones visible in roadmap list, not all on hex. |
 | **Panel milestone row strike-through** vs **lifecycle “milestone complete”** | Roadmap panel uses `total > 0 && done === total` for visual strike; lifecycle uses **`milestoneIsFullyCompleted`**. Possible **visual** mismatch — known UX edge, not projection bug. |
-| **Parent/child lineage on tree** | Evolve links visible in panel; no dedicated parent→child stroke on the SVG yet (v0.5 polish). |
+| **Parent/child lineage on tree** | Continuation list in panel; flow segments on domain-cluster layout; no new fork API. |
 
 ---
 
@@ -105,7 +107,7 @@ When filing issues during stabilization, tag the **category** (see Freeze guidan
 - **Milestone read + write convergence: done.** Relational only; JSON column dropped.
 - **Bloom backfill:** `npm run backfill:goal-bloom` — safe to re-run; skips **ENDED** goals.
 - **Old DBs:** run `npm run backfill:tree-milestones` before `prisma migrate deploy` if upgrading from pre-drop schema.
-- **Regression shield:** `e2e/milestone-bloom-evolve.spec.ts` (milestone → bloom → fork + 409 guard).
+- **Regression shield:** `e2e/milestone-bloom-evolve.spec.ts` (milestone → bloom only).
 
 ---
 
@@ -123,18 +125,16 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 ### Roadmap / tree coherence
 
 - [ ] Open goal panel: milestone list matches roadmap; hex is projection only.
-- [ ] Complete last milestone → **Goal achieved** banner; **Evolve this goal** available when `BLOOMED`.
+- [ ] Complete last milestone → **Goal achieved** banner (dismiss only).
 
 ### Lifecycle transitions
 
 - [ ] First relational milestone → **GROWING** after recompute.
 - [ ] All milestones complete → **BLOOMED**.
-- [ ] Evolve on non-bloomed goal → UI disabled and/or fork **409**.
 
-### Continuation flows
+### Continuation flows (existing data)
 
-- [ ] **Evolve this goal** → successor created with `parentGoalId`; parent stays **BLOOMED**.
-- [ ] **Continued from** / **Continued by** links navigate correctly.
+- [ ] **Continues from** / **Continuations** list navigate correctly for legacy `parentGoalId` chains.
 
 ### Payload consistency
 
@@ -144,6 +144,30 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 ### Automated regression
 
 - [ ] `E2E_EMAIL=… E2E_PASSWORD=… npm run test:e2e -- milestone-bloom-evolve` passes (after `npm run seed:tree` for dev user).
+
+### Stream (theme / hub)
+
+- [ ] **Tell me about this** on theme panel → theme Stream extract → confirm pursuits / marks → tree updates.
+- [ ] Hub Stream adds items on the correct hub only.
+- [ ] Status-only dump (“finished X”) updates bloom on existing pursuit — no duplicate pursuit.
+- [ ] Ambiguous extract → dashed `?` on tree → resolve Done / In progress / Not started → mark normalizes.
+
+### Panels & marks
+
+- [ ] Theme / hub / pursuit open in **left rail**; mark uses **hover card** (no bottom-sheet moment panel).
+- [ ] **Add mark** only on hub panel; pursuit panel has no add-mark.
+- [ ] Archive pursuit or mark → hidden from tree → revive from hub archive section.
+
+### Edit map & map chrome
+
+- [ ] **Edit map** on → pan disabled; drag pursuit to hub ring / nest target / branch slot → silent reload.
+- [ ] Edit map off during active Stream session.
+- [ ] Clicking open map (not on a node) dismisses panel; limb backdrop does **not** steal clicks.
+- [ ] Theme gateway / hub hit / pursuit hex still open correct panels.
+
+### Sparse context
+
+- [ ] Short mark or pursuit title → **Want to add more context?** → enrich updates description.
 
 ---
 
@@ -160,7 +184,7 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 
 ## Deferred (documentation only — not stabilization blockers)
 
-- Stream UI + API contract
+- Mark drag-and-drop on branch (API supports `sequenceAnchor` on `PATCH /api/marks/[id]`; UI not wired)
 - Visual parent→child lineage on the SVG tree
 - `BRANCHED` enum value removal from Prisma
 - `thread*` → `hub*` cosmetic rename in seeds/layout JSON
@@ -210,9 +234,9 @@ Examples: N weeks of dogfood, checklist largely green, prioritized backlog for w
 | Lifecycle persist | `src/lib/goal-bloom.ts` |
 | Milestone CRUD | `src/app/api/goals/[goalId]/milestones/`, `src/lib/milestone-semantics.ts` |
 | Goal PATCH (metadata only) | `src/app/api/goals/[goalId]/route.ts`, `src/lib/validation/update-goal.ts` |
-| Fork / evolve | `src/app/api/goals/[goalId]/fork/route.ts` |
+| Stream intake | `src/app/api/stream/extract`, `src/lib/ai/stream-extract.ts` |
 | E2E critical path | `e2e/milestone-bloom-evolve.spec.ts` |
 
 ---
 
-*Last aligned: milestone convergence complete (relational only, JSON column dropped), bloom/evolve UX, e2e regression — May 2026.*
+*Last aligned: milestone convergence, Evolve removed (Stream replaces fork UX), e2e bloom-only — May 2026.*

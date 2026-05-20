@@ -11,19 +11,25 @@ For ongoing UX wording inventory and Phase 2 notes, see [`docs/UX-TERMINOLOGY-AU
 | Term | Meaning |
 |------|--------|
 | **Self** | The user / center of the life map (conceptual). |
-| **Theme** | One of the fixed pillars of the map (e.g. **Money & Finance** `finance`, **Work & Learning** `work`, **Who I'm Becoming** `becoming`, **People & Relationships** `people`, **Health & Body** `health`, plus catalog ids such as **Pleasures** where enabled). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
-| **Hub** | A **named track under a theme** (e.g. Family, Skills, Romance) — **where goals and timeline notes attach** in product language. Each hub corresponds to one root **`Branch`** row (four starter hubs per theme by default). Prefer **hub** over **branch line** in new UI strings. |
+| **Theme** | One of the five fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Who I'm Becoming** `becoming`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (17 default hubs total). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
+| **Hub** | A **named track under a theme** (e.g. Family, Skills, Mind) — **where goals and timeline notes attach** in product language. Each hub corresponds to one root **`Branch`** row (three or four starter hubs per theme; see taxonomy). Prefer **hub** over **branch line** in new UI strings. |
 | **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Who I'm Becoming"** in UI (matches the tree and pillars). Do not use **"Personal Growth"** or **"Growth"** as the pillar label. |
 | **Branch** | A persisted **`Branch`** row: the database anchor for a **hub**; owns **timeline notes** (`Mark`) and goals via `branchId`. **Not** the same as **goal evolution** (`Goal.parentGoalId`). Columns `parentBranchId` / `turningPointId` remain for legacy rows; **new hub splits from the timeline are disabled** (2026-05). |
-| **Goal evolution** | Successor goal linked from a prior goal: `Goal.parentGoalId`, fork API, `forkedGoals`. Same idea older docs called **continuation** — a longitudinal **next chapter**, not nested milestones. |
+| **Goal evolution (legacy)** | Successor goal linked via `Goal.parentGoalId` / `forkedGoals`. Fork API removed; **Stream** adds new pursuits. Older docs: **continuation**. |
 | **Goal** | Roadmap item (`Goal` model): types such as project, practice, identity; may include timeline-style `moment` / `event` goals. Carries **bloom** lifecycle for that pursuit alone. |
-| **Timeline note** (`Mark`) | Dated item on a hub’s timeline (`Mark` model via `branchId`). Product language: **timeline note**; the Prisma model name stays **`Mark`**. Distinct from **milestones** on a goal. |
+| **Timeline note** (`Mark`) | Dated item on a **hub** (`Mark` via `branchId`) — **not** on a pursuit. Created from the **hub panel** or Stream; never “add mark” from the pursuit panel. Product word: **timeline note**; Prisma model **`Mark`**. `Mark.kind` ∈ {`mark`, `stream`}. |
+| **Unresolved mark** | `Mark.needsResolution` after Stream `ambiguous[]` auto-commit. Dashed **`?`** on tree; resolve on hover card or `POST /api/stream/resolve-ambiguous`. |
+| **Archived** | `Goal.archived` / `Mark.archived` — hidden from tree; revivable from hub **Archive** section (`PATCH` `archived: false`). |
+| **Sequence position** | `Goal.sequencePosition` / `Mark.sequencePosition`. Explicit branch-line order; both tables co-sort to form the unified `sequencedNodes` list on each hub. Continuation children (`parentGoalId`) opt out — they keep parent-anchored satellite layout. |
+| **Edit map** | Tree toolbar mode: drag pursuits to another hub, nest under a pursuit, or reorder on the branch (`POST /api/goals/[goalId]/reorganize`). Off during Stream. |
+| **Reorganize** | API op `moveToHub` \| `reparent` on `POST /api/goals/[goalId]/reorganize`. Same-theme constraint for hub moves. |
+| **Insert-and-reflow** | Inserting a node on a branch shifts every later node outward; the branch line lengthens and never compresses. Active when `FLAGS.BRANCH_LONGITUDINAL_ALL` is on (env `NEXT_PUBLIC_BRANCH_LONGITUDINAL_ALL=1`). See `src/lib/branch-sequence.ts` (anchor resolver) and `tree-branch-geometry.ts` `branchNodeScreenPosition`. |
 | **Path** | Visual connector only — not stored. |
 | **Gap** | Computed placement hint — not stored. |
 
 ## Database: `limbId` (legacy column name)
 
-Several Prisma models expose a field named **`limbId`**. That name is **legacy**; the value is always a **theme id** (same string union as **`LifeAreaId`** in TypeScript: `finance` | `work` | `becoming` | `people` | `health`, plus other catalog ids such as `pleasures` where present).
+Several Prisma models expose a field named **`limbId`**. That name is **legacy**; the value is always a **theme id** (same string union as **`LifeAreaId`** in TypeScript: `finance` | `work` | `becoming` | `people` | `health`).
 
 We keep the column name **`limbId`** for migrations and existing data. In new documentation and UI, describe it as the **theme** (or **theme id**), not “limb id.”
 
@@ -37,6 +43,9 @@ We keep the column name **`limbId`** for migrations and existing data. In new do
 | **Theme stem** | Hub gateway geometry on the fork spec (`limbPieces` / `limbTip`): the **stroke** from a synthetic point toward the gateway (trunk is backdrop-only, not data). |
 | **`BranchForkSpec`** | Geometry of one hub’s conduit/fork (gateway, hub center, `branchPieces`). |
 | **`AREA_ANCHORS`** (`tree-area-anchors.ts`) | Authored **gateway** and four **polar hub** rays per **theme** — fork geometry is derived from this (paths are decoration). Stem root toward the trunk is computed in `buildAreaForkFromAnchors`. |
+| **Mark hover card** | `MarkHoverCard` — primary timeline-note detail UI on the tree (hover + pin). Replaces the old bottom-sheet moment panel. |
+| **Detail rail** | Left overlay column for theme / hub / pursuit panels (`panelPresentation="rail"`). |
+| **Canvas mark** | Amber **diamond** beside the branch ray (`TreeMarkNode`, `branchMarkScreenPosition`) — shares sequence rank with pursuits but offset laterally. |
 
 ## Roadmap view
 
@@ -75,9 +84,11 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md) and `npm run backfill:goal-bloom` for normali
 
 ## UI wording
 
-- **Theme** — pillar labels (Money & Finance, Work & Learning, Who I'm Becoming, …).
+- **Theme** — pillar labels (Money & Finance, Work & Career, Who I'm Becoming, …).
 - **Hub** — which track a goal or timeline note sits on (maps to a root **`Branch`** row).
-- **Goal evolution** / **Evolve goal** — user-facing verbs for the `parentGoalId` / fork flow (older docs: **continuation**).
+- **Stream** — brain dump from **Tell me about this** on theme or hub panel (replaces Evolve/fork UX).
+- **Tell me about this** — opens Stream for the current theme or hub.
+- **Edit map** — toolbar toggle to drag-reorganize pursuits on the SVG map.
 - **Continuation** — legacy prose for goal evolution; prefer **evolution** in new UI.
 - **Goal** — user-facing word for roadmap items (some APIs still use `moments` internally).
 

@@ -6,6 +6,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Pathfinder domain language
 
+**Product intent:** [`VISION.md`](./VISION.md). **Stream behaviour:** [`docs/STREAM.md`](./docs/STREAM.md). **Doc index:** [`docs/README.md`](./docs/README.md). **What shipped:** [`CHANGELOG.md`](./CHANGELOG.md) + [`DECISIONS.md`](./DECISIONS.md) — these win on conflicts with vision prose.
+
 Canonical product words: **theme** (outer pillar — same ids as `LifeAreaId` / `limbId`) and **hub** (named track under a theme; goals and marks attach here). See [`GLOSSARY.md`](./GLOSSARY.md) and [`ONTOLOGY.md`](./ONTOLOGY.md) for full definitions and code vs copy.
 
 Before changing tree, goals, branches, bloom, or continuation behavior, read [`ONTOLOGY.md`](./ONTOLOGY.md), [`GLOSSARY.md`](./GLOSSARY.md), and [`docs/UX-TERMINOLOGY-AUDIT.md`](./docs/UX-TERMINOLOGY-AUDIT.md).
@@ -15,3 +17,5 @@ Before changing tree, goals, branches, bloom, or continuation behavior, read [`O
 **Milestone truth (implementation):** relational `Milestone` / `Subtask` rows are the **only** milestone store (`Goal.treeMilestones` JSON column removed). Hex dots: `src/components/tree/milestone-tree-projection.ts`; panel predicates: `src/components/tree/goal-milestone-predicates.ts`. Bloom: `src/lib/goal-bloom-lifecycle.ts` + `recomputeGoalBloomStatus`.
 
 **Do not** introduce new `thread*` domain identifiers or use **thread** in new user-facing copy for goal continuation (legacy code may still say “thread” for older hub/geometry identifiers).
+
+**Tree UX (May 2026):** Product summary in [`BRIEF.md`](./BRIEF.md). Stream from theme/hub panels only. Marks = hub-level + `MarkHoverCard`. Edit map: `tree-edit-map-overlay.tsx`, `POST /api/goals/[goalId]/reorganize`, `lib/goal-reorganize.ts`. Do not re-add wide limb polygon/stem click targets without an explicit product decision.
