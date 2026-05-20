@@ -11,7 +11,7 @@ import {
   type StreamThemeContextInput,
 } from "@/types/stream";
 
-export const STREAM_THEME_EXTRACT_MAX_TOKENS = 2048;
+export const STREAM_THEME_EXTRACT_MAX_TOKENS = 1536;
 export const STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD = 0.65;
 
 const STREAM_EXTRACT_BOUNDARY_PAIRS = [
@@ -439,7 +439,18 @@ export function formatPreviousStreamSessionDumps(sessions: StreamSessionDumpRow[
     .join("\n\n");
 }
 
-export function shouldIncludeRemovedContext(input: string): boolean {
+const STREAM_PROMPT_PURSUIT_LIMIT = 10;
+const STREAM_PROMPT_MARK_LIMIT = 20;
+
+function capPromptPursuits<T>(pursuits: T[]): T[] {
+  return pursuits.slice(0, STREAM_PROMPT_PURSUIT_LIMIT);
+}
+
+function capPromptMarks<T>(marks: T[]): T[] {
+  return marks.slice(0, STREAM_PROMPT_MARK_LIMIT);
+}
+
+export function shouldIncludePriorContext(input: string): boolean {
   return /\b(again|archive|archived|before|bring back|deleted|previous|previously|re-?add|removed|restore|resume|resuming|used to|last time|old|past)\b/i.test(
     input,
   );
@@ -463,7 +474,7 @@ export function buildStreamExtractUserMessage(
   input: string,
 ): string {
   const catalog = formatHubCatalogForPrompt(hubPanelCopy(hub.limbId, hub.hubLabel), "hub");
-  const includeRemovedContext = shouldIncludeRemovedContext(input);
+  const includePriorContext = shouldIncludePriorContext(input);
   return [
     `Today's date: ${todayYmdUtc()}`,
     "",
@@ -477,24 +488,28 @@ export function buildStreamExtractUserMessage(
     catalog,
     "",
     "## Existing pursuits on this hub",
-    JSON.stringify(hub.existingPursuits, null, 2),
+    JSON.stringify(capPromptPursuits(hub.existingPursuits)),
     "",
     "## Existing marks on this hub",
-    JSON.stringify(hub.existingMarks, null, 2),
+    JSON.stringify(capPromptMarks(hub.existingMarks)),
     "",
-    ...(includeRemovedContext
+    ...(includePriorContext
       ? [
           "## Removed from map (dedup only — hidden pursuits)",
-          JSON.stringify(hub.removedPursuits, null, 2),
+          JSON.stringify(hub.removedPursuits),
           "",
           "## Removed from map (dedup only — hidden marks)",
-          JSON.stringify(hub.removedMarks, null, 2),
+          JSON.stringify(hub.removedMarks),
           "",
         ]
       : []),
-    "## Previous Stream sessions on this hub (summary)",
-    hub.previousStreamSessionSummary,
-    "",
+    ...(includePriorContext
+      ? [
+          "## Previous Stream sessions on this hub (summary)",
+          hub.previousStreamSessionSummary,
+          "",
+        ]
+      : []),
     "## User brain dump",
     input.trim(),
   ].join("\n");
@@ -589,11 +604,10 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "## Extraction coverage (read this before routing)",
   "",
-  "Messy, contradictory, uncertain, or emotionally rambling input is normal Stream input. Do not summarize it into only the first one or two obvious cards.",
-  "Extract every distinct concrete item the user mentions across the provided hubs: completed moments, new active pursuits, milestones/steps, continuations, pauses, resumes, and status changes.",
-  "Uncertainty about one item must not suppress other confident items. Put only the uncertain item in ambiguous[] and continue extracting the rest.",
-  "When the user is changing the shape of an existing map goal — evolving it, picking it back up, stretching the target, pausing it, or pivoting from it — still emit the relevant pursuit update instead of dropping the item.",
-  "Do not stop early on long dumps or contradictory pivots. Process the whole input before finalizing JSON.",
+  "Messy/contradictory input is normal. Process the whole dump; do not stop after the first obvious cards.",
+  "Extract every distinct concrete mark, pursuit, milestone/step, continuation, pause, resume, and status change.",
+  "Uncertainty about one item must not suppress other confident items: put only that item in ambiguous[] and keep extracting.",
+  "If an existing map goal evolves, resumes, stretches, pauses, or pivots, emit the pursuit update instead of dropping it.",
   "",
   "## Hub routing (critical)",
   "",
@@ -636,8 +650,8 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "A) Enabler / sub-component — step toward another still-active goal: 'Find a mentor' → child of 'Move into Head of Product'; 'Open a stocks and shares ISA' → child of 'Build £1M ISA portfolio'.",
   "",
-  "B) Continuation (longitudinal progression) — same activity on this hub, later chapter (higher target, later deadline, next level). Example: existing 'Reach 5,000 YouTube subscribers by 2026' + user wants '10,000 subscribers by 2027' → NEW pursuit with parentRef { kind: 'existing', goalId: <5k id> }, NOT a second peer. Same for '£500k ISA' → '£1M ISA by 2030', or 'first marathon' → 'sub-3:30 marathon'.",
-  "   Signals: same activity wording, escalating numbers, later dates, 'next' / 'after that' / 'phase 2' / 'evolving into' / 'next version' / 'picking this back up' / 'same goal but' / 'changed shape'. Stay peers only when pursuits are unrelated or parallel, not a clear successor.",
+  "B) Continuation — same activity, later chapter/higher target/later deadline/next level. Existing '5k YouTube' + user wants '10k' → NEW pursuit with parentRef to 5k, not peer. Same for £500k ISA→£1M, first marathon→sub-3:30.",
+  "   Signals: same activity wording, escalating numbers, later dates, 'next' / 'after that' / 'phase 2' / 'evolving into' / 'next version' / 'picking this back up' / 'same goal but' / 'changed shape'.",
   "   If an existing pursuit is a likely predecessor by intent, prefer parentRef to that existing goal over creating a fresh peer with no parentRef.",
   "",
   "Set parentRef on the child. kind 'existing' when parent is listed under #### Existing pursuits; kind 'new' when parent is created this session.",
@@ -647,10 +661,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "- If an existing pursuit has parentGoalId: null but clearly belongs under another existing pursuit on the same hub (especially continuations stored as peers), propose parentRef on that existing pursuit — embellishment card (existingGoalId + unchanged bloomStatus), not a new pursuit.",
   "- Never set parentRef on a pursuit that has existingGoalId when bloomStatus is \"COMPLETE\" or \"ON_HOLD\" (status-only updates).",
   "",
-  "Examples:",
-  "- Existing 'Build £10k ISA by Christmas'; user says 'I want £15k by next tax year' → new Assets pursuit with parentRef to the £10k goal.",
-  "- Existing 'London flat deposit'; user says 'pause the flat deposit idea for now' → existingGoalId for that pursuit with bloomStatus \"ON_HOLD\", not a new peer.",
-  "- User says 'dropping mortgage broker for now, but keeping CEMAP and moving toward financial planning' → ON_HOLD for the matching mortgage-broker pursuit, plus separate active items for CEMAP/planning when concrete.",
+  "Examples: £10k ISA→£15k ISA = continuation with parentRef; pause flat deposit = existingGoalId + ON_HOLD; dropping broker but keeping CEMAP = ON_HOLD broker plus concrete active CEMAP/planning items.",
   "",
   "## Pursuit types, mark types, dates, pursuitRef, itemOrder",
   "",
@@ -677,7 +688,7 @@ export function buildStreamThemeExtractUserMessage(
   theme: StreamThemeContextInput,
   input: string,
 ): string {
-  const includeRemovedContext = shouldIncludeRemovedContext(input);
+  const includePriorContext = shouldIncludePriorContext(input);
   const hubBlocks = theme.hubs.map((h) =>
     [
       `### Hub: ${h.hubLabel}`,
@@ -698,18 +709,18 @@ export function buildStreamThemeExtractUserMessage(
       ),
       "",
       "#### Existing pursuits",
-      JSON.stringify(h.existingPursuits, null, 2),
+      JSON.stringify(capPromptPursuits(h.existingPursuits)),
       "",
       "#### Existing marks",
-      JSON.stringify(h.existingMarks, null, 2),
-      ...(includeRemovedContext
+      JSON.stringify(capPromptMarks(h.existingMarks)),
+      ...(includePriorContext
         ? [
             "",
             "#### Removed from map (dedup only — pursuits)",
-            JSON.stringify(h.removedPursuits, null, 2),
+            JSON.stringify(h.removedPursuits),
             "",
             "#### Removed from map (dedup only — marks)",
-            JSON.stringify(h.removedMarks, null, 2),
+            JSON.stringify(h.removedMarks),
           ]
         : []),
     ].join("\n"),
@@ -725,9 +736,13 @@ export function buildStreamThemeExtractUserMessage(
     "## Relevant hubs in this theme",
     hubBlocks.join("\n\n"),
     "",
-    "## Previous theme-level Stream sessions",
-    theme.previousThemeSessionContext,
-    "",
+    ...(includePriorContext
+      ? [
+          "## Previous theme-level Stream sessions",
+          theme.previousThemeSessionContext,
+          "",
+        ]
+      : []),
     "## User brain dump",
     input.trim(),
   ].join("\n");
