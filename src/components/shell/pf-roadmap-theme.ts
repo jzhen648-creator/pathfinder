@@ -17,6 +17,14 @@ export const PF_ROADMAP_THEME_CSS = `
   --rm-text1: #1A1C1E;
   --rm-text2: #3D4046;
   --rm-text3: #6B7280;
+  /* Tree panel + modals reference legacy --color-* tokens — map to roadmap palette */
+  --color-background-primary: var(--rm-bgEl);
+  --color-background-secondary: var(--rm-canvas2);
+  --color-text-primary: var(--rm-text1);
+  --color-text-secondary: var(--rm-text2);
+  --color-text-tertiary: var(--rm-text3);
+  --color-border-secondary: var(--rm-border);
+  --color-border-tertiary: var(--rm-border);
 }
 @media (prefers-color-scheme: dark) {
   .pf-roadmap {
@@ -113,8 +121,12 @@ export const PF_ROADMAP_THEME_CSS = `
 .pf-roadmap .rm-pan-viewport {
   overflow: hidden;
   width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.pf-roadmap .rm-pan-surface {
+/* SVG <text> can still become selectable without an explicit subtree rule. */
+.pf-roadmap .rm-pan-surface,
+.pf-roadmap .rm-pan-surface * {
   user-select: none;
   -webkit-user-select: none;
 }
@@ -212,5 +224,28 @@ export const PF_ROADMAP_THEME_CSS = `
   font-size: 12px;
   color: var(--rm-text2);
   line-height: 1.5;
+}
+
+/* Native <select>: explicit fg/bg on control + options (never transparent). */
+.pf-roadmap select,
+.pf-stream-shell select,
+select.pf-native-select {
+  color: var(--rm-text1);
+  background-color: var(--rm-bgEl);
+  border: 1px solid var(--rm-border);
+  color-scheme: light;
+}
+.pf-roadmap select option,
+.pf-stream-shell select option,
+select.pf-native-select option {
+  color: var(--rm-text1);
+  background-color: var(--rm-bgEl);
+}
+@media (prefers-color-scheme: dark) {
+  .pf-roadmap select,
+  .pf-stream-shell select,
+  select.pf-native-select {
+    color-scheme: dark;
+  }
 }
 `;

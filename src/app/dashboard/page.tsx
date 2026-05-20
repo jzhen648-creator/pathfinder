@@ -46,8 +46,8 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Daily View</p>
-              <h1 className="mt-2 text-2xl font-semibold text-white">{user.name ?? "Your"} goals and roadmaps</h1>
-              <p className="mt-2 text-sm text-zinc-400">Manage goals, edit details, and jump into each roadmap.</p>
+              <h1 className="mt-2 text-2xl font-semibold text-white">{user.name ?? "Your"} pursuits and roadmaps</h1>
+              <p className="mt-2 text-sm text-zinc-400">Manage pursuits, edit details, and jump into each roadmap.</p>
             </div>
             <div className="flex items-center gap-2">
               <Link
@@ -60,14 +60,14 @@ export default async function DashboardPage() {
                 href="/next-steps"
                 className="rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-4 py-2 text-sm font-medium text-indigo-200 transition hover:border-indigo-300/60 hover:bg-indigo-500/25"
               >
-                Add goal
+                Add pursuit
               </Link>
             </div>
           </div>
         </header>
 
         <section className="space-y-3">
-          <h2 className="text-sm uppercase tracking-[0.18em] text-zinc-500">Goals</h2>
+          <h2 className="text-sm uppercase tracking-[0.18em] text-zinc-500">Pursuits</h2>
           <div className="space-y-4">
             {user.goals.map((goal) => {
               const totalSubtasks = goal.milestones.reduce(
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
 
         {user.goals.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-[#151515] p-10 text-center text-zinc-400">
-            No goals yet. Add your first goal to get started.
+            No pursuits yet. Add your first pursuit to get started.
           </div>
         ) : null}
       </section>

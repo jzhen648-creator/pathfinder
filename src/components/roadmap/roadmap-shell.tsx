@@ -1,16 +1,9 @@
 "use client";
 
 import { CreateMarkModal } from "@/components/roadmap/create-mark-modal";
-import {
-  MOCK_PROFILE_LABELS,
-  getMockScenario,
-  type MockDensity,
-  type MockProfileId,
-} from "@/data/mock-data";
 import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { PF_ROADMAP_THEME_CSS } from "@/components/shell/pf-roadmap-theme";
 import type { ApiBranchRow } from "@/lib/api-branch-row";
-import { isEnabled } from "@/lib/flags";
 import {
   useCallback,
   useEffect,
@@ -42,46 +35,14 @@ import {
   resolveChronologyParentBranchId,
   resolveParentBranchAnchor,
 } from "@/lib/roadmap/roadmap-data";
-import type { Branch, LimbId, Mark } from "@/lib/types";
+import type { LimbId } from "@/lib/types";
 
-const MOCK_DENSITY_STORAGE_KEY = "pathfinder_mock_density";
-const MOCK_PROFILE_STORAGE_KEY = "pathfinder_mock_profile";
 const ROADMAP_LIFE_AREA_ROOT_VIS = ROADMAP_LIFE_AREA_ROOT_NODE_R / ROADMAP_NODE_R;
 const ROADMAP_INITIAL_ZOOM = 0.65;
 const ROADMAP_OVERVIEW_CANVAS_MIN_WIDTH = 2200;
 const ROADMAP_NODE_VIS_SCALE = 1.35;
 const ROADMAP_LINE_VIS_SCALE = 1.5;
 const ROADMAP_MIN_SCREEN_STROKE_PX = 2.6;
-
-function mockScenarioToRoadmapInputs(scenario: {
-  branches: Branch[];
-  marks: Mark[];
-}): { marks: RoadmapMarkInput[]; branches: RoadmapBranchInput[] } {
-  const branches: RoadmapBranchInput[] = scenario.branches.map((b) => ({
-    id: b.id,
-    limbId: b.limbId,
-    name: b.name ?? b.label,
-    label: b.label,
-    goal: b.goal ?? null,
-    goalValue: b.goalValue ?? null,
-    currentValue: b.currentValue ?? null,
-    unit: b.unit ?? null,
-    parentBranchId: b.parentBranchId ?? null,
-    turningPointId: b.turningPointId ?? null,
-    order: b.order ?? 0,
-    createdAt: b.createdAt,
-  }));
-  const marks: RoadmapMarkInput[] = scenario.marks.map((m) => ({
-    id: m.id,
-    branchId: m.branchId,
-    limbId: m.limbId,
-    title: m.title,
-    description: m.description,
-    date: m.date,
-    type: m.type,
-  }));
-  return { marks, branches };
-}
 
 function initialsFromProfile(name: string, email: string): string {
   const n = name.trim();
@@ -131,11 +92,12 @@ function branchBezierEdgePath(x1: number, y1: number, x2: number, y2: number, is
 }
 
 export function RoadmapShell() {
-  const useMockData = isEnabled("MOCK_DATA");
-  const [mockDensity, setMockDensity] = useState<MockDensity>("med");
-  const [mockProfileId, setMockProfileId] = useState<MockProfileId>("alex");
   const [marks, setMarks] = useState<RoadmapMarkInput[]>([]);
-  const [branches, setBranches] = useState<RoadmapBranchInput[]>([]);
+  const [allBranches, setAllBranches] = useState<RoadmapBranchInput[]>([]);
+  const branches = useMemo(
+    () => allBranches.filter((b) => b.isActive === true),
+    [allBranches],
+  );
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [birthYear, setBirthYear] = useState<number | null>(null);
@@ -176,16 +138,6 @@ export function RoadmapShell() {
     setLoading(true);
     setError(false);
     try {
-      if (useMockData) {
-        const scenario = getMockScenario(mockProfileId, mockDensity);
-        const { marks: mm, branches: bb } = mockScenarioToRoadmapInputs(scenario);
-        setMarks(mm);
-        setBranches(bb);
-        setUserName(scenario.profile.name);
-        setUserEmail(scenario.profile.email);
-        setBirthYear(scenario.profile.birthYear ?? null);
-        return;
-      }
       const [marksRes, branchesRes] = await Promise.all([
         fetch("/api/marks", { cache: "no-store" }),
         fetch("/api/branches", { cache: "no-store" }),
@@ -217,9 +169,9 @@ export function RoadmapShell() {
 
       if (branchesRes.ok) {
         const bd = (await branchesRes.json()) as { branches?: RoadmapBranchInput[] };
-        setBranches(Array.isArray(bd.branches) ? bd.branches : []);
+        setAllBranches(Array.isArray(bd.branches) ? bd.branches : []);
       } else {
-        setBranches([]);
+        setAllBranches([]);
       }
     } catch {
       setError(true);
@@ -227,23 +179,7 @@ export function RoadmapShell() {
     } finally {
       setLoading(false);
     }
-  }, [mockDensity, mockProfileId, useMockData]);
-
-  useEffect(() => {
-    if (!useMockData) return;
-    try {
-      const stored = window.localStorage.getItem(MOCK_DENSITY_STORAGE_KEY);
-      if (stored === "min" || stored === "med" || stored === "extensive") {
-        setMockDensity(stored);
-      }
-      const storedProfile = window.localStorage.getItem(MOCK_PROFILE_STORAGE_KEY);
-      if (storedProfile === "alex" || storedProfile === "david") {
-        setMockProfileId(storedProfile);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [useMockData]);
+  }, []);
 
   useEffect(() => {
     void reload();
@@ -576,6 +512,8 @@ export function RoadmapShell() {
       if (!canPan) return;
       if (e.button !== 0) return;
       stopBounce();
+      e.preventDefault();
+      window.getSelection()?.removeAllRanges();
       e.currentTarget.setPointerCapture(e.pointerId);
       panDragRef.current = {
         pointerId: e.pointerId,
@@ -636,8 +574,8 @@ export function RoadmapShell() {
       const rawDelta =
         e.deltaMode === 1 ? e.deltaY * linePx : e.deltaMode === 2 ? e.deltaY * pagePx : e.deltaY;
       // Faster zoom response while keeping smooth control.
-      const smoothedDelta = Math.max(-64, Math.min(64, rawDelta));
-      const zoomFactor = Math.exp(-smoothedDelta * 0.00072);
+      const smoothedDelta = Math.max(-80, Math.min(80, rawDelta));
+      const zoomFactor = Math.exp(-smoothedDelta * 0.001);
       const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * zoomFactor));
       const nextPan = clampPanForZoom(
         {
@@ -772,7 +710,7 @@ export function RoadmapShell() {
                 />
                 <circle cx="6" cy="6" r="2" fill="#4A8FA8" />
               </svg>
-              Past goal
+              Past pursuit
             </div>
             <div className="flex items-center gap-2 text-[11px] text-[var(--rm-text3)]">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -787,7 +725,7 @@ export function RoadmapShell() {
                 />
                 <circle cx="6" cy="6" r="2" fill="#4A8FA8" opacity="0.4" />
               </svg>
-              Future goal
+              Future pursuit
             </div>
             <div className="flex items-center gap-2 text-[11px] text-[var(--rm-text3)]">
               <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden>
@@ -803,86 +741,14 @@ export function RoadmapShell() {
         <main className="rm-main" ref={mainRef}>
           <div className="rm-page-header">
             <h1 className="rm-page-title">Roadmap</h1>
-            {useMockData ? (
-              <div
-                className="shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold uppercase tracking-wider"
-                style={{ background: "#F59E0B", color: "#0B1220" }}
-              >
-                Mock data
-              </div>
-            ) : null}
-            {useMockData ? (
-              <div
-                className="inline-flex shrink-0 overflow-hidden rounded-full border"
-                style={{ borderColor: "var(--rm-border)" }}
-              >
-                {(["alex", "david"] as MockProfileId[]).map((pid) => {
-                  const active = mockProfileId === pid;
-                  return (
-                    <button
-                      key={pid}
-                      type="button"
-                      onClick={() => {
-                        setMockProfileId(pid);
-                        try {
-                          window.localStorage.setItem(MOCK_PROFILE_STORAGE_KEY, pid);
-                        } catch {
-                          /* ignore */
-                        }
-                      }}
-                      className="border-0 px-2.5 py-1 text-[10px] uppercase tracking-wide transition-colors"
-                      style={{
-                        background: active ? "var(--rm-bgEl)" : "transparent",
-                        color: active ? "var(--rm-text1)" : "var(--rm-text3)",
-                      }}
-                    >
-                      {MOCK_PROFILE_LABELS[pid].split(" ")[0]}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-            {useMockData ? (
-              <div
-                className="inline-flex shrink-0 overflow-hidden rounded-full border"
-                style={{ borderColor: "var(--rm-border)" }}
-              >
-                {(["min", "med", "extensive"] as MockDensity[]).map((density) => {
-                  const active = mockDensity === density;
-                  return (
-                    <button
-                      key={density}
-                      type="button"
-                      onClick={() => {
-                        setMockDensity(density);
-                        try {
-                          window.localStorage.setItem(MOCK_DENSITY_STORAGE_KEY, density);
-                        } catch {
-                          /* ignore */
-                        }
-                      }}
-                      className="border-0 px-2.5 py-1 text-[10px] uppercase tracking-wide transition-colors"
-                      style={{
-                        background: active ? "var(--rm-bgEl)" : "transparent",
-                        color: active ? "var(--rm-text1)" : "var(--rm-text3)",
-                      }}
-                    >
-                      {density}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-            {!useMockData ? (
-              <button
-                type="button"
-                onClick={() => setAddMarkOpen(true)}
-                className="shrink-0 rounded-lg border-0 px-3 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
-                style={{ background: "var(--rm-ink900)" }}
-              >
-                + Add timeline note
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setAddMarkOpen(true)}
+              className="shrink-0 rounded-lg border-0 px-3 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+              style={{ background: "var(--rm-ink900)" }}
+            >
+              + Add mark
+            </button>
             <div
               className="inline-flex shrink-0 overflow-hidden rounded-full border"
               style={{ borderColor: "var(--rm-border)" }}
@@ -988,7 +854,7 @@ export function RoadmapShell() {
                   width={effectiveLayoutWidth}
                   height={ROADMAP_SVG_H}
                   viewBox={`0 0 ${effectiveLayoutWidth} ${ROADMAP_SVG_H}`}
-                  style={{ display: "block" }}
+                  style={{ display: "block", userSelect: "none", WebkitUserSelect: "none" }}
                   role="img"
                   aria-label="Branching roadmap timeline"
                 >
@@ -1340,18 +1206,16 @@ export function RoadmapShell() {
         </main>
       </div>
 
-      {!useMockData ? (
-        <CreateMarkModal
-          open={addMarkOpen}
-          onClose={() => setAddMarkOpen(false)}
-          branches={branches as unknown as ApiBranchRow[]}
-          defaultLifeAreaId={addMarkDefaultLifeArea}
-          onCreated={async () => {
-            setAddMarkOpen(false);
-            await reload();
-          }}
-        />
-      ) : null}
+      <CreateMarkModal
+        open={addMarkOpen}
+        onClose={() => setAddMarkOpen(false)}
+        branches={allBranches as unknown as ApiBranchRow[]}
+        defaultLifeAreaId={addMarkDefaultLifeArea}
+        onCreated={async () => {
+          setAddMarkOpen(false);
+          await reload();
+        }}
+      />
     </div>
   );
 }
@@ -1373,7 +1237,7 @@ function RoadmapHoverCard({
 }) {
   const col = getRoadmapLifeAreaColor(node.tree, isDark);
   const meta = trees[node.tree];
-  const eyebrow = `${meta?.label ?? node.tree}${node.past ? "" : " · goal"}`;
+  const eyebrow = `${meta?.label ?? node.tree}${node.past ? "" : " · pursuit"}`;
 
   const [mainBounds, setMainBounds] = useState<{ width: number; height: number } | null>(null);
   useLayoutEffect(() => {

@@ -19,6 +19,32 @@
   }
 }
 
+/* Native selects — explicit contrast everywhere (incl. portaled UI outside .pf-roadmap). */
+select,
+select.pf-native-select {
+  color: #1a1c1e;
+  background-color: #ffffff;
+  border-color: #d8d9dc;
+  color-scheme: light;
+}
+select option {
+  color: #1a1c1e;
+  background-color: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  select,
+  select.pf-native-select {
+    color: #e8eaec;
+    background-color: #2a2d32;
+    border-color: #3d4046;
+    color-scheme: dark;
+  }
+  select option {
+    color: #e8eaec;
+    background-color: #2a2d32;
+  }
+}
+
 body {
   background-color: var(--background);
   background-image:

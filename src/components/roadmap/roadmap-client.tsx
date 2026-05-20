@@ -48,6 +48,7 @@ type RoadmapClientProps = {
 export function RoadmapClient({ initialGoal }: RoadmapClientProps) {
   const [goal, setGoal] = useState(initialGoal);
   const [loadingSubtaskId, setLoadingSubtaskId] = useState<string | null>(null);
+  const [expandedMilestoneIds, setExpandedMilestoneIds] = useState<Set<string>>(() => new Set());
 
   const activeMilestoneId = useMemo(
     () => goal.milestones.find((milestone) => milestone.isActive)?.id,
@@ -125,13 +126,32 @@ export function RoadmapClient({ initialGoal }: RoadmapClientProps) {
               </div>
 
               <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold text-white">{milestone.title}</h2>
-                  <span className="text-xs text-zinc-400">
-                    {!milestone.isUnlocked ? "Locked" : milestone.isCompleted ? "Complete" : "Active"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-400">
+                      {!milestone.isUnlocked ? "Locked" : milestone.isCompleted ? "Complete" : "Active"}
+                    </span>
+                    <button
+                      type="button"
+                      aria-expanded={expandedMilestoneIds.has(milestone.id)}
+                      onClick={() => {
+                        setExpandedMilestoneIds((prev) => {
+                          const n = new Set(prev);
+                          if (n.has(milestone.id)) n.delete(milestone.id);
+                          else n.add(milestone.id);
+                          return n;
+                        });
+                      }}
+                      className="rounded-md border border-white/15 bg-black/30 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:border-white/25 hover:text-white"
+                    >
+                      {expandedMilestoneIds.has(milestone.id) ? "Hide detail" : "Detail"}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-zinc-400">{milestone.description}</p>
+                {expandedMilestoneIds.has(milestone.id) && milestone.description.trim() ? (
+                  <p className="text-sm text-zinc-400">{milestone.description}</p>
+                ) : null}
 
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-zinc-400">
@@ -148,6 +168,7 @@ export function RoadmapClient({ initialGoal }: RoadmapClientProps) {
                   </div>
                 </div>
 
+                {expandedMilestoneIds.has(milestone.id) ? (
                 <div className="grid gap-2">
                   {milestone.subtasks.map((subtask) => (
                     <div key={subtask.id} className="rounded-lg border border-white/10 bg-black/30 p-3">
@@ -219,6 +240,7 @@ export function RoadmapClient({ initialGoal }: RoadmapClientProps) {
                     </div>
                   ))}
                 </div>
+                ) : null}
               </div>
             </div>
           </article>

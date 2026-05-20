@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // them as external forces Next to `require()` them at runtime from
   // node_modules, which is what the upstream libs expect.
   serverExternalPackages: ["pdf-parse", "mammoth"],
+  /** Playwright and some browsers hit 127.0.0.1; without this, client HMR can fail and the tree stays on "Growing your tree…". */
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
 };
 
 export default nextConfig;

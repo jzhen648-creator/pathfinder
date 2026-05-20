@@ -1,8 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMapIssuesCount } from "@/contexts/map-issues-count-context";
+import { loadMapData } from "@/lib/load-map-data";
 
 export type PfChromeShell = "roadmap" | "nextSteps";
 
@@ -44,8 +47,30 @@ export function PfChromeTopbar({
   );
 }
 
+function issuesNavLabel(count: number | null): string {
+  if (count != null && count > 0) return `Issues · ${count}`;
+  return "Issues";
+}
+
 export function PfChromeViewsNav({ shell }: { shell: PfChromeShell }) {
   const pathname = usePathname();
+  const { count, setCount } = useMapIssuesCount();
+  const prefetchStarted = useRef(false);
+
+  useEffect(() => {
+    if (prefetchStarted.current) return;
+    if (count != null) return;
+    const skip =
+      pathname === "/login" ||
+      pathname.startsWith("/register") ||
+      pathname.startsWith("/onboarding");
+    if (skip) return;
+    prefetchStarted.current = true;
+    void loadMapData().then((result) => {
+      if (result.ok) setCount(result.issues.total);
+    });
+  }, [count, pathname, setCount]);
+
   const activeHref = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const ns = shell === "nextSteps";
   const ink100 = ns ? "var(--ns-ink100,#ECEEF0)" : "var(--rm-ink100,#ECEEF0)";
@@ -65,6 +90,8 @@ export function PfChromeViewsNav({ shell }: { shell: PfChromeShell }) {
       color: on ? text1 : text3,
     };
   };
+
+  const issuesLabel = issuesNavLabel(count);
 
   return (
     <nav className="px-2 pb-1 pt-2" data-shell={shell}>
@@ -115,6 +142,23 @@ export function PfChromeViewsNav({ shell }: { shell: PfChromeShell }) {
           ≡
         </span>
         Next Steps
+      </Link>
+      <Link
+        href="/issues"
+        className={linkClass("/issues")}
+        style={linkStyle("/issues")}
+        data-testid="nav-issues"
+        onMouseEnter={(e) => {
+          if (!activeHref("/issues")) (e.currentTarget as HTMLAnchorElement).style.background = ink100;
+        }}
+        onMouseLeave={(e) => {
+          if (!activeHref("/issues")) (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+        }}
+      >
+        <span className="opacity-70" aria-hidden>
+          !
+        </span>
+        {issuesLabel}
       </Link>
     </nav>
   );

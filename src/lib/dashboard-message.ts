@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { generateText, hasGroqKey } from "@/lib/groq";
+import { generateText, hasGeminiKey } from "@/lib/gemini";
 
 type DashboardMessageInput = {
   userId: string;
@@ -24,7 +24,7 @@ function buildFallbackMessage(input: DashboardMessageInput) {
 }
 
 async function generateMessage(input: DashboardMessageInput) {
-  if (!hasGroqKey()) {
+  if (!hasGeminiKey()) {
     return buildFallbackMessage(input);
   }
 
@@ -56,7 +56,7 @@ ${input.profileContext || "No profile context yet."}`,
     });
     return text || buildFallbackMessage(input);
   } catch (err) {
-    console.error("[dashboard-message] Groq call failed:", err);
+    console.error("[dashboard-message] Gemini call failed:", err);
     return buildFallbackMessage(input);
   }
 }

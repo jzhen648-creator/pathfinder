@@ -1,9 +1,11 @@
 "use client";
 
 import type { ApiBranchRow } from "@/lib/api-branch-row";
+import type { SequenceAnchor } from "@/lib/branch-sequence";
 import { LIFE_AREAS } from "@/lib/life-areas";
 import type { LimbId } from "@/lib/types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { PF_NATIVE_SELECT_CLASS, pfNativeSelectStyle } from "@/lib/ui/native-select-style";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
@@ -11,6 +13,10 @@ type Props = {
   onClose: () => void;
   branches: ApiBranchRow[];
   defaultLifeAreaId: LimbId;
+  /** When opening from tree insert, pre-select this hub when it exists on the theme. */
+  defaultBranchId?: string | null;
+  /** Optional sequence anchor (e.g. insert between two branch-line nodes). */
+  defaultAnchor?: SequenceAnchor | null;
   onCreated: () => void | Promise<void>;
 };
 
@@ -27,23 +33,26 @@ export function CreateMarkModal({
   onClose,
   branches,
   defaultLifeAreaId,
+  defaultBranchId = null,
+  defaultAnchor = null,
   onCreated,
 }: Props) {
+  const insertAnchorRef = useRef<SequenceAnchor | null>(null);
   const [selectedLifeAreaId, setSelectedLifeAreaId] = useState<LimbId>(defaultLifeAreaId);
   const [branchId, setBranchId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(todayInputDate);
-  const [type, setType] = useState<"milestone" | "decision" | "realisation" | "setback" | "achievement">(
-    "milestone",
-  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const branchesForLifeArea = useMemo(
-    () => branches.filter((b) => b.limbId === selectedLifeAreaId),
-    [branches, selectedLifeAreaId],
-  );
+  const { activeBranchesForLifeArea, dormantBranchesForLifeArea } = useMemo(() => {
+    const inArea = branches.filter((b) => b.limbId === selectedLifeAreaId && !b.parentBranchId);
+    return {
+      activeBranchesForLifeArea: inArea.filter((b) => b.isActive !== false),
+      dormantBranchesForLifeArea: inArea.filter((b) => b.isActive === false),
+    };
+  }, [branches, selectedLifeAreaId]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,18 +60,29 @@ export function CreateMarkModal({
     setTitle("");
     setDescription("");
     setDate(todayInputDate());
-    setType("milestone");
     setError(null);
   }, [open, defaultLifeAreaId]);
 
   useEffect(() => {
     if (!open) return;
-    const first = branchesForLifeArea[0]?.id ?? "";
+    insertAnchorRef.current = defaultAnchor ?? null;
+  }, [open, defaultAnchor]);
+
+  useEffect(() => {
+    if (!open) return;
+    const allInArea = [...activeBranchesForLifeArea, ...dormantBranchesForLifeArea];
+    const first = allInArea[0]?.id ?? "";
+    const preferred =
+      defaultBranchId?.trim() &&
+      allInArea.some((b) => b.id === defaultBranchId.trim())
+        ? defaultBranchId.trim()
+        : null;
     setBranchId((prev) => {
-      if (prev && branchesForLifeArea.some((b) => b.id === prev)) return prev;
+      if (preferred) return preferred;
+      if (prev && allInArea.some((b) => b.id === prev)) return prev;
       return first;
     });
-  }, [open, branchesForLifeArea]);
+  }, [open, activeBranchesForLifeArea, dormantBranchesForLifeArea, defaultBranchId]);
 
   const submit = useCallback(async () => {
     if (!branchId) {
@@ -86,7 +106,7 @@ export function CreateMarkModal({
           title: t,
           description: description.trim() || undefined,
           date: `${date}T12:00:00.000Z`,
-          type,
+          ...(insertAnchorRef.current != null ? { anchor: insertAnchorRef.current } : {}),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -101,7 +121,7 @@ export function CreateMarkModal({
     } finally {
       setSaving(false);
     }
-  }, [branchId, date, description, selectedLifeAreaId, onClose, onCreated, title, type]);
+  }, [branchId, date, description, selectedLifeAreaId, onClose, onCreated, title]);
 
   useEffect(() => {
     if (!open) return;
@@ -136,7 +156,7 @@ export function CreateMarkModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 id="pf-create-mark-title" className="text-lg font-medium">
-            Add timeline note
+            Add mark
           </h2>
           <button
             type="button"
@@ -151,10 +171,13 @@ export function CreateMarkModal({
           <label className="flex flex-col gap-1">
             <span className="text-[var(--rm-text3,#6B7280)]">Theme</span>
             <select
-              className="rounded-lg border px-2 py-2"
-              style={{ borderColor: "var(--rm-border)", color: "var(--rm-text1)" }}
+              className={`rounded-lg ${PF_NATIVE_SELECT_CLASS}`}
+              style={pfNativeSelectStyle}
               value={selectedLifeAreaId}
-              onChange={(e) => setSelectedLifeAreaId(e.target.value as LimbId)}
+              onChange={(e) => {
+                insertAnchorRef.current = null;
+                setSelectedLifeAreaId(e.target.value as LimbId);
+              }}
             >
               {LIFE_AREAS.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -166,20 +189,35 @@ export function CreateMarkModal({
 
           <label className="flex flex-col gap-1">
             <span className="text-[var(--rm-text3,#6B7280)]">Hub</span>
+            {/* UI: group dormant hubs under "Add a new area"; POST /api/marks activates dormant hub inline. */}
             <select
-              className="rounded-lg border px-2 py-2"
-              style={{ borderColor: "var(--rm-border)", color: "var(--rm-text1)" }}
+              className={`rounded-lg ${PF_NATIVE_SELECT_CLASS}`}
+              style={pfNativeSelectStyle}
               value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
+              onChange={(e) => {
+                insertAnchorRef.current = null;
+                setBranchId(e.target.value);
+              }}
             >
-              {branchesForLifeArea.length === 0 ? (
+              {activeBranchesForLifeArea.length === 0 && dormantBranchesForLifeArea.length === 0 ? (
                 <option value="">No hubs in this theme yet</option>
               ) : (
-                branchesForLifeArea.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {(b.name ?? b.label ?? b.id).toString()}
-                  </option>
-                ))
+                <>
+                  {activeBranchesForLifeArea.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {(b.name ?? b.label ?? b.id).toString()}
+                    </option>
+                  ))}
+                  {dormantBranchesForLifeArea.length > 0 ? (
+                    <optgroup label="Add a new area">
+                      {dormantBranchesForLifeArea.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {(b.name ?? b.label ?? b.id).toString()}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                </>
               )}
             </select>
           </label>
@@ -204,22 +242,6 @@ export function CreateMarkModal({
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-[var(--rm-text3,#6B7280)]">Type</span>
-            <select
-              className="rounded-lg border px-2 py-2"
-              style={{ borderColor: "var(--rm-border)", color: "var(--rm-text1)" }}
-              value={type}
-              onChange={(e) => setType(e.target.value as typeof type)}
-            >
-              <option value="milestone">Milestone</option>
-              <option value="decision">Decision</option>
-              <option value="realisation">Realisation</option>
-              <option value="setback">Setback</option>
-              <option value="achievement">Achievement</option>
-            </select>
           </label>
 
           <label className="flex flex-col gap-1">

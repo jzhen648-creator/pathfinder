@@ -49,7 +49,6 @@ const LIMB_SHORT: Record<LimbId, string> = {
   becoming: "Becoming",
   finance: "Money",
   people: "People",
-  pleasures: "Pleasures",
 };
 
 function limbTextColors(limbId: LimbId, isDark: boolean): { sub: string; text: string } {
@@ -677,7 +676,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
                     <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
-                  Add goal
+                  Add pursuit
                 </button>
                 <Link href="/dashboard" className="ns-add-goal-btn no-underline">
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -923,7 +922,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
         branches={addGoalBranches}
         defaultBranchId={null}
         onGoalCreated={({ branchLabel }) => {
-          showToast(`Goal created on ${branchLabel}.`);
+          showToast(`Pursuit created on ${branchLabel}.`);
           router.refresh();
         }}
       />

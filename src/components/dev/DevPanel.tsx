@@ -247,7 +247,7 @@ export function DevPanel({
       </details>
 
       <details style={{ marginBottom: 8 }}>
-        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Selected Goal</summary>
+        <summary style={{ cursor: "pointer", color: "#93C5FD" }}>Selected Pursuit</summary>
         {!selectedNode ? (
           <div style={{ opacity: 0.6, marginTop: 6 }}>none</div>
         ) : (

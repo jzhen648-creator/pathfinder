@@ -49,3 +49,12 @@ next-env.d.ts
 # local prisma sqlite (regenerate with migrate)
 /prisma/*.db
 /prisma/*.db-journal
+
+# stream dogfood output
+/scripts/dogfood-results.json
+/scripts/dogfood-last-run.log
+
+# local screenshots / scratch
+/tmp/
+/tmp-screenshots/
+stream-preview-fix.png

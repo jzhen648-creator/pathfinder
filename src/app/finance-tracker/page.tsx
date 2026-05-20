@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { FinanceReflectionCard } from "@/components/finance/finance-reflection-card";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -18,26 +19,13 @@ type FinanceNode = {
   };
 };
 
-async function getReflection(nodes: FinanceNode[]) {
-  if (nodes.length === 0) return "";
-  const response = await fetch(`${process.env.NEXTAUTH_URL ?? "http://localhost:3001"}/api/finance/reflection`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nodes }),
-    cache: "no-store",
-  });
-  if (!response.ok) return "";
-  const data = (await response.json()) as { reflection?: string };
-  return data.reflection ?? "";
-}
-
 export default async function FinanceTrackerPage() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
   const goals = await prisma.goal.findMany({
-    where: { userId, lifeArea: { in: ["Money", "Money & Finance"] } },
+    where: { userId, archived: false, lifeArea: { in: ["Money", "Money & Finance"] } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -72,8 +60,6 @@ export default async function FinanceTrackerPage() {
   const nextMilestone = [...activeSavingsGoals].sort(
     (a, b) => (a.practicalData?.targetAmount ?? Infinity) - (b.practicalData?.targetAmount ?? Infinity),
   )[0];
-
-  const reflection = await getReflection(nodes);
 
   return (
     <main className="min-h-screen bg-[#040A14] px-6 py-10 text-white">
@@ -118,7 +104,7 @@ export default async function FinanceTrackerPage() {
 
         <section>
           <h2 className="mb-3 text-2xl font-light" style={{ fontFamily: "Cormorant Garamond, serif" }}>
-            Active Savings Goals
+            Active Savings Pursuits
           </h2>
           <div className="grid gap-3 md:grid-cols-2">
             {activeSavingsGoals.map((node) => {
@@ -141,7 +127,7 @@ export default async function FinanceTrackerPage() {
               );
             })}
             {activeSavingsGoals.length === 0 ? (
-              <p className="text-sm text-zinc-500">No active savings goals yet.</p>
+              <p className="text-sm text-zinc-500">No active savings pursuits yet.</p>
             ) : null}
           </div>
         </section>
@@ -170,9 +156,7 @@ export default async function FinanceTrackerPage() {
           <h2 className="mb-3 text-2xl font-light" style={{ fontFamily: "Cormorant Garamond, serif" }}>
             AI Financial Reflection
           </h2>
-          <div className="rounded-xl border border-[#34D39933] bg-[#07111F] p-4 text-sm text-zinc-300">
-            {reflection || "Add finance goals to unlock your reflection."}
-          </div>
+          <FinanceReflectionCard nodes={nodes} />
         </section>
       </section>
     </main>
