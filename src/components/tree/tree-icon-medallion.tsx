@@ -53,9 +53,9 @@ type TierGradients = {
 const TIER_GRADIENTS: Record<IconMedallionTier, TierGradients> = {
   theme: {
     bloom: [
-      [0, 0.22],
-      [0.38, 0.14],
-      [0.68, 0.06],
+      [0, 0.18],
+      [0.38, 0.1],
+      [0.68, 0.045],
       [1, 0],
     ],
     body: [
@@ -70,7 +70,7 @@ const TIER_GRADIENTS: Record<IconMedallionTier, TierGradients> = {
       [0.74, 0.1],
       [1, 0],
     ],
-    ring: 0.62,
+    ring: 0.34,
   },
   domainHub: {
     bloom: [

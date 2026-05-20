@@ -6,6 +6,8 @@ export interface IconSvgProps {
   opacity?: number;
   /** Passed to stroke/fill; default currentColor for CSS inheritance. */
   color?: string;
+  /** Desired on-screen SVG stroke width in px for fixed-stroke artwork. */
+  stroke?: number;
 }
 
 export function iconScale(size: number): number {
@@ -26,4 +28,10 @@ export function scaleStroke(baseWidth: number, size: number): number {
   const s = iconScale(size);
   if (s <= 0) return baseWidth;
   return baseWidth / Math.sqrt(s);
+}
+
+export function fixedScreenStroke(strokeWidth: number, size: number): number {
+  const s = iconScale(size);
+  if (s <= 0) return strokeWidth;
+  return strokeWidth / s;
 }

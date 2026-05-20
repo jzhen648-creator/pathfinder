@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #080810;
+  --background: #07060a;
   --foreground: #f5f5f5;
 }
 
@@ -14,7 +14,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #080810;
+    --background: #07060a;
     --foreground: #f5f5f5;
   }
 }
@@ -48,10 +48,10 @@ select option {
 body {
   background-color: var(--background);
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.08), transparent 28%),
-    radial-gradient(circle at 80% 0%, rgba(245, 158, 11, 0.05), transparent 22%);
+    linear-gradient(rgba(245, 243, 250, 0.01) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 243, 250, 0.01) 1px, transparent 1px),
+    radial-gradient(circle at 20% 20%, rgba(127, 119, 221, 0.055), transparent 28%),
+    radial-gradient(circle at 80% 0%, rgba(239, 159, 39, 0.045), transparent 22%);
   background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;

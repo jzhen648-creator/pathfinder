@@ -1,5 +1,5 @@
 export type { IconSvgProps } from "./icon-svg-props";
-export { ICON_DESIGN_SIZE, iconScale, scaleStroke } from "./icon-svg-props";
+export { ICON_DESIGN_SIZE, fixedScreenStroke, iconScale, scaleStroke } from "./icon-svg-props";
 
 export { LimbWork } from "./limb/LimbWork";
 export { LimbMoney } from "./limb/LimbMoney";

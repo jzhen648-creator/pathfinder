@@ -96,11 +96,11 @@ export function limbIconForLifeArea(areaId: LifeAreaId): TreeIconComponent {
 }
 
 export const LIMB_ICON_ARTWORK_EXTENT_MAX: Record<LifeAreaId, number> = {
-  work: 28,
-  finance: 28,
-  becoming: 24,
-  people: 18,
-  health: 30,
+  work: 20,
+  finance: 20,
+  becoming: 20,
+  people: 20,
+  health: 20,
 };
 
 export function normalizedLimbIconSize(areaId: LifeAreaId, targetPx: number): number {
