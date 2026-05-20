@@ -159,8 +159,8 @@ export function deriveTrunkEmergenceDirection(
 
   const outwardWeight = side === "center" ? 0.5 : 0.58;
   const chordWeight = 1 - outwardWeight;
-  let ux = ox * outwardWeight + chordUx * chordWeight;
-  let uy = oy * outwardWeight + chordUy * chordWeight;
+  const ux = ox * outwardWeight + chordUx * chordWeight;
+  const uy = oy * outwardWeight + chordUy * chordWeight;
   const uLen = Math.hypot(ux, uy) || 1;
   return { x: ux / uLen, y: uy / uLen };
 }

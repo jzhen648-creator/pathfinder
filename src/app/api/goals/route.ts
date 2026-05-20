@@ -25,6 +25,12 @@ import {
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-hubs";
 
+function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
+  if (!requested) return false;
+  if (process.env.NODE_ENV !== "development") return true;
+  return process.env.ENABLE_AI_ROADMAPS_IN_DEV?.trim().toLowerCase() === "true";
+}
+
 function redirectToMoments(request: Request) {
   const url = new URL(request.url);
   url.pathname = "/api/marks";
@@ -157,7 +163,7 @@ export async function POST(request: Request) {
       );
     });
 
-    if (input.generateRoadmap) {
+    if (shouldGenerateRoadmap(input.generateRoadmap)) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { onboardingProfileText: true },

@@ -1,6 +1,5 @@
 "use client";
 
-import type { MutableRefObject } from "react";
 import type { AreaData, MomentNode } from "./tree-types";
 import {
   MARK_DIAMOND_HALF_PX,
@@ -20,7 +19,7 @@ export type TreeMarkNodeProps = {
   x: number;
   y: number;
   isSelected: boolean;
-  panMoved: MutableRefObject<boolean>;
+  shouldSuppressClick: () => boolean;
   onMarkClick: (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => void;
   onMarkPointerEnter?: (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => void;
   onMarkPointerLeave?: (momentId: string) => void;
@@ -33,7 +32,7 @@ export function TreeMarkNode({
   x,
   y,
   isSelected,
-  panMoved,
+  shouldSuppressClick,
   onMarkClick,
   onMarkPointerEnter,
   onMarkPointerLeave,
@@ -112,7 +111,7 @@ export function TreeMarkNode({
         }}
         onClick={(e) => {
           e.stopPropagation();
-          if (panMoved.current) return;
+          if (shouldSuppressClick()) return;
           onMarkClick(moment, area, e.clientX, e.clientY);
         }}
       />

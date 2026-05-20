@@ -30,7 +30,7 @@ function pickGoal(
   opts?: { preferYear?: string; excludeIds?: string[] },
 ): CareerGoalRow | undefined {
   const exclude = new Set(opts?.excludeIds ?? []);
-  let matches = goals.filter(
+  const matches = goals.filter(
     (g) => !exclude.has(g.id) && g.title.toLowerCase().includes(pattern),
   );
   if (matches.length === 0) return undefined;

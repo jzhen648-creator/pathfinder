@@ -336,7 +336,9 @@ export function TreeSVG({
     scale: baselineZoomScale,
   });
   const transformRef = useRef(transform);
-  transformRef.current = transform;
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
   const streamPanAnimCancelRef = useRef<(() => void) | null>(null);
   const didInitialFitRef = useRef(false);
   const zoomRatio = transform.scale / baselineZoomScale;
@@ -374,7 +376,11 @@ export function TreeSVG({
   const [isPanning, setIsPanning] = useState(false);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
   const panStart = useRef<{ x: number; y: number } | null>(null);
-  const panMoved = useRef(false);
+  const panMovedRef = useRef(false);
+  const notifyPanMoved = useCallback(() => {
+    panMovedRef.current = true;
+  }, []);
+  const shouldSuppressMapClick = () => panMovedRef.current;
   const beginGoalDragRef = useRef<
     ((payload: EditDragGoalPayload, clientX: number, clientY: number, originX: number, originY: number) => void) | null
   >(null);
@@ -426,7 +432,7 @@ export function TreeSVG({
     if (editMapMode) return;
     window.getSelection()?.removeAllRanges();
     setIsPanning(true);
-    panMoved.current = false;
+    panMovedRef.current = false;
     lastPan.current = { x, y };
     panStart.current = { x, y };
   };
@@ -439,7 +445,7 @@ export function TreeSVG({
     if (panStart.current) {
       const totalDx = x - panStart.current.x;
       const totalDy = y - panStart.current.y;
-      if (Math.hypot(totalDx, totalDy) > 5) panMoved.current = true;
+      if (Math.hypot(totalDx, totalDy) > 5) panMovedRef.current = true;
     }
     setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
   };
@@ -690,7 +696,7 @@ export function TreeSVG({
       toggleAreaLayoutEdit(areaId, true);
       setLayoutDevPanelCollapsed(false);
     },
-    [areas, resolvedForks, lifeAreaFloatNudgePx, layoutOverrides, toggleAreaLayoutEdit],
+    [areas, resolvedForks, lifeAreaFloatNudgePx, layoutOverrides, toggleAreaLayoutEdit, setTransform, setLayoutDevPanelCollapsed],
   );
 
   useEffect(() => {
@@ -821,7 +827,7 @@ export function TreeSVG({
         }}
         onTouchEnd={endPan}
         onClick={() => {
-          if (panMoved.current) return;
+          if (shouldSuppressMapClick()) return;
           onClear();
         }}
       >
@@ -1304,6 +1310,8 @@ export function TreeSVG({
           <TreePentagonAnchor />
           {/* Vein + luminous veil render after limb/branch strokes (see emergence blend group) so overlap reads as embedded emergence, not hard under-stack clipping. */}
 
+          {/* Refs (pan, layout drag, svg) are read only inside pointer handlers in this subtree. */}
+          {/* eslint-disable react-hooks/refs -- large composed SVG layer */}
           {areasRenderOrder.map((area) => {
             const slots = getAreaSlotRender(area.id, resolvedForks);
             if (!slots) return null;
@@ -2345,7 +2353,7 @@ export function TreeSVG({
                                 style={{ cursor: "pointer" }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (panMoved.current) return;
+                                  if (shouldSuppressMapClick()) return;
                                   onHubClick(area, thread);
                                 }}
                               />
@@ -2583,7 +2591,7 @@ export function TreeSVG({
                                   panel,
                                   bloomPlayingIds,
                                   onGoalClick,
-                                  panMoved,
+                                  shouldSuppressMapClick,
                                   0,
                                   idx,
                                   showElementGuide,
@@ -2650,7 +2658,7 @@ export function TreeSVG({
                                   x={pos.x}
                                   y={pos.y}
                                   isSelected={selectedMomentId === moment.id}
-                                  panMoved={panMoved}
+                                  shouldSuppressClick={shouldSuppressMapClick}
                                   onMarkClick={onMarkClick}
                                   onMarkPointerEnter={onMarkPointerEnter}
                                   onMarkPointerLeave={onMarkPointerLeave}
@@ -2861,7 +2869,7 @@ export function TreeSVG({
                   }
                   const onLimbLabelRowClick = (e: MouseEvent<SVGElement>) => {
                     e.stopPropagation();
-                    if (panMoved.current) return;
+                    if (shouldSuppressMapClick()) return;
                     // Theme gateway / icon opens the theme panel; icon-only focus toggle when focus mode is on.
                     if (clusterHit && gatewayPt) {
                       onAreaClick(area);
@@ -2972,6 +2980,7 @@ export function TreeSVG({
               </g>
             );
           })}
+          {/* eslint-enable react-hooks/refs */}
           {previewAreas && previewAreas.length > 0 ? (
             <StreamPreviewMarkersLayer
               previewAreas={previewAreas}
@@ -3416,7 +3425,7 @@ export function TreeSVG({
             layoutOverrides={layoutOverrides}
             svgRef={svgRef}
             transform={transform}
-            panMoved={panMoved}
+            onPanMoved={notifyPanMoved}
             beginGoalDragRef={beginGoalDragRef}
             onLayoutPreviewChange={handleEditLayoutPreviewChange}
             onDraftDrop={(op, nextAreas) => onEditMapDraftDrop?.(op, nextAreas)}

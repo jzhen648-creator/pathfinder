@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
   type RefObject,
 } from "react";
 import type { AreaForkSpec } from "./tree-forks";
@@ -54,7 +53,7 @@ type TreeEditMapOverlayProps = {
   layoutOverrides: Record<string, AreaLayoutOverride>;
   svgRef: RefObject<SVGSVGElement | null>;
   transform: { x: number; y: number; scale: number };
-  panMoved: MutableRefObject<boolean>;
+  onPanMoved: () => void;
   onDraftDrop: (op: EditMapDraftOp, nextAreas: AreaData[]) => void;
   onLayoutPreviewChange?: (preview: AreaData[] | null, draggedGoalId: string | null) => void;
   beginGoalDragRef: MutableRefObject<
@@ -124,7 +123,7 @@ export function TreeEditMapOverlay({
   layoutOverrides,
   svgRef,
   transform,
-  panMoved,
+  onPanMoved,
   onDraftDrop,
   onLayoutPreviewChange,
   beginGoalDragRef,
@@ -133,7 +132,9 @@ export function TreeEditMapOverlay({
   const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const [hoverTarget, setHoverTarget] = useState<EditDropTarget | null>(null);
   const dragRef = useRef(drag);
-  dragRef.current = drag;
+  useEffect(() => {
+    dragRef.current = drag;
+  }, [drag]);
   const lastLayoutLiftKeyRef = useRef("");
 
   const dragPayload = drag.kind === "dragging" ? drag.payload : null;
@@ -220,7 +221,7 @@ export function TreeEditMapOverlay({
       if (phase.kind === "pending") {
         const dist = Math.hypot(e.clientX - phase.startClientX, e.clientY - phase.startClientY);
         if (dist < EDIT_DRAG_THRESHOLD_PX) return;
-        panMoved.current = true;
+        onPanMoved();
         setPointer({ x: local.x, y: local.y });
         setDrag({
           kind: "dragging",
@@ -289,7 +290,7 @@ export function TreeEditMapOverlay({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
     };
-  }, [areas, clientToLocal, dropTargets, goalsById, onDraftDrop, onLayoutPreviewChange, panMoved]);
+  }, [areas, clientToLocal, dropTargets, goalsById, onDraftDrop, onLayoutPreviewChange, onPanMoved]);
 
   if (!enabled) return null;
 

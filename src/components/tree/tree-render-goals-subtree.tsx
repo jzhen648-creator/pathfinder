@@ -1,6 +1,6 @@
 "use client";
 
-import type { MutableRefObject, PointerEvent } from "react";
+import type { PointerEvent } from "react";
 import { FLAGS } from "@/lib/flags";
 import { deriveGoalNodeRenderState } from "./goal-node-render-phase";
 import {
@@ -72,7 +72,7 @@ export function renderGoalsSubtree(
   panel: PanelState,
   bloomPlayingIds: Set<string>,
   onGoalClick: (g: TreeGoalNode, a: AreaData) => void,
-  panMoved: MutableRefObject<boolean>,
+  shouldSuppressClick: () => boolean,
   depth: number,
   branchThreadIndex: number,
   showElementGuide: boolean,
@@ -290,7 +290,7 @@ export function renderGoalsSubtree(
           panel,
           bloomPlayingIds,
           onGoalClick,
-          panMoved,
+          shouldSuppressClick,
           depth + 1,
           branchThreadIndex,
           showElementGuide,
@@ -334,7 +334,7 @@ export function renderGoalsSubtree(
         idSeed={goal.id}
         onClick={() => {
           if (editMapMode) return;
-          if (panMoved.current) return;
+          if (shouldSuppressClick()) return;
           onGoalClick(goal, area);
         }}
         onPointerDown={

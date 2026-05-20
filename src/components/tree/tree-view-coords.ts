@@ -84,8 +84,8 @@ export function composeViewportToStoredTree(p: Point): Point {
   const rotCx = TREE_TRUNK_MIRROR_X;
   const rotCy = TREE_COMPOSE_ROTATE_CY;
   const rad = (TREE_COMPOSE_ROTATE_DEG * Math.PI) / 180;
-  let x = p.x - TREE_COMPOSE_TRANSLATE_X;
-  let y = p.y - TREE_COMPOSE_TRANSLATE_Y;
+  const x = p.x - TREE_COMPOSE_TRANSLATE_X;
+  const y = p.y - TREE_COMPOSE_TRANSLATE_Y;
   const dx = x - rotCx;
   const dy = y - rotCy;
   const cos = Math.cos(-rad);
