@@ -57,11 +57,9 @@ export function buildThemeSnapshot(area: AreaData): ThemeSnapshot {
 
   const allGoals = allGoalsInArea(area);
   const goalsByBloom: Record<GoalBloomStatus, number> = {
-    BUD: 0,
-    GROWING: 0,
-    BLOOMED: 0,
-    BRANCHED: 0,
-    ENDED: 0,
+    ACTIVE: 0,
+    ON_HOLD: 0,
+    COMPLETE: 0,
   };
   for (const g of allGoals) {
     goalsByBloom[g.bloomStatus] += 1;
@@ -78,29 +76,29 @@ export function buildThemeSnapshot(area: AreaData): ThemeSnapshot {
   const reflectionQuestions: string[] = [];
 
   if (totalGoals === 0 && totalMoments === 0) {
-    gaps.push("This theme is still a blank canvas — no goals or timeline notes yet.");
+    gaps.push("This theme is still a blank canvas — no pursuits or marks yet.");
     reflectionQuestions.push(catalog.lenses[0] ?? "What belongs in this part of your life?");
   } else {
-    if (goalsByBloom.GROWING > 0) {
+    if (goalsByBloom.ACTIVE > 0) {
       strengths.push(
-        `${goalsByBloom.GROWING} goal${goalsByBloom.GROWING === 1 ? "" : "s"} actively growing right now.`,
+        `${goalsByBloom.ACTIVE} pursuit${goalsByBloom.ACTIVE === 1 ? "" : "s"} active right now.`,
       );
     }
-    if (goalsByBloom.BLOOMED > 0) {
+    if (goalsByBloom.COMPLETE > 0) {
       strengths.push(
-        `${goalsByBloom.BLOOMED} goal${goalsByBloom.BLOOMED === 1 ? " has" : "s have"} bloomed — finished pursuits on the map.`,
+        `${goalsByBloom.COMPLETE} pursuit${goalsByBloom.COMPLETE === 1 ? " is" : "s are"} complete on the map.`,
       );
     }
     if (hubsWithGoals >= 2) {
-      strengths.push(`Goals span ${hubsWithGoals} of ${hubCount} hubs — not concentrated on a single track.`);
+      strengths.push(`Pursuits span ${hubsWithGoals} of ${hubCount} hubs — not concentrated on a single track.`);
     }
     if (hubsWithMoments >= 2) {
-      strengths.push(`Timeline notes appear on ${hubsWithMoments} hubs — the story has breadth.`);
+      strengths.push(`Marks appear on ${hubsWithMoments} hubs — the story has breadth.`);
     } else if (totalMoments >= 3) {
-      strengths.push(`${totalMoments} timeline notes capture how this theme has unfolded.`);
+      strengths.push(`${totalMoments} marks capture how this theme has unfolded.`);
     }
     if (totalGoals > 0 && totalMoments > 0) {
-      strengths.push("Both pursuits and timeline history are present — goals and story align.");
+      strengths.push("Both pursuits and timeline history are present — pursuits and story align.");
     }
 
     const emptyHubs = hubCoverage.filter((h) => !h.active);
@@ -114,17 +112,17 @@ export function buildThemeSnapshot(area: AreaData): ThemeSnapshot {
     }
 
     if (totalGoals > 0 && totalMoments === 0) {
-      gaps.push("Goals exist but the timeline is empty — the narrative of this theme isn't written yet.");
+      gaps.push("Pursuits exist but the timeline is empty — the narrative of this theme isn't written yet.");
     }
     if (totalMoments > 0 && totalGoals === 0) {
-      gaps.push("Timeline notes without active goals — history without current pursuits.");
+      gaps.push("Marks without active pursuits — history without current direction.");
     }
     if (hubsWithGoals === 1 && hubCount > 1) {
       const only = hubCoverage.find((h) => h.goalCount > 0)?.hubLabel ?? "one hub";
-      gaps.push(`All goals sit on ${only} — other dimensions of this theme are untouched.`);
+      gaps.push(`All pursuits sit on ${only} — other dimensions of this theme are untouched.`);
     }
-    if (goalsByBloom.BUD > 0 && goalsByBloom.GROWING === 0 && goalsByBloom.BLOOMED === 0) {
-      gaps.push(`${goalsByBloom.BUD} goal${goalsByBloom.BUD === 1 ? "" : "s"} still at bud — nothing in motion yet.`);
+    if (goalsByBloom.ACTIVE > 0 && goalsByBloom.COMPLETE === 0) {
+      gaps.push(`${goalsByBloom.ACTIVE} pursuit${goalsByBloom.ACTIVE === 1 ? "" : "s"} active — none complete yet.`);
     }
   }
 
