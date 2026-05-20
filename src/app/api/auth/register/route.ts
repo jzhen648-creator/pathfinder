@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -34,13 +35,16 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         name: parsed.data.name,
         email: parsed.data.email,
         passwordHash,
+        onboardingCompleted: false,
       },
     });
+
+    await ensureHubTaxonomyCurrent(prisma, user.id);
 
     return NextResponse.json({ success: true });
   } catch {

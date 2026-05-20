@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { generateText, hasGroqKey, GroqNotConfiguredError } from "@/lib/groq";
+import { generateText, hasGeminiKey, GeminiNotConfiguredError } from "@/lib/gemini";
 
 const payloadSchema = z.object({
   nodes: z.array(
@@ -21,8 +21,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasGroqKey()) {
-    return NextResponse.json({ error: "GROQ_API_KEY not configured." }, { status: 503 });
+  if (!hasGeminiKey()) {
+    return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 503 });
   }
 
   try {
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ reflection: reflection.trim() });
   } catch (err) {
-    if (err instanceof GroqNotConfiguredError) {
+    if (err instanceof GeminiNotConfiguredError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
     console.error("[POST /api/finance/reflection] failed", err);

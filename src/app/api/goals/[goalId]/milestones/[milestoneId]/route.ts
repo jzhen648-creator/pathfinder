@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { prisma } from "@/lib/prisma";
 
@@ -31,17 +30,12 @@ export async function PATCH(request: Request, props: RouteProps) {
   let milestoneId = "";
 
   try {
-    const session = await getServerSession(authOptions);
-    const sessionUserId = session?.user?.id;
-    if (!sessionUserId) {
+    const auth = await requireApiSessionUserId();
+    if (!auth.ok) {
       console.info(logPrefix, "early exit 401 unauthorized");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return auth.response;
     }
-
-    const url = new URL(request.url);
-    const requestedUserId = url.searchParams.get("userId");
-    const userId =
-      process.env.NODE_ENV === "development" && requestedUserId ? requestedUserId : sessionUserId;
+    const userId = auth.userId;
 
     const params = await props.params;
     goalId = params.goalId;

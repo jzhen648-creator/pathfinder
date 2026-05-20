@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import { appendCanonicalTreeMilestoneForGoal } from "@/lib/append-canonical-tree-milestone";
 import { appendCanonicalTreeMilestoneBodySchema } from "@/lib/validation/append-canonical-tree-milestone";
 
@@ -11,14 +10,9 @@ type RouteProps = { params: Promise<{ goalId: string }> };
  * Legacy `PATCH …/goals/[id]` JSON orbitals remain for checkbox edits on JSON-only goals only.
  */
 export async function POST(request: Request, props: RouteProps) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
-  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const url = new URL(request.url);
-  const requestedUserId = url.searchParams.get("userId");
-  const userId =
-    process.env.NODE_ENV === "development" && requestedUserId ? requestedUserId : sessionUserId;
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
+  const userId = auth.userId;
 
   const { goalId } = await props.params;
 

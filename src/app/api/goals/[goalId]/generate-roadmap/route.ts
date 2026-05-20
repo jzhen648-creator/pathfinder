@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import {
   buildFallbackRoadmap,
@@ -21,14 +20,9 @@ const bodySchema = z
   .strict();
 
 export async function POST(request: Request, props: RouteProps) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
-  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const url = new URL(request.url);
-  const requestedUserId = url.searchParams.get("userId");
-  const userId =
-    process.env.NODE_ENV === "development" && requestedUserId ? requestedUserId : sessionUserId;
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
+  const userId = auth.userId;
 
   const { goalId } = await props.params;
 
@@ -62,7 +56,7 @@ export async function POST(request: Request, props: RouteProps) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (goal.milestones.length > 0) {
-    return NextResponse.json({ error: "Goal already has milestones" }, { status: 409 });
+    return NextResponse.json({ error: "Pursuit already has milestones" }, { status: 409 });
   }
 
   const user = await prisma.user.findUnique({

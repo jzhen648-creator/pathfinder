@@ -1,15 +1,32 @@
 import { z } from "zod";
 
 /** PATCH `/api/goals/[goalId]` — at least one field required. */
+const calendarDaySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
 export const updateGoalPayloadSchema = z
   .object({
     title: z.string().optional(),
     description: z.string().optional(),
     significance: z.coerce.number().int().optional(),
+    /** Explicit swimlane start; `null` clears override (falls back to createdAt). */
+    timelineStart: calendarDaySchema.nullable().optional(),
+    /** Target end date; `null` clears deadline. */
+    deadline: calendarDaySchema.nullable().optional(),
+    /** `false` revives a pursuit removed from the map. */
+    archived: z.boolean().optional(),
+    bloomStatus: z.enum(["ACTIVE", "ON_HOLD", "COMPLETE"]).optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =
-      data.title !== undefined || data.description !== undefined || data.significance !== undefined;
+      data.title !== undefined ||
+      data.description !== undefined ||
+      data.significance !== undefined ||
+      data.timelineStart !== undefined ||
+      data.deadline !== undefined ||
+      data.archived !== undefined ||
+      data.bloomStatus !== undefined;
     if (!hasField) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

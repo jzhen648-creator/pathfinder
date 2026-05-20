@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-/** Root hub rows only. Hub splits from timeline moments (`parentBranchId` / `turningPointId`) were removed in 2026-05. */
+/** Root hub rows + goals for tree/roadmap. Read-only; taxonomy sync on register, onboarding, activate, or backfill. */
 const createBranchSchema = z
   .object({
     limbId: z.string().min(1),
@@ -13,39 +14,51 @@ const createBranchSchema = z
   })
   .strict();
 
-export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
-  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET() {
+  try {
+    const auth = await requireApiSessionUserId();
+    if (!auth.ok) return auth.response;
+    const userId = auth.userId;
 
-  const url = new URL(request.url);
-  const requestedUserId = url.searchParams.get("userId");
-  const userId =
-    process.env.NODE_ENV === "development" && requestedUserId
-      ? requestedUserId
-      : sessionUserId;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) {
+      return NextResponse.json({ error: "Session expired. Sign in again." }, { status: 401 });
+    }
 
-  const branches = await prisma.branch.findMany({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-  });
-  const goals = await prisma.goal.findMany({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    include: {
+    const branches = await prisma.branch.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+    });
+    const goalInclude = {
       milestones: {
-        orderBy: { position: "asc" },
+        orderBy: { position: "asc" as const },
         include: {
           subtasks: {
-            orderBy: { position: "asc" },
+            orderBy: { position: "asc" as const },
             select: { id: true, isCompleted: true, position: true, title: true },
           },
         },
       },
       forkedGoals: { select: { id: true } },
-    },
-  });
-  return NextResponse.json({ branches, goals });
+    };
+    const [goals, archivedGoals] = await Promise.all([
+      prisma.goal.findMany({
+        where: { userId, archived: false },
+        orderBy: { createdAt: "asc" },
+        include: goalInclude,
+      }),
+      prisma.goal.findMany({
+        where: { userId, archived: true },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, title: true, branchId: true, updatedAt: true },
+      }),
+    ]);
+    return NextResponse.json({ branches, goals, archivedGoals });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load branches";
+    console.error("[GET /api/branches]", err);
+    return NextResponse.json({ error: message, branches: [], goals: [] }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {

@@ -31,16 +31,12 @@ function milestonePayloadSummary(
 }
 
 /**
- * Recomputes and persists goal bloom lifecycle (**BUD** / **GROWING** / **BLOOMED**).
- * Does not use continuation topology (`forkedGoals`); **BRANCHED** is no longer assigned here.
- * Does not change ENDED goals (user must clear ENDED via a future flow if ever needed).
+ * Recomputes and persists goal bloom lifecycle (**ACTIVE** / **COMPLETE**).
+ * Does not use continuation topology (`forkedGoals`).
+ * Does not change ON_HOLD goals (user must clear ON_HOLD via a future flow if ever needed).
  *
  * Lifecycle milestone semantics are delegated to {@link computeGoalLifecycleBloom} →
  * {@link milestoneDoneForSemantics} (explicit `completedAt` primary; subtask rollup only when subtasks exist).
- *
- * **Stabilization TODO:** every server path that creates/updates/deletes relational `Milestone` or `Subtask`
- * rows should call this (same request). Coverage is incomplete today — display-layer reconciliation in
- * `normalizeGoalBloomForDisplay` masks stale **BUD** in the tree until persistence is fixed or backfill runs.
  *
  * **Diagnostics:** `PATHFINDER_DEBUG_RECOMPUTE_GOAL_BLOOM=1` logs milestone shapes, per-milestone semantics,
  * computed bloom, and `prisma.goal.update` payload.
@@ -64,8 +60,8 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     if (debugRecompute()) console.info(`${LOG} exit early: goal not found`, { goalId });
     return;
   }
-  if (goal.bloomStatus === "ENDED") {
-    if (debugRecompute()) console.info(`${LOG} exit early: ENDED`, { goalId });
+  if (goal.bloomStatus === "ON_HOLD") {
+    if (debugRecompute()) console.info(`${LOG} exit early: ON_HOLD`, { goalId });
     return;
   }
 
@@ -103,9 +99,9 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
   }
 
   let bloomedAt = goal.bloomedAt;
-  if (next === "BLOOMED" && goal.bloomStatus !== "BLOOMED") {
+  if (next === "COMPLETE" && goal.bloomStatus !== "COMPLETE") {
     bloomedAt = new Date();
-  } else if (next === "GROWING" || next === "BUD") {
+  } else if (next === "ACTIVE") {
     bloomedAt = null;
   }
 

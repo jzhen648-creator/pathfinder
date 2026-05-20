@@ -3,6 +3,24 @@ import { z } from "zod";
 export const GOAL_TYPE_VALUES = ["project", "practice", "identity"] as const;
 export type CreateGoalGoalType = (typeof GOAL_TYPE_VALUES)[number];
 
+/**
+ * Optional anchor for insert-and-reflow on the branch line. When omitted the goal is appended.
+ * `between` places the new node at the midpoint of `afterNodeId` and `beforeNodeId`'s
+ * `sequencePosition` (the branch is reindexed if midpoint precision collapses).
+ */
+const sequenceAnchorSchema = z
+  .union([
+    z.object({ kind: z.literal("append") }),
+    z.object({ kind: z.literal("after"), nodeId: z.string().min(1) }),
+    z.object({ kind: z.literal("before"), nodeId: z.string().min(1) }),
+    z.object({
+      kind: z.literal("between"),
+      afterNodeId: z.string().min(1),
+      beforeNodeId: z.string().min(1),
+    }),
+  ])
+  .optional();
+
 /** Shared shape for client form + POST /api/goals JSON body. */
 export const createGoalPayloadSchema = z
   .object({
@@ -18,6 +36,8 @@ export const createGoalPayloadSchema = z
     unit: z.string(),
     /** When true, generate and persist relational milestones after goal creation. */
     generateRoadmap: z.boolean().optional(),
+    /** Optional insert-and-reflow anchor — omit to append at the end of the branch line. */
+    anchor: sequenceAnchorSchema,
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();

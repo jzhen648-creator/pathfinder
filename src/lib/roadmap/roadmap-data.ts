@@ -8,7 +8,6 @@ export const ROADMAP_LIFE_AREA_HEX: Record<LimbId, string> = {
   becoming: "#A0622F",
   people: "#C25E8A",
   health: "#4A8FA8",
-  pleasures: "#2F8FB8",
 };
 
 const ROADMAP_LIFE_AREA_HEX_DARK: Record<LimbId, string> = {
@@ -17,7 +16,6 @@ const ROADMAP_LIFE_AREA_HEX_DARK: Record<LimbId, string> = {
   becoming: "#C4894F",
   people: "#D47BA6",
   health: "#6AAFCA",
-  pleasures: "#47B8E8",
 };
 
 const ROADMAP_LIFE_AREA_SUB: Record<LimbId, string> = {
@@ -26,7 +24,6 @@ const ROADMAP_LIFE_AREA_SUB: Record<LimbId, string> = {
   becoming: "#F7EDDF",
   people: "#F9EAF2",
   health: "#E5F4F8",
-  pleasures: "#E8F6FD",
 };
 
 const ROADMAP_LIFE_AREA_SUB_DARK: Record<LimbId, string> = {
@@ -35,7 +32,6 @@ const ROADMAP_LIFE_AREA_SUB_DARK: Record<LimbId, string> = {
   becoming: "#2E2018",
   people: "#2E1824",
   health: "#1A2E35",
-  pleasures: "#152830",
 };
 
 const KNOWN_LIFE_AREA_IDS = new Set(LIFE_AREAS.map((l) => l.id));
@@ -51,7 +47,6 @@ export const ROADMAP_LIFE_AREA_COLUMN_ORDER: LimbId[] = [
   "becoming",
   "people",
   "health",
-  "pleasures",
 ];
 
 export type RoadmapMarkInput = {
@@ -82,6 +77,8 @@ export type RoadmapBranchInput = {
   turningPointId?: string | null;
   order?: number;
   createdAt: string;
+  isActive?: boolean;
+  isSystemHub?: boolean;
 };
 
 export type RoadmapVizType =
@@ -120,11 +117,10 @@ export function roadmapLifeAreaRootId(lifeAreaId: LimbId): string {
 }
 const ROADMAP_LIFE_AREA_ROOT_DECISION_LABEL: Record<LimbId, string> = {
   becoming: "Start of Who I'm Becoming Journey",
-  work: "Start of Work & Learning Journey",
+  work: "Start of Work & Career Journey",
   finance: "Start of Money & Finance Journey",
   health: "Start of Health & Body Journey",
   people: "Start of People & Relationships Journey",
-  pleasures: "Start of Pleasures Journey",
 };
 
 /**
@@ -353,17 +349,7 @@ function goalDateLine(b: RoadmapBranchInput): string {
   return "Ahead";
 }
 
-function normalizeMarkType(t: string): RoadmapVizType {
-  if (
-    t === "decision" ||
-    t === "milestone" ||
-    t === "realisation" ||
-    t === "setback" ||
-    t === "achievement" ||
-    t === "goal"
-  ) {
-    return t;
-  }
+function normalizeMarkType(_t: string): RoadmapVizType {
   return "milestone";
 }
 
@@ -732,7 +718,7 @@ export function buildRoadmapLayout(
       x: 0,
       y: 0,
       past: true,
-      type: normalizeMarkType(m.type),
+      type: normalizeMarkType("milestone"),
       label: m.title,
       date: formatMarkDate(m.date),
       note: (m.description ?? "").trim(),

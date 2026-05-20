@@ -42,11 +42,11 @@ export function getDomainQuestions(domain: GoalDomain): string[] {
       ];
     case "financial":
       return [
-        "Thanks for sharing that. Where are your savings currently at for this goal?",
+        "Thanks for sharing that. Where are your savings currently at for this pursuit?",
         "Helpful. How would you describe your income situation right now?",
         "Makes sense. What fixed monthly expenses do you need to cover?",
         "Got it. What financial commitments are already locked in?",
-        "Great. How much could you realistically allocate to this goal each month?",
+        "Great. How much could you realistically allocate to this pursuit each month?",
       ];
     case "education":
       return [
@@ -58,7 +58,7 @@ export function getDomainQuestions(domain: GoalDomain): string[] {
       ];
     default:
       return [
-        "Thanks. Where are you starting from with this goal today?",
+        "Thanks. Where are you starting from with this pursuit today?",
         "Got it. What has worked (or not worked) for you in this area before?",
         "That helps. What's the biggest practical obstacle right now?",
         "Makes sense. How many hours per week can you commit reliably?",

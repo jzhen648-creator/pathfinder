@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import { authOptions } from "@/lib/auth";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { getLifeArea } from "@/lib/life-areas";
@@ -11,11 +12,18 @@ import {
 } from "@/lib/milestone-generator";
 import { persistGeneratedRoadmapForGoal } from "@/lib/persist-generated-roadmap";
 import { prisma } from "@/lib/prisma";
+import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import {
   createGoalPayloadSchema,
   deadlineIsInFutureLocal,
   parseLocalDateOnly,
 } from "@/lib/validation/create-goal";
+import {
+  applySequenceResolution,
+  loadBranchSequencedNodes,
+  resolveSequenceAnchor,
+} from "@/lib/branch-sequence";
+import { activateHubForUser } from "@/lib/system-hubs";
 
 function redirectToMoments(request: Request) {
   const url = new URL(request.url);
@@ -28,16 +36,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
-  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const url = new URL(request.url);
-  const requestedUserId = url.searchParams.get("userId");
-  const userId =
-    process.env.NODE_ENV === "development" && requestedUserId
-      ? requestedUserId
-      : sessionUserId;
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
+  const userId = auth.userId;
 
   let body: unknown;
   try {
@@ -58,10 +59,14 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const branchRecord = await prisma.branch.findFirst({
     where: { id: input.branchId.trim(), userId },
-    select: { id: true, limbId: true, name: true, label: true },
+    select: { id: true, limbId: true, name: true, label: true, isActive: true },
   });
   if (!branchRecord) {
     return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+  }
+
+  if (!branchRecord.isActive) {
+    await activateHubForUser(prisma, userId, branchRecord.id);
   }
 
   const title = input.title.trim();
@@ -102,32 +107,42 @@ export async function POST(request: Request) {
     : 3;
 
   try {
-    const goal = await prisma.goal.create({
-      data: {
-        userId,
-        title,
-        description,
-        lifeArea,
-        goalType: input.goalType,
-        branchId: branchRecord.id,
-        limbId: branchRecord.limbId,
-        deadline,
-        significance,
-        bloomStatus: "BUD",
-        aiGenerated: false,
-        future,
-        year,
-        month,
-        // Only send measurement fields when used. Omitting avoids "Unknown argument `unit`"
-        // if @prisma/client is behind schema (e.g. generate failed while dev server had DLL locked).
-        ...(measurable
-          ? {
-              targetAmount: targetNum,
-              currentAmount: currentNum,
-              ...(unit ? { unit } : {}),
-            }
-          : {}),
-      },
+    /** Resolve branch-line sequence position from the optional `anchor` (defaults to append). The reindex pass, if any, runs inside the same transaction as the goal insert so existing nodes don't temporarily share a slot. */
+    const anchor = input.anchor ?? { kind: "append" as const };
+    const existingNodes = await loadBranchSequencedNodes(prisma, branchRecord.id);
+    const resolution = resolveSequenceAnchor(existingNodes, anchor);
+    const sequencePosition = resolution.sequencePosition;
+
+    const goal = await prisma.$transaction(async (tx) => {
+      await applySequenceResolution(tx, resolution);
+      return tx.goal.create({
+        data: {
+          userId,
+          title,
+          description,
+          lifeArea,
+          goalType: input.goalType,
+          branchId: branchRecord.id,
+          limbId: branchRecord.limbId,
+          deadline,
+          significance,
+          bloomStatus: "ACTIVE",
+          aiGenerated: false,
+          future,
+          year,
+          month,
+          sequencePosition,
+          // Only send measurement fields when used. Omitting avoids "Unknown argument `unit`"
+          // if @prisma/client is behind schema (e.g. generate failed while dev server had DLL locked).
+          ...(measurable
+            ? {
+                targetAmount: targetNum,
+                currentAmount: currentNum,
+                ...(unit ? { unit } : {}),
+              }
+            : {}),
+        },
+      });
     });
 
     try {
@@ -135,6 +150,12 @@ export async function POST(request: Request) {
     } catch (recErr) {
       console.error("[POST /api/goals] recomputeGoalBloomStatus failed", recErr);
     }
+
+    after(() => {
+      void persistGoalShortLabel(goal.id).catch((err) =>
+        console.error("[POST /api/goals] persistGoalShortLabel failed", err),
+      );
+    });
 
     if (input.generateRoadmap) {
       const user = await prisma.user.findUnique({
@@ -182,7 +203,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("[POST /api/goals] create failed", err);
     const isDev = process.env.NODE_ENV === "development";
-    let message = "Could not create goal";
+    let message = "Could not create pursuit";
     if (isDev) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         message = `${err.code}: ${err.message}`;

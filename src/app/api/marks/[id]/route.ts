@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
+import { requireApiSessionUserId } from "@/lib/api-auth";
+import {
+  applySequenceResolution,
+  loadBranchSequencedNodes,
+  resolveSequenceAnchor,
+} from "@/lib/branch-sequence";
 import { prisma } from "@/lib/prisma";
 
 type RouteProps = {
@@ -17,10 +21,21 @@ const updateMarkSchema = z.object({
   date: z.string().datetime().optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   month: z.number().int().min(1).max(12).nullable().optional(),
-  type: z.enum(["milestone", "setback", "realisation", "decision", "achievement"]).optional(),
   value: z.number().nullable().optional(),
   sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
   archived: z.boolean().optional(),
+  sequenceAnchor: z
+    .union([
+      z.object({ kind: z.literal("append") }),
+      z.object({ kind: z.literal("after"), nodeId: z.string().min(1) }),
+      z.object({ kind: z.literal("before"), nodeId: z.string().min(1) }),
+      z.object({
+        kind: z.literal("between"),
+        afterNodeId: z.string().min(1),
+        beforeNodeId: z.string().min(1),
+      }),
+    ])
+    .optional(),
 });
 
 function resolveDate(input: { date?: string; year?: number; month?: number | null }): Date | undefined {
@@ -34,9 +49,9 @@ function resolveDate(input: { date?: string; year?: number; month?: number | nul
 }
 
 export async function PATCH(request: Request, { params }: RouteProps) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
+  const userId = auth.userId;
 
   const { id } = await params;
   const body = await request.json();
@@ -64,6 +79,31 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   }
 
   const titleInput = input.title ?? input.label;
+
+  if (input.sequenceAnchor) {
+    await prisma.$transaction(async (tx) => {
+      const nodes = await loadBranchSequencedNodes(tx, targetBranchId);
+      const resolution = resolveSequenceAnchor(nodes, input.sequenceAnchor!);
+      await applySequenceResolution(tx, resolution);
+      await tx.mark.update({
+        where: { id },
+        data: {
+          branchId: targetBranchId,
+          limbId: targetLimbId,
+          title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
+          description: input.description,
+          date: resolveDate(input),
+          value: input.value,
+          sentiment: input.sentiment,
+          archived: input.archived,
+          sequencePosition: resolution.sequencePosition,
+        },
+      });
+    });
+    const mark = await prisma.mark.findFirst({ where: { id, userId } });
+    return NextResponse.json({ mark });
+  }
+
   const mark = await prisma.mark.update({
     where: { id },
     data: {
@@ -72,7 +112,6 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
       description: input.description,
       date: resolveDate(input),
-      type: input.type,
       value: input.value,
       sentiment: input.sentiment,
       archived: input.archived,
@@ -82,10 +121,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 }
 
 // Compatibility for legacy delete flows: archive instead of hard delete.
-export async function DELETE(_request: Request, { params }: RouteProps) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(request: Request, { params }: RouteProps) {
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
+  const userId = auth.userId;
   const { id } = await params;
 
   const existing = await prisma.mark.findFirst({ where: { id, userId } });

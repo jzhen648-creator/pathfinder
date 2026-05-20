@@ -4,6 +4,7 @@
  * Continuations (`parentGoalId` / successors) do **not** affect lifecycle — only planning + achievement do.
  */
 
+import { normalizeLegacyBloomStatus } from "@/lib/bloom-display";
 import {
   milestoneDoneForSemantics,
   type MilestoneSemanticsInput,
@@ -17,7 +18,7 @@ export function milestoneIsFullyCompleted(milestone: MilestoneLifecycleInput): b
   return milestoneDoneForSemantics(milestone);
 }
 
-/** Goal is achieved for lifecycle → BLOOMED (roadmap goals vs moment/event without milestones). */
+/** Goal is achieved for lifecycle → COMPLETE (roadmap goals vs moment/event without milestones). */
 export function goalAchievedForBloomLifecycle(
   goal: { goalType: string; future: boolean; year: number | null },
   milestones: MilestoneLifecycleInput[],
@@ -32,58 +33,53 @@ export function goalAchievedForBloomLifecycle(
   return milestones.every(milestoneDoneForSemantics);
 }
 
-export type GoalLifecycleBloom = "BUD" | "GROWING" | "BLOOMED";
+export type GoalLifecycleBloom = "ACTIVE" | "COMPLETE";
 
-/** Canonical lifecycle states for an active (non-ENDED) goal — excludes BRANCHED and ENDED. */
+/** Canonical lifecycle states for an active (non-ON_HOLD) goal. */
 export function computeGoalLifecycleBloom(
   goal: { goalType: string; future: boolean; year: number | null },
   milestones: MilestoneLifecycleInput[],
   nowYear: number,
 ): GoalLifecycleBloom {
-  if (goalAchievedForBloomLifecycle(goal, milestones, nowYear)) return "BLOOMED";
-  if (milestones.length > 0) return "GROWING";
-  return "BUD";
+  if (goalAchievedForBloomLifecycle(goal, milestones, nowYear)) return "COMPLETE";
+  return "ACTIVE";
 }
 
 export type NormalizeGoalBloomDisplayOptions = {
-  /** When set, dev-only diagnostics include this id for stale-BUD logs. */
+  /** When set, dev-only diagnostics include this id for stale-ACTIVE logs. */
   goalId?: string;
 };
 
 /**
  * Maps persisted bloom to tree/UI semantics.
  *
- * - Legacy **BRANCHED** is remapped via `computeGoalLifecycleBloom` until DB backfill (`npm run backfill:goal-bloom`).
- * - **Stale BUD:** if the DB still says `BUD` but relational milestone rows exist, derive lifecycle from
+ * - **Stale ACTIVE:** if the DB still says `ACTIVE` but milestones imply completion, derive lifecycle from
  *   `computeGoalLifecycleBloom` so the tree matches milestone ontology without trusting stale persistence.
- *   (`Goal.treeMilestones` JSON is **not** passed here — only relational milestone payloads.)
  */
 export function normalizeGoalBloomForDisplay(
   goal: { goalType: string; future: boolean; year: number | null; bloomStatus: string },
   milestones: MilestoneLifecycleInput[],
   options?: NormalizeGoalBloomDisplayOptions,
-): "BUD" | "GROWING" | "BLOOMED" | "ENDED" {
-  if (goal.bloomStatus === "ENDED") return "ENDED";
-  if (goal.bloomStatus === "BRANCHED") {
-    return computeGoalLifecycleBloom(goal, milestones, new Date().getFullYear());
-  }
+): "ACTIVE" | "COMPLETE" | "ON_HOLD" {
+  const normalized = normalizeLegacyBloomStatus(goal.bloomStatus) ?? "ACTIVE";
+  if (normalized === "ON_HOLD") return "ON_HOLD";
+  if (normalized === "COMPLETE") return "COMPLETE";
 
   const nowYear = new Date().getFullYear();
-  if (goal.bloomStatus === "BUD" && milestones.length > 0) {
+  if (normalized === "ACTIVE" && milestones.length > 0) {
     const computed = computeGoalLifecycleBloom(goal, milestones, nowYear);
-    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
-      console.warn("[pathfinder/bloom] stale BUD with relational milestones", {
-        goalId: options?.goalId ?? "(unknown)",
-        persistedBloom: "BUD",
-        computedBloom: computed,
-        milestoneCount: milestones.length,
-      });
+    if (computed === "COMPLETE") {
+      if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+        console.warn("[pathfinder/bloom] stale ACTIVE with completed milestones", {
+          goalId: options?.goalId ?? "(unknown)",
+          persistedBloom: goal.bloomStatus,
+          computedBloom: computed,
+          milestoneCount: milestones.length,
+        });
+      }
+      return computed;
     }
-    return computed;
   }
 
-  if (goal.bloomStatus === "BUD" || goal.bloomStatus === "GROWING" || goal.bloomStatus === "BLOOMED") {
-    return goal.bloomStatus;
-  }
-  return "BUD";
+  return normalized;
 }

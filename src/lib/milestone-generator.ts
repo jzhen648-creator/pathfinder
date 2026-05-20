@@ -1,9 +1,9 @@
 import { z } from "zod";
 import {
-  GroqNotConfiguredError,
+  GeminiNotConfiguredError,
   generateStructured,
-  hasGroqKey,
-} from "@/lib/groq";
+  hasGeminiKey,
+} from "@/lib/gemini";
 
 const actionRoadmapSchema = z.object({
   goalType: z.literal("action"),
@@ -169,7 +169,7 @@ export function buildFallbackRoadmap(input: RoadmapInput): GeneratedRoadmap {
   return action;
 }
 
-// Groq JSON-mode generation works best with a flattened top-level schema, so we
+// Gemini JSON-mode generation works best with a flattened top-level schema, so we
 // describe a single flattened schema where daily tasks are optional and
 // checkpoints are optional — the model fills whichever matches the goalType
 // it chose. We then validate strictly with Zod on the server.
@@ -280,9 +280,9 @@ export async function generateGoalRoadmap(input: {
   deadline: string;
   profileContext?: string;
 }) {
-  if (!hasGroqKey()) {
+  if (!hasGeminiKey()) {
     throw new RoadmapGenerationError(
-      "GROQ_API_KEY is not configured. Set it in .env to generate AI-powered roadmaps.",
+      "GEMINI_API_KEY is not configured. Set it in .env to generate AI-powered roadmaps.",
     );
   }
 
@@ -313,12 +313,12 @@ Personal profile context: ${input.profileContext ?? "Not provided"}`;
       JSON.stringify(rawJson, null, 2),
     );
   } catch (err) {
-    if (err instanceof GroqNotConfiguredError) {
+    if (err instanceof GeminiNotConfiguredError) {
       throw new RoadmapGenerationError(err.message, err);
     }
-    console.error("[milestone-generator] Groq call failed:", err);
+    console.error("[milestone-generator] Gemini call failed:", err);
     throw new RoadmapGenerationError(
-      "Groq roadmap generation failed.",
+      "Gemini roadmap generation failed.",
       err,
     );
   }
@@ -354,7 +354,7 @@ Personal profile context: ${input.profileContext ?? "Not provided"}`;
       rawJson,
     );
     throw new RoadmapGenerationError(
-      "Groq response did not match the expected roadmap schema.",
+      "Gemini response did not match the expected roadmap schema.",
       parseResult.error,
     );
   }

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
-import { TREE_ORBITAL_MAX_VISIBLE } from "@/components/tree/milestone-tree-projection";
 
 function maxMilestonePosition(milestones: { position: number }[]): number {
   return milestones.reduce((acc, m) => Math.max(acc, m.position), -1);
@@ -36,10 +35,6 @@ export async function appendCanonicalTreeMilestoneForGoal(
         select: { position: true },
       });
 
-      if (rows.length >= TREE_ORBITAL_MAX_VISIBLE) {
-        throw Object.assign(new Error("MAX"), { code: "MAX" });
-      }
-
       const insertPosition = maxMilestonePosition(rows) + 1;
 
       await tx.milestone.create({
@@ -61,9 +56,6 @@ export async function appendCanonicalTreeMilestoneForGoal(
         : null;
     if (code === "NOT_FOUND") return { ok: false, error: "Not found", status: 404 };
     if (code === "GOAL_TYPE") return { ok: false, error: "Not found", status: 404 };
-    if (code === "MAX") {
-      return { ok: false, error: `At most ${TREE_ORBITAL_MAX_VISIBLE} milestones on the tree`, status: 400 };
-    }
     console.error("[appendCanonicalTreeMilestoneForGoal]", e);
     return { ok: false, error: "Could not add milestone", status: 500 };
   }

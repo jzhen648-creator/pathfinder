@@ -73,6 +73,19 @@ const markDescriptionField = z
   .nullable()
   .optional();
 
+const markSequenceAnchorSchema = z
+  .union([
+    z.object({ kind: z.literal("append") }),
+    z.object({ kind: z.literal("after"), nodeId: z.string().min(1) }),
+    z.object({ kind: z.literal("before"), nodeId: z.string().min(1) }),
+    z.object({
+      kind: z.literal("between"),
+      afterNodeId: z.string().min(1),
+      beforeNodeId: z.string().min(1),
+    }),
+  ])
+  .optional();
+
 const createMarkBaseFields = {
   limbId: z.string().min(1, "Theme (limbId) is required."),
   branchId: z.string().min(1, "Branch is required."),
@@ -88,9 +101,6 @@ const createMarkBaseFields = {
   date: z.string().optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   month: z.number().int().min(1).max(12).nullable().optional(),
-  type: z
-    .enum(["milestone", "setback", "realisation", "decision", "achievement"])
-    .optional(),
   value: markValueField,
   sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
   archived: z.boolean().optional(),
@@ -98,6 +108,10 @@ const createMarkBaseFields = {
   significance: z.number().int().min(1).max(3).optional(),
   location: z.string().nullable().optional(),
   subtype: z.string().max(40).nullable().optional(),
+  /** Provenance tag — `mark` (user/manual) or `stream` (AI Stream). Defaults to `mark` on the server. */
+  kind: z.enum(["mark", "stream"]).optional(),
+  /** Optional insert-and-reflow anchor — omit to append at the end of the branch line. */
+  anchor: markSequenceAnchorSchema,
 };
 
 export const createMarkBodySchema = z
@@ -147,9 +161,6 @@ const updateMarkFieldShape = {
   date: z.string().optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   month: z.number().int().min(1).max(12).nullable().optional(),
-  type: z
-    .enum(["milestone", "setback", "realisation", "decision", "achievement"])
-    .optional(),
   value: markValueField,
   sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
   archived: z.boolean().optional(),
@@ -204,7 +215,7 @@ export const createBranchBodySchema = z
       .optional(),
     mapAngleOffset: z.number().default(0),
     goal: z
-      .union([z.string().max(BRANCH_GOAL_MAX, `Branch goal must be at most ${BRANCH_GOAL_MAX} characters.`), z.null()])
+      .union([z.string().max(BRANCH_GOAL_MAX, `Branch pursuit must be at most ${BRANCH_GOAL_MAX} characters.`), z.null()])
       .optional(),
     goalValue: z.union([z.number().positive(), z.null()]).optional(),
   })

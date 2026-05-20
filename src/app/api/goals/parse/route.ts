@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { generateJsonCompletion, GroqNotConfiguredError, hasGroqKey } from "@/lib/groq";
+import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import {
   parseGoalRequestSchema,
   parseGoalResponseSchema,
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasGroqKey()) {
-    return NextResponse.json({ error: "GROQ_API_KEY not configured." }, { status: 503 });
+  if (!hasGeminiKey()) {
+    return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 503 });
   }
 
   let body: unknown;
@@ -101,11 +101,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json(out.data);
   } catch (err) {
-    if (err instanceof GroqNotConfiguredError) {
+    if (err instanceof GeminiNotConfiguredError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
     const details = getErrorDetails(err);
-    console.error("[POST /api/goals/parse] Groq failed", details, err);
+    console.error("[POST /api/goals/parse] Gemini failed", details, err);
     return NextResponse.json(
       { error: `Parse unavailable: ${details.message}` },
       { status: 502 },

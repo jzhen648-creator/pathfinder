@@ -27,8 +27,7 @@ export type LifeAreaId =
   | "health"
   | "becoming"
   | "people"
-  | "finance"
-  | "pleasures";
+  | "finance";
 
 /** @deprecated Use `LifeAreaId`. */
 export type LimbId = LifeAreaId;
@@ -135,7 +134,6 @@ export const LIFE_AREA_SUBTYPES: Record<LifeAreaId, string[]> = {
   health: [],
   finance: [],
   becoming: [],
-  pleasures: [],
 };
 
 /** @deprecated Use `LIFE_AREA_SUBTYPES`. */

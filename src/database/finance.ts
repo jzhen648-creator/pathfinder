@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function getFinanceGoalsForUser(userId: string) {
   return prisma.goal.findMany({
-    where: { userId, lifeArea: { in: ["Money", "Money & Finance"] } },
+    where: { userId, archived: false, lifeArea: { in: ["Money", "Money & Finance"] } },
     orderBy: { createdAt: "asc" },
   });
 }
