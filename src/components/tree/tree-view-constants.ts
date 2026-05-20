@@ -13,9 +13,13 @@ export const TREE_MAP_SURFACE_FILL = "#07060A";
 /** Same base as `TREE_MAP_SURFACE_FILL` — used by `limbBackdropSurfaceTint` mixing. */
 export const TREE_MAP_SURFACE_RGB = { r: 7, g: 6, b: 10 };
 
-/** Thread / branch name labels on the SVG (e.g. Income, Fitness). Opt-in for prod via `NEXT_PUBLIC_TREE_THREAD_LABELS`. */
+/**
+ * Thread / branch name labels on non–domain-cluster strokes (e.g. legacy star layout).
+ * Domain hubs use hub titles instead. Set `NEXT_PUBLIC_TREE_THREAD_LABELS=0` to hide.
+ */
+const TREE_THREAD_LABELS_RAW = process.env.NEXT_PUBLIC_TREE_THREAD_LABELS?.toLowerCase();
 export const TREE_THREAD_LABELS_ENABLED =
-  process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_TREE_THREAD_LABELS === "1";
+  TREE_THREAD_LABELS_RAW !== "0" && TREE_THREAD_LABELS_RAW !== "false";
 
 /**
  * Thread **moments** (mark-backed shapes on the stroke) and roadmap **goal** nodes on the tree.
@@ -37,6 +41,9 @@ export const TREE_DEBUG_GEOM_ENABLED =
 
 export const TREE_RENDER_STATS_WINDOW_MS = 60_000;
 
+/** @see {@link TREE_DEV_SELECT_STYLE} in `@/lib/ui/native-select-style` */
+export { PF_NATIVE_SELECT_CLASS, TREE_DEV_SELECT_STYLE, pfNativeSelectStyle } from "@/lib/ui/native-select-style";
+
 export const TREE_LAYOUT_WORLD_SCALE = 1.4;
 export const TREE_LAYOUT_SCALE_ORIGIN_Y = 1110;
 
@@ -50,7 +57,14 @@ export const CONDUIT_THREAD_STROKE_SCALE = 1.18;
  * Hub layout: straight conduit length from the **theme gateway** to each thread’s tip (fork→tip chord).
  * Larger = more separation between the theme node and hub / thread geometry (watch viewbox top for Becoming).
  */
-export const THEME_GATEWAY_HUB_SPOKE_LENGTH_PX = 540;
+export const THEME_GATEWAY_HUB_SPOKE_LENGTH_PX = 640;
+
+/**
+ * Theme gateway medallion → domain hub spoke (`data-tree-domain-gateway-spoke`).
+ * Kept readable above milestone/preview noise but quieter than hub branch conduits.
+ */
+export const TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX = 1.4;
+export const TREE_DOMAIN_GATEWAY_SPOKE_OPACITY = 0.6;
 
 /**
  * **Connective-only** bow on hub-first conduits: amplitude as a fraction of chord length, capped in px.
@@ -61,6 +75,13 @@ export const CONDUIT_CONNECTIVE_BOW_FRACTION_OF_CHORD = 0.036;
 export const CONDUIT_CONNECTIVE_BOW_MAX_PX = 12;
 /** How strongly Bézier controls are pulled along the outward normal (restrained ≈0.35–0.55). */
 export const CONDUIT_CONNECTIVE_BOW_CONTROL_BLEND = 0.48;
+
+/** Trunk-emergent major limb: Bézier handle length as fraction of trunk-surface → gateway chord. */
+export const TRUNK_LIMB_START_HANDLE_FRAC = 0.4;
+export const TRUNK_LIMB_END_HANDLE_FRAC = 0.28;
+export const TRUNK_LIMB_MIN_HANDLE_PX = 72;
+/** Extra downward pull on arrival control for lower same-side themes (finance, health). */
+export const TRUNK_LIMB_DROOP_BIAS_FRAC = 0.06;
 
 /**
  * Life-area stem / trunk→gateway stroke (`AreaForkSpec.limbStrokeWidth`). Slightly lower than
@@ -78,11 +99,6 @@ export const LAYOUT_DRAG_THRESHOLD_PX = 3;
 export function snapTreeSvgScalar(n: number): number {
   return Math.round(n * 2) / 2;
 }
-
-export const MOCK_USER_STORAGE_KEY = "pathfinder.tree.mockUserId";
-
-/** Dev-only: persisted preset for tree goal luminous rendering (`restrained` | `balanced` | `cinematic`). */
-export const TREE_RENDER_QUALITY_DEV_STORAGE_KEY = "pathfinder.tree.renderQualityDev";
 
 /** Circumradius (centre → vertex) for pointy-top roadmap goal hex (`FLAGS.GOAL_MILESTONES`). */
 export const TREE_GOAL_HEX_VERTEX_RADIUS_PX = 48;
@@ -104,7 +120,7 @@ export const GOAL_THREAD_STROKE_KNOT_TOWARD_SCREEN_01 = 0.18;
 
 /**
  * Roadmap centre dot when the goal has orbital milestones (`FLAGS.GOAL_MILESTONES`).
- * `p` = completed / total (total = orbitals present, max 6). Piecewise-linear through
+ * `p` = completed / total (total = orbitals present). Piecewise-linear through
  * p=0 → r≈9 opacity=0.6, p=0.5 → r≈11 opacity=0.75, p=1 → r≈13 opacity=1.
  */
 export function orbitalCentreDotRadiusOpacity(p: number): { r: number; fillOpacity: number } {
@@ -118,6 +134,41 @@ export const GOAL_T_MARGIN = 0.042;
 export const GOAL_T_SPAN = 0.945;
 export const GOAL_T_FORK_PAD = 0.22;
 export const GOAL_BRANCH_SPACING_REF_GOALS = 8;
+
+/**
+ * **Sequence-driven branch grammar** (active when `FLAGS.BRANCH_LONGITUDINAL_ALL`). Each node in the
+ * unified `sequencedNodes` list (`Goal` rows + `Mark` rows merged by `sequencePosition`) occupies one
+ * **rank slot** of {@link BRANCH_NODE_SPACING_PX} along the outward direction from the hub. No
+ * threshold, no compression: a 3-node branch is short, a 15-node branch is much longer, viewbox fits.
+ *
+ * Rank-based formulae (used in `branchNodeScreenPosition` / `branchPathForNodeCount` /
+ * `branchTipPxForNodeCount`):
+ *
+ *   `nodePosition(rank) = hub + outwardDir × (BRANCH_HEAD_OFFSET_PX + rank × BRANCH_NODE_SPACING_PX)`
+ *
+ *   `branchTipDistance(rankMax) = BRANCH_HEAD_OFFSET_PX + rankMax × BRANCH_NODE_SPACING_PX + BRANCH_TIP_PADDING_PX`
+ *
+ * Continuation children (`Goal.parentGoalId != null`) are **excluded** from rank — they keep the
+ * parent-anchored satellite layout from `continuationChildScreenPosition` (unchanged).
+ */
+/** Distance (px) from the hub centre to the first node along the outward branch ray. */
+export const BRANCH_HEAD_OFFSET_PX = 64;
+/** Per-rank spacing (px) along the outward branch ray. Uniform for goal and moment nodes. */
+export const BRANCH_NODE_SPACING_PX = 84;
+/** Tail headroom past the last node (px); contributes to viewbox fit but no node sits here. */
+export const BRANCH_TIP_PADDING_PX = 48;
+/** Outer radius (px) for the hex / circle medallion when a node is a roadmap goal. */
+export const BRANCH_GOAL_NODE_RADIUS_PX = 12;
+/** Half-width of the on-tree mark diamond (inscribed; ~65% of pursuit hex footprint). */
+export const MARK_DIAMOND_HALF_PX = 7;
+/** Lateral offset (px) from the branch ray — marks sit in branch space beside the stroke. */
+export const BRANCH_MARK_LATERAL_OFFSET_PX = 22;
+/** Extra hit padding around diamond + label block. */
+export const MARK_NODE_HIT_PADDING_PX = 10;
+/** Filled mark diamond on the life tree. */
+export const MARK_TREE_AMBER = "#c9a227";
+/** @deprecated Legacy dot radius; marks use {@link MARK_DIAMOND_HALF_PX}. */
+export const BRANCH_MOMENT_NODE_RADIUS_PX = 4.5;
 
 /**
  * Root goals use **fixed catalog‑parameter `t`** slots per goal index (append‑only layout): adding a
@@ -166,7 +217,7 @@ export const DOMAIN_CLUSTER_STROKE_TIP_CAP = 0.58;
  * Nominal distance from the branch **fork** (theme gateway) to the domain **hub** along the outward
  * branch direction (same px target for every branch on every limb — shared “ring” depth).
  */
-export const DOMAIN_CLUSTER_HUB_RADIAL_RING_PX = 395;
+export const DOMAIN_CLUSTER_HUB_RADIAL_RING_PX = 468;
 /** Never place the hub closer than this to the fork (keeps the hub readable at tight forks). */
 export const DOMAIN_CLUSTER_HUB_RADIAL_MIN_PX = 36;
 /**
@@ -203,18 +254,18 @@ export const DOMAIN_CLUSTER_HUB_SLOT_RADIAL_SPREAD_PX = 30;
  * gateway tangent (orthogonal to the first hub spoke when the stem is degenerate) so sibling hubs
  * separate cleanly without ecology or spline drift.
  */
-export const DOMAIN_CLUSTER_HUB_GATEWAY_ARC_SPREAD_PX = 36;
+export const DOMAIN_CLUSTER_HUB_GATEWAY_ARC_SPREAD_PX = 50;
 /**
  * Each sibling above two shrinks the orbital goal ring by this fraction so neighbouring ecosystems
  * keep breathing room as branch density grows. Composition-only — no negotiation, no force balancing.
  */
-export const DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_PER_EXTRA = 0.05;
+export const DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_PER_EXTRA = 0.04;
 /** Floor for {@link DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_PER_EXTRA} — orbital ring never shrinks below this multiplier. */
-export const DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_FLOOR_MUL = 0.78;
+export const DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_FLOOR_MUL = 0.82;
 /** Base radius from hub to root goal centres (px). Scale with domain hub disc sizing in `tree-svg`. */
-export const DOMAIN_CLUSTER_BASE_RADIUS_PX = 168;
+export const DOMAIN_CLUSTER_BASE_RADIUS_PX = 192;
 /** Hard ceiling on hub→goal orbit radius before neighbor-density shrink (`goalScreenPositionDomainCluster`). */
-export const DOMAIN_CLUSTER_GOAL_RING_MAX_RADIUS_PX = 268;
+export const DOMAIN_CLUSTER_GOAL_RING_MAX_RADIUS_PX = 302;
 /**
  * Extra rotation (rad) after equal division around the full circle — shifts where index `0` sits in the
  * tangent–normal plane without changing spacing.
@@ -223,9 +274,14 @@ export const DOMAIN_CLUSTER_GOAL_RING_PHASE_OFFSET_RAD = 0;
 
 export const TREE_THREAD_VISIBLE_MOMENTS = 5;
 export const TREE_GOAL_MAX_CHILDREN_PER_NODE = 3;
-export const TREE_GOAL_RENDER_MAX_DEPTH = 1;
+/**
+ * Max recursion depth when rendering goal nodes (continuation chains only — `nestTreeGoalsForBranch`
+ * nests via `parentGoalId`). Was `1`, which hid every goal after the first continuation. Keep a modest
+ * ceiling so fit-to-view and flow segments stay bounded.
+ */
+export const TREE_GOAL_RENDER_MAX_DEPTH = 8;
 
-/** Evolved (forked) child offset along hub → parent ray, beyond the parent hex. */
+/** Continuation child (`parentGoalId`) offset along hub → parent ray, beyond the parent hex. */
 export const TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX = 172;
 export const TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX = 56;
 export const TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_DEPTH_PX = 42;
@@ -249,20 +305,26 @@ export const TREE_THEME_GATEWAY_LABEL_GAP_PX = 12;
 /** Domain hub glyph on each thread row (`tree-svg` domain cluster). */
 export const TREE_DOMAIN_HUB_GLYPH_PX = 72;
 
-/** Thread type label under the domain hub glyph. */
-export const TREE_DOMAIN_HUB_LABEL_FONT_PX = 21;
+/** Smaller domain-hub glyph when trunk layout is on — theme gateway stays primary. */
+export const TREE_DOMAIN_HUB_GLYPH_PX_TRUNK = 52;
 
-/** Gap (px) between hub glyph bottom and label baseline anchor. */
-export const TREE_DOMAIN_HUB_LABEL_GAP_PX = 6;
+/** Thread type label under the domain hub glyph. */
+export const TREE_DOMAIN_HUB_LABEL_FONT_PX = 19;
+
+/** Domain hub caption under icon in trunk layout. */
+export const TREE_DOMAIN_HUB_LABEL_FONT_PX_TRUNK = 16;
+
+/** Goal caption under hex on the tree map. */
+export const TREE_GOAL_SURFACE_TITLE_FONT_PX = 17;
+
+/** Gap (px) between hub medallion bottom and label top (`dominantBaseline: hanging`). */
+export const TREE_DOMAIN_HUB_LABEL_GAP_PX = 8;
 
 /** Thread name along branch paths when {@link TREE_THREAD_LABELS_ENABLED}. */
 export const TREE_THREAD_PATH_LABEL_FONT_PX = 18;
 
 /** Life-area title beside the limb icon on the tree map. */
 export const TREE_LIFE_AREA_TITLE_FONT_PX = 26;
-
-/** Goal title under hex nodes on the tree map. */
-export const TREE_GOAL_SURFACE_TITLE_FONT_PX = 18;
 
 /** Vertical gap (px) from hex bottom to goal title (`dominantBaseline: hanging`). */
 export const TREE_GOAL_SURFACE_TITLE_GAP_PX = 18;

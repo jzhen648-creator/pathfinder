@@ -38,12 +38,69 @@ export type AreaLayoutOverride = {
   threads?: Record<number, BranchLayoutOverride>;
   /** Absolute SVG positions for goals / marks (mark ids); overrides branch-path sampling when set. */
   momentPositions?: Record<string, Point>;
+  /**
+   * Absolute SVG positions for domain-hub icons, keyed by branch id (`DomainHubData.id`).
+   * Must not use array index — render uses stem-sort slot (`kFork`), which differs from data order.
+   */
+  hubPositions?: Record<string, Point>;
 };
 
 /** Per-area layout overrides (absolute SVG coordinates / degrees). */
 export type LayoutOverrides = Record<string, AreaLayoutOverride>;
 
+/** On-disk / download shape for shipped tree geometry (`pathfinder-tree-geometry.json`). */
+export type TreeGeometryDefaultFile = {
+  exportedAt: string;
+  layoutOverrides: LayoutOverrides;
+  resolvedForks?: Record<string, AreaForkSpec>;
+};
+
+export function buildTreeGeometryExportPayload(
+  layoutOverrides: LayoutOverrides,
+  resolvedForks: Record<string, AreaForkSpec>,
+): TreeGeometryDefaultFile {
+  return {
+    exportedAt: new Date().toISOString(),
+    layoutOverrides,
+    resolvedForks,
+  };
+}
+
 export const LAYOUT_OVERRIDES_STORAGE_KEY = "pathfinder-tree-layout-overrides-v1";
+export const LAYOUT_EDIT_ACTIVE_STORAGE_KEY = "pathfinder-tree-layout-edit-active-v1";
+
+export function loadLayoutEditActive(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(LAYOUT_EDIT_ACTIVE_STORAGE_KEY);
+    if (raw == null) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const out: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (v === true) out[k] = true;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveLayoutEditActive(active: Record<string, boolean>): void {
+  if (typeof window === "undefined") return;
+  try {
+    const keys = Object.keys(active).filter((k) => active[k]);
+    if (keys.length === 0) {
+      localStorage.removeItem(LAYOUT_EDIT_ACTIVE_STORAGE_KEY);
+      return;
+    }
+    const payload: Record<string, boolean> = {};
+    for (const k of keys) payload[k] = true;
+    localStorage.setItem(LAYOUT_EDIT_ACTIVE_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * Parse a **Save geometry** export (`{ layoutOverrides, ... }`) or a bare `layoutOverrides` object.
@@ -301,6 +358,7 @@ function areaHasOverrides(ov: AreaLayoutOverride | undefined): boolean {
   if (ov.branches && Object.keys(ov.branches).length > 0) return true;
   if (ov.threads && Object.keys(ov.threads).length > 0) return true;
   if (ov.momentPositions && Object.keys(ov.momentPositions).length > 0) return true;
+  if (ov.hubPositions && Object.keys(ov.hubPositions).length > 0) return true;
   return false;
 }
 

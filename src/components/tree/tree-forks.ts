@@ -9,6 +9,18 @@ import {
   THEME_STAR_CENTER,
   type StraightLifeAreaId,
 } from "./tree-area-anchors";
+import { deriveTrunkEmergenceDirection } from "./tree-trunk-geometry";
+import {
+  computeTrunkLayoutAnchorPair,
+  connectiveBowOriginForArea,
+  gatewaySpokeLengthPx,
+  hubBranchAngleRadForTrunkTheme,
+  TRUNK_THEME_SLOT_BY_ID,
+  trunkBranchOutwardUnit,
+  trunkEmergentLimbProfileForArea,
+  trunkLayoutEnabled,
+  type TrunkEmergentLimbProfile,
+} from "./tree-trunk-slots";
 import {
   CONDUIT_CONNECTIVE_BOW_CONTROL_BLEND,
   CONDUIT_CONNECTIVE_BOW_FRACTION_OF_CHORD,
@@ -16,15 +28,19 @@ import {
   CONDUIT_THREAD_STROKE_SCALE,
   THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
 } from "./tree-view-constants";
+import { hubCountForTheme } from "@/lib/taxonomy";
+import type { LifeAreaId } from "@/lib/types";
 
 /**
  * Hub branch angle for slot `slotIndex` among `slotCount` spokes.
- * Four slots use square-corner directions; six (Health & Body) use the same diamond corners plus
- * top/bottom so the theme cluster matches other life areas.
+ * Four slots use square-corner directions; counts above four use extended ring layouts.
  */
 function hubBranchAngleRad(slotIndex: number, slotCount: number): number {
   if (slotCount <= 4) {
     return -Math.PI / 4 + slotIndex * (Math.PI / 2);
+  }
+  if (slotCount === 5) {
+    return -Math.PI / 2 + slotIndex * ((2 * Math.PI) / 5);
   }
   if (slotCount === 6) {
     if (slotIndex < 4) {
@@ -35,9 +51,9 @@ function hubBranchAngleRad(slotIndex: number, slotCount: number): number {
   return -Math.PI / 2 + slotIndex * ((2 * Math.PI) / slotCount);
 }
 
-/** Default hub spokes per theme (health has six). */
+/** Default hub spokes per theme (from locked taxonomy). */
 export function defaultHubSlotCountForArea(areaId: string): number {
-  return areaId === "health" ? 6 : 4;
+  return hubCountForTheme(areaId as LifeAreaId);
 }
 
 /** One SVG cubic Bézier segment: C c1 c2 end (start is implicit from previous point). */
@@ -59,11 +75,11 @@ export type BranchForkSpec = {
 
 /**
  * Explicit fork geometry for a life area + its branch lines.
- * **Stem:** `trunkAttach` is **synthetic** (toward the trunk backdrop, not authored data); `limbTip`
- * is the gateway. `limbPieces` connect them (typically one colinear cubic).
+ * **Stem:** `trunkAttach` is the limb emergence root; `limbTip` is the theme gateway.
+ * Trunk layout: surface attach + {@link trunkEmergentLimbCubicPiece}. Legacy: degenerate cubic at gateway.
  */
 export type AreaForkSpec = {
-  /** Synthetic stem root — coincident with the theme gateway when there is no trunk bridge; see `buildAreaForkFromAnchors`. */
+  /** Limb emergence root (trunk surface under trunk layout; gateway otherwise). */
   trunkAttach: Point;
   limbTip: Point;
   limbPieces: CubicPiece[];
@@ -475,6 +491,45 @@ export function connectiveBowPathD(p0: Point, p3: Point, bowOrigin: Point): stri
   return pathFromStart(p0, [connectiveBowCubicPiece(p0, p3, bowOrigin)]);
 }
 
+/**
+ * Major limb cubic: trunk surface → theme gateway with growth-scale handles (not connective bow).
+ * `emergeUnit` should come from {@link deriveTrunkEmergenceDirection}.
+ */
+export function trunkEmergentLimbCubicPiece(
+  surfaceAttach: Point,
+  emergeUnit: Point,
+  gateway: Point,
+  profile: TrunkEmergentLimbProfile,
+): CubicPiece {
+  const dx = gateway.x - surfaceAttach.x;
+  const dy = gateway.y - surfaceAttach.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-4) return colinearCubicPiece(surfaceAttach, gateway);
+
+  const chordUx = dx / len;
+  const chordUy = dy / len;
+  let ex = emergeUnit.x;
+  let ey = emergeUnit.y;
+  const eLen = Math.hypot(ex, ey) || 1;
+  ex /= eLen;
+  ey /= eLen;
+
+  const handleOut = Math.max(profile.minHandlePx, len * profile.startHandleFrac);
+  const handleIn = Math.max(profile.minHandlePx * 0.75, len * profile.endHandleFrac);
+
+  return {
+    c1: {
+      x: surfaceAttach.x + ex * handleOut,
+      y: surfaceAttach.y + ey * handleOut,
+    },
+    c2: {
+      x: gateway.x - chordUx * handleIn,
+      y: gateway.y - chordUy * handleIn + profile.droopBiasFrac * len,
+    },
+    end: { ...gateway },
+  };
+}
+
 function emptyForkSpec(): AreaForkSpec {
   return {
     trunkAttach: { x: 0, y: 0 },
@@ -496,21 +551,56 @@ export function buildAreaForkFromAnchors(
   const straightId = areaId as StraightLifeAreaId;
   if (!STRAIGHT_LIFE_AREA_IDS.includes(straightId)) return emptyForkSpec();
   const anchors = resolveAreaAnchors(straightId);
+  const limbStrokeWidth = anchors.limbStrokeWidth;
+  const maxSlots = defaultHubSlotCountForArea(straightId);
+  const n = Math.min(maxSlots, area?.branches.length ?? 0);
+  const strokeW = 2.5 * CONDUIT_THREAD_STROKE_SCALE;
+  const spokeLen = gatewaySpokeLengthPx(straightId);
+  const bowOrigin = connectiveBowOriginForArea(straightId);
+
+  if (trunkLayoutEnabled()) {
+    const { trunkAttach, gateway } = computeTrunkLayoutAnchorPair(straightId);
+    const slot = TRUNK_THEME_SLOT_BY_ID[straightId];
+    const emergeDir = deriveTrunkEmergenceDirection(trunkAttach.y, slot.side, gateway);
+    const stemPiece = trunkEmergentLimbCubicPiece(
+      trunkAttach,
+      emergeDir,
+      gateway,
+      trunkEmergentLimbProfileForArea(straightId),
+    );
+    const branches: BranchForkSpec[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const ang = hubBranchAngleRadForTrunkTheme(straightId, i, maxSlots);
+      const tip = {
+        x: gateway.x + Math.cos(ang) * spokeLen,
+        y: gateway.y + Math.sin(ang) * spokeLen,
+      };
+      branches.push({
+        forkPoint: { ...gateway },
+        tip,
+        branchPieces: [connectiveBowCubicPiece(gateway, tip, bowOrigin)],
+        strokeWidth: strokeW,
+      });
+    }
+    return {
+      trunkAttach: { ...trunkAttach },
+      limbTip: { ...gateway },
+      limbPieces: [stemPiece],
+      limbStrokeWidth,
+      branches,
+    };
+  }
 
   const gateway = { ...anchors.gateway };
   const trunkAttach = { ...gateway };
   /** Degenerate cubic so `pathPointAtT(slots.limb, t)` stays on the gateway when the trunk bridge is omitted. */
   const stemPiece = colinearCubicPiece(gateway, gateway);
-  const limbStrokeWidth = anchors.limbStrokeWidth;
-  const maxSlots = defaultHubSlotCountForArea(straightId);
-  const n = Math.min(maxSlots, area?.branches.length ?? 0);
-  const strokeW = 2.5 * CONDUIT_THREAD_STROKE_SCALE;
   const branches: BranchForkSpec[] = [];
   for (let i = 0; i < n; i += 1) {
     const ang = hubBranchAngleRad(i, maxSlots);
     const tip = {
-      x: gateway.x + Math.cos(ang) * THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
-      y: gateway.y + Math.sin(ang) * THEME_GATEWAY_HUB_SPOKE_LENGTH_PX,
+      x: gateway.x + Math.cos(ang) * spokeLen,
+      y: gateway.y + Math.sin(ang) * spokeLen,
     };
     branches.push({
       forkPoint: { ...gateway },

@@ -12,16 +12,20 @@ export type MomentNode = {
   description: string | null;
   year: number | null;
   significance: number;
-  bloomStatus: "BUD" | "GROWING" | "BLOOMED" | "BRANCHED" | "ENDED";
+  bloomStatus: "ACTIVE" | "COMPLETE" | "ON_HOLD";
   isTurningPoint: boolean;
   future: boolean;
   value: number | null;
   type: string;
+  /** ISO calendar date `YYYY-MM-DD` from mark when available (for display / edit). */
+  calendarDateIso?: string | null;
   /** Tree-only filler (not loaded from API); branch-from-node is disabled for synthetic rows. */
   synthetic?: boolean;
+  /** Stream ambiguous item awaiting Done / In progress / Not started on the tree. */
+  needsResolution?: boolean;
 };
 
-export type GoalBloomStatus = "BUD" | "GROWING" | "BLOOMED" | "BRANCHED" | "ENDED";
+export type GoalBloomStatus = "ACTIVE" | "COMPLETE" | "ON_HOLD";
 
 export type TreeMilestoneNode = {
   id: string;
@@ -39,15 +43,29 @@ export type TreeMilestoneNode = {
 export type TreeOrbitalMilestone = {
   id: string;
   title: string;
+  /** Canonical order index from relational milestones (major vs minor dot sizing). */
+  position: number;
   completed: boolean;
+  /** When set, used for short month labels on the orbital ring (e.g. "Dec"). */
+  completedAt?: string | null;
 };
 
 export type TreeGoalNode = {
   id: string;
   branchId: string;
   title: string;
+  /** AI tree-canvas label only; panel/roadmap use {@link title}. */
+  shortLabel?: string | null;
   /** Optional notes from DB (`Goal.description`). */
   description?: string | null;
+  /** Calendar year on the goal row when set (timeline / list views). */
+  year?: number | null;
+  /** ISO `YYYY-MM-DD` — row creation time (swimlane default start). */
+  createdAtIso?: string | null;
+  /** ISO `YYYY-MM-DD` — explicit swimlane start; when null, use {@link createdAtIso}. */
+  timelineStartIso?: string | null;
+  /** ISO `YYYY-MM-DD` — target end on the swimlane. */
+  deadlineIso?: string | null;
   bloomStatus: GoalBloomStatus;
   positionAngle: number | null;
   /** Predecessor goal when this row is **goal evolution** (longitudinal successor), not a nested subgoal. */
@@ -68,6 +86,10 @@ export type TreeGoalNode = {
  * {@link MomentNode}s on the conduit (when used) and {@link TreeGoalNode}s that orbit the hub in
  * domain-cluster mode. Geometry (fork, conduit, hub screen position) is derived in `tree-forks` /
  * `tree-branch-geometry`, not stored on this row.
+ *
+ * When `FLAGS.BRANCH_LONGITUDINAL_ALL` is on, callers read {@link sequencedNodes} to lay out goals
+ * and moments along a single sequence-position-ordered branch ray. {@link goals} and {@link moments}
+ * remain populated for the legacy domain-cluster paths (kept for instant rollback).
  */
 export type DomainHubData = {
   id: string;
@@ -75,7 +97,29 @@ export type DomainHubData = {
   type: string;
   moments: MomentNode[];
   goals: TreeGoalNode[];
+  /**
+   * Unified, sequence-ordered list of root nodes on this hub — goals + moments interleaved by
+   * `sequencePosition` (no calendar tiebreak applied here; sort is stable). Continuation children
+   * (`Goal.parentGoalId != null`) are **excluded** — they keep parent-anchored satellite layout.
+   * Drives the refined longitudinal grammar (`tree-branch-geometry.ts` → `branchNodeScreenPosition`).
+   */
+  sequencedNodes: SequencedBranchNode[];
 };
+
+/** One entry in `DomainHubData.sequencedNodes`. */
+export type SequencedBranchNode =
+  | {
+      kind: "goal";
+      id: string;
+      sequencePosition: number;
+      goal: TreeGoalNode;
+    }
+  | {
+      kind: "moment";
+      id: string;
+      sequencePosition: number;
+      moment: MomentNode;
+    };
 
 /** @deprecated Renamed to {@link DomainHubData} — hub row, not a spline-owned “branch line”. */
 export type AreaBranchData = DomainHubData;

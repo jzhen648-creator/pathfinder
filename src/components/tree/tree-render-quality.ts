@@ -3,8 +3,11 @@ import { FLAGS } from "@/lib/flags";
 export type TreeRenderQuality = "restrained" | "balanced" | "cinematic";
 
 /**
- * Dev/testing presets for luminous hierarchy (jewel cores, tighter fields, richer petals).
- * Adjust {@link FLAGS.TREE_GOAL_RENDER_QUALITY} to compare restrained ↔ cinematic without particles/FX spam.
+ * Luminous hierarchy presets (jewel cores, tighter fields, richer petals).
+ *
+ * **Disconnected:** factor tables are defined here but not yet applied in the SVG renderer
+ * (`tree-goal-visual.tsx` / `tree-render-goals-subtree.tsx`). Use {@link FLAGS.TREE_GOAL_RENDER_QUALITY}
+ * for the active preset until wiring lands; the dev-toolbar preset picker was removed until then.
  */
 export type TreeRenderQualityFactors = {
   /** Ellipse rx/ry scale for coherence veils (↓ = tighter local bloom). */
@@ -130,7 +133,8 @@ export function getTreeRenderQualityFactors(): TreeRenderQualityFactors {
 }
 
 /**
- * When `devPreset` is set (dev toolbar), use that preset; otherwise {@link FLAGS.TREE_GOAL_RENDER_QUALITY}.
+ * Resolves factors for a preset name. Prefer {@link getTreeRenderQualityFactors} for the flag default.
+ * `devPreset` is reserved for a future dev override once factors are wired into rendering.
  */
 export function resolveTreeRenderQualityFactors(
   devPreset: TreeRenderQuality | null | undefined,

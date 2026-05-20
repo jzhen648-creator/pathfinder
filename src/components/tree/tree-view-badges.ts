@@ -1,30 +1,23 @@
 import type { CSSProperties } from "react";
-import type { MomentNode, TreeGoalNode } from "./tree-types";
+import { badgeBucketFromBloom, type BloomBadgeBucket } from "@/lib/bloom-display";
+import type { TreeGoalNode } from "./tree-types";
 
-export function statusFromMoment(moment: MomentNode): "bloomed" | "growing" | "ended" {
-  if (moment.bloomStatus === "ENDED") return "ended";
-  if (moment.bloomStatus === "GROWING" || moment.future) return "growing";
-  return "bloomed";
-}
-
-export function badgeStatusFromGoalBloom(s: TreeGoalNode["bloomStatus"]): "bloomed" | "growing" | "ended" {
-  if (s === "ENDED") return "ended";
-  if (s === "GROWING" || s === "BUD") return "growing";
-  return "bloomed";
+export function badgeStatusFromGoalBloom(s: TreeGoalNode["bloomStatus"]): BloomBadgeBucket {
+  return badgeBucketFromBloom(s);
 }
 
 export function roadmapGoalShowsProgressPulse(status: TreeGoalNode["bloomStatus"]): boolean {
-  return status === "BUD" || status === "GROWING";
+  return status === "ACTIVE";
 }
 
-export function statusBadgeStyle(status: "bloomed" | "growing" | "ended"): CSSProperties {
-  if (status === "growing") {
+export function statusBadgeStyle(status: BloomBadgeBucket): CSSProperties {
+  if (status === "active") {
     return {
       background: "var(--color-background-success, rgba(34,197,94,0.12))",
       color: "var(--color-text-success, #16A34A)",
     };
   }
-  if (status === "ended") {
+  if (status === "on_hold") {
     return {
       background: "var(--color-background-secondary, rgba(148,163,184,0.15))",
       color: "var(--color-text-tertiary, #64748B)",
@@ -37,7 +30,7 @@ export function statusBadgeStyle(status: "bloomed" | "growing" | "ended"): CSSPr
 }
 
 export function sigLabel(sig: number): string {
-  if (sig >= 3) return "defining goal";
+  if (sig >= 3) return "defining pursuit";
   if (sig === 2) return "meaningful chapter";
   return "part of the journey";
 }

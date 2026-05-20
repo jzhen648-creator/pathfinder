@@ -19,12 +19,22 @@ import {
   VIEWBOX_HEIGHT,
   VIEWBOX_WIDTH,
 } from "./tree-geometry";
-import { deriveTrunkCenterlineX, TRUNK_BASE_Y, TRUNK_CROWN_Y } from "./tree-trunk-geometry";
-import type { DomainHubData, Point, TreeGoalNode } from "./tree-types";
+import {
+  deriveRootTendrilSpecs,
+  deriveSimplifiedTrunkCenterVeinD,
+  deriveSimplifiedTrunkSilhouetteD,
+  deriveTrunkCenterlineX,
+  deriveTrunkCrownForkPaths,
+  deriveTrunkJunctionWarmthSpec,
+  TRUNK_BASE_Y,
+  TRUNK_CROWN_Y,
+} from "./tree-trunk-geometry";
+import type { AreaData, DomainHubData, Point, TreeGoalNode } from "./tree-types";
 import {
   areaForkStemFirstC2,
   BRANCH_LAYOUT_BEND_SAMPLE_TS,
   branchDefaultBendHandlePoints,
+  branchMainPathUntilGlobalT,
   branchPointAtUniformFraction,
   buildAreaForksRecord,
   closestGlobalTOnLimb,
@@ -38,34 +48,35 @@ import {
 } from "./tree-forks";
 import {
   applyLayoutOverrides,
-  getDefaultLayoutOverrides,
+  loadLayoutEditActive,
   loadLayoutOverrides,
-  parseLayoutOverridesFromJson,
+  saveLayoutEditActive,
   saveLayoutOverrides,
   type AreaLayoutOverride,
   type BranchLayoutOverride,
 } from "./tree-layout-edit";
+import { TreeLayoutDevPanel } from "./tree-layout-dev-panel";
 import { TreeElementGuideTag } from "./tree-element-guide-tag";
 import { TreeRenderStatsHud } from "./tree-render-stats-hud";
+import { TreeMarkNode } from "./tree-mark-node";
+import { TreePentagonAnchor } from "./tree-pentagon-anchor";
+import { TREE_THEME_CANVAS_SERIF, TREE_THEME_SHORT_LABEL } from "./tree-design-visual";
 import { renderGoalsSubtree } from "./tree-render-goals-subtree";
-import { resolveTreeRenderQualityFactors } from "./tree-render-quality";
-import {
-  authorityRenderFactors,
-  countGoalSubtreeNodes,
-  deriveGoalVisualAuthoritySpec,
-} from "./goal-visual-authority";
-import {
-  deriveGoalBranchVitalityStroke,
-  deriveGoalNodeRenderState,
-} from "./goal-node-render-phase";
+import { getTreeRenderQualityFactors } from "./tree-render-quality";
 import {
   arcLengthMomentStationSegment,
   buildRenderedBranchMainPath,
   branchGuideStationTs,
   domainClusterBranchOutwardFromCatalog,
   domainClusterGatewaySpreadNormalForForkSpec,
+  domainClusterGatewayHubPathD,
+  domainClusterFlowSegmentPathD,
   domainClusterGoalFlowSegments,
+  domainClusterGoalRingGoalCount,
+  domainClusterGoalRingSlotIndex,
   domainClusterHubPointFromCatalog,
+  type DomainClusterMomentChainContext,
+  themeGatewayPointForArea,
   getOpacity,
   goalHexRotationRadFromTangentOut,
   goalMarkerTangentOutForPlacement,
@@ -76,18 +87,31 @@ import {
   polylinePathApproxBetweenT,
   pickThreadMomentsForTree,
   resolvedChainMomentPos,
-  rootGoalCatalogT,
-  threadCatalogPathBetweenGlobalT,
 } from "./tree-branch-geometry";
+import {
+  flattenGoalsById,
+  goalPursuitDepth,
+  pursuitConnectorStrokeWidth,
+} from "./tree-connector-strokes";
 import { shouldDomainClusterThread } from "./tree-renderer-grammar";
 import { clientToWorldSvg, storedTreePointToClientSvg } from "./tree-view-coords";
+import { animateTreePan, panTransformToCenterComposePoint } from "./tree-pan-animate";
+import { computeTreeFitTransformFromLayout, resolveHubCenterInComposeViewport } from "./tree-view-fit";
 import { goalInSubtree, threadContainsGoal } from "./tree-view-goal-queries";
 import {
   hasAreaOverride,
   hasCrossedLayoutDragThreshold,
   upsertAreaLayout,
 } from "./tree-view-layout-overrides";
-import { limbBackdropSurfaceTint } from "./tree-color-accents";
+import {
+  limbBackdropSurfaceTint,
+  TRUNK_WARM_BASE_HEX,
+  TRUNK_WARM_CROWN_HEX,
+  TRUNK_WARM_MID_HEX,
+  TRUNK_WARM_ROOT_HEX,
+  TRUNK_WARM_VEIN_HEX,
+  trunkJunctionTintHex,
+} from "./tree-color-accents";
 import {
   buildEcologicalCarryStreaks,
   buildEcologicalFilaments,
@@ -117,13 +141,34 @@ import {
   threadMomentSignificanceMul,
 } from "./tree-render-materials";
 import {
+  computeHubGatewayBackdropHull,
   computeLifeAreaLimbFloatNudgesPx,
   computeLimbBackdropHull,
+  LIMB_BACKDROP_HULL_BLEED_OPACITY_MAX,
+  LIMB_BACKDROP_HULL_POCKET_OPACITY_MAX,
+  LIMB_BACKDROP_HULL_POLYGON_OPACITY,
+  LIMB_BACKDROP_VEIL_CENTER_OPACITY,
+  LIMB_BACKDROP_VEIL_FILL_OPACITY,
+  LIMB_BACKDROP_VEIL_MID_OPACITY,
   limbBackdropPrincipalVeilEllipse,
 } from "./tree-limb-backdrop-bounds";
 import { hubTrunkFilamentSpecs } from "./tree-hub-trunk-filaments";
 import {
-  nodeRadius,
+  domainHubLabelFontScale,
+  domainHubLabelOpacity,
+  lifeAreaTitleOpacity,
+  threadPathLabelOpacity,
+  type LimbLabelContext,
+} from "./tree-label-lod";
+import { treeMapLimbHueReadableInk } from "./tree-canvas-label";
+import { TreeSvgTextLabel } from "./tree-svg-text-label";
+import {
+  connectiveBowOriginForArea,
+  domainHubLabelLayout,
+  trunkLayoutEnabled,
+} from "./tree-trunk-slots";
+import {
+  MARK_DIAMOND_HALF_PX,
   TREE_DEBUG_GEOM_ENABLED,
   TREE_LAYOUT_EDIT_ENABLED,
   TREE_LAYOUT_SCALE_ORIGIN_Y,
@@ -136,23 +181,67 @@ import {
   TREE_LIMB_ICON_SIZE_PX,
   TREE_THEME_GATEWAY_ICON_PX,
   TREE_DOMAIN_HUB_GLYPH_PX,
+  TREE_DOMAIN_HUB_GLYPH_PX_TRUNK,
   TREE_DOMAIN_HUB_LABEL_FONT_PX,
+  TREE_DOMAIN_HUB_LABEL_FONT_PX_TRUNK,
   TREE_DOMAIN_HUB_LABEL_GAP_PX,
   TREE_THREAD_PATH_LABEL_FONT_PX,
   TREE_LIFE_AREA_TITLE_FONT_PX,
   CONDUIT_THREAD_STROKE_SCALE,
+  CONDUIT_LIMB_STEM_STROKE_SCALE,
+  TREE_DOMAIN_GATEWAY_SPOKE_OPACITY,
+  TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX,
   snapTreeSvgScalar,
 } from "./tree-view-constants";
 import { FLAGS } from "@/lib/flags";
-import { branchIconForSlot, limbIconForLifeArea, normalizedLimbIconSize } from "@/components/icons";
+import { branchIconForHub, limbIconForLifeArea, normalizedLimbIconSize } from "@/components/icons";
 import { TreeIconMedallion, iconMedallionRadii } from "./tree-icon-medallion";
 import { TreeFocusPathPulse } from "./tree-focus-path-pulse";
 import type { LifeAreaId } from "@/lib/types";
-import { THEME_STAR_CENTER } from "./tree-area-anchors";
+import { StreamPreviewMarkersLayer } from "@/components/stream/stream-preview-tree-layer";
+import { TreeEditMapOverlay } from "./tree-edit-map-overlay";
+import type { EditDragGoalPayload } from "./tree-edit-drag";
 import type { LayoutPointerDrag, TreeSVGProps } from "./tree-view-types";
+
+function domainClusterMomentChainCtx(
+  areaId: string,
+  row: {
+    thread: DomainHubData;
+    idx: number;
+    threadCatalogFull: string;
+    threadDomainCluster: boolean;
+  },
+  sortedBranchIdx: number[],
+  dcGatewaySpreadNormal: Point | undefined,
+  layoutOv: AreaLayoutOverride | undefined,
+  layoutAnchors: { trunkAttach: Point; gateway: Point } | undefined,
+): DomainClusterMomentChainContext | null {
+  if (FLAGS.BRANCH_LONGITUDINAL_ALL || !row.threadDomainCluster) return null;
+  return {
+    catalogFullPath: row.threadCatalogFull,
+    kFork: sortedBranchIdx.indexOf(row.idx),
+    branchCountOnLimb: sortedBranchIdx.length,
+    goalsOnThread: row.thread.goals,
+    domainClusterGatewaySpreadNormal: dcGatewaySpreadNormal,
+    layoutOv,
+    layoutAnchors,
+    branchId: row.thread.id,
+  };
+}
+
+/** Trunk fan arc slot: taxonomy order for Becoming; stem sort order (`kFork`) for other themes. */
+function trunkHubFanSlotIndex(
+  areaId: string,
+  branchIdx: number,
+  sortedBranchIdx: number[],
+): number {
+  if (areaId === "becoming") return branchIdx;
+  return sortedBranchIdx.indexOf(branchIdx);
+}
 
 export function TreeSVG({
   areas,
+  previewAreas,
   allAreasForForkGeometry = areas,
   focused,
   focusedLimbId,
@@ -161,19 +250,25 @@ export function TreeSVG({
   onClear,
   onAreaClick,
   onHubClick,
-  onMomentClick,
+  activeMarkId = null,
+  onMarkPointerEnter,
+  onMarkPointerLeave,
+  onMarkClick,
   onGoalClick,
   exportRootRef,
   showElementGuide = false,
-  renderQualityDevPreset = null,
+  streamPanFocus = null,
+  streamPanelWidthPx = 0,
+  editMapMode = false,
+  editMapDraftAreas = null,
+  onEditMapDraftDrop,
 }: TreeSVGProps) {
-  const selectedMomentId = panel.type === "moment" ? panel.moment.id : null;
+  const selectedMomentId = activeMarkId;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const layoutDragRef = useRef<LayoutPointerDrag | null>(null);
-  const geometryFileInputRef = useRef<HTMLInputElement | null>(null);
   const renderMarksRef = useRef<number[]>([]);
   /** Per-limb toggles: SVG handles + limb ° input only where enabled. */
-  const [layoutEditByAreaId, setLayoutEditByAreaId] = useState<Record<string, boolean>>({});
+  const [layoutEditByAreaId, setLayoutEditByAreaId] = useState<Record<string, boolean>>(loadLayoutEditActive);
   const anyLayoutEditActive = useMemo(
     () => Object.values(layoutEditByAreaId).some(Boolean),
     [layoutEditByAreaId],
@@ -186,6 +281,18 @@ export function TreeSVG({
       return next;
     });
   }, []);
+
+  const setAllLayoutEdit = useCallback(
+    (enabled: boolean) => {
+      if (!enabled) {
+        setLayoutEditByAreaId({});
+        return;
+      }
+      setLayoutEditByAreaId(Object.fromEntries(areas.map((a) => [a.id, true])));
+    },
+    [areas],
+  );
+
   const [layoutDevPanelCollapsed, setLayoutDevPanelCollapsed] = useState(true);
   const [layoutOverrides, setLayoutOverrides] = useState(loadLayoutOverrides);
   const forkBases = useMemo(() => buildAreaForksRecord(allAreasForForkGeometry), [allAreasForForkGeometry]);
@@ -196,6 +303,25 @@ export function TreeSVG({
   useEffect(() => {
     saveLayoutOverrides(layoutOverrides);
   }, [layoutOverrides]);
+
+  useEffect(() => {
+    saveLayoutEditActive(layoutEditByAreaId);
+  }, [layoutEditByAreaId]);
+
+  useEffect(() => {
+    if (!TREE_LAYOUT_EDIT_ENABLED) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "l" && e.key !== "L") return;
+      const t = e.target;
+      if (t instanceof HTMLElement && (t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) {
+        return;
+      }
+      e.preventDefault();
+      setLayoutDevPanelCollapsed((c) => !c);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!TREE_RENDER_STATS_ENABLED || typeof performance === "undefined") return;
@@ -209,10 +335,12 @@ export function TreeSVG({
     y: VIEWBOX_HEIGHT / 2 - baselineZoomScale * (VIEWBOX_HEIGHT * 0.42),
     scale: baselineZoomScale,
   });
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+  const streamPanAnimCancelRef = useRef<(() => void) | null>(null);
   const didInitialFitRef = useRef(false);
   const zoomRatio = transform.scale / baselineZoomScale;
-  const treeRenderQuality = resolveTreeRenderQualityFactors(renderQualityDevPreset);
-  const showMarksByZoom = zoomRatio >= 1.5;
+  const treeRenderQuality = getTreeRenderQualityFactors();
   /** Limb backdrop & goals always account for hex orbitals when milestones exist (no zoom gate). */
   const goalOrbitalsAlwaysVisibleForLayout = true;
   const [bloomPlayingIds, setBloomPlayingIds] = useState<Set<string>>(() => new Set());
@@ -228,7 +356,7 @@ export function TreeSVG({
     const newly = new Set<string>();
     current.forEach((status, id) => {
       const prev = prevGoalBloomRef.current.get(id);
-      if (prev !== undefined && prev !== "BLOOMED" && status === "BLOOMED") newly.add(id);
+      if (prev !== undefined && prev !== "COMPLETE" && status === "COMPLETE") newly.add(id);
     });
     prevGoalBloomRef.current = current;
     if (newly.size === 0) return;
@@ -247,8 +375,56 @@ export function TreeSVG({
   const lastPan = useRef<{ x: number; y: number } | null>(null);
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const panMoved = useRef(false);
+  const beginGoalDragRef = useRef<
+    ((payload: EditDragGoalPayload, clientX: number, clientY: number, originX: number, originY: number) => void) | null
+  >(null);
+  const [editLayoutAreas, setEditLayoutAreas] = useState<AreaData[] | null>(null);
+  const [editDraggedGoalId, setEditDraggedGoalId] = useState<string | null>(null);
+  const editLayoutLiftRef = useRef<{ preview: AreaData[] | null; draggedGoalId: string | null }>({
+    preview: null,
+    draggedGoalId: null,
+  });
+  const layoutAreas = editLayoutAreas ?? editMapDraftAreas ?? areas;
+
+  const handleEditLayoutPreviewChange = useCallback((preview: AreaData[] | null, draggedGoalId: string | null) => {
+    const prev = editLayoutLiftRef.current;
+    if (prev.preview === preview && prev.draggedGoalId === draggedGoalId) return;
+    editLayoutLiftRef.current = { preview, draggedGoalId };
+    setEditLayoutAreas(preview);
+    setEditDraggedGoalId(draggedGoalId);
+  }, []);
+
+  useEffect(() => {
+    if (!editMapMode) {
+      editLayoutLiftRef.current = { preview: null, draggedGoalId: null };
+      setEditLayoutAreas(null);
+      setEditDraggedGoalId(null);
+    }
+  }, [editMapMode]);
+
+  const handleEditGoalPointerDown = useCallback(
+    (goal: TreeGoalNode, area: AreaData, e: PointerEvent, originX: number, originY: number) => {
+      beginGoalDragRef.current?.(
+        {
+          goalId: goal.id,
+          areaId: area.id,
+          branchId: goal.branchId,
+          parentGoalId: goal.parentGoalId,
+          areaColor: area.color,
+          title: goal.title,
+        },
+        e.clientX,
+        e.clientY,
+        originX,
+        originY,
+      );
+    },
+    [],
+  );
 
   const beginPan = (x: number, y: number) => {
+    if (editMapMode) return;
+    window.getSelection()?.removeAllRanges();
     setIsPanning(true);
     panMoved.current = false;
     lastPan.current = { x, y };
@@ -292,6 +468,16 @@ export function TreeSVG({
       const threads = { ...(area.branches ?? {}) };
       threads[threadIdx] = { ...(threads[threadIdx] ?? {}), ...patch };
       area.branches = threads;
+      return upsertAreaLayout(prev, areaId, area);
+    });
+  };
+
+  const patchHubLayout = (areaId: string, branchId: string, pt: Point) => {
+    setLayoutOverrides((prev) => {
+      const area = { ...(prev[areaId] ?? {}) } as AreaLayoutOverride;
+      const hubPositions = { ...(area.hubPositions ?? {}) };
+      hubPositions[branchId] = pt;
+      area.hubPositions = hubPositions;
       return upsertAreaLayout(prev, areaId, area);
     });
   };
@@ -391,7 +577,7 @@ export function TreeSVG({
 
   /** Render-only vertical flow read off public centerline — not silhouette edits. */
   const trunkVascularFlowPaths = useMemo(() => {
-    if (!FLAGS.TREE_TRUNK_VISIBLE) {
+    if (!FLAGS.TREE_TRUNK_VISIBLE || trunkLayoutEnabled()) {
       return { left: "", mid: "", right: "" };
     }
     const n = 28;
@@ -426,25 +612,85 @@ export function TreeSVG({
 
   const areasRenderOrder = useMemo(
     () =>
-      [...areas].sort(
+      [...layoutAreas].sort(
         (a, b) =>
           getLimbDepthStaging(a.id, limbStagingCtx).sortKey - getLimbDepthStaging(b.id, limbStagingCtx).sortKey,
       ),
-    [areas, limbStagingCtx],
+    [layoutAreas, limbStagingCtx],
   );
 
+  const simplifiedTrunkArt = useMemo(() => {
+    if (!trunkLayoutEnabled()) return null;
+    return {
+      silhouetteD: deriveSimplifiedTrunkSilhouetteD(),
+      veinD: deriveSimplifiedTrunkCenterVeinD(),
+      rootFlareD: TREE_TRUNK_PRESSURE_LAYERS.rootFlareD,
+      tendrils: deriveRootTendrilSpecs(),
+      crownForks: deriveTrunkCrownForkPaths(),
+      junctions: areasRenderOrder
+        .map((area) => {
+          const attach = resolvedForks[area.id]?.trunkAttach;
+          if (!attach) return null;
+          return {
+            areaId: area.id,
+            ...deriveTrunkJunctionWarmthSpec(area.id, attach),
+          };
+        })
+        .filter((j): j is NonNullable<typeof j> => j != null),
+    };
+  }, [areasRenderOrder, resolvedForks]);
+
   /** Gentle hub repulsion so life-area wedges behave like separate floats—close but not stacked. */
-  const lifeAreaFloatNudgePx = useMemo(
+  const lifeAreaFloatNudgePx = useMemo(() => {
+    if (trunkLayoutEnabled()) {
+      return Object.fromEntries(areasRenderOrder.map((id) => [id, { x: 0, y: 0 }]));
+    }
+    return computeLifeAreaLimbFloatNudgesPx(
+      areasRenderOrder.map((a) => a.id),
+      (id) => {
+        const spec = resolvedForks[id];
+        if (!spec) return null;
+        return isHubGatewayLayout(spec) ? spec.limbTip : spec.trunkAttach;
+      },
+    );
+  }, [areasRenderOrder, resolvedForks]);
+
+  const treeFitTransform = useMemo(
     () =>
-      computeLifeAreaLimbFloatNudgesPx(
-        areasRenderOrder.map((a) => a.id),
-        (id) => {
-          const spec = resolvedForks[id];
-          if (!spec) return null;
-          return isHubGatewayLayout(spec) ? spec.limbTip : spec.trunkAttach;
+      computeTreeFitTransformFromLayout({
+        areas,
+        forks: resolvedForks,
+        floatNudges: lifeAreaFloatNudgePx,
+        layoutOverrides,
+        viewWidth: VIEWBOX_WIDTH,
+        viewHeight: VIEWBOX_HEIGHT,
+        fallback: {
+          x: VIEWBOX_WIDTH / 2 - baselineZoomScale * (VIEWBOX_WIDTH * 0.5),
+          y: VIEWBOX_HEIGHT / 2 - baselineZoomScale * (VIEWBOX_HEIGHT * 0.42),
+          scale: baselineZoomScale,
         },
-      ),
-    [areasRenderOrder, resolvedForks],
+      }),
+    [areas, resolvedForks, lifeAreaFloatNudgePx, layoutOverrides, baselineZoomScale],
+  );
+
+  const focusLimbInView = useCallback(
+    (areaId: string) => {
+      setTransform(
+        computeTreeFitTransformFromLayout({
+          areas,
+          forks: resolvedForks,
+          floatNudges: lifeAreaFloatNudgePx,
+          layoutOverrides,
+          viewWidth: VIEWBOX_WIDTH,
+          viewHeight: VIEWBOX_HEIGHT,
+          areaIds: [areaId],
+          fallback: transformRef.current,
+        }),
+      );
+      toggleAreaLayoutEdit(areaId, true);
+      setLayoutDevPanelCollapsed(false);
+    },
+    [areas, resolvedForks, lifeAreaFloatNudgePx, layoutOverrides, toggleAreaLayoutEdit],
   );
 
   useEffect(() => {
@@ -454,40 +700,67 @@ export function TreeSVG({
     const cw = svg.clientWidth;
     const ch = svg.clientHeight;
     if (cw < 40 || ch < 40) return;
-
-    const hubs: { x: number; y: number }[] = [];
-    for (const area of areas) {
-      const spec = resolvedForks[area.id];
-      if (!spec) continue;
-      const nudge = lifeAreaFloatNudgePx[area.id] ?? { x: 0, y: 0 };
-      const p = isHubGatewayLayout(spec) ? spec.limbTip : spec.trunkAttach;
-      hubs.push({ x: p.x + nudge.x, y: p.y + nudge.y });
-    }
-    if (hubs.length === 0) return;
-
-    const pad = 150;
-    const minX = Math.min(...hubs.map((h) => h.x)) - pad;
-    const maxX = Math.max(...hubs.map((h) => h.x)) + pad;
-    const minY = Math.min(...hubs.map((h) => h.y)) - pad;
-    const maxY = Math.max(...hubs.map((h) => h.y)) + pad;
-    const contentW = maxX - minX;
-    const contentH = maxY - minY;
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const fitScale = Math.min(0.9 * viewWidth / contentW, 0.9 * viewHeight / contentH);
-    const s = Math.min(3, Math.max(0.28, fitScale));
-    setTransform({
-      scale: s,
-      x: viewWidth / 2 - s * cx,
-      y: viewHeight / 2 - s * cy,
-    });
+    setTransform(treeFitTransform);
     didInitialFitRef.current = true;
-  }, [areas, lifeAreaFloatNudgePx, resolvedForks, viewHeight, viewWidth]);
+  }, [areas, treeFitTransform]);
+
+  useEffect(() => {
+    if (!streamPanFocus) return;
+    const hubCenter = resolveHubCenterInComposeViewport({
+      areas: allAreasForForkGeometry,
+      forks: resolvedForks,
+      layoutOverrides,
+      areaId: streamPanFocus.areaId,
+      branchId: streamPanFocus.branchId,
+    });
+    if (!hubCenter) return;
+
+    const svg = svgRef.current;
+    const clientW = svg?.clientWidth ?? VIEWBOX_WIDTH;
+    const panelW = Math.min(streamPanelWidthPx, clientW * 0.85);
+    const visibleCenterX = ((clientW - panelW) / 2 / Math.max(clientW, 1)) * viewWidth;
+
+    const from = transformRef.current;
+    const pan = panTransformToCenterComposePoint({
+      target: hubCenter,
+      viewWidth,
+      viewHeight,
+      scale: from.scale,
+      visibleCenterX,
+    });
+    const to = { ...from, ...pan };
+
+    streamPanAnimCancelRef.current?.();
+    streamPanAnimCancelRef.current = animateTreePan(from, to, setTransform);
+    return () => {
+      streamPanAnimCancelRef.current?.();
+      streamPanAnimCancelRef.current = null;
+    };
+  }, [
+    streamPanFocus?.key,
+    streamPanFocus?.areaId,
+    streamPanFocus?.branchId,
+    allAreasForForkGeometry,
+    resolvedForks,
+    layoutOverrides,
+    streamPanelWidthPx,
+    viewWidth,
+    viewHeight,
+  ]);
 
   return (
     <div style={{ width: "100%", height: "calc(100vh - 48px)", overflow: "hidden", display: "block", position: "relative", background: TREE_MAP_SURFACE_FILL }}>
       {TREE_RENDER_STATS_ENABLED ? <TreeRenderStatsHud marksRef={renderMarksRef} /> : null}
-      <div ref={exportRootRef} style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+      <div
+        ref={exportRootRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+      >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${viewWidth} ${viewHeight}`}
@@ -495,13 +768,22 @@ export function TreeSVG({
         height="100%"
         style={{
           background: TREE_MAP_SURFACE_FILL,
-          cursor: anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED ? "default" : isPanning ? "grabbing" : "grab",
+          cursor:
+            editMapMode
+              ? "grab"
+              : anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED
+                ? "default"
+                : isPanning
+                  ? "grabbing"
+                  : "grab",
           touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
         }}
         onWheel={(e) => {
           e.preventDefault();
           const rect = e.currentTarget.getBoundingClientRect();
-          const delta = e.deltaY > 0 ? 0.9 : 1.1;
+          const delta = e.deltaY > 0 ? 0.86 : 1.163;
           const newScale = Math.min(3, Math.max(0.3, transform.scale * delta));
           const cx = ((e.clientX - rect.left) / rect.width) * viewWidth;
           const cy = ((e.clientY - rect.top) / rect.height) * viewHeight;
@@ -512,8 +794,10 @@ export function TreeSVG({
           }));
         }}
         onMouseDown={(e) => {
+          if (editMapMode) return;
           if (anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED && isLayoutEditHandleTarget(e.target)) return;
           if (e.button !== 0) return;
+          e.preventDefault();
           beginPan(e.clientX, e.clientY);
         }}
         onMouseMove={(e) => {
@@ -523,6 +807,7 @@ export function TreeSVG({
         onMouseUp={endPan}
         onMouseLeave={endPan}
         onTouchStart={(e) => {
+          if (editMapMode) return;
           const touch = e.touches[0];
           if (!touch) return;
           if (anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED && isLayoutEditHandleTarget(touch.target)) return;
@@ -541,7 +826,7 @@ export function TreeSVG({
         }}
       >
         <defs>
-          {FLAGS.TREE_TRUNK_VISIBLE ? (
+          {FLAGS.TREE_TRUNK_VISIBLE && !trunkLayoutEnabled() ? (
             <>
               {/* Vascular trunk: compressed luminous core, absorbed silhouette edge — matches bloom material logic. */}
               <linearGradient
@@ -606,6 +891,65 @@ export function TreeSVG({
                 <stop offset="55%" stopColor="#09080c" stopOpacity={0.88} />
                 <stop offset="100%" stopColor="#030305" stopOpacity={1} />
               </linearGradient>
+            </>
+          ) : null}
+          {trunkLayoutEnabled() ? (
+            <>
+              <linearGradient
+                id="trunkSimplifiedBodyGrad"
+                x1="50%"
+                y1="0%"
+                x2="50%"
+                y2="100%"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor={TRUNK_WARM_CROWN_HEX} stopOpacity={0.68} />
+                <stop offset="42%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.88} />
+                <stop offset="78%" stopColor={TRUNK_WARM_BASE_HEX} stopOpacity={0.94} />
+                <stop offset="100%" stopColor={TRUNK_WARM_ROOT_HEX} stopOpacity={1} />
+              </linearGradient>
+              <linearGradient
+                id="trunkSimplifiedVeinGrad"
+                x1="0%"
+                y1="50%"
+                x2="100%"
+                y2="50%"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.08} />
+                <stop offset="48%" stopColor={TRUNK_WARM_VEIN_HEX} stopOpacity={0.55} />
+                <stop offset="100%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.08} />
+              </linearGradient>
+              <linearGradient
+                id="trunkSimplifiedRootFlareGrad"
+                x1="50%"
+                y1="0%"
+                x2="50%"
+                y2="100%"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.5} />
+                <stop offset="55%" stopColor={TRUNK_WARM_BASE_HEX} stopOpacity={0.36} />
+                <stop offset="100%" stopColor={TRUNK_WARM_ROOT_HEX} stopOpacity={0.18} />
+              </linearGradient>
+              {areasRenderOrder.map((area) => {
+                const jId = svgDefSafeId(`trunkJunction-${area.id}`);
+                const tint = trunkJunctionTintHex(area.color, 0.09);
+                return (
+                  <radialGradient
+                    key={jId}
+                    id={jId}
+                    cx="50%"
+                    cy="50%"
+                    r="50%"
+                    gradientUnits="objectBoundingBox"
+                  >
+                    <stop offset="0%" stopColor={tint} stopOpacity={0.28} />
+                    <stop offset="72%" stopColor={tint} stopOpacity={0.06} />
+                    <stop offset="100%" stopColor={tint} stopOpacity={0} />
+                  </radialGradient>
+                );
+              })}
             </>
           ) : null}
           <radialGradient id="treeEcoHazeBlob" cx="50%" cy="50%" r="50%" gradientUnits="objectBoundingBox">
@@ -789,7 +1133,64 @@ export function TreeSVG({
           <g
             transform={`translate(-28,20) rotate(-1.35 ${TREE_TRUNK_MIRROR_X} ${TRUNK_CROWN_Y + (TRUNK_BASE_Y - TRUNK_CROWN_Y) * 0.4}) translate(${TREE_TRUNK_MIRROR_X}, ${TREE_LAYOUT_SCALE_ORIGIN_Y}) scale(${TREE_LAYOUT_WORLD_SCALE}) translate(${-TREE_TRUNK_MIRROR_X}, ${-TREE_LAYOUT_SCALE_ORIGIN_Y})`}
           >
-          {FLAGS.TREE_TRUNK_VISIBLE ? (
+          {trunkLayoutEnabled() && simplifiedTrunkArt ? (
+            <g pointerEvents="none" aria-hidden data-tree-trunk-simplified="1">
+              <path
+                d={simplifiedTrunkArt.rootFlareD}
+                fill="url(#trunkSimplifiedRootFlareGrad)"
+                opacity={0.68}
+              />
+              {simplifiedTrunkArt.tendrils.map((tendril, ti) => (
+                <path
+                  key={`trunk-tendril-${ti}`}
+                  d={tendril.d}
+                  fill="none"
+                  stroke={TRUNK_WARM_BASE_HEX}
+                  strokeWidth={tendril.strokeWidth}
+                  strokeOpacity={tendril.strokeOpacity}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+              <path
+                d={simplifiedTrunkArt.silhouetteD}
+                fill="url(#trunkSimplifiedBodyGrad)"
+                opacity={0.9}
+              />
+              <path
+                d={simplifiedTrunkArt.veinD}
+                fill="none"
+                stroke="url(#trunkSimplifiedVeinGrad)"
+                strokeWidth={1.15}
+                strokeLinecap="round"
+                opacity={0.44}
+                vectorEffect="non-scaling-stroke"
+              />
+              {simplifiedTrunkArt.junctions.map((junction) => (
+                <circle
+                  key={`trunk-junction-${junction.areaId}`}
+                  cx={junction.cx}
+                  cy={junction.cy}
+                  r={junction.r}
+                  fill={`url(#${svgDefSafeId(`trunkJunction-${junction.areaId}`)})`}
+                  fillOpacity={junction.opacity}
+                />
+              ))}
+              {simplifiedTrunkArt.crownForks.map((fork, fi) => (
+                <path
+                  key={`trunk-crown-fork-${fi}`}
+                  d={fork.d}
+                  fill="none"
+                  stroke={TRUNK_WARM_CROWN_HEX}
+                  strokeWidth={fork.strokeWidth}
+                  strokeOpacity={fork.strokeOpacity}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </g>
+          ) : null}
+          {FLAGS.TREE_TRUNK_VISIBLE && !trunkLayoutEnabled() ? (
             <>
               {/* Vascular column: root flare → layered mass → luminous vein + restrained veil (anchor composition). */}
               <path
@@ -900,6 +1301,7 @@ export function TreeSVG({
             aria-hidden
             data-tree-compose-south="1"
           />
+          <TreePentagonAnchor />
           {/* Vein + luminous veil render after limb/branch strokes (see emergence blend group) so overlap reads as embedded emergence, not hard under-stack clipping. */}
 
           {areasRenderOrder.map((area) => {
@@ -919,6 +1321,10 @@ export function TreeSVG({
                 forkSpec != null ? compareBranchIndicesForStemOrder(forkSpec, a, b) : a - b,
               );
             const dcGatewaySpreadNormal = domainClusterGatewaySpreadNormalForForkSpec(forkSpec);
+            const hubLayoutAnchors =
+              forkSpec != null
+                ? { trunkAttach: forkSpec.trunkAttach, gateway: forkSpec.limbTip }
+                : undefined;
 
             const goalPanelPulseGoalId =
               FLAGS.FOCUS_MODE && panel.type === "goal" && panel.area.id === area.id
@@ -929,6 +1335,12 @@ export function TreeSVG({
             const limbGroupOpacity = getOpacity(focused, area.id);
             const depthStage = getLimbDepthStaging(area.id, limbStagingCtx);
             const composedLimbOpacity = limbGroupOpacity * depthStage.groupOpacityMul;
+            const limbLabelCtx: LimbLabelContext = {
+              zoomRatio,
+              limbFocused: FLAGS.FOCUS_MODE && focusedLimbId === area.id,
+              limbDeemphasized:
+                FLAGS.FOCUS_MODE && focusedLimbId != null && focusedLimbId !== area.id,
+            };
 
             type BranchLayoutRow = {
               thread: DomainHubData;
@@ -972,9 +1384,11 @@ export function TreeSVG({
                 threadSlot.path,
                 threadSpec,
                 layoutOverrides[area.id],
-                sortedBranchIdx.indexOf(idx),
+                trunkHubFanSlotIndex(area.id, idx, sortedBranchIdx),
                 sortedBranchIdx.length,
                 dcGatewaySpreadNormal,
+                hubLayoutAnchors,
+                thread.id,
               );
               const threadDomainCluster = shouldDomainClusterThread(area.id, thread);
               branchLayoutRows.push({
@@ -1013,8 +1427,31 @@ export function TreeSVG({
 
             const hubGatewayLayout = forkSpec != null && isHubGatewayLayout(forkSpec);
 
+            const hubMomentCount = area.branches.reduce((s, br) => s + br.moments.length, 0);
+            const hubGoalCount = area.branches.reduce((s, br) => s + br.goals.length, 0);
+            const hubDensity = Math.min(
+              1,
+              branchLayoutRows.length * 0.14 + hubMomentCount * 0.042 + hubGoalCount * 0.018,
+            );
+
             const limbBackdropHull = hubGatewayLayout
-              ? null
+              ? computeHubGatewayBackdropHull({
+                  areaId: area.id,
+                  limbPath: slots.limb,
+                  themeGateway: themeGatewayPointForArea(area.id, forkSpec, layoutOverrides[area.id]),
+                  trunkAttach: forkSpec!.trunkAttach,
+                  branchCount: sortedBranchIdx.length,
+                  branches: branchLayoutRows.map((row) => ({
+                    thread: row.thread,
+                    idx: row.idx,
+                    threadCatalogFull: row.threadCatalogFull,
+                    kFork: sortedBranchIdx.indexOf(row.idx),
+                  })),
+                  gatewaySpreadNormal: dcGatewaySpreadNormal,
+                  hubDensity,
+                  layoutOverride: layoutOverrides[area.id],
+                  layoutAnchors: hubLayoutAnchors,
+                })
               : computeLimbBackdropHull({
               areaId: area.id,
               limbPath: slots.limb,
@@ -1032,20 +1469,17 @@ export function TreeSVG({
                 nextGoalSlotT: row.nextGoalSlotT,
                 momentChordTEnd: row.momentChordTEnd,
                 kFork: sortedBranchIdx.indexOf(row.idx),
+                threadDomainCluster: row.threadDomainCluster,
               })),
               momentPositions: layoutOverrides[area.id]?.momentPositions,
-              showMarksByZoom,
+              domainClusterGatewaySpreadNormal: dcGatewaySpreadNormal,
+              layoutOverride: layoutOverrides[area.id],
+              layoutAnchors: hubLayoutAnchors,
               showAllGoalMilestonesByZoom: goalOrbitalsAlwaysVisibleForLayout,
               goalHighlightId: panel.type === "goal" ? panel.goal.id : undefined,
               trunkExcludeCenter: areaLabelAnchor,
             });
 
-            const hubMomentCount = area.branches.reduce((s, br) => s + br.moments.length, 0);
-            const hubGoalCount = area.branches.reduce((s, br) => s + br.goals.length, 0);
-            const hubDensity = Math.min(
-              1,
-              branchLayoutRows.length * 0.14 + hubMomentCount * 0.042 + hubGoalCount * 0.018,
-            );
             const hubStemPt = pathPointAtT(slots.limb, 0.32);
 
             const floatNudge = lifeAreaFloatNudgePx[area.id] ?? { x: 0, y: 0 };
@@ -1080,6 +1514,7 @@ export function TreeSVG({
                   >
                     {(() => {
                       const veilClipId = svgDefSafeId(`veilClip-${area.id}`);
+                      const veilGradId = svgDefSafeId(`veilGrad-${area.id}`);
                       const veil = limbBackdropPrincipalVeilEllipse(limbBackdropHull);
                       const veilTint = limbBackdropSurfaceTint(area.color);
                       const hullAttr = limbBackdropHull.pointsAttr;
@@ -1089,6 +1524,29 @@ export function TreeSVG({
                             <clipPath id={veilClipId} clipPathUnits="userSpaceOnUse">
                               <polygon points={hullAttr} />
                             </clipPath>
+                            <radialGradient
+                              id={veilGradId}
+                              gradientUnits="userSpaceOnUse"
+                              cx={veil.cx}
+                              cy={veil.cy}
+                              r={Math.max(veil.rx, veil.ry) * 1.05}
+                            >
+                              <stop
+                                offset="0%"
+                                stopColor={veilTint}
+                                stopOpacity={LIMB_BACKDROP_VEIL_CENTER_OPACITY}
+                              />
+                              <stop
+                                offset="52%"
+                                stopColor={veilTint}
+                                stopOpacity={LIMB_BACKDROP_VEIL_MID_OPACITY}
+                              />
+                              <stop
+                                offset="100%"
+                                stopColor={veilTint}
+                                stopOpacity={0}
+                              />
+                            </radialGradient>
                           </defs>
                           <g clipPath={`url(#${veilClipId})`}>
                             <ellipse
@@ -1097,8 +1555,8 @@ export function TreeSVG({
                               rx={veil.rx}
                               ry={veil.ry}
                               transform={`rotate(${veil.rotDeg.toFixed(2)}, ${veil.cx}, ${veil.cy})`}
-                              fill={veilTint}
-                              fillOpacity={0.078}
+                              fill={`url(#${veilGradId})`}
+                              fillOpacity={LIMB_BACKDROP_VEIL_FILL_OPACITY}
                               stroke="none"
                               filter="url(#treeAreaVeilMass)"
                             />
@@ -1262,6 +1720,14 @@ export function TreeSVG({
 
                     const tm = pickThreadMomentsForTree(row.thread.moments, TREE_THREAD_VISIBLE_MOMENTS);
                     const momentLayout = layoutOverrides[area.id]?.momentPositions;
+                    const pocketDcChain = domainClusterMomentChainCtx(
+                      area.id,
+                      row,
+                      sortedBranchIdx,
+                      dcGatewaySpreadNormal,
+                      layoutOverrides[area.id],
+                      hubLayoutAnchors,
+                    );
                     tm.forEach((moment, momentIdx) => {
                       if (stableRenderJitter01(`${moment.id}:voidms`) > 0.78) return;
                       const pos = resolvedChainMomentPos(
@@ -1272,6 +1738,8 @@ export function TreeSVG({
                         row.threadCatalogFull,
                         momentLayout,
                         row.momentChordTEnd,
+                        row.threadMainDraw,
+                        pocketDcChain,
                       );
                       const w = stableRenderJitter01(`${moment.id}:ms`);
                       pocketsRaw.push({
@@ -1313,11 +1781,8 @@ export function TreeSVG({
                   return (
                     <g
                       data-tree-limb-hull-volume="1"
-                      pointerEvents={FLAGS.FOCUS_MODE ? "visiblePainted" : "none"}
-                      style={{
-                        opacity: depthStage.hullMassPresenceMul,
-                        ...(FLAGS.FOCUS_MODE ? { cursor: "pointer" } : {}),
-                      }}
+                      pointerEvents="none"
+                      style={{ opacity: depthStage.hullMassPresenceMul }}
                     >
                       <defs>
                         <clipPath id={`limbHullClip-${hullSid}`}>
@@ -1336,7 +1801,10 @@ export function TreeSVG({
                               rx={pk.rx * 1.32 * ej.rxMul}
                               ry={pk.ry * 1.26 * ej.ryMul}
                               fill={limbTint}
-                              fillOpacity={Math.min(0.028, pk.op * 0.16)}
+                              fillOpacity={Math.min(
+                                LIMB_BACKDROP_HULL_BLEED_OPACITY_MAX,
+                                pk.op * 0.42,
+                              )}
                               transform={`rotate(${pk.rot * 0.6}, ${pk.cx}, ${pk.cy})`}
                               filter="url(#treeLimbHullBleedSoften)"
                             />
@@ -1348,7 +1816,11 @@ export function TreeSVG({
                         pointerEvents="none"
                         data-tree-limb-hull-density="1"
                       >
-                        <polygon points={limbBackdropHull.pointsAttr} fill={limbTint} fillOpacity={0.019} />
+                        <polygon
+                          points={limbBackdropHull.pointsAttr}
+                          fill={limbTint}
+                          fillOpacity={LIMB_BACKDROP_HULL_POLYGON_OPACITY}
+                        />
                         {pockets.map((pk) => {
                           const ej = pocketEllipseShapeJitter(pk.k);
                           return (
@@ -1359,7 +1831,7 @@ export function TreeSVG({
                               rx={pk.rx * ej.rxMul}
                               ry={pk.ry * ej.ryMul}
                               fill={limbTint}
-                              fillOpacity={Math.min(0.048, pk.op)}
+                              fillOpacity={Math.min(LIMB_BACKDROP_HULL_POCKET_OPACITY_MAX, pk.op * 2.6)}
                               transform={`rotate(${pk.rot}, ${pk.cx + ej.dcx}, ${pk.cy + ej.dcy})`}
                               filter="url(#treeLimbHullPocketSoften)"
                             />
@@ -1393,41 +1865,41 @@ export function TreeSVG({
                           />
                         ))}
                       </g>
-                      {FLAGS.FOCUS_MODE ? (
-                        <polygon
-                          points={limbBackdropHull.pointsAttr}
-                          fill="transparent"
-                          stroke="none"
-                          pointerEvents="visiblePainted"
-                          style={{ cursor: "pointer" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (panMoved.current) return;
-                            onToggleLimbFocus(area.id);
-                          }}
-                        />
-                      ) : null}
                     </g>
                   );
                 })() : null}
-                {/* Full stem: hit-target (+ hull sampling). Hub limbs omit visible per-thread stem strokes — trunk→gateway reads as gateway + branches only; geometry stays on this path. */}
+                {/* Limb stem geometry only — no wide transparent hit stroke (theme gateway + label row handle navigation). */}
                 <path
                   d={slots.limb}
                   fill="none"
                   stroke="transparent"
-                  strokeWidth={slots.limbStrokeWidth + 12}
+                  strokeWidth={slots.limbStrokeWidth}
                   strokeLinecap="round"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (panMoved.current) return;
-                    if (FLAGS.FOCUS_MODE) {
-                      onToggleLimbFocus(area.id);
-                    } else {
-                      onAreaClick(area);
-                    }
-                  }}
-                  style={{ cursor: "pointer" }}
+                  pointerEvents="none"
                 />
+
+                {forkSpec != null && isHubGatewayLayout(forkSpec) && trunkLayoutEnabled() ? (
+                  <g pointerEvents="none" aria-hidden data-tree-major-limb="1">
+                    <path
+                      d={slots.limb}
+                      fill="none"
+                      stroke={area.color}
+                      strokeWidth={slots.limbStrokeWidth * CONDUIT_LIMB_STEM_STROKE_SCALE * 1.15}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={0.12}
+                    />
+                    <path
+                      d={slots.limb}
+                      fill="none"
+                      stroke={area.color}
+                      strokeWidth={slots.limbStrokeWidth * CONDUIT_LIMB_STEM_STROKE_SCALE * 0.52}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={0.4}
+                    />
+                  </g>
+                ) : null}
 
                 {FLAGS.TREE_TRUNK_VISIBLE && forkSpec != null && isHubGatewayLayout(forkSpec) ? (
                   <g pointerEvents="none" aria-hidden data-tree-hub-trunk-filaments="1">
@@ -1453,13 +1925,18 @@ export function TreeSVG({
                   const threadSpec = forkSpec?.branches[idx];
                   const goalsOnThread = thread.goals;
                   const kFork = sortedBranchIdx.indexOf(idx);
+                  const hubFanSlot = trunkHubFanSlotIndex(area.id, idx, sortedBranchIdx);
                   const threadDcStroke = shouldDomainClusterThread(area.id, thread);
                   const domainHubPt = threadDcStroke
                     ? domainClusterHubPointFromCatalog(
                         threadCatalogFull,
-                        kFork,
+                        hubFanSlot,
                         sortedBranchIdx.length,
                         dcGatewaySpreadNormal,
+                        area.id,
+                        layoutOverrides[area.id],
+                        hubLayoutAnchors,
+                        thread.id,
                       )
                     : null;
                   const limbSegT0 = kFork <= 0 ? 0 : branchForkTs[sortedBranchIdx[kFork - 1]!]!;
@@ -1636,7 +2113,7 @@ export function TreeSVG({
                           />
                         </g>
                       ) : null}
-                      {limbSegPath ? (
+                      {limbSegPath && !threadDcStroke ? (
                         <>
                           <circle
                             cx={pathPointAtT(threadMainDraw, 0.02).x}
@@ -1668,6 +2145,8 @@ export function TreeSVG({
                           />
                         </>
                       ) : null}
+                      {!threadDcStroke ? (
+                        <>
                       <path
                         d={threadMainDraw}
                         fill="none"
@@ -1725,72 +2204,55 @@ export function TreeSVG({
                             opacity={coreOpacity}
                             pointerEvents="none"
                           />
+                        </>
+                      ) : null}
                       {threadDcStroke && domainHubPt ? (
                         <g data-tree-domain-hub="1">
-                          <g pointerEvents="none" aria-hidden>
-                          {goalsOnThread.map((g, gi) => {
-                            const gp = goalScreenPositionForLifeAreaThread(
-                              area.id,
-                              thread,
-                              threadCatalogFull,
-                              gi,
-                              g.id,
-                              kFork,
-                              sortedBranchIdx.length,
-                              goalsOnThread.length,
-                              dcGatewaySpreadNormal,
-                            );
-                            const flowSegments = domainClusterGoalFlowSegments(domainHubPt, gp, g);
-                            const familyGoalSelected =
-                              panel.type === "goal" &&
-                              panel.area.id === area.id &&
-                              goalInSubtree(g, panel.goal.id);
-                            return flowSegments.map((seg, si) => {
-                              const isEvolvedLeg = si > 0;
-                              const p0 = {
-                                x: snapTreeSvgScalar(seg.from.x),
-                                y: snapTreeSvgScalar(seg.from.y),
-                              };
-                              const p3 = {
-                                x: snapTreeSvgScalar(seg.to.x),
-                                y: snapTreeSvgScalar(seg.to.y),
-                              };
+                          {(() => {
+                            const trunkDomainHub = trunkLayoutEnabled();
+                            const hubIconPx = trunkDomainHub
+                              ? TREE_DOMAIN_HUB_GLYPH_PX_TRUNK
+                              : TREE_DOMAIN_HUB_GLYPH_PX;
+                            const hubLabelFontBase = trunkDomainHub
+                              ? TREE_DOMAIN_HUB_LABEL_FONT_PX_TRUNK
+                              : TREE_DOMAIN_HUB_LABEL_FONT_PX;
+                            const hubLabelFontPx =
+                              hubLabelFontBase * domainHubLabelFontScale(limbLabelCtx);
+                            const hubLabelOpacity = domainHubLabelOpacity(limbLabelCtx);
+                            return (
+                              <>
+                          <g pointerEvents="none" aria-hidden data-tree-domain-spokes="1">
+                            {(() => {
+                              const themeGatewayPt = themeGatewayPointForArea(
+                                area.id,
+                                forkSpec,
+                                layoutOverrides[area.id],
+                              );
                               return (
                                 <path
-                                  key={`${thread.id}:domain-spoke:${g.id}:${si}`}
-                                  d={connectiveBowPathD(p0, p3, THEME_STAR_CENTER)}
+                                  data-tree-domain-gateway-spoke="1"
+                                  d={domainClusterGatewayHubPathD(
+                                    themeGatewayPt,
+                                    domainHubPt,
+                                    area.id,
+                                    TREE_THEME_GATEWAY_ICON_PX,
+                                    hubIconPx,
+                                  )}
                                   fill="none"
                                   stroke={area.color}
-                                  strokeWidth={Math.max(
-                                    1.05,
-                                    coreStrokeW *
-                                      (familyGoalSelected
-                                        ? isEvolvedLeg
-                                          ? 0.58
-                                          : 0.48
-                                        : isEvolvedLeg
-                                          ? 0.42
-                                          : 0.36),
-                                  )}
-                                  strokeOpacity={
-                                    familyGoalSelected
-                                      ? isEvolvedLeg
-                                        ? 0.52
-                                        : 0.38
-                                      : isEvolvedLeg
-                                        ? 0.22
-                                        : 0.13
-                                  }
+                                  strokeWidth={TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX}
+                                  strokeOpacity={TREE_DOMAIN_GATEWAY_SPOKE_OPACITY}
                                   strokeLinecap="round"
+                                  vectorEffect="non-scaling-stroke"
                                 />
                               );
-                            });
-                          })}
+                            })()}
+                          </g>
+                          <g pointerEvents="none" aria-hidden>
                           {(() => {
-                            const HubGlyph = branchIconForSlot(area.id as LifeAreaId, idx);
+                            const HubGlyph = branchIconForHub(area.id as LifeAreaId, thread.type, idx);
                             const hcx = snapTreeSvgScalar(domainHubPt.x);
                             const hcy = snapTreeSvgScalar(domainHubPt.y);
-                            const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
                             const pulseDur =
                               (2.6 + 0.9 * stableRenderJitter01(`${thread.id}:dhpulse`)).toFixed(2) + "s";
                             return (
@@ -1801,67 +2263,84 @@ export function TreeSVG({
                                 artworkSpanPx={hubIconPx}
                                 tier="domainHub"
                               >
-                                <g opacity={0.92}>
+                                <g opacity={trunkDomainHub ? 0.84 : 0.92}>
+                                  {trunkDomainHub ? null : (
                                   <animate
                                     attributeName="opacity"
                                     values="0.82;1;0.82"
                                     dur={pulseDur}
                                     repeatCount="indefinite"
                                   />
-                                  <HubGlyph size={hubIconPx} color={area.color} opacity={1} />
+                                  )}
+                                  <HubGlyph
+                                    size={hubIconPx}
+                                    color={area.color}
+                                    opacity={trunkDomainHub ? 0.92 : 1}
+                                  />
                                 </g>
                               </TreeIconMedallion>
                             );
                           })()}
                           {(() => {
+                            if (hubLabelOpacity < 0.04) return null;
                             const rawTitle = thread.type.trim() || "Domain";
-                            const domainTitle =
-                              rawTitle.length > 28 ? `${rawTitle.slice(0, 26)}…` : rawTitle;
-                            const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
+                            const domainTitle = rawTitle;
                             const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
                             const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
-                            const fontSizePx = TREE_DOMAIN_HUB_LABEL_FONT_PX;
-                            const gyText =
-                              domainHubPt.y + hubDiscR + labelGapPx + fontSizePx * 0.5;
+                            const labelPos = domainHubLabelLayout(
+                              area.id as LifeAreaId,
+                              domainHubPt,
+                              hubFanSlot,
+                              hubDiscR,
+                              labelGapPx,
+                              hubLabelFontPx,
+                            );
                             return (
-                              <text
-                                x={snapTreeSvgScalar(domainHubPt.x)}
-                                y={snapTreeSvgScalar(gyText)}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                fontSize={fontSizePx}
-                                fontWeight={800}
-                                fill={area.color}
-                                fillOpacity={0.98}
-                                stroke="#0C0A09"
-                                strokeWidth={1.4}
-                                paintOrder="stroke fill"
-                                style={{
-                                  fontFamily: "ui-sans-serif, system-ui, sans-serif",
-                                  letterSpacing: "0.03em",
-                                }}
-                              >
-                                {domainTitle}
-                              </text>
+                              <g pointerEvents="none">
+                                <title>{rawTitle}</title>
+                                <TreeSvgTextLabel
+                                  x={labelPos.x}
+                                  y={labelPos.y}
+                                  text={domainTitle}
+                                  color={area.color}
+                                  ink={treeMapLimbHueReadableInk(area.color)}
+                                  fontSize={hubLabelFontPx}
+                                  fontWeight={700}
+                                  textAnchor={labelPos.textAnchor}
+                                  dominantBaseline={labelPos.dominantBaseline}
+                                  opacity={hubLabelOpacity}
+                                  maxLines={2}
+                                  maxWidthPx={hubLabelFontPx * 11}
+                                  letterSpacing="0.04em"
+                                />
+                              </g>
                             );
                           })()}
                           </g>
                           {(() => {
-                            const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX;
                             const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
                             const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
-                            const fontSizePx = TREE_DOMAIN_HUB_LABEL_FONT_PX;
-                            const gyText =
-                              domainHubPt.y + hubDiscR + labelGapPx + fontSizePx * 0.5;
+                            const labelPos = domainHubLabelLayout(
+                              area.id as LifeAreaId,
+                              domainHubPt,
+                              hubFanSlot,
+                              hubDiscR,
+                              labelGapPx,
+                              hubLabelFontPx,
+                            );
                             const hitW = hubDiscR * 2 + 24;
-                            const hitTop = domainHubPt.y - hubDiscR - 10;
-                            const hitH = gyText - hitTop + fontSizePx * 0.5 + 10;
+                            const labelH = hubLabelFontPx * 2.65;
+                            const hitTop = Math.min(domainHubPt.y - hubDiscR - 10, labelPos.y - 4);
+                            const hitBot = Math.max(
+                              domainHubPt.y + hubDiscR + 10,
+                              labelPos.y + labelH + 6,
+                            );
                             return (
                               <rect
                                 x={domainHubPt.x - hitW / 2}
                                 y={hitTop}
                                 width={hitW}
-                                height={hitH}
+                                height={hitBot - hitTop}
                                 fill="transparent"
                                 style={{ cursor: "pointer" }}
                                 onClick={(e) => {
@@ -1870,6 +2349,9 @@ export function TreeSVG({
                                   onHubClick(area, thread);
                                 }}
                               />
+                            );
+                          })()}
+                              </>
                             );
                           })()}
                         </g>
@@ -1882,7 +2364,6 @@ export function TreeSVG({
                     thread,
                     idx,
                     threadSlot,
-                    threadLineOpacity,
                     threadForTree,
                     threadMainDraw,
                     threadCatalogFull,
@@ -1894,35 +2375,28 @@ export function TreeSVG({
                   const goalsOnThread = thread.goals;
 
                   const kFork = sortedBranchIdx.indexOf(idx);
+                  const hubFanSlot = trunkHubFanSlotIndex(area.id, idx, sortedBranchIdx);
                   const threadDcForGoals = shouldDomainClusterThread(area.id, thread);
                   const domainHubPt = threadDcForGoals
                     ? domainClusterHubPointFromCatalog(
                         threadCatalogFull,
-                        kFork,
+                        hubFanSlot,
                         sortedBranchIdx.length,
                         dcGatewaySpreadNormal,
+                        area.id,
+                        layoutOverrides[area.id],
+                        hubLayoutAnchors,
+                        thread.id,
                       )
                     : null;
-                  const depthVit = branchIndexDepthRenderingMul(kFork, sortedBranchIdx.length);
-                  const vitMatDecor = conduitVitalityMaterialFactors(undefined);
-                  const occMatDecor = canopyOccupancyRhythmMaterialMul(undefined);
-                  const strokeMulDecor =
-                    depthVit.strokeWidthMul * vitMatDecor.strokeWidthMul * occMatDecor.strokeWidthMul;
-                  const longWVit = branchLongitudinalWidthSampleAvg01(
-                    `${thread.id}:vit`,
-                    vitMatDecor.longitudinalWaveAmpMul,
+                  const decorDcChain = domainClusterMomentChainCtx(
+                    area.id,
+                    row,
+                    sortedBranchIdx,
+                    dcGatewaySpreadNormal,
+                    layoutOverrides[area.id],
+                    hubLayoutAnchors,
                   );
-                  const widthConstVit = branchMidRunConstrictionWidthMul(
-                    thread.id,
-                    thread.moments.length,
-                    goalsOnThread.length,
-                  );
-                  const vitStrokeBase =
-                    threadSlot.strokeWidth *
-                    strokeMulDecor *
-                    longWVit *
-                    (0.97 + 0.06 * stableRenderJitter01(`${thread.id}:vsw`)) *
-                    widthConstVit;
                   return (
                     <g key={`${thread.id}::decor`}>
                       {TREE_THREAD_LABELS_ENABLED
@@ -1968,7 +2442,7 @@ export function TreeSVG({
                             /** Flip normal by branch index so neighbors sit on opposite sides. */
                             const side = labelSlotIdx % 2 === 0 ? 1 : -1;
                             const raw = thread.type.trim() || "Branch";
-                            const label = raw.length > 34 ? `${raw.slice(0, 32)}…` : raw;
+                            const label = raw;
 
                             const pt = pathPointAtT(labelPath, ltClamped);
                             const t0 = pathPointAtT(labelPath, Math.max(0, ltClamped - dt));
@@ -1989,37 +2463,21 @@ export function TreeSVG({
                                     ? "start"
                                     : "middle"
                                 : "middle";
+                            const threadLabelOpacity = threadPathLabelOpacity(limbLabelCtx);
+                            if (threadLabelOpacity < 0.04) return null;
                             return (
-                              <text
+                              <TreeSvgTextLabel
                                 data-tree-export-skip="1"
                                 x={lx}
                                 y={ly}
-                                textAnchor={textAnchor}
-                                dominantBaseline="middle"
+                                text={label}
+                                color={area.color}
+                                ink={treeMapLimbHueReadableInk(area.color)}
                                 fontSize={TREE_THREAD_PATH_LABEL_FONT_PX}
-                                fontWeight={600}
-                                fill={area.color}
-                                fillOpacity={0.92}
-                                stroke="#0C0A09"
-                                strokeWidth={0.45}
-                                paintOrder="stroke fill"
-                                pointerEvents={FLAGS.FOCUS_MODE ? "visiblePainted" : "none"}
-                                style={{
-                                  fontFamily: "ui-sans-serif, system-ui, sans-serif",
-                                  cursor: FLAGS.FOCUS_MODE ? "pointer" : undefined,
-                                }}
-                                onClick={
-                                  FLAGS.FOCUS_MODE
-                                    ? (e) => {
-                                        e.stopPropagation();
-                                        if (panMoved.current) return;
-                                        onToggleLimbFocus(area.id);
-                                      }
-                                    : undefined
-                                }
-                              >
-                                {label}
-                              </text>
+                                textAnchor={textAnchor}
+                                opacity={threadLabelOpacity}
+                                pointerEvents="none"
+                              />
                             );
                           })()
                         : null}
@@ -2050,114 +2508,73 @@ export function TreeSVG({
                       ) : null}
 
                       {TREE_THREAD_MARKER_VISUALS_ENABLED && goalsOnThread.length > 0
-                        ? goalsOnThread.map((g, gi) => {
+                        ? (() => {
+                            const goalsById = flattenGoalsById(goalsOnThread);
+                            return goalsOnThread.map((g, gi) => {
                             const threadDc = shouldDomainClusterThread(area.id, thread);
+                            const ringGoalCount = threadDc
+                              ? domainClusterGoalRingGoalCount(thread)
+                              : goalsOnThread.length;
+                            const ringGi = threadDc
+                              ? domainClusterGoalRingSlotIndex(thread, g.id)
+                              : gi;
                             const pos = goalScreenPositionForLifeAreaThread(
                               area.id,
                               thread,
                               threadCatalogFull,
-                              gi,
+                              ringGi,
                               g.id,
-                              kFork,
+                              hubFanSlot,
                               sortedBranchIdx.length,
-                              goalsOnThread.length,
+                              ringGoalCount,
                               dcGatewaySpreadNormal,
+                              layoutOverrides[area.id],
+                              hubLayoutAnchors,
+                              thread.id,
                             );
-                            const tc = rootGoalCatalogT(gi);
                             const tangOut = goalMarkerTangentOutForPlacement(
                               threadDc,
                               threadCatalogFull,
-                              gi,
+                              ringGi,
                               pos,
-                              kFork,
+                              hubFanSlot,
                               sortedBranchIdx.length,
                               dcGatewaySpreadNormal,
+                              area.id,
+                              layoutOverrides[area.id],
+                              hubLayoutAnchors,
+                              thread.id,
                             );
                             const hexRotationRad = goalHexRotationRadFromTangentOut(tangOut);
-                            const threadSpec = forkSpec?.branches[idx];
-                            const orbitalDerived = FLAGS.GOAL_MILESTONES
-                              ? deriveGoalNodeRenderState({
-                                  bloomStatus: g.bloomStatus,
-                                  orbitalMilestones: g.orbitalMilestones ?? [],
-                                })
-                              : null;
-                            const branchVitality =
-                              orbitalDerived != null
-                                ? deriveGoalBranchVitalityStroke(g.id, orbitalDerived)
-                                : null;
-                            const goalVitalityAuthorityMul = authorityRenderFactors(
-                              deriveGoalVisualAuthoritySpec({
-                                goal: g,
-                                depth: 0,
-                                subtreeSize: countGoalSubtreeNodes(g),
-                                areaId: area.id,
-                              }).authorityMul,
-                            ).branchVitalityAuthorityMul;
-                            const tcVitStart =
-                              branchVitality != null ? Math.max(0.022, tc - branchVitality.deltaT) : tc;
-                            const tcVitMid =
-                              branchVitality != null ? tcVitStart + (tc - tcVitStart) * 0.42 : tc;
-                            const vitalityPathFar =
-                              branchVitality != null &&
-                              !threadDc &&
-                              tcVitMid > tcVitStart + 1e-6
-                                ? threadCatalogPathBetweenGlobalT(
-                                    threadSpec,
-                                    threadSlot.path,
-                                    tcVitStart,
-                                    tcVitMid,
-                                  )
-                                : "";
-                            const vitalityPathNear =
-                              branchVitality != null && !threadDc && tc > tcVitMid + 1e-6
-                                ? threadCatalogPathBetweenGlobalT(threadSpec, threadSlot.path, tcVitMid, tc)
-                                : "";
-                            const vQ = treeRenderQuality.branchVitalityMul;
-                            const vitOpFar =
-                              branchVitality != null
-                                ? Math.min(
-                                    0.78,
-                                    (threadLineOpacity +
-                                      branchVitality.opacityBoost *
-                                        0.55 *
-                                        vQ *
-                                        goalVitalityAuthorityMul) *
-                                      occMatDecor.lineOpacityMul,
-                                  )
-                                : threadLineOpacity * occMatDecor.lineOpacityMul;
-                            const vitOpNear =
-                              branchVitality != null
-                                ? Math.min(
-                                    0.86,
-                                    (threadLineOpacity +
-                                      branchVitality.opacityBoost * vQ * goalVitalityAuthorityMul) *
-                                      occMatDecor.lineOpacityMul,
-                                  )
-                                : threadLineOpacity * occMatDecor.lineOpacityMul;
                             return (
                               <g key={g.id}>
-                                {branchVitality && vitalityPathFar ? (
-                                  <path
-                                    d={vitalityPathFar}
-                                    fill="none"
-                                    stroke={area.color}
-                                    strokeWidth={vitStrokeBase}
-                                    strokeLinecap="round"
-                                    opacity={vitOpFar}
-                                    pointerEvents="none"
-                                  />
-                                ) : null}
-                                {branchVitality && vitalityPathNear ? (
-                                  <path
-                                    d={vitalityPathNear}
-                                    fill="none"
-                                    stroke={area.color}
-                                    strokeWidth={vitStrokeBase * 0.86}
-                                    strokeLinecap="round"
-                                    opacity={vitOpNear}
-                                    pointerEvents="none"
-                                  />
-                                ) : null}
+                                {threadDc && domainHubPt
+                                  ? domainClusterGoalFlowSegments(domainHubPt, pos, g).map(
+                                      (seg, si) => (
+                                        <path
+                                          key={`domain-spoke-goal-${g.id}-${si}`}
+                                          data-tree-domain-spoke="1"
+                                          d={domainClusterFlowSegmentPathD(
+                                            seg.from,
+                                            seg.to,
+                                            area.id,
+                                            snapTreeSvgScalar,
+                                          )}
+                                          fill="none"
+                                          stroke={area.color}
+                                          strokeWidth={pursuitConnectorStrokeWidth(
+                                            goalPursuitDepth(seg.targetGoalId, goalsById),
+                                          )}
+                                          strokeOpacity={0.5}
+                                          strokeLinecap="round"
+                                          vectorEffect="non-scaling-stroke"
+                                          pointerEvents="none"
+                                          aria-hidden
+                                        />
+                                      ),
+                                    )
+                                  : null}
+                                {/* Pursuit hex + orbital dots only (relational milestones). Marks never render here. */}
                                 {renderGoalsSubtree(
                                   g,
                                   pos,
@@ -2174,150 +2591,123 @@ export function TreeSVG({
                                   zoomRatio,
                                   treeRenderQuality,
                                   domainHubPt,
+                                  limbLabelCtx,
+                                  goalsById,
+                                  editMapMode,
+                                  handleEditGoalPointerDown,
+                                  editDraggedGoalId,
                                 )}
                               </g>
                             );
-                          })
+                          });
+                          })()
                         : null}
 
-                      {TREE_THREAD_MARKER_VISUALS_ENABLED && showMarksByZoom
+                      {/* Marks: sequenced beside the branch ray (diamond + label); pursuits use hex on the ray. */}
+                      {TREE_THREAD_MARKER_VISUALS_ENABLED
                         ? threadForTree.moments.map((moment, momentIdx) => {
-                        const isSelected = selectedMomentId === moment.id;
-                        const isGrowing = moment.bloomStatus === "GROWING" || moment.future;
-                        const isEnded = moment.bloomStatus === "ENDED";
-                        const isFlower = moment.isTurningPoint && moment.bloomStatus === "BLOOMED";
-                        const r = nodeRadius(moment.significance);
+                            if (moment.synthetic === true) return null;
+                            const momentLayoutCtx: DomainClusterMomentChainContext =
+                              decorDcChain ?? {
+                                catalogFullPath: threadCatalogFull,
+                                kFork,
+                                branchCountOnLimb: sortedBranchIdx.length,
+                                goalsOnThread,
+                                domainClusterGatewaySpreadNormal: dcGatewaySpreadNormal,
+                                layoutOv: layoutOverrides[area.id],
+                                layoutAnchors: hubLayoutAnchors,
+                                branchId: thread.id,
+                              };
 
-                        const pos = resolvedChainMomentPos(
-                          area.id,
-                          idx,
-                          threadForTree,
-                          momentIdx,
-                          threadCatalogFull,
-                          layoutOverrides[area.id]?.momentPositions,
-                          momentChordTEnd,
-                        );
-                        const sx = snapTreeSvgScalar(pos.x);
-                        const sy = snapTreeSvgScalar(pos.y);
-                        /** Timeline stops on the stroke — dots only (branch slot icons belong on goals, not along the thread). */
-                        const momentDotR = Math.max(2.4, Math.min(r * 0.4, 4.2));
-                        const renderMomentMark = (opacity: number) => (
-                          <g transform={`translate(${sx},${sy})`} pointerEvents="none">
-                            <circle cx={0} cy={0} r={momentDotR} fill={area.color} opacity={opacity} />
-                          </g>
-                        );
+                            const pos = resolvedChainMomentPos(
+                              area.id,
+                              idx,
+                              threadForTree,
+                              momentIdx,
+                              threadCatalogFull,
+                              layoutOverrides[area.id]?.momentPositions,
+                              momentChordTEnd,
+                              threadMainDraw,
+                              momentLayoutCtx,
+                            );
+                            const sx = snapTreeSvgScalar(pos.x);
+                            const sy = snapTreeSvgScalar(pos.y);
 
-                        return (
-                          <g
-                            key={moment.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (panMoved.current) return;
-                              onMomentClick(moment, area);
-                            }}
-                            style={{ cursor: "pointer" }}
-                          >
-                            {showElementGuide && momentIdx === 0 ? (
-                              <g data-tree-export-skip="1" pointerEvents="none">
-                                <TreeElementGuideTag x={sx} y={sy + r + 14} text="timeline-moment" />
-                              </g>
-                            ) : null}
-                            <g>
-                              {isFlower ? (
-                                <>
-                                  {[0, 1, 2, 3, 4, 5].map((i) => {
-                                    const angle = (i / 6) * Math.PI * 2;
-                                    const px = sx + Math.cos(angle) * 9;
-                                    const py = sy + Math.sin(angle) * 9;
-                                    return (
-                                      <ellipse
-                                        key={`${moment.id}-petal-${i}`}
-                                        cx={px}
-                                        cy={py}
-                                        rx={2.8}
-                                        ry={7}
-                                        transform={`rotate(${(angle * 180) / Math.PI + 90},${px},${py})`}
-                                        fill={area.color}
-                                        opacity={0.9}
-                                        pointerEvents="none"
-                                      />
-                                    );
-                                  })}
-                                  <circle cx={sx} cy={sy} r={5} fill="#FAC775" pointerEvents="none" />
-                                  <circle cx={sx} cy={sy} r={2.5} fill="#EF9F27" pointerEvents="none" />
-                                </>
-                              ) : isEnded ? (
-                                <>
-                                  <circle cx={sx} cy={sy} r={r} fill="#181412" opacity={0.85} pointerEvents="none" />
-                                  {renderMomentMark(0.9)}
-                                  <line x1={sx - 5} y1={sy - 5} x2={sx + 5} y2={sy + 5} stroke={area.color} strokeWidth={1.8} opacity={0.45} />
-                                  <line x1={sx + 5} y1={sy - 5} x2={sx - 5} y2={sy + 5} stroke={area.color} strokeWidth={1.8} opacity={0.45} />
-                                </>
-                              ) : isGrowing ? (
-                                <>
+                            return (
+                              <g key={moment.id}>
+                                {showElementGuide && momentIdx === 0 ? (
+                                  <g data-tree-export-skip="1" pointerEvents="none">
+                                    <TreeElementGuideTag
+                                      x={sx}
+                                      y={sy + MARK_DIAMOND_HALF_PX + 14}
+                                      text="timeline-mark"
+                                    />
+                                  </g>
+                                ) : null}
+                                <TreeMarkNode
+                                  moment={moment}
+                                  area={area}
+                                  x={pos.x}
+                                  y={pos.y}
+                                  isSelected={selectedMomentId === moment.id}
+                                  panMoved={panMoved}
+                                  onMarkClick={onMarkClick}
+                                  onMarkPointerEnter={onMarkPointerEnter}
+                                  onMarkPointerLeave={onMarkPointerLeave}
+                                />
+                                {TREE_LAYOUT_EDIT_ENABLED && layoutEditByAreaId[area.id] ? (
                                   <circle
+                                    data-layout-edit-handle="1"
                                     cx={sx}
                                     cy={sy}
-                                    r={r + 4}
-                                    fill="none"
-                                    stroke={area.color}
-                                    strokeWidth={1.2}
-                                    opacity={0.4}
-                                    className="pulse-ring"
+                                    r={MARK_DIAMOND_HALF_PX + 12}
+                                    fill="rgba(34,211,238,0.06)"
+                                    stroke="#22D3EE"
+                                    strokeWidth={1.5}
+                                    style={{ cursor: "grab", touchAction: "none" }}
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      layoutDragRef.current = {
+                                        kind: "moment",
+                                        areaId: area.id,
+                                        momentId: moment.id,
+                                        pointerId: e.pointerId,
+                                        startClientX: e.clientX,
+                                        startClientY: e.clientY,
+                                      };
+                                      e.currentTarget.setPointerCapture(e.pointerId);
+                                    }}
+                                    onPointerMove={(e) => {
+                                      const drag = layoutDragRef.current;
+                                      if (
+                                        !drag ||
+                                        drag.kind !== "moment" ||
+                                        drag.areaId !== area.id ||
+                                        drag.momentId !== moment.id ||
+                                        drag.pointerId !== e.pointerId ||
+                                        !svgRef.current
+                                      ) {
+                                        return;
+                                      }
+                                      if (!hasCrossedLayoutDragThreshold(drag, e.clientX, e.clientY)) return;
+                                      const worldPt = clientToWorldSvg(
+                                        svgRef.current,
+                                        e.clientX,
+                                        e.clientY,
+                                        viewWidth,
+                                        viewHeight,
+                                        transform,
+                                      );
+                                      patchMomentLayout(area.id, moment.id, worldPt);
+                                    }}
+                                    onPointerUp={releaseLayoutPointer}
+                                    onPointerCancel={releaseLayoutPointer}
                                   />
-                                  {renderMomentMark(0.72)}
-                                </>
-                              ) : (
-                                renderMomentMark(0.82)
-                              )}
-                            </g>
-                            {isSelected ? <circle cx={sx} cy={sy} r={11} fill="none" stroke="#D1CEC4" strokeWidth={1} opacity={0.22} /> : null}
-                            {TREE_LAYOUT_EDIT_ENABLED && layoutEditByAreaId[area.id] ? (
-                              <circle
-                                data-layout-edit-handle="1"
-                                cx={sx}
-                                cy={sy}
-                                r={Math.max(r + 10, 14)}
-                                fill="rgba(34,211,238,0.06)"
-                                stroke="#22D3EE"
-                                strokeWidth={1.5}
-                                style={{ cursor: "grab", touchAction: "none" }}
-                                onPointerDown={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  layoutDragRef.current = {
-                                    kind: "moment",
-                                    areaId: area.id,
-                                    momentId: moment.id,
-                                    pointerId: e.pointerId,
-                                    startClientX: e.clientX,
-                                    startClientY: e.clientY,
-                                  };
-                                  e.currentTarget.setPointerCapture(e.pointerId);
-                                }}
-                                onPointerMove={(e) => {
-                                  const drag = layoutDragRef.current;
-                                  if (
-                                    !drag ||
-                                    drag.kind !== "moment" ||
-                                    drag.areaId !== area.id ||
-                                    drag.momentId !== moment.id ||
-                                    drag.pointerId !== e.pointerId ||
-                                    !svgRef.current
-                                  ) {
-                                    return;
-                                  }
-                                  if (!hasCrossedLayoutDragThreshold(drag, e.clientX, e.clientY)) return;
-                                  const worldPt = clientToWorldSvg(svgRef.current, e.clientX, e.clientY, viewWidth, viewHeight, transform);
-                                  patchMomentLayout(area.id, moment.id, worldPt);
-                                }}
-                                onPointerUp={releaseLayoutPointer}
-                                onPointerCancel={releaseLayoutPointer}
-                              />
-                            ) : null}
-                          </g>
-                        );
-                      })
+                                ) : null}
+                              </g>
+                            );
+                          })
                         : null}
                     </g>
                   );
@@ -2325,7 +2715,7 @@ export function TreeSVG({
 
                 {limbFocusPulseActive ? (
                   <g data-tree-focus-path-pulse="1" pointerEvents="none" aria-hidden>
-                    {forkSpec != null && isHubGatewayLayout(forkSpec) ? (
+                    {forkSpec != null && isHubGatewayLayout(forkSpec) && !goalPanelPulseGoalId ? (
                       <TreeFocusPathPulse
                         d={polylinePathApproxBetweenT(slots.limb, 0.52, 1, 14)}
                         color={area.color}
@@ -2338,8 +2728,8 @@ export function TreeSVG({
                       />
                     ) : null}
                     {branchLayoutRows.flatMap((row, pulseIdx) => {
-                      const { thread, idx, threadMainDraw, threadCatalogFull, threadDomainCluster } = row;
-                      const kFork = sortedBranchIdx.indexOf(idx);
+                      const { thread, idx, threadMainDraw, threadDomainCluster, threadCatalogFull } =
+                        row;
                       const goalsOnThread = thread.goals;
                       const goalPanelOnly =
                         goalPanelPulseGoalId != null && focusedLimbId !== area.id;
@@ -2347,18 +2737,85 @@ export function TreeSVG({
                         goalPanelPulseGoalId != null &&
                         threadContainsGoal(goalsOnThread, goalPanelPulseGoalId);
                       if (goalPanelOnly && !threadHasGoalPanelTarget) return [];
-                      const domainHubPt = threadDomainCluster
-                        ? domainClusterHubPointFromCatalog(
-                            threadCatalogFull,
-                            kFork,
-                            sortedBranchIdx.length,
-                            dcGatewaySpreadNormal,
-                          )
-                        : null;
                       const phaseBase = pulseIdx * 0.24;
                       const threadDur = 2.3 + stableRenderJitter01(`${thread.id}:focus-pulse`) * 0.55;
                       const limbWidePulse = focusedLimbId === area.id;
-                      const pulses = [
+                      const kFork = sortedBranchIdx.indexOf(idx);
+                      const hubFanSlot = trunkHubFanSlotIndex(area.id, idx, sortedBranchIdx);
+
+                      if (threadDomainCluster) {
+                        const domainHubPt = domainClusterHubPointFromCatalog(
+                          threadCatalogFull,
+                          hubFanSlot,
+                          sortedBranchIdx.length,
+                          dcGatewaySpreadNormal,
+                          area.id,
+                          layoutOverrides[area.id],
+                          hubLayoutAnchors,
+                          thread.id,
+                        );
+                        const themeGatewayPt = themeGatewayPointForArea(
+                          area.id,
+                          forkSpec,
+                          layoutOverrides[area.id],
+                        );
+                        const pulses = [
+                          <TreeFocusPathPulse
+                            key={`${thread.id}:focus-gateway-hub`}
+                            d={domainClusterGatewayHubPathD(
+                              themeGatewayPt,
+                              domainHubPt,
+                              area.id,
+                              TREE_THEME_GATEWAY_ICON_PX,
+                              trunkLayoutEnabled()
+                                ? TREE_DOMAIN_HUB_GLYPH_PX_TRUNK
+                                : TREE_DOMAIN_HUB_GLYPH_PX,
+                            )}
+                            color={area.color}
+                            strokeWidth={limbWidePulse ? 2.2 : 2}
+                            phaseSec={phaseBase}
+                            durSec={threadDur}
+                            opacity={limbWidePulse ? 0.58 : 0.64}
+                          />,
+                        ];
+                        goalsOnThread.forEach((g) => {
+                          if (goalPanelOnly && !goalInSubtree(g, goalPanelPulseGoalId!)) return;
+                          const ringN = domainClusterGoalRingGoalCount(thread);
+                          const ringGi = domainClusterGoalRingSlotIndex(thread, g.id);
+                          const gp = goalScreenPositionForLifeAreaThread(
+                            area.id,
+                            thread,
+                            threadCatalogFull,
+                            ringGi,
+                            g.id,
+                            hubFanSlot,
+                            sortedBranchIdx.length,
+                            ringN,
+                            dcGatewaySpreadNormal,
+                            layoutOverrides[area.id],
+                            hubLayoutAnchors,
+                            thread.id,
+                          );
+                          domainClusterGoalFlowSegments(domainHubPt, gp, g).forEach(
+                            (seg, si) => {
+                              pulses.push(
+                                <TreeFocusPathPulse
+                                  key={`${thread.id}:focus-spoke-${g.id}-${si}`}
+                                  d={domainClusterFlowSegmentPathD(seg.from, seg.to, area.id)}
+                                  color={area.color}
+                                  strokeWidth={limbWidePulse ? 2.15 : 1.95}
+                                  phaseSec={phaseBase + 0.14 + si * 0.08}
+                                  durSec={threadDur}
+                                  opacity={limbWidePulse ? 0.56 : 0.62}
+                                />,
+                              );
+                            },
+                          );
+                        });
+                        return pulses;
+                      }
+
+                      return [
                         <TreeFocusPathPulse
                           key={`${thread.id}:focus-thread`}
                           d={threadMainDraw}
@@ -2369,63 +2826,6 @@ export function TreeSVG({
                           opacity={limbWidePulse ? 0.56 : 0.62}
                         />,
                       ];
-                      if (threadDomainCluster && domainHubPt) {
-                        goalsOnThread.forEach((g, gi) => {
-                          if (goalPanelOnly && !goalInSubtree(g, goalPanelPulseGoalId!)) return;
-                          const gp = goalScreenPositionForLifeAreaThread(
-                            area.id,
-                            thread,
-                            threadCatalogFull,
-                            gi,
-                            g.id,
-                            kFork,
-                            sortedBranchIdx.length,
-                            goalsOnThread.length,
-                            dcGatewaySpreadNormal,
-                          );
-                          const flowSegments = domainClusterGoalFlowSegments(domainHubPt, gp, g);
-                          flowSegments.forEach((seg, si) => {
-                            const spokeD = connectiveBowPathD(seg.from, seg.to, THEME_STAR_CENTER);
-                            const goalSelected =
-                              goalPanelPulseGoalId != null &&
-                              goalInSubtree(g, goalPanelPulseGoalId);
-                            const evolvedLeg = si > 0;
-                            pulses.push(
-                              <TreeFocusPathPulse
-                                key={`${thread.id}:focus-spoke:${g.id}:${si}`}
-                                d={spokeD}
-                                color={area.color}
-                                strokeWidth={
-                                  goalSelected
-                                    ? evolvedLeg
-                                      ? 2.65
-                                      : 2.9
-                                    : evolvedLeg
-                                      ? limbWidePulse
-                                        ? 1.85
-                                        : 2.05
-                                      : limbWidePulse
-                                        ? 2.05
-                                        : 2.35
-                                }
-                                phaseSec={phaseBase + 0.42 + gi * 0.11 + si * 0.07}
-                                durSec={2.05 + stableRenderJitter01(`${g.id}:focus-pulse:${si}`) * 0.4}
-                                opacity={
-                                  goalSelected
-                                    ? evolvedLeg
-                                      ? 0.78
-                                      : 0.82
-                                    : limbWidePulse
-                                      ? 0.5
-                                      : 0.68
-                                }
-                                dashPx={goalSelected || !limbWidePulse ? 18 : 14}
-                              />,
-                            );
-                          });
-                        });
-                      }
-                      return pulses;
                     })}
                   </g>
                 ) : null}
@@ -2459,10 +2859,10 @@ export function TreeSVG({
                     hitX1 = clusterHit.x1;
                     hitY1 = clusterHit.y1;
                   }
-                  const onLimbLabelRowClick = (e: MouseEvent<SVGGElement>) => {
+                  const onLimbLabelRowClick = (e: MouseEvent<SVGElement>) => {
                     e.stopPropagation();
                     if (panMoved.current) return;
-                    // Hub theme gateway opens the detail rail; focus-mode dimming stays on limb hull / stem.
+                    // Theme gateway / icon opens the theme panel; icon-only focus toggle when focus mode is on.
                     if (clusterHit && gatewayPt) {
                       onAreaClick(area);
                       return;
@@ -2473,12 +2873,13 @@ export function TreeSVG({
                       onAreaClick(area);
                     }
                   };
+                  const limbIconHitR =
+                    normalizedLimbIconSize(area.id as LifeAreaId, TREE_LIMB_ICON_SIZE_PX) * 0.55 + 14;
                   return (
                     <g
                       data-tree-limb-label-row="1"
                       data-tree-theme-cluster={clusterHit ? "1" : undefined}
                       style={{ cursor: "pointer" }}
-                      onClick={onLimbLabelRowClick}
                     >
                       <rect
                         x={hitX0}
@@ -2486,10 +2887,20 @@ export function TreeSVG({
                         width={Math.max(1, hitX1 - hitX0)}
                         height={Math.max(1, hitY1 - hitY0)}
                         fill="transparent"
-                        pointerEvents="all"
+                        pointerEvents="none"
+                        aria-hidden
                       />
                       {clusterHit && gatewayPt ? (
                         <g data-tree-gateway-node="1">
+                          <circle
+                            cx={snapTreeSvgScalar(gatewayPt.x)}
+                            cy={snapTreeSvgScalar(gatewayPt.y)}
+                            r={themeMedallion!.discR + 8}
+                            fill="transparent"
+                            pointerEvents="all"
+                            style={{ cursor: "pointer" }}
+                            onClick={onLimbLabelRowClick}
+                          />
                           <TreeIconMedallion
                             cx={snapTreeSvgScalar(gatewayPt.x)}
                             cy={snapTreeSvgScalar(gatewayPt.y)}
@@ -2505,34 +2916,46 @@ export function TreeSVG({
                           </TreeIconMedallion>
                         </g>
                       ) : (
-                        <g data-tree-limb-label-icon="1" pointerEvents="none">
-                          <g transform={`translate(${icx},${icy})`}>
-                            <LimbIc
-                              size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_LIMB_ICON_SIZE_PX)}
-                              color={area.color}
-                              opacity={0.92}
-                            />
+                        <>
+                          <circle
+                            cx={icx}
+                            cy={icy}
+                            r={limbIconHitR}
+                            fill="transparent"
+                            pointerEvents="all"
+                            style={{ cursor: "pointer" }}
+                            onClick={onLimbLabelRowClick}
+                          />
+                          <g data-tree-limb-label-icon="1" pointerEvents="none">
+                            <g transform={`translate(${icx},${icy})`}>
+                              <LimbIc
+                                size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_LIMB_ICON_SIZE_PX)}
+                                color={area.color}
+                                opacity={0.92}
+                              />
+                            </g>
                           </g>
-                        </g>
+                        </>
                       )}
-                      <text
+                      <TreeSvgTextLabel
                         x={lifeAreaLabel.x}
                         y={lifeAreaLabel.y}
-                        textAnchor={lifeAreaLabel.textAnchor}
-                        dominantBaseline="middle"
+                        text={
+                          TREE_THEME_SHORT_LABEL[area.id as LifeAreaId] ?? area.label
+                        }
+                        color={area.color}
+                        ink={treeMapLimbHueReadableInk(area.color)}
                         fontSize={TREE_LIFE_AREA_TITLE_FONT_PX}
-                        fontWeight={700}
-                        letterSpacing=".04em"
-                        fill={area.color}
-                        fillOpacity={1}
-                        stroke="#0A0908"
-                        strokeWidth={4.5}
-                        strokeLinejoin="round"
-                        paintOrder="stroke fill"
-                        pointerEvents="none"
-                      >
-                        {area.label}
-                      </text>
+                        fontWeight={500}
+                        fontFamily={TREE_THEME_CANVAS_SERIF}
+                        fontStyle="italic"
+                        textAnchor={lifeAreaLabel.textAnchor}
+                        opacity={lifeAreaTitleOpacity(limbLabelCtx)}
+                        letterSpacing="0.005em"
+                        pill={trunkLayoutEnabled()}
+                        pointerEvents="visiblePainted"
+                        onClick={onLimbLabelRowClick}
+                      />
                     </g>
                   );
                 })()}
@@ -2549,6 +2972,18 @@ export function TreeSVG({
               </g>
             );
           })}
+          {previewAreas && previewAreas.length > 0 ? (
+            <StreamPreviewMarkersLayer
+              previewAreas={previewAreas}
+              allAreasForForkGeometry={allAreasForForkGeometry}
+              resolvedForks={resolvedForks}
+              layoutOverrides={layoutOverrides}
+              panel={panel}
+              bloomPlayingIds={bloomPlayingIds}
+              zoomRatio={zoomRatio}
+              onGoalClick={onGoalClick}
+            />
+          ) : null}
           <rect
             x={0}
             y={0}
@@ -2668,6 +3103,10 @@ export function TreeSVG({
                 if (!layoutEditByAreaId[area.id]) return [];
                 const fs = resolvedForks[area.id];
                 if (!fs) return [];
+                const hubLayoutAnchors = {
+                  trunkAttach: fs.trunkAttach,
+                  gateway: fs.limbTip,
+                };
                 const limbTipPt = limbStrokeEndPoint(fs);
                 const limbC2 = areaForkStemFirstC2(fs);
                 const limbNodes = [
@@ -2740,6 +3179,79 @@ export function TreeSVG({
                     </g>,
                   );
                 }
+                const areaLayoutOv = layoutOverrides[area.id];
+                const dcSpread = domainClusterGatewaySpreadNormalForForkSpec(fs);
+                const sortedBranchIdxForEdit = area.branches
+                  .map((_, i) => i)
+                  .sort((a, b) => compareBranchIndicesForStemOrder(fs, a, b));
+                const hubDragNodes = area.branches.flatMap((thread, ti) => {
+                  if (!shouldDomainClusterThread(area.id, thread)) return [];
+                  const thSpec = fs.branches[ti];
+                  if (!thSpec) return [];
+                  const hubFanSlot = trunkHubFanSlotIndex(area.id, ti, sortedBranchIdxForEdit);
+                  const catalogPath = branchMainPathUntilGlobalT(thSpec, 1);
+                  const hubPt = domainClusterHubPointFromCatalog(
+                    catalogPath,
+                    hubFanSlot,
+                    fs.branches.length,
+                    dcSpread,
+                    area.id,
+                    areaLayoutOv,
+                    hubLayoutAnchors,
+                    thread.id,
+                  );
+                  return [
+                    <g key={`layout-hub-${area.id}-${thread.id}`} data-layout-edit-handle="1">
+                      <circle
+                        cx={hubPt.x}
+                        cy={hubPt.y}
+                        r={16}
+                        fill="rgba(251, 146, 60, 0.28)"
+                        stroke="#FB923C"
+                        strokeWidth={2.5}
+                        style={{ cursor: "grab", touchAction: "none" }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          layoutDragRef.current = {
+                            kind: "domainHub",
+                            areaId: area.id,
+                            branchId: thread.id,
+                            pointerId: e.pointerId,
+                            startClientX: e.clientX,
+                            startClientY: e.clientY,
+                          };
+                          (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
+                        }}
+                        onPointerMove={(e) => {
+                          const d = layoutDragRef.current;
+                          if (
+                            !d ||
+                            d.kind !== "domainHub" ||
+                            d.areaId !== area.id ||
+                            d.branchId !== thread.id ||
+                            d.pointerId !== e.pointerId ||
+                            !svgRef.current
+                          ) {
+                            return;
+                          }
+                          if (!hasCrossedLayoutDragThreshold(d, e.clientX, e.clientY)) return;
+                          const pt = clientToWorldSvg(
+                            svgRef.current,
+                            e.clientX,
+                            e.clientY,
+                            viewWidth,
+                            viewHeight,
+                            transform,
+                          );
+                          patchHubLayout(area.id, thread.id, pt);
+                        }}
+                        onPointerUp={releaseLayoutPointer}
+                        onPointerCancel={releaseLayoutPointer}
+                      />
+                    </g>,
+                  ];
+                });
                 const threadNodes = fs.branches.flatMap((th, ti) => {
                   const pivot = th.forkPoint;
                   const rx = pivot.x + 22 + ti * 2;
@@ -2894,384 +3406,39 @@ export function TreeSVG({
                     )),
                   ];
                 });
-                return [...limbNodes, ...threadNodes];
+                return [...limbNodes, ...hubDragNodes, ...threadNodes];
               })
             : null}
+          <TreeEditMapOverlay
+            enabled={editMapMode}
+            areas={editMapDraftAreas ?? areas}
+            resolvedForks={resolvedForks}
+            layoutOverrides={layoutOverrides}
+            svgRef={svgRef}
+            transform={transform}
+            panMoved={panMoved}
+            beginGoalDragRef={beginGoalDragRef}
+            onLayoutPreviewChange={handleEditLayoutPreviewChange}
+            onDraftDrop={(op, nextAreas) => onEditMapDraftDrop?.(op, nextAreas)}
+          />
           </g>
         </g>
       </svg>
       </div>
       {TREE_LAYOUT_EDIT_ENABLED ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 10,
-            top: TREE_RENDER_STATS_ENABLED ? 52 : 10,
-            zIndex: 30,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            padding: layoutDevPanelCollapsed ? "8px 10px" : "10px 12px",
-            borderRadius: 12,
-            background: "rgba(15, 14, 20, 0.92)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
-            maxWidth: 420,
-            fontSize: 14,
-            color: "#E7E5E4",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <span style={{ fontWeight: 600, color: "#FBBF24" }}>Tree layout (dev)</span>
-            <button
-              type="button"
-              aria-expanded={!layoutDevPanelCollapsed}
-              aria-controls={!layoutDevPanelCollapsed ? "tree-layout-dev-panel-body" : undefined}
-              onClick={() => setLayoutDevPanelCollapsed((c) => !c)}
-              style={{
-                flexShrink: 0,
-                padding: "4px 10px",
-                borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "#FAFAF9",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              {layoutDevPanelCollapsed ? "Expand" : "Collapse"}
-            </button>
-          </div>
-          {!layoutDevPanelCollapsed ? (
-            <div id="tree-layout-dev-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setLayoutOverrides((prev) => {
-                    const mergedForks = applyLayoutOverrides(buildAreaForksRecord(allAreasForForkGeometry), prev);
-                    let maxMoments = 0;
-                    let shortestArc = Infinity;
-                    for (const area of areas) {
-                      const slots = getAreaSlotRender(area.id, mergedForks);
-                      if (!slots) continue;
-                      for (let ti = 0; ti < area.branches.length; ti += 1) {
-                        const thread = area.branches[ti];
-                        const n = thread.moments.length;
-                        maxMoments = Math.max(maxMoments, n);
-                        if (n < 2) continue;
-                        const path = slots.branchStrokes[ti]?.path;
-                        if (!path) continue;
-                        const L = arcLengthMomentStationSegment(path);
-                        if (L > 1e-9) shortestArc = Math.min(shortestArc, L);
-                      }
-                    }
-                    if (maxMoments < 2 || shortestArc === Infinity || shortestArc < 1e-9) return prev;
-                    const D = shortestArc / (maxMoments - 1);
-                    const next = { ...prev };
-                    for (const area of areas) {
-                      const slots = getAreaSlotRender(area.id, mergedForks);
-                      if (!slots) continue;
-                      const momentPositions: Record<string, Point> = {};
-                      for (let ti = 0; ti < area.branches.length; ti += 1) {
-                        const thread = area.branches[ti];
-                        const path = slots.branchStrokes[ti]?.path;
-                        if (!path) continue;
-                        for (let mi = 0; mi < thread.moments.length; mi += 1) {
-                          const m = thread.moments[mi];
-                          const arcOffset = mi * D;
-                          momentPositions[m.id] = momentPositionAtArcOffsetFromStationLo(path, arcOffset);
-                        }
-                      }
-                      if (Object.keys(momentPositions).length === 0) continue;
-                      const areaPrev = { ...(next[area.id] ?? {}) } as AreaLayoutOverride;
-                      areaPrev.momentPositions = momentPositions;
-                      if (hasAreaOverride(areaPrev)) next[area.id] = areaPrev;
-                      else delete next[area.id];
-                    }
-                    return next;
-                  });
-                }}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(52, 211, 153, 0.12)",
-                  color: "#A7F3D0",
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
-              >
-                Distribute all evenly
-              </button>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                  padding: "8px 9px",
-                  borderRadius: 8,
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-              <span style={{ fontSize: 13, color: "#A8A29E", lineHeight: 1.45 }}>
-                Turn on <strong style={{ color: "#E7E5E4", fontWeight: 600 }}>Edit layout</strong> per limb below to show handles on the tree (teal bends, yellow fork, purple rotate, cyan goals). Drag those handles or set limb rotation ° for that limb. Overrides auto-save locally; use import/export between sessions.
-              </span>
-              </div>
-            <div
-              style={{
-                maxHeight: 260,
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                padding: "8px 9px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <span style={{ fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
-                Limb layout
-              </span>
-              {areas.map((a, limbIdx) => (
-                <div
-                  key={`limb-layout-${a.id}`}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    paddingBottom: limbIdx < areas.length - 1 ? 6 : 0,
-                    borderBottom: limbIdx < areas.length - 1 ? "1px solid rgba(255,255,255,0.06)" : undefined,
-                  }}
-                >
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(layoutEditByAreaId[a.id])}
-                      onChange={(e) => toggleAreaLayoutEdit(a.id, e.target.checked)}
-                    />
-                    <span style={{ color: "#FAFAF9", fontWeight: 500 }}>{a.label}</span>
-                    <span style={{ color: "#78716C", fontSize: 12 }}>Edit layout</span>
-                  </label>
-                  {layoutEditByAreaId[a.id] ? (
-                    <label
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, paddingLeft: 22 }}
-                    >
-                      <span style={{ color: "#D6D3D1", flex: 1, minWidth: 0 }}>Limb rotation °</span>
-                      <input
-                        type="number"
-                        step={1}
-                        value={layoutOverrides[a.id]?.limbRotateDeg ?? ""}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          setLayoutOverrides((prev) => {
-                            const cur = { ...(prev[a.id] ?? {}) } as AreaLayoutOverride;
-                            if (raw === "") {
-                              delete cur.limbRotateDeg;
-                            } else {
-                              const n = Number(raw);
-                              if (!Number.isNaN(n)) cur.limbRotateDeg = n;
-                            }
-                            return upsertAreaLayout(prev, a.id, cur);
-                          });
-                        }}
-                        style={{
-                          width: 72,
-                          padding: "4px 6px",
-                          borderRadius: 6,
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          background: "rgba(0,0,0,0.35)",
-                          color: "#FAFAF9",
-                          fontSize: 13,
-                        }}
-                      />
-                    </label>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              padding: "8px 9px",
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setLayoutOverrides((prev) => {
-                  const next = { ...prev };
-                  for (const ar of areas) {
-                    const areaPrev = { ...(next[ar.id] ?? {}) } as AreaLayoutOverride;
-                    const mp = { ...(areaPrev.momentPositions ?? {}) };
-                    for (const th of ar.branches) {
-                      for (const m of th.moments) delete mp[m.id];
-                    }
-                    const areaNext = { ...areaPrev };
-                    if (Object.keys(mp).length === 0) delete areaNext.momentPositions;
-                    else areaNext.momentPositions = mp;
-                    if (hasAreaOverride(areaNext)) next[ar.id] = areaNext;
-                    else delete next[ar.id];
-                  }
-                  return next;
-                });
-              }}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(52, 211, 153, 0.12)",
-                color: "#A7F3D0",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              Reset all chains
-            </button>
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 2 }}>
-            <span style={{ width: "100%", fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
-              Data and transfer
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setLayoutOverrides({});
-                saveLayoutOverrides({});
-              }}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "#FAFAF9",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              Reset layout
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(JSON.stringify(layoutOverrides, null, 2));
-                } catch {
-                  /* */
-                }
-              }}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "#FAFAF9",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              Copy overrides JSON
-            </button>
-            <input
-              ref={geometryFileInputRef}
-              type="file"
-              accept="application/json,.json"
-              style={{ display: "none" }}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                try {
-                  const text = await file.text();
-                  const parsed: unknown = JSON.parse(text);
-                  const ov = parseLayoutOverridesFromJson(parsed);
-                  if (!ov) {
-                    console.warn("[tree layout] Import: expected layoutOverrides or export object");
-                    return;
-                  }
-                  setLayoutOverrides(ov);
-                } catch (err) {
-                  console.warn("[tree layout] Import failed", err);
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => geometryFileInputRef.current?.click()}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
-                color: "#FAFAF9",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              Import geometry…
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const ov = getDefaultLayoutOverrides();
-                setLayoutOverrides(ov);
-                saveLayoutOverrides(ov);
-              }}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(251, 191, 36, 0.12)",
-                color: "#FDE68A",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              Reset to shipped geometry
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const payload = {
-                  exportedAt: new Date().toISOString(),
-                  layoutOverrides,
-                  resolvedForks,
-                };
-                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "pathfinder-tree-geometry.json";
-                a.rel = "noopener";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-              }}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(52, 211, 153, 0.12)",
-                color: "#A7F3D0",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              Save geometry
-            </button>
-          </div>
-            </div>
-          ) : null}
-        </div>
+        <TreeLayoutDevPanel
+          areas={areas}
+          allAreasForForkGeometry={allAreasForForkGeometry}
+          layoutOverrides={layoutOverrides}
+          setLayoutOverrides={setLayoutOverrides}
+          resolvedForks={resolvedForks}
+          layoutEditByAreaId={layoutEditByAreaId}
+          onToggleAreaLayoutEdit={toggleAreaLayoutEdit}
+          onSetAllLayoutEdit={setAllLayoutEdit}
+          onFocusLimb={focusLimbInView}
+          collapsed={layoutDevPanelCollapsed}
+          onCollapsedChange={setLayoutDevPanelCollapsed}
+        />
       ) : null}
       <div style={{ position: "absolute", right: 10, bottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
         <button
@@ -3286,13 +3453,27 @@ export function TreeSVG({
         </button>
         <button
           type="button"
+          title="Overview — fit full tree in view"
+          aria-label="Overview — fit full tree in view"
           onClick={(e) => {
             e.stopPropagation();
-            setTransform({ x: 0, y: 0, scale: 1 });
+            setTransform(treeFitTransform);
           }}
-          style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(0,0,0,0.5)", color: "white", cursor: "pointer" }}
+          style={{
+            minWidth: 32,
+            height: 32,
+            padding: "0 8px",
+            borderRadius: 8,
+            border: "none",
+            background: "rgba(0,0,0,0.5)",
+            color: "white",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 500,
+            letterSpacing: "0.02em",
+          }}
         >
-          ⌂
+          Overview
         </button>
         <button
           type="button"

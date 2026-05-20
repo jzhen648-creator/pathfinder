@@ -1,139 +1,36 @@
 "use client";
 
-import type { MouseEvent, PointerEvent, ReactNode } from "react";
+import { useId, type MouseEvent, type PointerEvent } from "react";
 import type { TreeIconComponent } from "@/components/icons";
 import type { GoalBloomStatus, Point } from "./tree-types";
-import type { BloomWholeNodeCoherence } from "./bloom-render-spec";
 import type { GoalNodeDerivedRenderState } from "./goal-node-render-phase";
-import { FLAGS } from "@/lib/flags";
-import { TREE_BRANCH_ICON_SIZE_PX, TREE_GOAL_HEX_VERTEX_RADIUS_PX, TREE_GOAL_SURFACE_TITLE_FONT_PX, TREE_GOAL_SURFACE_TITLE_GAP_PX } from "./tree-view-constants";
-import { TreeIconMedallion } from "./tree-icon-medallion";
+import {
+  TREE_GOAL_HEX_VERTEX_RADIUS_PX,
+  TREE_GOAL_SURFACE_TITLE_FONT_PX,
+  TREE_GOAL_SURFACE_TITLE_GAP_PX,
+} from "./tree-view-constants";
+import { goalCanvasDisplayLabel, treeMapLimbHueReadableInk } from "./tree-canvas-label";
+import { pointyTopHexPathD, TREE_DESIGN_NODE_CORE } from "./tree-design-visual";
+import {
+  desaturateRgbTowardLuma,
+  mixRgb,
+  parseHexRgb,
+  rgbToHex,
+} from "./tree-color-accents";
+import { TreeSvgTextLabel } from "./tree-svg-text-label";
 
-/** Softer plaque + slight icon scale-down as milestones cohere — glyph sits inside the organism. */
-function hexGlyphPlaqueTone(mv: GoalNodeDerivedRenderState | undefined): {
-  plaqueOpacity: number;
-  iconScaleMul: number;
-} {
-  if (!mv || mv.visibleOrbitalCount === 0) return { plaqueOpacity: 0.58, iconScaleMul: 1 };
-  const t = mv.progress01;
-  let plaqueOpacity = 0.54 - t * 0.1;
-  let iconScaleMul = 1 - t * 0.02;
-  if (mv.visualPhase === "bloomed") {
-    plaqueOpacity -= 0.04;
-    iconScaleMul -= 0.01;
-  } else if (mv.visualPhase === "growing") {
-    const gb = mv.progress01;
-    plaqueOpacity -= 0.015 * gb;
-    iconScaleMul -= 0.004 * gb;
-  }
-  return {
-    plaqueOpacity: Math.max(0.38, Math.min(0.58, plaqueOpacity)),
-    iconScaleMul: Math.max(0.96, Math.min(1, iconScaleMul)),
-  };
-}
-
-function hexMilestoneGlyphOpacityBase(
-  mv: GoalNodeDerivedRenderState | undefined,
-  status: GoalBloomStatus,
-): number {
-  if (status === "BUD") return 0.78;
-  if (!mv || mv.visibleOrbitalCount === 0) {
-    return status === "BLOOMED" ? 0.92 : 0.93;
-  }
-  const t = mv.progress01;
-  if (mv.visualPhase === "bloomed" || status === "BLOOMED") return 0.856 + t * 0.028;
-  if (mv.visualPhase === "growing") {
-    const early = 0.894 + t * 0.014;
-    const late = 0.876 + t * 0.021;
-    return early + (late - early) * t;
-  }
-  return 0.894 + t * 0.014;
-}
-
-const GOAL_R = 11;
-
-const HEX_BUD_ICON_PX = 40;
-
-/**
- * Branch-slot glyph centered on (cx, cy), or a **simple filled circle** when `Icon` is omitted
- * (domain-cluster goals carry no branch glyph — hub owns the taxonomy icon).
- */
-function GoalBranchGlyph({
-  Icon,
-  cx,
-  cy,
-  size,
-  color,
-  opacity = 1,
-  className,
-  withPlaque = false,
-  plaqueOpacity = 0.42,
-  iconScaleMul = 1,
-}: {
-  Icon: TreeIconComponent | undefined;
-  cx: number;
-  cy: number;
-  size: number;
-  color: string;
-  opacity?: number;
-  className?: string;
-  /** Soft dark disk behind strokes so limb-colored lines don’t compete with the glyph. */
-  withPlaque?: boolean;
-  plaqueOpacity?: number;
-  /** Micro scale for milestone-organism embedding (hex bloom); keeps icons recognizable. */
-  iconScaleMul?: number;
-}) {
-  const drawSize = size * iconScaleMul;
-  if (!Icon) {
-    const r = Math.max(6.2, drawSize * 0.28);
-    if (!withPlaque) {
-      return (
-        <g transform={`translate(${cx},${cy})`} pointerEvents="none" className={className}>
-          <circle
-            cx={0}
-            cy={0}
-            r={r}
-            fill={color}
-            fillOpacity={opacity * 0.95}
-            stroke="#0C0A09"
-            strokeWidth={1}
-            strokeOpacity={0.6}
-          />
-        </g>
-      );
-    }
-    return (
-      <g transform={`translate(${cx},${cy})`} pointerEvents="none" className={className}>
-        <TreeIconMedallion cx={0} cy={0} color={color} artworkSpanPx={drawSize} tier="goal">
-          <circle
-            cx={0}
-            cy={0}
-            r={r}
-            fill={color}
-            fillOpacity={opacity * 0.95}
-            stroke="#0C0A09"
-            strokeWidth={1}
-            strokeOpacity={0.6}
-          />
-        </TreeIconMedallion>
-      </g>
-    );
-  }
-  if (!withPlaque) {
-    return (
-      <g transform={`translate(${cx},${cy})`} pointerEvents="none" className={className}>
-        <Icon size={drawSize} color={color} opacity={opacity} />
-      </g>
-    );
-  }
-  return (
-    <g transform={`translate(${cx},${cy})`} pointerEvents="none" className={className}>
-      <TreeIconMedallion cx={0} cy={0} color={color} artworkSpanPx={drawSize} tier="goal">
-        <Icon size={drawSize} color={color} opacity={opacity} />
-      </TreeIconMedallion>
-    </g>
-  );
-}
+/** Core circle radius — sized to sit clearly inside the ~48 px orbital ring. */
+const GOAL_CORE_R = 20;
+/** Branch glyph icon size inside the core (kept slightly smaller than diameter for breathing room). */
+const GOAL_GLYPH_SIZE_PX = 32;
+/** Selection halo radius — just outside the core rim. */
+const GOAL_SELECTION_R = GOAL_CORE_R + 8;
+/** Outer bloom halo radius (only painted when visualPhase === "COMPLETE"). */
+const GOAL_OUTER_HALO_R = 70;
+/** Dark core fill — matches domain-hub backdrop + Claude Design `PF_T.core`. */
+const CORE_FILL_HEX = TREE_DESIGN_NODE_CORE;
+/** BLOOMED seal badge — ~16px diameter, sits just inside the core rim (top-right). */
+const BLOOM_SEAL_R = 8;
 
 /** Pointy-top hex vertices starting at top, circumradius `r`; `rotationRad` spins the shape about the center. */
 export function pointyTopHexVertices(cx: number, cy: number, r: number, rotationRad = 0): Point[] {
@@ -153,84 +50,46 @@ export function goalHexBottomAttach(
   return pointyTopHexVertices(cx, cy, r, rotationRad)[3]!;
 }
 
-function truncateGoalTitle(raw: string, maxLen: number): string {
-  const t = raw.trim() || "Goal";
-  if (t.length <= maxLen) return t;
-  return `${t.slice(0, Math.max(1, maxLen - 1))}…`;
-}
-
-function starPath(cx: number, cy: number, spikes: number, outer: number, inner: number): string {
-  let d = "";
-  let rot = (Math.PI / 2) * 3;
-  const step = Math.PI / spikes;
-  for (let i = 0; i < spikes; i++) {
-    const x = cx + Math.cos(rot) * outer;
-    const y = cy + Math.sin(rot) * outer;
-    d += `${i === 0 ? "M" : "L"}${x.toFixed(3)},${y.toFixed(3)}`;
-    rot += step;
-    const ix = cx + Math.cos(rot) * inner;
-    const iy = cy + Math.sin(rot) * inner;
-    d += `L${ix.toFixed(3)},${iy.toFixed(3)}`;
-    rot += step;
-  }
-  return `${d}Z`;
-}
-
-/** Reusable bloom / starburst shape for goals (and similar UI). */
-export function GoalBloomShape({
-  cx,
-  cy,
-  color,
-  outer = 8,
-  inner = 3.5,
-}: {
-  cx: number;
-  cy: number;
-  color: string;
-  outer?: number;
-  inner?: number;
-}) {
-  return (
-    <path d={starPath(cx, cy, 6, outer, inner)} fill={color} stroke={color} strokeWidth={0.35} pointerEvents="none" />
-  );
-}
-
 type TreeGoalNodeSvgProps = {
   cx: number;
   cy: number;
   color: string;
   status: GoalBloomStatus;
   title: string;
-  /**
-   * Optional branch-slot icon. When omitted, `GoalBranchGlyph` draws a small limb-colored
-   * circle so goals stay readable on the orbit ring.
-   */
+  /** AI tree-canvas label; full {@link title} stays in native tooltip. */
+  shortLabel?: string | null;
+  /** Goal notes — used to keep salient detail in canvas labels. */
+  description?: string | null;
+  /** Optional branch-slot icon; falls back to a small filled disc when omitted (domain-cluster goals). */
   branchGlyphIcon?: TreeIconComponent;
-  /** Short label under the node (root goals on a branch line); deeper nodes rely on native tooltip. */
+  /** Short label under the node; opacity is driven by {@link surfaceTitleOpacity} / LOD (incl. evolution depth). */
   showSurfaceTitle?: boolean;
-  /** Matches catalog tangent alignment for orbital milestone vertices (`FLAGS.GOAL_MILESTONES`). */
+  /** When set, overrides {@link showSurfaceTitle} with a fade (0 = hidden). */
+  surfaceTitleOpacity?: number;
+  /** Pointy-top hex rotation (tangent-out from branch). */
   hexRotationRad?: number;
-  /**
-   * Milestone-derived visuals when hex orbitals are enabled — opacity/glow tuning only;
-   * does not replace {@link status}.
-   */
+  /** When true, paint pointy-top hex silhouette (Claude Design pursuit grammar). Default on. */
+  useHexSilhouette?: boolean;
+  /** Milestone-derived visuals — drives core glow + outer halo intensity. */
   milestoneVisual?: GoalNodeDerivedRenderState;
-  /** Milestone bloom geometry: hex organism ring + extra core lift (from {@link deriveBloomRenderSpec}). */
-  bloomWholeNode?: BloomWholeNodeCoherence;
-  /**
-   * When set (GOAL_MILESTONES), closed polygon for the organism scaffold — adaptive N-gon vertex count.
-   * Falls back to a regular hex when omitted.
-   */
-  organismRingVerts?: readonly Point[] | null;
   /** Life-importance surface title scale (distinct from bloom phase). */
   labelAuthorityMul?: number;
-  /** Status allows an activity pulse when this goal is selected (see {@link selected}). */
+  /** Status allows an activity pulse when this goal is selected (BUD only — GROWING uses ambient ring). */
   pulseGrowing: boolean;
+  /** Slow ambient ring for in-progress goals (CSS only; GROWING). */
+  ambientBreathing?: boolean;
   bloomPlaying: boolean;
-  /** Goal detail panel is open for this node — halos / pulses render only then. */
+  /** Goal detail panel is open for this node — selected halo renders only then. */
   selected: boolean;
   onClick: (e: MouseEvent | PointerEvent) => void;
+  onPointerDown?: (e: PointerEvent) => void;
+  /** Stable SVG gradient id seed (SSR-safe); falls back to `useId`. */
+  idSeed?: string;
 };
+
+function goalSvgIdSeed(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
 
 export function TreeGoalNodeSvg({
   cx,
@@ -238,311 +97,129 @@ export function TreeGoalNodeSvg({
   color,
   status,
   title,
-  branchGlyphIcon,
+  shortLabel,
+  description,
+  branchGlyphIcon: Icon,
   showSurfaceTitle = false,
-  hexRotationRad = 0,
+  surfaceTitleOpacity,
   milestoneVisual,
-  bloomWholeNode,
-  organismRingVerts = null,
   labelAuthorityMul = 1,
+  hexRotationRad = 0,
+  useHexSilhouette = true,
   pulseGrowing,
+  ambientBreathing = false,
   bloomPlaying,
   selected,
   onClick,
+  onPointerDown,
+  idSeed,
 }: TreeGoalNodeSvgProps) {
   const groupClass = bloomPlaying ? "tree-goal-bloom-once" : undefined;
-  const pulseClass = selected && pulseGrowing ? "tree-goal-growing-pulse" : undefined;
-  const hexR = TREE_GOAL_HEX_VERTEX_RADIUS_PX;
-  const useHex = FLAGS.GOAL_MILESTONES;
-  const G = branchGlyphIcon;
-  const mv = useHex ? milestoneVisual : undefined;
-  /** Hex milestones: avoid a second bold circular frame competing with bloom geometry. */
-  const softSelectedHalo = Boolean(useHex && mv);
-  const hexGlyphTone = useHex ? hexGlyphPlaqueTone(mv) : { plaqueOpacity: 0.42, iconScaleMul: 1 };
-  const coreGlyphOpacity = (base: number) =>
-    mv
-      ? Math.min(
-          0.97,
-          base +
-            mv.intensities.coreGlyphOpacityBoost +
-            (bloomWholeNode?.coreOpacityAdd ?? 0),
-        )
-      : base;
+  /** Inner opacity pulse only for BUD when selected — GROWING uses outer ambient ring instead. */
+  const pulseClass = selected && pulseGrowing && status === "ACTIVE" ? "tree-goal-growing-pulse" : undefined;
+  const autoId = useId().replace(/:/g, "");
+  const uid = idSeed != null ? goalSvgIdSeed(idSeed) : autoId;
+  const glowGradId = `tree-goal-coreglow-${uid}`;
+  const haloGradId = `tree-goal-halo-${uid}`;
 
-  let body: ReactNode;
-  if (useHex) {
-    const glowR = hexR + 10;
-    if (status === "ENDED") {
-      body = (
-        <>
-          {selected ? (
-            <circle
-              cx={cx}
-              cy={cy}
-              r={glowR}
-              fill="none"
-              stroke={color}
-              strokeWidth={softSelectedHalo ? 1 : 1.5}
-              strokeOpacity={softSelectedHalo ? 0.24 : 0.42}
-              strokeDasharray={softSelectedHalo ? "5 11" : undefined}
-              className="tree-goal-selected-glow"
-              pointerEvents="none"
-            />
-          ) : null}
-          <GoalBranchGlyph
-            Icon={G}
-            cx={cx}
-            cy={cy}
-            size={TREE_BRANCH_ICON_SIZE_PX}
-            color={color}
-            opacity={coreGlyphOpacity(0.58)}
-            plaqueOpacity={hexGlyphTone.plaqueOpacity * 0.94}
-            iconScaleMul={hexGlyphTone.iconScaleMul}
-          />
-          <line
-            x1={cx - hexR * 0.45}
-            y1={cy - hexR * 0.45}
-            x2={cx + hexR * 0.45}
-            y2={cy + hexR * 0.45}
-            stroke={color}
-            strokeWidth={1.35}
-            opacity={0.55}
-            pointerEvents="none"
-          />
-          <line
-            x1={cx + hexR * 0.45}
-            y1={cy - hexR * 0.45}
-            x2={cx - hexR * 0.45}
-            y2={cy + hexR * 0.45}
-            stroke={color}
-            strokeWidth={1.35}
-            opacity={0.55}
-            pointerEvents="none"
-          />
-        </>
-      );
-    } else if (status === "BLOOMED") {
-      body = (
-        <>
-          {selected ? (
-            <circle
-              cx={cx}
-              cy={cy}
-              r={glowR}
-              fill="none"
-              stroke={color}
-              strokeWidth={softSelectedHalo ? 1.05 : 1.65}
-              strokeOpacity={softSelectedHalo ? 0.26 : 0.48}
-              strokeDasharray={softSelectedHalo ? "5 12" : undefined}
-              className="tree-goal-selected-glow"
-              pointerEvents="none"
-            />
-          ) : null}
-          <GoalBranchGlyph
-            Icon={G}
-            cx={cx}
-            cy={cy}
-            size={TREE_BRANCH_ICON_SIZE_PX}
-            color={color}
-            opacity={coreGlyphOpacity(hexMilestoneGlyphOpacityBase(mv, status))}
-            plaqueOpacity={hexGlyphTone.plaqueOpacity}
-            iconScaleMul={hexGlyphTone.iconScaleMul}
-          />
-        </>
-      );
-    } else if (status === "BUD") {
-      body = (
-        <GoalBranchGlyph
-          Icon={G}
-          cx={cx}
-          cy={cy}
-          size={HEX_BUD_ICON_PX}
-          color={color}
-          opacity={coreGlyphOpacity(hexMilestoneGlyphOpacityBase(mv, status))}
-          className={pulseClass}
-          plaqueOpacity={hexGlyphTone.plaqueOpacity}
-          iconScaleMul={hexGlyphTone.iconScaleMul}
-        />
-      );
-    } else {
-      body = (
-        <>
-          {selected ? (
-            <circle
-              cx={cx}
-              cy={cy}
-              r={glowR}
-              fill="none"
-              stroke={color}
-              strokeWidth={softSelectedHalo ? 1.08 : 1.75}
-              strokeOpacity={softSelectedHalo ? 0.28 : 0.5}
-              strokeDasharray={softSelectedHalo ? "5 12" : undefined}
-              className="tree-goal-selected-glow"
-              pointerEvents="none"
-            />
-          ) : null}
-          <GoalBranchGlyph
-            Icon={G}
-            cx={cx}
-            cy={cy}
-            size={TREE_BRANCH_ICON_SIZE_PX}
-            color={color}
-            opacity={coreGlyphOpacity(hexMilestoneGlyphOpacityBase(mv, status))}
-            className={pulseClass}
-            plaqueOpacity={hexGlyphTone.plaqueOpacity}
-            iconScaleMul={hexGlyphTone.iconScaleMul}
-          />
-        </>
-      );
-    }
-  } else if (status === "ENDED") {
-    body = (
+  const mv = milestoneVisual;
+  const glowAlpha = mv?.intensities.coreGlowOpacity01 ?? 0;
+  const haloAlpha = mv?.intensities.outerHaloOpacity01 ?? 0;
+  const isBloomed = status === "COMPLETE";
+  const limbRgb = parseHexRgb(color);
+  const limbPaint =
+    isBloomed && limbRgb ? rgbToHex(desaturateRgbTowardLuma(limbRgb, 0.44)) : color;
+  const bloomedRecedeOpacity = isBloomed ? (selected ? 0.75 : 0.6) : 1;
+  const coreRgb = parseHexRgb(CORE_FILL_HEX);
+  const limbPaintRgb = parseHexRgb(limbPaint);
+  const stampFillHex =
+    coreRgb && limbPaintRgb ? rgbToHex(mixRgb(coreRgb, limbPaintRgb, 0.11)) : CORE_FILL_HEX;
+  const sealArm = GOAL_CORE_R - 1;
+  const sealCx = cx + Math.SQRT1_2 * sealArm;
+  const sealCy = cy - Math.SQRT1_2 * sealArm;
+  /** Soft accent rim — dimmer when ended, baseline otherwise. */
+  const rimStrokeOpacity =
+    status === "ON_HOLD" ? 0.62 : status === "ACTIVE" ? 0.88 : 0.98;
+  const glyphAlphaBase = status === "ON_HOLD" ? 0.72 : status === "COMPLETE" ? 1 : 0.98;
+  const glyphAlpha = Math.min(0.97, glyphAlphaBase + (mv?.intensities.coreGlyphOpacityBoost ?? 0));
+
+  /** Two ENDED hatch lines centered in the core — semantic "closed" cue, not bloom geometry. */
+  const endedHatch =
+    status === "ON_HOLD" ? (
       <>
-        {selected ? (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={GOAL_R + 7}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.5}
-            strokeOpacity={0.42}
-            className="tree-goal-selected-glow"
-            pointerEvents="none"
-          />
-        ) : null}
-        <GoalBranchGlyph
-          Icon={G}
-          cx={cx}
-          cy={cy}
-          size={TREE_BRANCH_ICON_SIZE_PX}
-          color={color}
-          opacity={0.56}
-        />
-        <line x1={cx - 5} y1={cy - 5} x2={cx + 5} y2={cy + 5} stroke={color} strokeWidth={1.2} opacity={0.55} pointerEvents="none" />
-        <line x1={cx - 5} y1={cy + 5} x2={cx + 5} y2={cy - 5} stroke={color} strokeWidth={1.2} opacity={0.55} pointerEvents="none" />
-      </>
-    );
-  } else if (status === "BLOOMED") {
-    body = (
-      <>
-        {selected ? (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={13}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.65}
-            strokeOpacity={0.48}
-            className="tree-goal-selected-glow"
-            pointerEvents="none"
-          />
-        ) : null}
-        <GoalBloomShape cx={cx} cy={cy} color={color} />
-        <GoalBranchGlyph
-          Icon={G}
-          cx={cx}
-          cy={cy}
-          size={TREE_BRANCH_ICON_SIZE_PX}
-          color={color}
-          opacity={0.9}
-        />
-      </>
-    );
-  } else if (status === "BUD") {
-    body = (
-      <>
-        {selected ? (
-          <g className="tree-goal-bud-halo" style={{ transformOrigin: `${cx}px ${cy}px` }} pointerEvents="none">
-            <circle cx={cx} cy={cy} r={GOAL_R + 6} fill={color} opacity={0.06} />
-            <circle cx={cx} cy={cy} r={GOAL_R + 3} fill={color} opacity={0.1} />
-          </g>
-        ) : null}
-        <circle
-          cx={cx}
-          cy={cy}
-          r={GOAL_R}
-          fill="none"
+        <line
+          x1={cx - GOAL_CORE_R * 0.42}
+          y1={cy - GOAL_CORE_R * 0.42}
+          x2={cx + GOAL_CORE_R * 0.42}
+          y2={cy + GOAL_CORE_R * 0.42}
           stroke={color}
-          strokeWidth={2.35}
-          strokeOpacity={selected ? 0.82 : 0.62}
-          className={pulseClass}
+          strokeWidth={1.2}
+          strokeOpacity={0.55}
           pointerEvents="none"
         />
-        <GoalBranchGlyph
-          Icon={G}
-          cx={cx}
-          cy={cy}
-          size={TREE_BRANCH_ICON_SIZE_PX}
-          color={color}
-          opacity={0.9}
-          withPlaque={false}
+        <line
+          x1={cx + GOAL_CORE_R * 0.42}
+          y1={cy - GOAL_CORE_R * 0.42}
+          x2={cx - GOAL_CORE_R * 0.42}
+          y2={cy + GOAL_CORE_R * 0.42}
+          stroke={color}
+          strokeWidth={1.2}
+          strokeOpacity={0.55}
+          pointerEvents="none"
         />
       </>
-    );
-  } else {
-    body = (
-      <>
-        {selected ? (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={GOAL_R + 7}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.75}
-            strokeOpacity={0.5}
-            className="tree-goal-selected-glow"
-            pointerEvents="none"
-          />
-        ) : null}
-        <GoalBranchGlyph
-          Icon={G}
-          cx={cx}
-          cy={cy}
-          size={TREE_BRANCH_ICON_SIZE_PX}
+    ) : null;
+
+  const labelY = cy + GOAL_CORE_R + TREE_GOAL_SURFACE_TITLE_GAP_PX;
+  const titleOpacity =
+    surfaceTitleOpacity != null
+      ? surfaceTitleOpacity
+      : showSurfaceTitle
+        ? selected
+          ? 0.9
+          : 0.8
+        : 0;
+  const canvasTitle = goalCanvasDisplayLabel(title, shortLabel, description);
+  const surface =
+    titleOpacity > 0.04 ? (
+      <g pointerEvents="none">
+        <title>{title.trim() || "Pursuit"}</title>
+        <TreeSvgTextLabel
+          x={cx}
+          y={labelY}
+          text={canvasTitle}
           color={color}
-          opacity={status === "BRANCHED" ? 0.96 : 0.9}
-          className={pulseClass}
+          ink={treeMapLimbHueReadableInk(color)}
+          fontSize={TREE_GOAL_SURFACE_TITLE_FONT_PX * labelAuthorityMul}
+          fontWeight={700}
+          textAnchor="middle"
+          dominantBaseline="hanging"
+          opacity={titleOpacity}
+          maxLines={2}
+          maxWidthPx={TREE_GOAL_SURFACE_TITLE_FONT_PX * labelAuthorityMul * 12}
+          letterSpacing="0.04em"
+          pill
         />
-      </>
-    );
-  }
+      </g>
+    ) : null;
 
-  const ringVertsForLabel =
-    organismRingVerts && organismRingVerts.length >= 2
-      ? organismRingVerts
-      : pointyTopHexVertices(cx, cy, hexR, hexRotationRad);
-  const hexBottomY = useHex ? Math.max(...ringVertsForLabel.map((v) => v.y)) : cy;
-  const labelY = useHex ? hexBottomY + TREE_GOAL_SURFACE_TITLE_GAP_PX : cy + TREE_GOAL_SURFACE_TITLE_GAP_PX;
-  const labelFillOpacity = selected ? 0.82 : 0.77;
-  const labelStrokeOpacity = selected ? 0.36 : 0.28;
-  const surface = showSurfaceTitle ? (
-    <text
-      x={cx}
-      y={labelY}
-      textAnchor="middle"
-      dominantBaseline="hanging"
-      fontSize={TREE_GOAL_SURFACE_TITLE_FONT_PX * labelAuthorityMul}
-      fontWeight={600}
-      fill={color}
-      fillOpacity={labelFillOpacity + 0.08}
-      stroke="#0C0A09"
-      strokeOpacity={labelStrokeOpacity + 0.12}
-      strokeWidth={0.75}
-      paintOrder="stroke fill"
-      pointerEvents="none"
-      style={{
-        fontFamily: "ui-sans-serif, system-ui, sans-serif",
-        letterSpacing: "0.04em",
-      }}
-    >
-      {truncateGoalTitle(title, 44)}
-    </text>
-  ) : null;
-
-  const hitR = useHex ? hexR + 5 : GOAL_R + 7;
+  const hitR = GOAL_CORE_R + 6;
+  const hexR = GOAL_CORE_R;
+  const hexPath = pointyTopHexPathD(cx, cy, hexR, hexRotationRad);
+  const hexGlowPath = pointyTopHexPathD(cx, cy, hexR * 1.55, hexRotationRad);
+  const showHex = useHexSilhouette;
+  const completeCheck =
+    status === "COMPLETE" ? (
+      <path
+        d={`M ${cx - 4} ${cy} L ${cx - 1} ${cy + 3} L ${cx + 5} ${cy - 3}`}
+        fill="none"
+        stroke={limbPaint}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pointerEvents="none"
+      />
+    ) : null;
 
   return (
     <g
@@ -552,42 +229,223 @@ export function TreeGoalNodeSvg({
         e.stopPropagation();
         onClick(e);
       }}
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onPointerDown?.(e);
+      }}
       role="button"
       tabIndex={0}
-      aria-label={`Goal: ${title}`}
+      aria-label={`Pursuit: ${title}`}
     >
       <title>{title}</title>
-      {useHex &&
-      bloomWholeNode &&
-      bloomWholeNode.hexRingOpacity > 0.008 &&
-      status !== "ENDED" ? (
-        <polygon
-          points={(organismRingVerts && organismRingVerts.length >= 2
-            ? organismRingVerts
-            : pointyTopHexVertices(cx, cy, hexR, hexRotationRad)
-          )
-            .map((v) => `${v.x.toFixed(3)},${v.y.toFixed(3)}`)
-            .join(" ")}
-          fill="none"
-          stroke={color}
-          strokeOpacity={bloomWholeNode.hexRingOpacity}
-          strokeWidth={bloomWholeNode.hexRingWidthPx}
-          strokeDasharray={
-            bloomWholeNode.hexRingDasharray.length > 0 ? bloomWholeNode.hexRingDasharray : undefined
-          }
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-          pointerEvents="none"
-          aria-hidden
-        />
+
+      {haloAlpha > 0.005 || glowAlpha > 0.005 ? (
+        <defs>
+          {haloAlpha > 0.005 ? (
+            <radialGradient id={haloGradId} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={limbPaint} stopOpacity={0.88} />
+              <stop offset="55%" stopColor={limbPaint} stopOpacity={0.38} />
+              <stop offset="100%" stopColor={limbPaint} stopOpacity={0} />
+            </radialGradient>
+          ) : null}
+          {glowAlpha > 0.005 ? (
+            <radialGradient id={glowGradId} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={limbPaint} stopOpacity={1} />
+              <stop offset="55%" stopColor={limbPaint} stopOpacity={0.62} />
+              <stop offset="100%" stopColor={limbPaint} stopOpacity={0} />
+            </radialGradient>
+          ) : null}
+        </defs>
       ) : null}
-      {body}
+
+      <g style={{ opacity: bloomedRecedeOpacity }}>
+        {/* Outer halo: bloomed-only soft outward bleed. */}
+        {haloAlpha > 0.005 ? (
+          <circle
+            cx={cx}
+            cy={cy}
+            r={GOAL_OUTER_HALO_R}
+            fill={`url(#${haloGradId})`}
+            fillOpacity={haloAlpha}
+            pointerEvents="none"
+            aria-hidden
+          />
+        ) : null}
+
+        {selected ? (
+          <circle
+            cx={cx}
+            cy={cy}
+            r={GOAL_SELECTION_R}
+            fill="none"
+            stroke={limbPaint}
+            strokeWidth={1.4}
+            strokeOpacity={0.45}
+            className="tree-goal-selected-glow"
+            pointerEvents="none"
+          />
+        ) : null}
+
+        {ambientBreathing && !bloomPlaying ? (
+          <>
+            {/* Soft outer halo — lower amplitude, same slow cycle as inner ember ring. */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r={GOAL_CORE_R + 11}
+              fill="none"
+              stroke={limbPaint}
+              strokeWidth={1.45}
+              className="tree-goal-ambient-breathe-outer"
+              pointerEvents="none"
+              aria-hidden
+            />
+            <circle
+              cx={cx}
+              cy={cy}
+              r={GOAL_CORE_R + 7}
+              fill="none"
+              stroke={limbPaint}
+              strokeWidth={2.25}
+              className="tree-goal-ambient-breathe"
+              pointerEvents="none"
+              aria-hidden
+            />
+          </>
+        ) : null}
+
+        <g className={pulseClass}>
+          {showHex ? (
+            <>
+              {status === "ACTIVE" && !isBloomed ? (
+                <path
+                  d={hexGlowPath}
+                  fill={limbPaint}
+                  fillOpacity={0.18}
+                  pointerEvents="none"
+                  aria-hidden
+                />
+              ) : null}
+              <path
+                d={hexPath}
+                fill={CORE_FILL_HEX}
+                stroke={limbPaint}
+                strokeWidth={selected ? 1.7 : 1.35}
+                strokeOpacity={rimStrokeOpacity}
+                strokeDasharray={status === "ON_HOLD" ? "2 2" : undefined}
+                pointerEvents="none"
+              />
+              {glowAlpha > 0.005 ? (
+                <path
+                  d={hexPath}
+                  fill={`url(#${glowGradId})`}
+                  fillOpacity={glowAlpha * 0.85}
+                  stroke="none"
+                  pointerEvents="none"
+                  aria-hidden
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <circle
+                cx={cx}
+                cy={cy}
+                r={GOAL_CORE_R}
+                fill={CORE_FILL_HEX}
+                fillOpacity={1}
+                pointerEvents="none"
+              />
+              {glowAlpha > 0.005 ? (
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={GOAL_CORE_R * 0.94}
+                  fill={`url(#${glowGradId})`}
+                  fillOpacity={glowAlpha}
+                  pointerEvents="none"
+                  aria-hidden
+                />
+              ) : null}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={GOAL_CORE_R}
+                fill="none"
+                stroke={limbPaint}
+                strokeWidth={1.55}
+                strokeOpacity={rimStrokeOpacity}
+                pointerEvents="none"
+              />
+            </>
+          )}
+
+          {/* Branch glyph on top of glow + rim / hex. */}
+          <g transform={`translate(${cx},${cy})`} pointerEvents="none">
+            {Icon ? (
+              <Icon size={GOAL_GLYPH_SIZE_PX} color={limbPaint} opacity={glyphAlpha} />
+            ) : (
+              <circle
+                cx={0}
+                cy={0}
+                r={Math.max(4.5, GOAL_GLYPH_SIZE_PX * 0.22)}
+                fill={limbPaint}
+                fillOpacity={glyphAlpha * 0.95}
+                stroke={CORE_FILL_HEX}
+                strokeWidth={1}
+                strokeOpacity={0.6}
+              />
+            )}
+          </g>
+
+          {endedHatch}
+          {showHex ? completeCheck : null}
+        </g>
+      </g>
+
+      {isBloomed ? (
+        <g pointerEvents="none" aria-hidden>
+          <circle
+            cx={sealCx}
+            cy={sealCy}
+            r={BLOOM_SEAL_R}
+            fill={stampFillHex}
+            fillOpacity={0.94}
+            stroke={limbPaint}
+            strokeWidth={1}
+            strokeOpacity={0.48}
+          />
+          <circle
+            cx={sealCx}
+            cy={sealCy}
+            r={BLOOM_SEAL_R - 1.3}
+            fill="none"
+            stroke={limbPaint}
+            strokeOpacity={0.24}
+            strokeWidth={0.55}
+          />
+          <text
+            x={sealCx}
+            y={sealCy}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill={limbPaint}
+            fillOpacity={0.52}
+            fontSize={9.75}
+            fontWeight={600}
+            fontFamily='ui-sans-serif, system-ui, sans-serif, "Segoe UI Symbol"'
+          >
+            ✓
+          </text>
+        </g>
+      ) : null}
+
       <circle cx={cx} cy={cy} r={hitR} fill="transparent" style={{ cursor: "pointer" }} pointerEvents="all" />
       {surface}
     </g>
   );
 }
 
+/** Legacy export kept for any external sizing consumers (read-only). */
+const GOAL_R = GOAL_CORE_R;
 export { GOAL_R };

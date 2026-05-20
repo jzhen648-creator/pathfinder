@@ -25,11 +25,10 @@ export type LimbDepthStaging = {
 
 /**
  * Draw order: earlier = behind. Intentionally uneven so canopies interpenetrate.
- * Health / pleasures / finance read deeper; people / work / becoming stack forward.
+ * Health / finance read deeper; people / work / becoming stack forward.
  */
 const STAGING_SORT: Record<LifeAreaId, number> = {
   health: 4,
-  pleasures: 11,
   finance: 20,
   work: 46,
   people: 71,
@@ -61,8 +60,6 @@ export function getLimbDepthStaging(areaId: string, ctx: LimbStagingContext): Li
     limbComposeTransform = "translate(-26,2) scale(0.97)";
   } else if (id === "health") {
     limbComposeTransform = "translate(18,38) scale(0.97)";
-  } else if (id === "pleasures") {
-    limbComposeTransform = "translate(44,26) scale(0.96)";
   } else if (id === "finance") {
     limbComposeTransform = "translate(-40,18) scale(0.96)";
   }

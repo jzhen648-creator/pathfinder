@@ -3,15 +3,55 @@ import {
   branchMainPathBetweenGlobalT,
   branchMainPathUntilGlobalT,
   connectiveBowCubicPiece,
+  connectiveBowPathD,
+  defaultHubSlotCountForArea,
   isHubGatewayLayout,
   pathFromStart,
 } from "./tree-forks";
 import type { AreaLayoutOverride } from "./tree-layout-edit";
+import { hasAreaOverride } from "./tree-view-layout-overrides";
 import type { DomainHubData, Point, TreeGoalNode } from "./tree-types";
 import { shouldDomainClusterThread } from "./tree-renderer-grammar";
 import { FLAGS } from "@/lib/flags";
-import { THEME_STAR_CENTER } from "./tree-area-anchors";
 import {
+  computeThemeGatewayFromTrunkSlot,
+  computeTrunkAttachForTheme,
+  connectiveBowOriginForArea,
+  domainClusterGoalBaseRadiusPx,
+  domainClusterGoalRingMaxPx,
+  domainClusterHubGatewayArcSpreadPx,
+  domainClusterHubRingPx,
+  domainClusterHubSlotRadialOffsetPxForLayout,
+  domainClusterRingNeighborMulForLayout,
+  trunkBranchOutwardUnit,
+  trunkLayoutEnabled,
+  trunkLayoutDomainHubPoint,
+  trunkLayoutDomainHubPointAtAnchors,
+  trunkLayoutGoalPositionFromHub,
+  trunkLayoutGoalPositionFromHubAtAnchors,
+  TRUNK_THEME_SLOT_BY_ID,
+  type TrunkLayoutAnchorPair,
+} from "./tree-trunk-slots";
+
+/** Screen-space goal-chain placement for domain-cluster moments (hub → goals). */
+export type DomainClusterMomentChainContext = {
+  catalogFullPath: string;
+  kFork: number;
+  branchCountOnLimb: number;
+  goalsOnThread: TreeGoalNode[];
+  domainClusterGatewaySpreadNormal?: Point;
+  layoutOv?: AreaLayoutOverride;
+  layoutAnchors?: TrunkLayoutAnchorPair;
+  branchId?: string;
+};
+import type { StraightLifeAreaId } from "./tree-area-anchors";
+import { THEME_STAR_CENTER } from "./tree-area-anchors";
+import { iconMedallionRadii } from "./tree-icon-medallion";
+import {
+  BRANCH_HEAD_OFFSET_PX,
+  BRANCH_MARK_LATERAL_OFFSET_PX,
+  BRANCH_NODE_SPACING_PX,
+  BRANCH_TIP_PADDING_PX,
   BRANCH_T_PAST_LAST_MOMENT,
   DOMAIN_CLUSTER_BASE_RADIUS_PX,
   DOMAIN_CLUSTER_GOAL_RING_MAX_RADIUS_PX,
@@ -23,6 +63,9 @@ import {
   DOMAIN_CLUSTER_HUB_SLOT_RADIAL_OFFSETS_PX_N4,
   DOMAIN_CLUSTER_HUB_SLOT_RADIAL_SPREAD_PX,
   DOMAIN_CLUSTER_ICON_STROKE_INSET_PX,
+  TREE_DOMAIN_HUB_GLYPH_PX,
+  TREE_DOMAIN_HUB_GLYPH_PX_TRUNK,
+  TREE_THEME_GATEWAY_ICON_PX,
   DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_FLOOR_MUL,
   DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_PER_EXTRA,
   DOMAIN_CLUSTER_STROKE_TIP_CAP,
@@ -99,6 +142,132 @@ export function nextAutoGoalCatalogT(existingGoals: TreeGoalNode[]): number {
 export function furthestRootGoalCatalogT(goals: TreeGoalNode[]): number {
   if (goals.length === 0) return 0;
   return rootGoalCatalogT(goals.length - 1);
+}
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * Sequence-driven longitudinal grammar (active when `FLAGS.BRANCH_LONGITUDINAL_ALL`).
+ *
+ * Each node in `DomainHubData.sequencedNodes` (goals + moments merged by `sequencePosition`)
+ * occupies one **rank slot** of `BRANCH_NODE_SPACING_PX` along the outward direction from the hub.
+ * Branch length scales linearly with node count; existing nodes never move when one is inserted.
+ *
+ *   nodePosition(rank) = hub + outwardDir × (BRANCH_HEAD_OFFSET_PX + rank × BRANCH_NODE_SPACING_PX)
+ *   tipDistance(rankMax) = BRANCH_HEAD_OFFSET_PX + rankMax × BRANCH_NODE_SPACING_PX + BRANCH_TIP_PADDING_PX
+ *
+ * Continuation children (`Goal.parentGoalId != null`) are excluded — they keep `continuationChildScreenPosition`.
+ * Outward direction is **hub anchor → authored catalog tip** (`DOMAIN_CLUSTER_STROKE_TIP_CAP`) so
+ * trunk/slot hub placement stays visually aligned with each limb; fork-only tangents skew when the
+ * hub is offset from the spline fork (see {@link branchOutwardUnitForLongitudinalRay}).
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Unit direction from the **placed hub** toward the authored branch tip sample used for domain-cluster
+ * conduits. Keeps longitudinal rays aligned with limb authoring when hubs are trunk-offset.
+ */
+export function branchOutwardUnitForLongitudinalRay(catalogFullPath: string, hubAnchor: Point): Point {
+  if (catalogFullPath.length < 8) return domainClusterBranchOutwardUnit(catalogFullPath).outward;
+  const fork = pathPointAtT(catalogFullPath, 0);
+  const tip = pathPointAtT(catalogFullPath, DOMAIN_CLUSTER_STROKE_TIP_CAP);
+  const dx = tip.x - fork.x;
+  const dy = tip.y - fork.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-2) return domainClusterBranchOutwardUnit(catalogFullPath).outward;
+  let ux = dx / len;
+  let uy = dy / len;
+  /** Hub may sit off the fork–tip chord (trunk layout); still advance toward authored tip, not away. */
+  const toTipX = tip.x - hubAnchor.x;
+  const toTipY = tip.y - hubAnchor.y;
+  if (ux * toTipX + uy * toTipY < 0) {
+    ux = -ux;
+    uy = -uy;
+  }
+  return { x: ux, y: uy };
+}
+
+/** Fork-tangent direction from catalog only. Prefer {@link branchOutwardUnitForLongitudinalRay} for sequence layout. */
+export function branchOutwardUnitFromCatalog(catalogFullPath: string): Point {
+  return domainClusterBranchOutwardUnit(catalogFullPath).outward;
+}
+
+/** Position of the rank-`rank` node along the branch ray (rank = index in `sequencedNodes`). */
+export function branchNodeScreenPosition(rank: number, hubPt: Point, outwardDir: Point): Point {
+  const r = Math.max(0, rank);
+  const along = BRANCH_HEAD_OFFSET_PX + r * BRANCH_NODE_SPACING_PX;
+  return {
+    x: hubPt.x + outwardDir.x * along,
+    y: hubPt.y + outwardDir.y * along,
+  };
+}
+
+/** Stable left/right of the branch ray per mark id (visual alternation). */
+export function markLateralSideForId(momentId: string): 1 | -1 {
+  let h = 0;
+  for (let i = 0; i < momentId.length; i++) {
+    h = (Math.imul(31, h) + momentId.charCodeAt(i)) | 0;
+  }
+  return (h & 1) === 0 ? 1 : -1;
+}
+
+/** Offset a point perpendicular to the branch ray into branch space (not on the stroke). */
+export function offsetPointPerpendicularToRay(
+  base: Point,
+  rayDir: Point,
+  momentId: string,
+  offsetPx = BRANCH_MARK_LATERAL_OFFSET_PX,
+): Point {
+  const len = Math.hypot(rayDir.x, rayDir.y) || 1;
+  const ux = rayDir.x / len;
+  const uy = rayDir.y / len;
+  const perpX = -uy;
+  const perpY = ux;
+  const side = markLateralSideForId(momentId);
+  return {
+    x: base.x + perpX * offsetPx * side,
+    y: base.y + perpY * offsetPx * side,
+  };
+}
+
+/** Mark slot along the branch sequence — same rank as pursuits, offset beside the ray. */
+export function branchMarkScreenPosition(
+  rank: number,
+  hubPt: Point,
+  outward: Point,
+  momentId: string,
+): Point {
+  const base = branchNodeScreenPosition(rank, hubPt, outward);
+  return offsetPointPerpendicularToRay(base, outward, momentId);
+}
+
+/** Scalar distance (px) from the hub anchor to the branch tip given the highest rank present. */
+export function branchTipPxForNodeCount(nodeCount: number): number {
+  if (nodeCount <= 0) return BRANCH_HEAD_OFFSET_PX + BRANCH_TIP_PADDING_PX;
+  const rankMax = nodeCount - 1;
+  return BRANCH_HEAD_OFFSET_PX + rankMax * BRANCH_NODE_SPACING_PX + BRANCH_TIP_PADDING_PX;
+}
+
+/**
+ * Build the rendered branch stroke for the sequence-driven grammar. Starts at the hub anchor and
+ * extends straight outward to the tip. Callers can apply goal-circle gap cutouts with
+ * {@link applyGoalCircleGapsToStrokePath} as today; node spacing is intrinsic to the rank formula.
+ */
+export function branchPathForNodeCount(hubPt: Point, outwardDir: Point, nodeCount: number): string {
+  const tipPx = branchTipPxForNodeCount(nodeCount);
+  const tip = {
+    x: hubPt.x + outwardDir.x * tipPx,
+    y: hubPt.y + outwardDir.y * tipPx,
+  };
+  return `M${hubPt.x},${hubPt.y} L${tip.x},${tip.y}`;
+}
+
+/** Tip point of the rendered branch stroke (last sample of {@link branchPathForNodeCount}). */
+export function branchTipPointForNodeCount(hubPt: Point, outwardDir: Point, nodeCount: number): Point {
+  const tipPx = branchTipPxForNodeCount(nodeCount);
+  return {
+    x: hubPt.x + outwardDir.x * tipPx,
+    y: hubPt.y + outwardDir.y * tipPx,
+  };
 }
 
 export function branchGuideStationTs(thread: DomainHubData, nextGoalSlotT: number): number[] {
@@ -588,8 +757,8 @@ function domainClusterBranchOutwardUnit(catalogFullPath: string): { fork: Point;
   const fork = pathPointAtT(catalogFullPath, 0);
   const tProbe = Math.min(0.22, Math.max(0.06, DOMAIN_CLUSTER_STROKE_TIP_CAP * 0.42));
   const pProbe = pathPointAtT(catalogFullPath, tProbe);
-  let dx = pProbe.x - fork.x;
-  let dy = pProbe.y - fork.y;
+  const dx = pProbe.x - fork.x;
+  const dy = pProbe.y - fork.y;
   let len = Math.hypot(dx, dy);
   if (len < 1e-4) {
     const tau = pathTangentAtT(catalogFullPath, 0.03);
@@ -602,16 +771,10 @@ function domainClusterBranchOutwardUnit(catalogFullPath: string): { fork: Point;
 /**
  * Slot-based radial offset around {@link DOMAIN_CLUSTER_HUB_RADIAL_RING_PX}. For four hubs, values
  * come from {@link DOMAIN_CLUSTER_HUB_SLOT_RADIAL_OFFSETS_PX_N4} (uniform zeros in the default layout).
- * Six-hub Health & Body uses the same uniform ring; other counts use a linear ladder.
+ * Hub counts above four use a uniform ring; four-hub themes use a linear ladder.
  */
 function domainClusterHubSlotRadialOffsetPx(slot: number, n: number): number {
-  if (n === 4 && slot >= 0 && slot < 4) {
-    return DOMAIN_CLUSTER_HUB_SLOT_RADIAL_OFFSETS_PX_N4[slot]!;
-  }
-  if (n === 6) {
-    return 0;
-  }
-  return domainClusterHubSlotSignedUnitFromMedian(slot, n) * DOMAIN_CLUSTER_HUB_SLOT_RADIAL_SPREAD_PX;
+  return domainClusterHubSlotRadialOffsetPxForLayout(slot, n);
 }
 
 /** Gateway-arc stratification (px) — same slot ladder as radial, orthogonal axis (see {@link domainClusterGatewaySpreadNormalForForkSpec}). */
@@ -619,7 +782,7 @@ function domainClusterHubSlotGatewayArcOffsetPx(slot: number, n: number): number
   if (n === 6) {
     return 0;
   }
-  return domainClusterHubSlotSignedUnitFromMedian(slot, n) * DOMAIN_CLUSTER_HUB_GATEWAY_ARC_SPREAD_PX;
+  return domainClusterHubSlotSignedUnitFromMedian(slot, n) * domainClusterHubGatewayArcSpreadPx();
 }
 
 /**
@@ -628,11 +791,7 @@ function domainClusterHubSlotGatewayArcOffsetPx(slot: number, n: number): number
  * no force balancing.
  */
 function domainClusterOrbitalRingNeighborMul(branchCountOnLimb: number): number {
-  const extra = Math.max(0, (branchCountOnLimb | 0) - 2);
-  return Math.max(
-    DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_FLOOR_MUL,
-    1 - extra * DOMAIN_CLUSTER_RING_NEIGHBOR_SHRINK_PER_EXTRA,
-  );
+  return domainClusterRingNeighborMulForLayout(branchCountOnLimb);
 }
 
 /**
@@ -653,18 +812,51 @@ export function domainClusterBranchOutwardFromCatalog(catalogFullPath: string): 
  * `outward` (branch direction) and to size the safe reach against the fork→tip chord. Conduits adapt
  * to the hub in {@link buildRenderedBranchMainPath}.
  */
+/** Trunk slot fan placement — disabled when layout overrides or explicit hub positions are active. */
+function trunkLayoutUsesSlotHubPlacement(layoutOv?: AreaLayoutOverride): boolean {
+  if (!trunkLayoutEnabled()) return false;
+  if (layoutOv && hasAreaOverride(layoutOv)) return false;
+  return true;
+}
+
 export function domainClusterHubAnchorFromCatalog(
   catalogFullPath: string,
   threadIndexAlongLimb: number,
   branchCountOnLimb: number,
   gatewaySpreadNormal?: Point,
+  areaId?: string,
+  layoutOv?: AreaLayoutOverride,
+  layoutAnchors?: TrunkLayoutAnchorPair,
+  branchId?: string,
 ): Point {
   if (catalogFullPath.length < 8) return pathPointAtT(catalogFullPath, 0);
-  const { fork, outward } = domainClusterBranchOutwardUnit(catalogFullPath);
+  const savedHub =
+    branchId != null && branchId.length > 0 ? layoutOv?.hubPositions?.[branchId] : undefined;
+  if (savedHub) return { ...savedHub };
+  if (areaId && areaId in TRUNK_THEME_SLOT_BY_ID && trunkLayoutEnabled()) {
+    const straightId = areaId as StraightLifeAreaId;
+    const slotCount = defaultHubSlotCountForArea(straightId);
+    if (trunkLayoutUsesSlotHubPlacement(layoutOv) && !layoutAnchors) {
+      const gateway = computeThemeGatewayFromTrunkSlot(straightId);
+      return trunkLayoutDomainHubPoint(straightId, gateway, threadIndexAlongLimb, slotCount);
+    }
+    const gateway = layoutAnchors?.gateway ?? pathPointAtT(catalogFullPath, 0);
+    const trunkAttach =
+      layoutAnchors?.trunkAttach ?? computeTrunkAttachForTheme(straightId);
+    return trunkLayoutDomainHubPointAtAnchors(
+      straightId,
+      gateway,
+      trunkAttach,
+      threadIndexAlongLimb,
+      slotCount,
+    );
+  }
+  const fork = pathPointAtT(catalogFullPath, 0);
+  const outward = domainClusterBranchOutwardUnit(catalogFullPath).outward;
   const tipSample = pathPointAtT(catalogFullPath, DOMAIN_CLUSTER_STROKE_TIP_CAP);
   const chordLen = Math.hypot(tipSample.x - fork.x, tipSample.y - fork.y);
   const slotOffset = domainClusterHubSlotRadialOffsetPx(threadIndexAlongLimb, branchCountOnLimb);
-  const targetR = DOMAIN_CLUSTER_HUB_RADIAL_RING_PX + slotOffset;
+  const targetR = domainClusterHubRingPx() + slotOffset;
   const maxReach = Math.max(DOMAIN_CLUSTER_HUB_RADIAL_MIN_PX + 8, chordLen);
   const R = Math.max(
     DOMAIN_CLUSTER_HUB_RADIAL_MIN_PX,
@@ -672,17 +864,42 @@ export function domainClusterHubAnchorFromCatalog(
   );
   let x = fork.x + outward.x * R;
   let y = fork.y + outward.y * R;
-  if (gatewaySpreadNormal) {
+  const arc = domainClusterHubSlotGatewayArcOffsetPx(threadIndexAlongLimb, branchCountOnLimb);
+  if (gatewaySpreadNormal && Math.abs(arc) > 1e-4) {
     const gl = Math.hypot(gatewaySpreadNormal.x, gatewaySpreadNormal.y);
     if (gl > 1e-4) {
       const nx = gatewaySpreadNormal.x / gl;
       const ny = gatewaySpreadNormal.y / gl;
-      const arc = domainClusterHubSlotGatewayArcOffsetPx(threadIndexAlongLimb, branchCountOnLimb);
       x += nx * arc;
       y += ny * arc;
     }
   }
   return { x, y };
+}
+
+/**
+ * Domain-cluster polar **slot index** (0 … n−1) for a root goal — follows {@link DomainHubData.sequencedNodes}
+ * goal order, not {@link DomainHubData.goals} tree array order. Keeps moment-chain anchors aligned with
+ * rendered goal hexes when the two orderings diverge.
+ */
+export function domainClusterGoalRingSlotIndex(thread: DomainHubData, goalId: string): number {
+  const seqIds: string[] = [];
+  for (const n of thread.sequencedNodes) {
+    if (n.kind === "goal") seqIds.push(n.goal.id);
+  }
+  const i = seqIds.indexOf(goalId);
+  if (i >= 0) return i;
+  const j = thread.goals.findIndex((g) => g.id === goalId);
+  return j >= 0 ? j : 0;
+}
+
+/** Goal count for domain-cluster ring division — sequenced root goals, else `thread.goals.length`. */
+export function domainClusterGoalRingGoalCount(thread: DomainHubData): number {
+  let n = 0;
+  for (const node of thread.sequencedNodes) {
+    if (node.kind === "goal") n += 1;
+  }
+  return Math.max(1, n > 0 ? n : thread.goals.length);
 }
 
 /**
@@ -698,6 +915,10 @@ export function goalScreenPositionDomainCluster(
   branchCountOnLimb: number,
   goalsOnThreadCount: number,
   gatewaySpreadNormal?: Point,
+  areaId?: string,
+  layoutOv?: AreaLayoutOverride,
+  layoutAnchors?: TrunkLayoutAnchorPair,
+  branchId?: string,
 ): Point {
   if (catalogPath.length < 8) return pathPointAtT(catalogPath, 0);
   const hub = domainClusterHubAnchorFromCatalog(
@@ -705,7 +926,48 @@ export function goalScreenPositionDomainCluster(
     threadIndexAlongLimb,
     branchCountOnLimb,
     gatewaySpreadNormal,
+    areaId,
+    layoutOv,
+    layoutAnchors,
+    branchId,
   );
+  const ringMul = domainClusterOrbitalRingNeighborMul(branchCountOnLimb);
+  const { phase: idPhase, magBump } = stableGoalLayoutSalt(goalId);
+
+  if (areaId && areaId in TRUNK_THEME_SLOT_BY_ID && trunkLayoutEnabled()) {
+    const straightId = areaId as StraightLifeAreaId;
+    const slotCount = defaultHubSlotCountForArea(areaId);
+    if (trunkLayoutUsesSlotHubPlacement(layoutOv) && !layoutAnchors) {
+      return trunkLayoutGoalPositionFromHub(
+        straightId,
+        hub,
+        goalIndex,
+        goalsOnThreadCount,
+        goalId,
+        ringMul,
+        magBump,
+        threadIndexAlongLimb,
+        slotCount,
+      );
+    }
+    const gateway = layoutAnchors?.gateway ?? pathPointAtT(catalogPath, 0);
+    const trunkAttach =
+      layoutAnchors?.trunkAttach ?? computeTrunkAttachForTheme(straightId);
+    return trunkLayoutGoalPositionFromHubAtAnchors(
+      straightId,
+      hub,
+      gateway,
+      trunkAttach,
+      goalIndex,
+      goalsOnThreadCount,
+      goalId,
+      ringMul,
+      magBump,
+      threadIndexAlongLimb,
+      slotCount,
+    );
+  }
+
   const { outward } = domainClusterBranchOutwardUnit(catalogPath);
   const uDir = outward;
   const v = { x: -uDir.y, y: uDir.x };
@@ -718,13 +980,11 @@ export function goalScreenPositionDomainCluster(
     nGoals <= 1
       ? 0
       : (2 * Math.PI * goalIndex) / nGoals + DOMAIN_CLUSTER_GOAL_RING_PHASE_OFFSET_RAD;
-  const { phase: idPhase, magBump } = stableGoalLayoutSalt(goalId);
   /** One tight ring; angles carry separation, with a slot-count shrink so dense limbs don't collide. */
-  const ringMul = domainClusterOrbitalRingNeighborMul(branchCountOnLimb);
   let r =
-    (DOMAIN_CLUSTER_BASE_RADIUS_PX + magBump * 0.34 + Math.sin((goalIndex + 1) * 0.37 + idPhase) * 1.05) *
+    (domainClusterGoalBaseRadiusPx() + magBump * 0.34 + Math.sin((goalIndex + 1) * 0.37 + idPhase) * 1.05) *
     ringMul;
-  r = Math.min(DOMAIN_CLUSTER_GOAL_RING_MAX_RADIUS_PX * ringMul, r);
+  r = Math.min(domainClusterGoalRingMaxPx() * ringMul, r);
   /** True circle in the outward × perp plane (`v` ⟂ `uDir`). */
   const ox = (Math.cos(theta) * v.x + Math.sin(theta) * uDir.x) * r;
   const oy = (Math.cos(theta) * v.y + Math.sin(theta) * uDir.y) * r;
@@ -741,9 +1001,30 @@ export function goalScreenPositionForLifeAreaThread(
   branchCountOnLimb: number,
   goalsOnThreadCount: number,
   domainClusterGatewaySpreadNormal?: Point,
+  layoutOv?: AreaLayoutOverride,
+  layoutAnchors?: TrunkLayoutAnchorPair,
+  branchId?: string,
 ): Point {
+  if (FLAGS.BRANCH_LONGITUDINAL_ALL) {
+    /** Rank in the unified sequence — co-sorted goals + moments. Falls back to `goalIndex` when the node isn't found (transitional rows during a render pass before tree-data rebuilds). */
+    const rank = thread.sequencedNodes.findIndex((n) => n.id === goalId);
+    const safeRank = rank >= 0 ? rank : goalIndex;
+    const hubAnchor = domainClusterHubAnchorFromCatalog(
+      catalogPath,
+      threadIndexAlongLimb,
+      branchCountOnLimb,
+      domainClusterGatewaySpreadNormal,
+      areaId,
+      layoutOv,
+      layoutAnchors,
+      branchId,
+    );
+    const outward = branchOutwardUnitForLongitudinalRay(catalogPath, hubAnchor);
+    const pt = branchNodeScreenPosition(safeRank, hubAnchor, outward);
+    return pt;
+  }
   if (shouldDomainClusterThread(areaId, thread)) {
-    return goalScreenPositionDomainCluster(
+    const pt = goalScreenPositionDomainCluster(
       catalogPath,
       goalIndex,
       goalId,
@@ -751,9 +1032,14 @@ export function goalScreenPositionForLifeAreaThread(
       branchCountOnLimb,
       goalsOnThreadCount,
       domainClusterGatewaySpreadNormal,
+      areaId,
+      layoutOv,
+      layoutAnchors,
+      branchId,
     );
+    return pt;
   }
-  return goalScreenPositionOnCatalogPath(
+  const pt = goalScreenPositionOnCatalogPath(
     catalogPath,
     goalIndex,
     goalId,
@@ -761,9 +1047,10 @@ export function goalScreenPositionForLifeAreaThread(
     branchCountOnLimb,
     goalsOnThreadCount,
   );
+  return pt;
 }
 
-function evolvedChildLayoutJitter(childId: string): number {
+function continuationChildLayoutJitter(childId: string): number {
   let h = 2166136261;
   for (let k = 0; k < childId.length; k += 1) {
     h ^= childId.charCodeAt(k)!;
@@ -772,8 +1059,8 @@ function evolvedChildLayoutJitter(childId: string): number {
   return (((h >>> 9) % 11) - 5) * 0.95;
 }
 
-/** Screen position for an evolved (forked) child along the hub → parent outward ray. */
-export function evolvedChildScreenPosition(
+/** Screen position for a continuation child (`parentGoalId`) along the hub → parent outward ray. */
+export function continuationChildScreenPosition(
   parentPt: Point,
   domainHubPt: Point,
   childIndex: number,
@@ -788,7 +1075,7 @@ export function evolvedChildScreenPosition(
   const perpX = -uy;
   const perpY = ux;
   const side = childIndex % 2 === 0 ? 1 : -1;
-  const lenJitter = evolvedChildLayoutJitter(childId);
+  const lenJitter = continuationChildLayoutJitter(childId);
   const along =
     TREE_EVOLVED_GOAL_SPAWN_ALONG_BASE_PX +
     childIndex * TREE_EVOLVED_GOAL_SPAWN_ALONG_PER_SIBLING_PX +
@@ -802,38 +1089,151 @@ export function evolvedChildScreenPosition(
   };
 }
 
-export type EvolvedGoalFlowSegment = { from: Point; to: Point };
+export type ContinuationGoalFlowSegment = { from: Point; to: Point; targetGoalId: string };
 
-/** Parent → evolved-child flow segments (recursive for nested evolutions). */
-export function evolvedGoalFlowSegments(
+/** Parent → continuation-child flow segments (recursive for nested chains). */
+export function continuationGoalFlowSegments(
   parentPt: Point,
   domainHubPt: Point,
   goal: TreeGoalNode,
   depth = 0,
-): EvolvedGoalFlowSegment[] {
-  const segments: EvolvedGoalFlowSegment[] = [];
+): ContinuationGoalFlowSegment[] {
+  const segments: ContinuationGoalFlowSegment[] = [];
   const children = goal.childGoals.slice(0, TREE_GOAL_MAX_CHILDREN_PER_NODE);
   for (let ci = 0; ci < children.length; ci += 1) {
     const child = children[ci]!;
-    const childPt = evolvedChildScreenPosition(parentPt, domainHubPt, ci, child.id, depth);
-    segments.push({ from: parentPt, to: childPt });
+    const childPt = continuationChildScreenPosition(parentPt, domainHubPt, ci, child.id, depth);
+    segments.push({ from: parentPt, to: childPt, targetGoalId: child.id });
     if (child.childGoals.length > 0 && depth < TREE_GOAL_RENDER_MAX_DEPTH) {
-      segments.push(...evolvedGoalFlowSegments(childPt, domainHubPt, child, depth + 1));
+      segments.push(...continuationGoalFlowSegments(childPt, domainHubPt, child, depth + 1));
     }
   }
   return segments;
 }
 
-/** Hub → root goal → evolved chain segments for domain-cluster flow lines. */
+/** Hub → root goal → continuation chain segments for domain-cluster flow lines. */
 export function domainClusterGoalFlowSegments(
   hubPt: Point,
   goalScreenPt: Point,
   goal: TreeGoalNode,
-): EvolvedGoalFlowSegment[] {
+): ContinuationGoalFlowSegment[] {
   return [
-    { from: hubPt, to: goalScreenPt },
-    ...evolvedGoalFlowSegments(goalScreenPt, hubPt, goal),
+    { from: hubPt, to: goalScreenPt, targetGoalId: goal.id },
+    ...continuationGoalFlowSegments(goalScreenPt, hubPt, goal),
   ];
+}
+
+const GOAL_FLOW_FRUIT_INSET_PX = 46;
+
+function insetChordEndpoints(
+  from: Point,
+  to: Point,
+  insetFrom: number,
+  insetTo: number,
+): { from: Point; to: Point } {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-3) return { from, to };
+  const ux = dx / len;
+  const uy = dy / len;
+  const fromInset = Math.min(insetFrom, len * 0.44);
+  const toInset = Math.min(insetTo, len * 0.44);
+  return {
+    from: { x: from.x + ux * fromInset, y: from.y + uy * fromInset },
+    to: { x: to.x - ux * toInset, y: to.y - uy * toInset },
+  };
+}
+
+/** Theme gateway for render — fork `limbTip` when layout overrides are active, else trunk slot. */
+export function themeGatewayPointForArea(
+  areaId: string,
+  forkSpec: AreaForkSpec | undefined,
+  layoutOv?: AreaLayoutOverride,
+): Point {
+  if (trunkLayoutEnabled() && areaId in TRUNK_THEME_SLOT_BY_ID) {
+    if (layoutOv && hasAreaOverride(layoutOv) && forkSpec) return { ...forkSpec.limbTip };
+    return computeThemeGatewayFromTrunkSlot(areaId as StraightLifeAreaId);
+  }
+  if (forkSpec) return { ...forkSpec.limbTip };
+  return computeThemeGatewayFromTrunkSlot(areaId as StraightLifeAreaId);
+}
+
+function domainClusterFlowBowOrigin(areaId: string, layoutOv?: AreaLayoutOverride, forkSpec?: AreaForkSpec): Point {
+  if (trunkLayoutEnabled() && areaId in TRUNK_THEME_SLOT_BY_ID) {
+    if (layoutOv && hasAreaOverride(layoutOv) && forkSpec) return { ...forkSpec.limbTip };
+    return computeThemeGatewayFromTrunkSlot(areaId as StraightLifeAreaId);
+  }
+  return THEME_STAR_CENTER;
+}
+
+/** Bow origin for theme gateway → domain hub chords (bulge outward, away from composition centre). */
+export function domainClusterGatewayToHubBowOrigin(areaId: string): Point {
+  if (!trunkLayoutEnabled()) return THEME_STAR_CENTER;
+  return connectiveBowOriginForArea(areaId);
+}
+
+/** Bow origin for domain hub → goal chords (bulge outward, away from theme gateway). */
+export function domainClusterHubToGoalBowOrigin(areaId: string): Point {
+  return domainClusterFlowBowOrigin(areaId);
+}
+
+/** Connective bow for one domain-cluster chord (gateway→hub or hub→goal). */
+export function domainClusterConnectivePathD(
+  from: Point,
+  to: Point,
+  areaId: string,
+  segment: "gateway-hub" | "hub-goal",
+): string {
+  const origin =
+    segment === "gateway-hub"
+      ? domainClusterGatewayToHubBowOrigin(areaId)
+      : domainClusterHubToGoalBowOrigin(areaId);
+  return connectiveBowPathD(from, to, origin);
+}
+
+/**
+ * Gateway → domain hub with chord endpoints inset to medallion edges (avoids asterisk through icons).
+ */
+export function domainClusterGatewayHubPathD(
+  themeGateway: Point,
+  hub: Point,
+  areaId: string,
+  themeArtworkSpanPx: number = TREE_THEME_GATEWAY_ICON_PX,
+  hubArtworkSpanPx: number = trunkLayoutEnabled()
+    ? TREE_DOMAIN_HUB_GLYPH_PX_TRUNK
+    : TREE_DOMAIN_HUB_GLYPH_PX,
+): string {
+  const themeInset = iconMedallionRadii(themeArtworkSpanPx, "theme").discR + 6;
+  const hubInset = iconMedallionRadii(hubArtworkSpanPx, "domainHub").discR + 8;
+  const { from, to } = insetChordEndpoints(themeGateway, hub, themeInset, hubInset);
+  return connectiveBowPathD(from, to, domainClusterGatewayToHubBowOrigin(areaId));
+}
+
+function domainClusterHubStrokeInsetPx(): number {
+  const hubPx = trunkLayoutEnabled() ? TREE_DOMAIN_HUB_GLYPH_PX_TRUNK : TREE_DOMAIN_HUB_GLYPH_PX;
+  return Math.max(
+    DOMAIN_CLUSTER_ICON_STROKE_INSET_PX,
+    iconMedallionRadii(hubPx, "domainHub").discR + 6,
+  );
+}
+
+/** Hub / parent → goal connective stroke with edge insets and correct outward bow. */
+export function domainClusterFlowSegmentPathD(
+  from: Point,
+  to: Point,
+  areaId: string,
+  snap?: (n: number) => number,
+): string {
+  const s = snap ?? ((n: number) => n);
+  const { from: p0, to: p3 } = insetChordEndpoints(
+    from,
+    to,
+    domainClusterHubStrokeInsetPx(),
+    GOAL_FLOW_FRUIT_INSET_PX,
+  );
+  const bow = connectiveBowCubicPiece(p0, p3, domainClusterHubToGoalBowOrigin(areaId));
+  return `M ${s(p0.x)} ${s(p0.y)} C ${s(bow.c1.x)} ${s(bow.c1.y)} ${s(bow.c2.x)} ${s(bow.c2.y)} ${s(bow.end.x)} ${s(bow.end.y)}`;
 }
 
 /**
@@ -853,7 +1253,30 @@ export function goalMarkerTangentOutForPlacement(
   clusterThreadIndex?: number,
   clusterBranchCount?: number,
   domainClusterGatewaySpreadNormal?: Point,
+  areaId?: string,
+  layoutOv?: AreaLayoutOverride,
+  layoutAnchors?: TrunkLayoutAnchorPair,
+  branchId?: string,
 ): Point {
+  if (
+    FLAGS.BRANCH_LONGITUDINAL_ALL &&
+    !useCluster &&
+    catalogPath.length >= 8 &&
+    clusterThreadIndex !== undefined &&
+    clusterBranchCount !== undefined
+  ) {
+    const hub = domainClusterHubAnchorFromCatalog(
+      catalogPath,
+      clusterThreadIndex,
+      clusterBranchCount,
+      domainClusterGatewaySpreadNormal,
+      areaId,
+      layoutOv,
+      layoutAnchors,
+      branchId,
+    );
+    return branchOutwardUnitForLongitudinalRay(catalogPath, hub);
+  }
   if (!useCluster || catalogPath.length < 8) {
     const tc = rootGoalCatalogT(goalIndex);
     return pathTangentAtT(catalogPath, tc);
@@ -865,6 +1288,10 @@ export function goalMarkerTangentOutForPlacement(
           clusterThreadIndex,
           clusterBranchCount,
           domainClusterGatewaySpreadNormal,
+          areaId,
+          layoutOv,
+          layoutAnchors,
+          branchId,
         )
       : pathPointAtT(catalogPath, 0);
   const dx = goalScreen.x - hub.x;
@@ -879,12 +1306,20 @@ export function domainClusterHubPointFromCatalog(
   threadIndexAlongLimb: number,
   branchCountOnLimb: number,
   gatewaySpreadNormal?: Point,
+  areaId?: string,
+  layoutOv?: AreaLayoutOverride,
+  layoutAnchors?: TrunkLayoutAnchorPair,
+  branchId?: string,
 ): Point {
   return domainClusterHubAnchorFromCatalog(
     catalogFullPath,
     threadIndexAlongLimb,
     branchCountOnLimb,
     gatewaySpreadNormal,
+    areaId,
+    layoutOv,
+    layoutAnchors,
+    branchId,
   );
 }
 
@@ -913,8 +1348,12 @@ export function domainClusterAddGoalPlaceholderPt(
     threadIndexAlongLimb,
     branchCountOnLimb,
     gatewaySpreadNormal,
+    areaId,
   );
-  const n = thread.goals.length;
+  const useDcRing = shouldDomainClusterThread(areaId, thread);
+  const nRing = domainClusterGoalRingGoalCount(thread);
+  const nArr = thread.goals.length;
+  const n = useDcRing ? nRing : nArr;
   const polar = goalScreenPositionForLifeAreaThread(
     areaId,
     thread,
@@ -955,6 +1394,7 @@ export function domainClusterAddGoalTailPath(
     threadIndexAlongLimb,
     branchCountOnLimb,
     gatewaySpreadNormal,
+    areaId,
   );
   const ph = domainClusterAddGoalPlaceholderPt(
     areaId,
@@ -1313,8 +1753,8 @@ function threadSmoothChainAsCubicsFromKnots(
       return v;
     };
 
-    let t0 = capArm(knotTangents[i]!);
-    let t1 = capArm(knotTangents[i + 1]!);
+    const t0 = capArm(knotTangents[i]!);
+    const t1 = capArm(knotTangents[i + 1]!);
     let c1 = vecAdd(p0, vecScale(t0, 1 / 3));
     let c2 = vecSub(p3, vecScale(t1, 1 / 3));
 
@@ -1346,23 +1786,357 @@ function threadSmoothChainAsCubicsFromKnots(
   return d;
 }
 
+function interpPointOnSegment(a: Point, b: Point, u: number): Point {
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+}
+
+function goalScreenPosForMomentChain(
+  areaId: string,
+  thread: DomainHubData,
+  ctx: DomainClusterMomentChainContext,
+  goalId: string,
+): Point | null {
+  const gi = ctx.goalsOnThread.findIndex((g) => g.id === goalId);
+  if (gi < 0) return null;
+  const useSeqRing = shouldDomainClusterThread(areaId, thread);
+  const goalIndex = useSeqRing ? domainClusterGoalRingSlotIndex(thread, goalId) : gi;
+  const goalsOnThreadCount = useSeqRing ? domainClusterGoalRingGoalCount(thread) : ctx.goalsOnThread.length;
+  return goalScreenPositionForLifeAreaThread(
+    areaId,
+    thread,
+    ctx.catalogFullPath,
+    goalIndex,
+    goalId,
+    ctx.kFork,
+    ctx.branchCountOnLimb,
+    goalsOnThreadCount,
+    ctx.domainClusterGatewaySpreadNormal,
+    ctx.layoutOv,
+    ctx.layoutAnchors,
+    ctx.branchId,
+  );
+}
+
+function findPrevGoalSeqIndex(seq: DomainHubData["sequencedNodes"], fromIdx: number): number {
+  for (let i = fromIdx - 1; i >= 0; i--) {
+    if (seq[i]!.kind === "goal") return i;
+  }
+  return -1;
+}
+
+function findNextGoalSeqIndex(seq: DomainHubData["sequencedNodes"], fromIdx: number): number {
+  for (let i = fromIdx + 1; i < seq.length; i++) {
+    if (seq[i]!.kind === "goal") return i;
+  }
+  return -1;
+}
+
+function findLastGoalSeqIndex(seq: DomainHubData["sequencedNodes"]): number {
+  for (let i = seq.length - 1; i >= 0; i--) {
+    if (seq[i]!.kind === "goal") return i;
+  }
+  return -1;
+}
+
+function extrapolatePastPoint(segmentStart: Point, segmentEnd: Point, extraMul = 0.38, minExtra = 28): Point {
+  const dx = segmentEnd.x - segmentStart.x;
+  const dy = segmentEnd.y - segmentStart.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const extra = Math.max(minExtra, len * extraMul);
+  return { x: segmentEnd.x + (dx / len) * extra, y: segmentEnd.y + (dy / len) * extra };
+}
+
+type DomainClusterMomentChainSegment = {
+  anchor: Point;
+  b: Point;
+  betweenIdx: number[];
+  momentSeqIdx: number;
+};
+
+/** Hub / preceding goal anchor for a domain-cluster moment (start of its placement segment). */
+function domainClusterMomentChainSegment(
+  areaId: string,
+  thread: DomainHubData,
+  momentId: string,
+  ctx: DomainClusterMomentChainContext,
+): DomainClusterMomentChainSegment | null {
+  if (!shouldDomainClusterThread(areaId, thread)) return null;
+  const seq = thread.sequencedNodes;
+  if (!seq.length) return null;
+
+  const idx = seq.findIndex((n) => n.kind === "moment" && n.id === momentId);
+  if (idx < 0) return null;
+
+  const hub = domainClusterHubPointFromCatalog(
+    ctx.catalogFullPath,
+    ctx.kFork,
+    ctx.branchCountOnLimb,
+    ctx.domainClusterGatewaySpreadNormal,
+    areaId,
+    ctx.layoutOv,
+    ctx.layoutAnchors,
+    ctx.branchId,
+  );
+
+  /** Marks-only hub: space along hub → branch tip (same ray as the fork stroke), not the goal ring. */
+  if (ctx.goalsOnThread.length === 0) {
+    const tipAlongBranch = pathPointAtT(ctx.catalogFullPath, DOMAIN_CLUSTER_STROKE_TIP_CAP);
+    const b = extrapolatePastPoint(hub, tipAlongBranch);
+    const betweenIdx: number[] = [];
+    for (let i = 0; i < seq.length; i++) {
+      if (seq[i]!.kind === "moment") betweenIdx.push(i);
+    }
+    if (betweenIdx.length === 0) return null;
+    return { anchor: hub, b, betweenIdx, momentSeqIdx: idx };
+  }
+
+  const prevG = findPrevGoalSeqIndex(seq, idx);
+  const nextG = findNextGoalSeqIndex(seq, idx);
+
+  const momentIndicesInOpenInterval = (lo: number, hi: number): number[] => {
+    const out: number[] = [];
+    for (let i = lo + 1; i < hi; i++) {
+      if (seq[i]!.kind === "moment") out.push(i);
+    }
+    return out;
+  };
+
+  const momentIndicesAfterLastGoal = (lastGoalIdx: number): number[] => {
+    const out: number[] = [];
+    for (let i = lastGoalIdx + 1; i < seq.length; i++) {
+      if (seq[i]!.kind === "moment") out.push(i);
+    }
+    return out;
+  };
+
+  let anchor: Point;
+  let b: Point;
+  let betweenIdx: number[];
+
+  if (nextG >= 0) {
+    const nextNode = seq[nextG]!;
+    if (nextNode.kind !== "goal") return null;
+    const bPt = goalScreenPosForMomentChain(areaId, thread, ctx, nextNode.goal.id);
+    if (!bPt) return null;
+    b = bPt;
+    if (prevG >= 0) {
+      const prevNode = seq[prevG]!;
+      if (prevNode.kind !== "goal") return null;
+      const aPt = goalScreenPosForMomentChain(areaId, thread, ctx, prevNode.goal.id);
+      if (!aPt) return null;
+      anchor = aPt;
+      betweenIdx = momentIndicesInOpenInterval(prevG, nextG);
+    } else {
+      anchor = hub;
+      betweenIdx = momentIndicesInOpenInterval(-1, nextG);
+    }
+  } else {
+    const lastG = findLastGoalSeqIndex(seq);
+    if (lastG < 0) return null;
+    const lastNode = seq[lastG]!;
+    if (lastNode.kind !== "goal") return null;
+    const lastPt = goalScreenPosForMomentChain(areaId, thread, ctx, lastNode.goal.id);
+    if (!lastPt) return null;
+    anchor = lastPt;
+    const prevG2 = findPrevGoalSeqIndex(seq, lastG);
+    if (prevG2 >= 0) {
+      const pn = seq[prevG2]!;
+      if (pn.kind !== "goal") return null;
+      const prevPt = goalScreenPosForMomentChain(areaId, thread, ctx, pn.goal.id);
+      b = prevPt ? extrapolatePastPoint(prevPt, lastPt) : extrapolatePastPoint(hub, lastPt);
+    } else {
+      b = extrapolatePastPoint(hub, lastPt);
+    }
+    betweenIdx = momentIndicesAfterLastGoal(lastG);
+  }
+
+  return { anchor, b, betweenIdx, momentSeqIdx: idx };
+}
+
+/**
+ * Start anchor for a dashed mark connector — hub or preceding goal on the branch sequence.
+ * Mirrors {@link domainClusterMomentOnSequencedGoalChain} placement anchors.
+ */
+export function momentConnectorAnchorPoint(
+  areaId: string,
+  thread: DomainHubData,
+  momentId: string,
+  chordPath: string,
+  chordTEnd: number,
+  longitudinalRayPath: string | undefined,
+  layoutCtx: DomainClusterMomentChainContext | null,
+): Point | null {
+  if (layoutCtx && shouldDomainClusterThread(areaId, thread)) {
+    const seg = domainClusterMomentChainSegment(areaId, thread, momentId, layoutCtx);
+    if (seg) return seg.anchor;
+  }
+
+  const seq = thread.sequencedNodes;
+  const momentSeqIdx = seq.findIndex((n) => n.kind === "moment" && n.id === momentId);
+
+  if (FLAGS.BRANCH_LONGITUDINAL_ALL && momentSeqIdx >= 0) {
+    const ray =
+      longitudinalRayPath && longitudinalRayPath.length > 5 ? longitudinalRayPath : chordPath;
+    const hubPt = pathPointAtT(ray, 0);
+    const prevGoalIdx = findPrevGoalSeqIndex(seq, momentSeqIdx);
+    if (prevGoalIdx >= 0) {
+      const outward = branchOutwardUnitForLongitudinalRay(chordPath, hubPt);
+      return branchNodeScreenPosition(prevGoalIdx, hubPt, outward);
+    }
+    return hubPt;
+  }
+
+  if (momentSeqIdx >= 0 && layoutCtx) {
+    const prevGoalIdx = findPrevGoalSeqIndex(seq, momentSeqIdx);
+    if (prevGoalIdx >= 0) {
+      const prevNode = seq[prevGoalIdx]!;
+      if (prevNode.kind === "goal") {
+        const pt = goalScreenPosForMomentChain(areaId, thread, layoutCtx, prevNode.goal.id);
+        if (pt) return pt;
+      }
+    }
+    if (shouldDomainClusterThread(areaId, thread)) {
+      return domainClusterHubPointFromCatalog(
+        layoutCtx.catalogFullPath,
+        layoutCtx.kFork,
+        layoutCtx.branchCountOnLimb,
+        layoutCtx.domainClusterGatewaySpreadNormal,
+        areaId,
+        layoutCtx.layoutOv,
+        layoutCtx.layoutAnchors,
+        layoutCtx.branchId,
+      );
+    }
+  }
+
+  return pathPointAtT(chordPath, 0);
+}
+
+/**
+ * Places a moment along the polyline hub → goals (in {@link DomainHubData.sequencedNodes} order),
+ * linearly spacing moments that sit between the same two bounding anchors.
+ */
+function domainClusterMomentOnSequencedGoalChain(
+  areaId: string,
+  thread: DomainHubData,
+  momentId: string,
+  ctx: DomainClusterMomentChainContext,
+): Point | null {
+  const debug = process.env.NODE_ENV === "development" && FLAGS.TREE_DEBUG_MOMENT_CHAIN;
+
+  const chain = domainClusterMomentChainSegment(areaId, thread, momentId, ctx);
+  if (!chain) {
+    if (debug) {
+      console.log("[moment-chain] skip: chain segment unresolved", { momentId, branchId: ctx.branchId });
+    }
+    return null;
+  }
+
+  const { anchor: a, b, betweenIdx, momentSeqIdx: idx } = chain;
+
+  const local = betweenIdx.indexOf(idx);
+  if (local < 0 || betweenIdx.length === 0) {
+    if (debug) {
+      const seq = thread.sequencedNodes;
+      console.log("[moment-chain] skip: moment index not in between-interval", {
+        momentId,
+        idx,
+        betweenIdx,
+        seqKinds: seq.map((n, i) => `${i}:${n.kind}`),
+      });
+    }
+    return null;
+  }
+  const u = (local + 1) / (betweenIdx.length + 1);
+  const out = interpPointOnSegment(a, b, u);
+  if (debug) {
+    const seq = thread.sequencedNodes;
+    const prevG = findPrevGoalSeqIndex(seq, idx);
+    const nextG = findNextGoalSeqIndex(seq, idx);
+    const prevGoalId =
+      prevG >= 0 && seq[prevG]!.kind === "goal" ? seq[prevG]!.goal.id : "(hub)";
+    const nextGoalId =
+      nextG >= 0 && seq[nextG]!.kind === "goal" ? seq[nextG]!.goal.id : "(after-last-goal)";
+    console.log("[moment-chain] ok", {
+      momentId,
+      idx,
+      prevGoalId,
+      nextGoalId,
+      anchorA: a,
+      anchorB: b,
+      betweenMomentSeqIndices: betweenIdx,
+      u,
+      out,
+    });
+  }
+  return out;
+}
+
 export function resolvedChainMomentPos(
-  _areaId: string,
+  areaId: string,
   _threadIdx: number,
   thread: DomainHubData,
   momentIdx: number,
   chordPath: string,
   momentPositions: Record<string, Point> | undefined,
   chordTEnd = 1,
+  /**
+   * When `FLAGS.BRANCH_LONGITUDINAL_ALL`, pass the rendered branch stroke (`M hub … L tip`) so
+   * moments share the same hub→tip ray as goals. `chordPath` here is still the catalog spline for
+   * legacy placement when this is omitted.
+   */
+  longitudinalRayPath?: string,
+  /** When set and not in longitudinal-all mode, domain-cluster moments sit on the hub→goal chain. */
+  dcChainCtx?: DomainClusterMomentChainContext | null,
 ): Point {
-  const cnt = Math.max(1, thread.moments.length);
   const m = thread.moments[momentIdx];
+
+  if (FLAGS.BRANCH_LONGITUDINAL_ALL && m) {
+    /** Same rank as pursuits on `sequencedNodes`, placed beside the hub→tip ray. */
+    const rank = thread.sequencedNodes.findIndex((n) => n.id === m.id);
+    if (rank >= 0) {
+      const ray =
+        longitudinalRayPath && longitudinalRayPath.length > 5 ? longitudinalRayPath : chordPath;
+      const hubPt = pathPointAtT(ray, 0);
+      const outward = branchOutwardUnitForLongitudinalRay(chordPath, hubPt);
+      return branchMarkScreenPosition(rank, hubPt, outward, m.id);
+    }
+  }
+
+  if (!FLAGS.BRANCH_LONGITUDINAL_ALL && m && dcChainCtx) {
+    const chainSeg = domainClusterMomentChainSegment(areaId, thread, m.id, dcChainCtx);
+    const chainPt = domainClusterMomentOnSequencedGoalChain(areaId, thread, m.id, dcChainCtx);
+    if (chainPt && chainSeg) {
+      const dx = chainSeg.b.x - chainSeg.anchor.x;
+      const dy = chainSeg.b.y - chainSeg.anchor.y;
+      return offsetPointPerpendicularToRay(chainPt, { x: dx, y: dy }, m.id);
+    }
+    if (chainPt) return chainPt;
+    if (FLAGS.TREE_DEBUG_MOMENT_CHAIN && process.env.NODE_ENV === "development") {
+      console.log("[moment-chain] resolvedChainMomentPos: chain returned null, using fork-chord fallback", {
+        momentId: m.id,
+        branchId: dcChainCtx.branchId,
+      });
+    }
+  } else if (FLAGS.TREE_DEBUG_MOMENT_CHAIN && process.env.NODE_ENV === "development" && m && !FLAGS.BRANCH_LONGITUDINAL_ALL) {
+    console.log("[moment-chain] resolvedChainMomentPos: no dcChainCtx", {
+      momentId: m.id,
+      hasCtx: Boolean(dcChainCtx),
+    });
+  }
+
+  const cnt = Math.max(1, thread.moments.length);
   const saved = m ? momentPositions?.[m.id] : undefined;
   const te = Math.max(0, Math.min(1, chordTEnd));
   const chordA = pathPointAtT(chordPath, 0);
   const chordB = pathPointAtT(chordPath, te);
   if (saved) return clampSavedMomentToChordSpan(saved, chordA, chordB);
-  return momentOnForkTipChord(chordPath, momentIdx, cnt, chordTEnd);
+  const fallback = momentOnForkTipChord(chordPath, momentIdx, cnt, chordTEnd);
+  if (m) {
+    const outward = branchOutwardUnitForLongitudinalRay(chordPath, chordA);
+    return offsetPointPerpendicularToRay(fallback, outward, m.id);
+  }
+  return fallback;
 }
 
 /**
@@ -1412,16 +2186,18 @@ function rootGoalStrokeGapCenters(
   domainClusterGatewaySpreadNormal?: Point,
 ): GoalBranchStrokeGapSpec[] {
   const n = thread.goals.length;
+  const threadDc = shouldDomainClusterThread(areaId, thread);
+  const ringN = domainClusterGoalRingGoalCount(thread);
   return thread.goals.map((g, gi) => ({
     center: goalBranchStrokeGapCenterFruitSide(
       areaId,
       thread,
       catalogFullPath,
-      gi,
+      threadDc ? domainClusterGoalRingSlotIndex(thread, g.id) : gi,
       g.id,
       threadIndexAlongLimb,
       branchCountOnLimb,
-      n,
+      threadDc ? ringN : n,
       domainClusterGatewaySpreadNormal,
     ),
   }));
@@ -1487,9 +2263,37 @@ export function buildRenderedBranchMainPath(
   threadIndexAlongLimb: number,
   branchCountOnLimb: number,
   domainClusterGatewaySpreadNormal?: Point,
+  layoutAnchors?: TrunkLayoutAnchorPair,
+  branchId?: string,
 ): { strokePath: string; catalogFullPath: string; nextGoalSlotT: number; momentChordTEnd: number } {
   const catalogFullPath =
     threadSpec != null ? branchMainPathUntilGlobalT(threadSpec, 1) : threadSlotPath;
+
+  if (FLAGS.BRANCH_LONGITUDINAL_ALL) {
+    /** Sequence-driven branch ray: straight stroke from hub anchor outward, length proportional to rank max. Conduit bends, moment chord clipping, and goal-link spine are all bypassed in this grammar. */
+    const hubAnchor = domainClusterHubAnchorFromCatalog(
+      catalogFullPath,
+      threadIndexAlongLimb,
+      branchCountOnLimb,
+      domainClusterGatewaySpreadNormal,
+      areaId,
+      layoutOv,
+      layoutAnchors,
+      branchId,
+    );
+    const outward = branchOutwardUnitForLongitudinalRay(catalogFullPath, hubAnchor);
+    const sequencedCount = thread.sequencedNodes.length;
+    const strokePath = branchPathForNodeCount(hubAnchor, outward, sequencedCount);
+    return {
+      strokePath,
+      catalogFullPath,
+      /** Next-goal slot semantically beyond the last node — `t = 1` marks the tip in the new straight stroke. */
+      nextGoalSlotT: 1,
+      /** Moments are placed at sequence rank along the same stroke; full chord is usable. */
+      momentChordTEnd: 1,
+    };
+  }
+
   const domainCluster = shouldDomainClusterThread(areaId, thread);
   const nextGoalSlotCatalog = nextAutoGoalCatalogT(thread.goals);
   const nextGoalSlotT = domainCluster ? DOMAIN_CLUSTER_STROKE_TIP_CAP : nextGoalSlotCatalog;
@@ -1524,13 +2328,28 @@ export function buildRenderedBranchMainPath(
           threadIndexAlongLimb,
           branchCountOnLimb,
           domainClusterGatewaySpreadNormal,
+          areaId,
+          layoutOv,
+          layoutAnchors,
+          branchId,
         )
       : pathPointAtT(catalogFullPath, strokeTipT);
     let hubPoint = hubCenter;
     let forkStrokeStart = forkPoint;
     if (domainCluster && catalogFullPath.length >= 8) {
-      const { outward } = domainClusterBranchOutwardUnit(catalogFullPath);
-      const inset = DOMAIN_CLUSTER_ICON_STROKE_INSET_PX;
+      const outward =
+        trunkLayoutEnabled() &&
+        areaId &&
+        areaId in TRUNK_THEME_SLOT_BY_ID &&
+        (trunkLayoutUsesSlotHubPlacement(layoutOv) || layoutAnchors)
+          ? trunkBranchOutwardUnit(
+              areaId as StraightLifeAreaId,
+              threadIndexAlongLimb,
+              branchCountOnLimb,
+              layoutAnchors,
+            )
+          : domainClusterBranchOutwardUnit(catalogFullPath).outward;
+      const inset = domainClusterHubStrokeInsetPx();
       hubPoint = {
         x: hubCenter.x - outward.x * inset,
         y: hubCenter.y - outward.y * inset,
@@ -1551,7 +2370,7 @@ export function buildRenderedBranchMainPath(
         catalogTangentBlend: 0.63,
         areaId,
         threadIdx,
-        connectiveBowOrigin: THEME_STAR_CENTER,
+        connectiveBowOrigin: connectiveBowOriginForArea(areaId),
       });
     } else if (goalLinkKnots.length > 0) {
       strokePath = threadSmoothChainAsCubicsFromKnots([forkPoint, ...goalLinkKnots, tipPoint], {
@@ -1591,8 +2410,21 @@ export function buildRenderedBranchMainPath(
   );
   const tipCatalogT = Math.min(1, Math.max(strokeTipT, momentFloorT), nextGoalSlotCatalog);
   const mp = layoutOv?.momentPositions;
+  const dcChainCtx: DomainClusterMomentChainContext | null =
+    !FLAGS.BRANCH_LONGITUDINAL_ALL && domainCluster && shouldDomainClusterThread(areaId, thread)
+      ? {
+          catalogFullPath,
+          kFork: threadIndexAlongLimb,
+          branchCountOnLimb,
+          goalsOnThread: thread.goals,
+          domainClusterGatewaySpreadNormal,
+          layoutOv,
+          layoutAnchors,
+          branchId,
+        }
+      : null;
   const momentPoints = thread.moments.map((_, mi) =>
-    resolvedChainMomentPos(areaId, threadIdx, thread, mi, catalogFullPath, mp, tipCatalogT),
+    resolvedChainMomentPos(areaId, threadIdx, thread, mi, catalogFullPath, mp, tipCatalogT, undefined, dcChainCtx),
   );
   const tip = pathPointAtT(catalogFullPath, tipCatalogT);
   const spineKnots =

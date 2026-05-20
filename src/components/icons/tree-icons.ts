@@ -1,23 +1,19 @@
 import type { ComponentType } from "react";
+import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { hubCountForTheme } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import type { IconSvgProps } from "./icon-svg-props";
 import { ICON_DESIGN_SIZE } from "./icon-svg-props";
 import { BranchCareer } from "./branch/BranchCareer";
-import { BranchCommunity } from "./branch/BranchCommunity";
-import { BranchCulture } from "./branch/BranchCulture";
-import { BranchDowntime } from "./branch/BranchDowntime";
 import { BranchExperiences } from "./branch/BranchExperiences";
 import { BranchFamily } from "./branch/BranchFamily";
 import { BranchFriendships } from "./branch/BranchFriendships";
-import { BranchGiving } from "./branch/BranchGiving";
-import { BranchHabits } from "./branch/BranchHabits";
-import { BranchHobbies } from "./branch/BranchHobbies";
+import { BranchDebt } from "./branch/BranchDebt";
 import { BranchIncome } from "./branch/BranchIncome";
 import { BranchInnerWork } from "./branch/BranchInnerWork";
 import { BranchInvesting } from "./branch/BranchInvesting";
-import { BranchMind } from "./branch/BranchMind";
+import { BranchHammer } from "./branch/BranchHammer";
 import { BranchMovement } from "./branch/BranchMovement";
-import { BranchNetwork } from "./branch/BranchNetwork";
 import { BranchNutrition } from "./branch/BranchNutrition";
 import { BranchProjects } from "./branch/BranchProjects";
 import { BranchProtection } from "./branch/BranchProtection";
@@ -25,80 +21,110 @@ import { BranchPurpose } from "./branch/BranchPurpose";
 import { BranchRomance } from "./branch/BranchRomance";
 import { BranchSkills } from "./branch/BranchSkills";
 import { BranchSleep } from "./branch/BranchSleep";
-import { BranchSpirituality } from "./branch/BranchSpirituality";
 import { LimbBecoming } from "./limb/LimbBecoming";
 import { LimbHealth } from "./limb/LimbHealth";
 import { LimbMoney } from "./limb/LimbMoney";
 import { LimbPeople } from "./limb/LimbPeople";
-import { LimbPleasures } from "./limb/LimbPleasures";
 import { LimbWork } from "./limb/LimbWork";
 
 /** Registry entry for SVG limb / branch icons used on the tree. */
 export type TreeIconComponent = ComponentType<IconSvgProps>;
 
-/**
- * Limb icons — locked taxonomy ↔ {@link LifeAreaId}:
- * Work & Learning → work · Money & Finance → finance · Who I'm Becoming → becoming ·
- * People & Relationships → people · Health & Body → health · Pleasures → pleasures.
- * Matches reference/pathfinder-icons-v2 limb row.
- */
 export const LIMB_ICONS: Record<LifeAreaId, TreeIconComponent> = {
   work: LimbWork,
   finance: LimbMoney,
   becoming: LimbBecoming,
   people: LimbPeople,
   health: LimbHealth,
-  pleasures: LimbPleasures,
 };
 
-/**
- * Branch icons by slot index 0→3 (aligned with default hub order in `tree-area-anchors`).
- * Locked taxonomy — Work: Career, Skills, Projects, Network · Finance: Income, Investing, Protection, Giving ·
- * Becoming: Purpose, Spirituality, Inner work, Habits · People: Family, Romance, Friendships, Community ·
- * Health: Movement, Mind, Sleep, Nutrition · Pleasures: Hobbies, Culture, Experiences, Downtime.
- * Overflow threads use {@link normalizedBranchIndex}.
- */
-export const BRANCH_ICONS_BY_LIMB: Record<
-  LifeAreaId,
-  readonly [TreeIconComponent, TreeIconComponent, TreeIconComponent, TreeIconComponent]
-> = {
-  work: [BranchCareer, BranchSkills, BranchProjects, BranchNetwork],
-  finance: [BranchIncome, BranchInvesting, BranchProtection, BranchGiving],
-  becoming: [BranchPurpose, BranchSpirituality, BranchInnerWork, BranchHabits],
-  people: [BranchFamily, BranchRomance, BranchFriendships, BranchCommunity],
-  health: [BranchMovement, BranchMind, BranchSleep, BranchNutrition],
-  pleasures: [BranchHobbies, BranchCulture, BranchExperiences, BranchDowntime],
+/** Locked hub label → icon (canonical names from `LOCKED_HUB_TEMPLATES`). */
+export const HUB_BRANCH_ICONS: Record<LifeAreaId, Record<string, TreeIconComponent>> = {
+  finance: {
+    Income: BranchIncome,
+    Assets: BranchInvesting,
+    "Safety net": BranchProtection,
+    Liabilities: BranchDebt,
+  },
+  work: {
+    Career: BranchCareer,
+    Skills: BranchHammer,
+    "Builds & Launches": BranchProjects,
+  },
+  becoming: {
+    Purpose: BranchPurpose,
+    "Inner life": BranchInnerWork,
+    Joy: BranchExperiences,
+  },
+  people: {
+    Family: BranchFamily,
+    Romance: BranchRomance,
+    Friendships: BranchFriendships,
+  },
+  health: {
+    Movement: BranchMovement,
+    Nutrition: BranchNutrition,
+    Appearance: BranchSkills,
+    Rest: BranchSleep,
+  },
 };
 
-function normalizedBranchIndex(branchIndex: number): number {
+/** Slot-order fallback — matches `LOCKED_HUB_TEMPLATES` per theme. */
+export const BRANCH_ICONS_BY_LIMB: Record<LifeAreaId, readonly TreeIconComponent[]> = {
+  work: [BranchCareer, BranchHammer, BranchProjects],
+  finance: [BranchIncome, BranchInvesting, BranchProtection, BranchDebt],
+  becoming: [BranchPurpose, BranchInnerWork, BranchExperiences],
+  people: [BranchFamily, BranchRomance, BranchFriendships],
+  health: [BranchMovement, BranchNutrition, BranchSkills, BranchSleep],
+};
+
+export const DEFAULT_HUB_SLOT_COUNT: Record<LifeAreaId, number> = {
+  work: 3,
+  finance: 4,
+  becoming: 3,
+  people: 3,
+  health: 4,
+};
+
+function normalizedBranchIndex(branchIndex: number, slotCount: number): number {
   const n = Math.floor(branchIndex);
-  return ((n % 4) + 4) % 4;
+  return ((n % slotCount) + slotCount) % slotCount;
 }
 
 export function limbIconForLifeArea(areaId: LifeAreaId): TreeIconComponent {
   return LIMB_ICONS[areaId];
 }
 
-/**
- * Max bbox edge length of each limb glyph in the shared {@link ICON_DESIGN_SIZE} coordinate space.
- * All icons scale with `size / 24`, but artwork fills different portions — People reads small,
- * Health large — unless we normalize the `size` passed at render time.
- */
 export const LIMB_ICON_ARTWORK_EXTENT_MAX: Record<LifeAreaId, number> = {
   work: 28,
   finance: 28,
   becoming: 24,
   people: 18,
   health: 30,
-  pleasures: 26,
 };
 
-/** `size` prop so the glyph's artwork spans `targetPx` on screen (square). */
 export function normalizedLimbIconSize(areaId: LifeAreaId, targetPx: number): number {
   return (targetPx * ICON_DESIGN_SIZE) / LIMB_ICON_ARTWORK_EXTENT_MAX[areaId];
 }
 
+/** Resolve icon by hub display name (preferred) with slot-index fallback. */
+export function branchIconForHub(
+  areaId: LifeAreaId,
+  hubLabel: string,
+  branchIndex: number,
+): TreeIconComponent {
+  const canonical = canonicalHubDisplayLabel(areaId, hubLabel);
+  const byTheme = HUB_BRANCH_ICONS[areaId];
+  if (byTheme[canonical]) return byTheme[canonical]!;
+  const needle = canonical.trim().toLowerCase();
+  const key = Object.keys(byTheme).find((k) => k.toLowerCase() === needle);
+  if (key) return byTheme[key]!;
+  return branchIconForSlot(areaId, branchIndex);
+}
+
 export function branchIconForSlot(areaId: LifeAreaId, branchIndex: number): TreeIconComponent {
-  const slot = normalizedBranchIndex(branchIndex);
-  return BRANCH_ICONS_BY_LIMB[areaId][slot];
+  const icons = BRANCH_ICONS_BY_LIMB[areaId];
+  const slotCount = icons.length || hubCountForTheme(areaId);
+  const slot = normalizedBranchIndex(branchIndex, slotCount);
+  return icons[slot] ?? icons[0]!;
 }

@@ -21,11 +21,10 @@ export const LIFE_AREA_IDS_DOMAIN_CLUSTER_GOALS = new Set<string>([
   "becoming",
   "people",
   "health",
-  "pleasures",
 ]);
 
 export function lifeAreaUsesDomainClusterGoalLayout(areaId: string): boolean {
-  return FLAGS.GOAL_MILESTONES && LIFE_AREA_IDS_DOMAIN_CLUSTER_GOALS.has(areaId);
+  return LIFE_AREA_IDS_DOMAIN_CLUSTER_GOALS.has(areaId);
 }
 
 /**
@@ -39,11 +38,15 @@ export function threadHasNonSyntheticMoments(thread: DomainHubData): boolean {
 /**
  * Domain-cluster grammar: **fork-radial hub anchor** + 360° goal orbit + short connective conduit
  * (see `domainClusterHubAnchorFromCatalog` in `tree-branch-geometry`). Enabled for every life area
- * in {@link LIFE_AREA_IDS_DOMAIN_CLUSTER_GOALS} when milestones mode is on — *not* gated by whether
- * the thread carries timeline milestones, so progression overlays never flip topology.
+ * in {@link LIFE_AREA_IDS_DOMAIN_CLUSTER_GOALS} — independent of {@link FLAGS.GOAL_MILESTONES}
+ * (hex orbital milestone dots only). Not gated by whether the thread carries timeline milestones.
+ *
+ * When {@link FLAGS.BRANCH_LONGITUDINAL_ALL} is on, every theme falls back to longitudinal so the
+ * branch line grows as nodes are added (insert-and-reflow contract). Domain-cluster pathways stay
+ * in the tree for instant rollback; flip the env flag back off to restore the orbital layout.
  */
 export function shouldDomainClusterThread(areaId: string, _thread: DomainHubData): boolean {
-  return lifeAreaUsesDomainClusterGoalLayout(areaId);
+  return FLAGS.BRANCH_LONGITUDINAL_ALL ? false : lifeAreaUsesDomainClusterGoalLayout(areaId);
 }
 
 export type GoalLayoutGrammar = "longitudinal" | "domain_cluster";

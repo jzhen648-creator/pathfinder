@@ -12,4 +12,6 @@ export type ApiBranchRow = {
   turningPointId?: string | null;
   order?: number;
   createdAt: string;
+  isActive?: boolean;
+  isSystemHub?: boolean;
 };

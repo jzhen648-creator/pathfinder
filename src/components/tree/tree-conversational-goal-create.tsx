@@ -57,16 +57,12 @@ function clampSig(n: number): number {
 
 export type TreeConversationalGoalCreateProps = {
   context: AddGoalHubContext;
-  isDev: boolean;
-  devGoalsUserId: string | null;
   onClose: () => void;
   onGoalCreated: (detail: { branchLabel: string; title: string }) => void;
 };
 
 export function TreeConversationalGoalCreate({
   context,
-  isDev,
-  devGoalsUserId,
   onClose,
   onGoalCreated,
 }: TreeConversationalGoalCreateProps) {
@@ -170,11 +166,7 @@ export function TreeConversationalGoalCreate({
       const goalType = parseTypeToGoalType(input.parseType);
       const deadline = normalizeDeadlineForApi(input.targetDate, input.parseType);
       try {
-        const devQ =
-          isDev && devGoalsUserId?.trim()
-            ? `?userId=${encodeURIComponent(devGoalsUserId.trim())}`
-            : "";
-        const res = await fetch(`/api/goals${devQ}`, {
+        const res = await fetch("/api/goals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -189,6 +181,7 @@ export function TreeConversationalGoalCreate({
             currentAmount: "",
             unit: "",
             generateRoadmap: true,
+            ...(context.sequenceAnchor != null ? { anchor: context.sequenceAnchor } : {}),
           }),
         });
         const raw = await res.json().catch(() => ({}));
@@ -196,7 +189,7 @@ export function TreeConversationalGoalCreate({
           setError(
             typeof raw?.error === "string" && raw.error.trim()
               ? raw.error.trim()
-              : `Could not create goal (${res.status}).`,
+              : `Could not create pursuit (${res.status}).`,
           );
           setBusy(false);
           return;
@@ -218,7 +211,7 @@ export function TreeConversationalGoalCreate({
         setBusy(false);
       }
     },
-    [branchDisplay, busy, devGoalsUserId, isDev, onClose, onGoalCreated],
+    [branchDisplay, busy, context.sequenceAnchor, onClose, onGoalCreated],
   );
 
   const cardStyle: CSSProperties = {
@@ -256,14 +249,14 @@ export function TreeConversationalGoalCreate({
 
   if (phase === "input") {
     return (
-      <div ref={rootRef} style={cardStyle} role="dialog" aria-label="Describe your goal">
-        <div style={muted}>What&apos;s your goal for {branchDisplay}?</div>
+      <div ref={rootRef} style={cardStyle} role="dialog" aria-label="Describe your pursuit">
+        <div style={muted}>What&apos;s your pursuit for {branchDisplay}?</div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input
             ref={inputRef}
             type="text"
             autoComplete="off"
-            placeholder="Describe your goal..."
+            placeholder="Describe your pursuit..."
             value={draft}
             disabled={busy}
             onChange={(e) => {
@@ -312,7 +305,7 @@ export function TreeConversationalGoalCreate({
   if (phase === "confirm" && parsed) {
     const targetLine = formatTargetLine(parsed.targetDate);
     return (
-      <div ref={rootRef} style={cardStyle} role="dialog" aria-label="Confirm goal">
+      <div ref={rootRef} style={cardStyle} role="dialog" aria-label="Confirm pursuit">
         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 6, lineHeight: 1.35 }}>{parsed.title}</div>
         <div style={{ ...muted, marginBottom: 10 }}>
           {areaDisplay} · {branchDisplay} · {parsed.type}
@@ -368,8 +361,8 @@ export function TreeConversationalGoalCreate({
 
   if (phase === "adjust" && parsed) {
     return (
-      <div ref={rootRef} style={{ ...cardStyle, maxWidth: 300 }} role="dialog" aria-label="Edit goal details">
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Adjust goal</div>
+      <div ref={rootRef} style={{ ...cardStyle, maxWidth: 300 }} role="dialog" aria-label="Edit pursuit details">
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Adjust pursuit</div>
         <label style={{ display: "grid", gap: 4, marginBottom: 8, fontSize: 13, color: muted.color }}>
           Title
           <input
@@ -460,7 +453,7 @@ export function TreeConversationalGoalCreate({
             color: "#f5f3ff",
           }}
         >
-          Create goal
+          Create pursuit
         </button>
         {error ? (
           <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--color-text-danger, #f87171)" }}>{error}</p>

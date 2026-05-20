@@ -18,7 +18,8 @@ export function hasAreaOverride(ov: AreaLayoutOverride): boolean {
     (ov.limbTipTiltDeg != null && Math.abs(ov.limbTipTiltDeg) > 1e-6) ||
     ((ov.branches != null && Object.keys(ov.branches).length > 0) ||
       (ov.threads != null && Object.keys(ov.threads).length > 0)) ||
-    (ov.momentPositions != null && Object.keys(ov.momentPositions).length > 0)
+    (ov.momentPositions != null && Object.keys(ov.momentPositions).length > 0) ||
+    (ov.hubPositions != null && Object.keys(ov.hubPositions).length > 0)
   );
 }
 

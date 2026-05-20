@@ -1,4 +1,4 @@
-import type { AreaData, DomainHubData, TreeGoalNode } from "./tree-types";
+import type { AreaData, DomainHubData, MomentNode, TreeGoalNode } from "./tree-types";
 
 export function countRoadmapGoalsInSubtree(nodes: TreeGoalNode[]): number {
   let n = 0;
@@ -39,7 +39,7 @@ export function findGoalInAreas(
   return null;
 }
 
-/** True when `goalId` is this root goal or any nested evolved child. */
+/** True when `goalId` is this root goal or any nested continuation child. */
 export function goalInSubtree(root: TreeGoalNode, goalId: string): boolean {
   if (root.id === goalId) return true;
   return root.childGoals.some((c) => goalInSubtree(c, goalId));
@@ -47,4 +47,19 @@ export function goalInSubtree(root: TreeGoalNode, goalId: string): boolean {
 
 export function threadContainsGoal(goals: TreeGoalNode[], goalId: string): boolean {
   return findGoalInList(goals, goalId) != null;
+}
+
+export function findMarkInAreas(
+  areas: AreaData[],
+  markId: string,
+): { moment: MomentNode; area: AreaData; hubLabel: string } | null {
+  for (const area of areas) {
+    for (const thread of area.branches) {
+      const moment = thread.moments.find((m) => m.id === markId && m.synthetic !== true);
+      if (moment) {
+        return { moment, area, hubLabel: thread.type };
+      }
+    }
+  }
+  return null;
 }

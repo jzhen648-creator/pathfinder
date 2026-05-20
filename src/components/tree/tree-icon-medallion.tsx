@@ -74,15 +74,15 @@ const TIER_GRADIENTS: Record<IconMedallionTier, TierGradients> = {
   },
   domainHub: {
     bloom: [
-      [0, 0.18],
-      [0.4, 0.11],
-      [0.7, 0.05],
+      [0, 0.22],
+      [0.4, 0.13],
+      [0.7, 0.06],
       [1, 0],
     ],
     body: [
-      [0, 0.88],
-      [0.54, 0.74],
-      [0.84, 0.3],
+      [0, 1],
+      [0.54, 0.92],
+      [0.84, 0.42],
       [1, 0],
     ],
     wash: [
@@ -151,8 +151,14 @@ type TreeIconMedallionProps = {
   tier: IconMedallionTier;
   auraFilterId?: string;
   haloFilterId?: string;
+  /** Stable SVG gradient id seed (SSR-safe); falls back to `useId`. */
+  idSeed?: string;
   children: ReactNode;
 };
+
+function medallionSvgIdSeed(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
 
 /**
  * Layered circular medallion sized to the icon artwork — radial gradients + ambient halo for smooth glow.
@@ -165,9 +171,11 @@ export function TreeIconMedallion({
   tier,
   auraFilterId = "treeGatewayIconAura",
   haloFilterId = "treeMedallionAmbientHalo",
+  idSeed,
   children,
 }: TreeIconMedallionProps) {
-  const uid = useId().replace(/:/g, "");
+  const autoId = useId().replace(/:/g, "");
+  const uid = idSeed != null ? medallionSvgIdSeed(idSeed) : autoId;
   const r = iconMedallionRadii(artworkSpanPx, tier);
   const grad = TIER_GRADIENTS[tier];
   const bloomId = `tree-med-bloom-${uid}`;
@@ -196,6 +204,11 @@ export function TreeIconMedallion({
         fill={`url(#${bloomId})`}
         filter={`url(#${haloFilterId})`}
       />
+
+      {/* Opaque disc occludes connective strokes at the hub boundary. */}
+      {tier === "domainHub" || tier === "theme" ? (
+        <circle cx={cx} cy={cy} r={r.discR * 1.02} fill="#0d0d0f" fillOpacity={1} />
+      ) : null}
 
       {/* Dark body + color wash: overlapping soft gradients, not hard concentric rings. */}
       <circle cx={cx} cy={cy} r={r.discR} fill={`url(#${bodyId})`} />

@@ -51,14 +51,40 @@ export function saturateRgbAroundLuma(c: Rgb, factor: number): Rgb {
   };
 }
 
+/** Pull chroma toward grey at the same luminance (`t` = 1 → neutral). For BLOOMED goal recession. */
+export function desaturateRgbTowardLuma(c: Rgb, t: number): Rgb {
+  const u = Math.max(0, Math.min(1, t));
+  const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  return {
+    r: c.r + (lum - c.r) * u,
+    g: c.g + (lum - c.g) * u,
+    b: c.b + (lum - c.b) * u,
+  };
+}
+
 const INNER_BLOOM_HOT: Rgb = { r: 255, g: 244, b: 252 };
 
 /** Tiny hot reads for hub / petal stem / membrane crease (additive-leaning, not large glows). */
 export const JEWEL_CORE_HOT_HEX = "#FFFAFC";
 export const JEWEL_CORE_PINK_HEX = "#FFE4F2";
 
-/** Limb wedge fill: mix limb hue toward deep canvas so branches read as quiet support, not competing planes. */
-export function limbBackdropSurfaceTint(areaHex: string, towardCanvas = 0.56): string {
+/** Hub-trunk simplified spine — warm amber/brown base, muted toward crown. */
+export const TRUNK_WARM_BASE_HEX = "#8b7355";
+export const TRUNK_WARM_MID_HEX = "#7a6a52";
+export const TRUNK_WARM_CROWN_HEX = "#6a5e4a";
+export const TRUNK_WARM_VEIN_HEX = "#c4a882";
+export const TRUNK_WARM_ROOT_HEX = "#5c4a38";
+
+/** Faint limb accent bleed at trunk junction discs (5–10% mix). */
+export function trunkJunctionTintHex(areaHex: string, mix01 = 0.08): string {
+  const base = parseHexRgb(areaHex);
+  const trunk = parseHexRgb(TRUNK_WARM_MID_HEX);
+  if (!base || !trunk) return TRUNK_WARM_MID_HEX;
+  return rgbToHex(mixRgb(trunk, base, Math.max(0, Math.min(0.14, mix01))));
+}
+
+/** Limb territory fill — keep most of the limb accent so membranes read as colored regions. */
+export function limbBackdropSurfaceTint(areaHex: string, towardCanvas = 0.26): string {
   const base = parseHexRgb(areaHex);
   if (!base) return areaHex;
   return rgbToHex(mixRgb(base, TREE_MAP_SURFACE_RGB, Math.max(0, Math.min(1, towardCanvas))));

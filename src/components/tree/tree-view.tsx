@@ -1,37 +1,64 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
+import { CreateMarkModal } from "@/components/roadmap/create-mark-modal";
 import { TreeConversationalGoalCreate } from "@/components/tree/tree-conversational-goal-create";
+import { TreeConversationalMarkCreate } from "@/components/tree/tree-conversational-mark-create";
+import { buildPreviewAreasFromNodes } from "@/components/stream/stream-hub-preview-data";
+import { StreamOverlay, STREAM_PANEL_WIDTH_PX } from "@/components/stream/stream-overlay";
+import { StreamPreviewProvider, useStreamPreview } from "@/contexts/stream-preview-context";
+import { FirstRunWelcomeOverlay } from "@/components/onboarding/first-run-welcome-overlay";
+import { findFirstRunFocusTarget, resolveFirstRunPrimaryLimbId } from "@/lib/first-run-focus";
+import { getFirstRunStreamPrompt } from "@/lib/first-run-stream-prompts";
+import { buildStreamHubUiFromThread, buildStreamThemeUiFromArea } from "@/lib/stream-theme-ui";
+import type { LifeAreaId } from "@/lib/types";
+import type { TreeFirstRunConfig } from "@/types/first-run";
+import type { StreamHubUiContext, StreamThemeUiContext } from "@/types/stream";
 import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { PF_ROADMAP_THEME_CSS } from "@/components/shell/pf-roadmap-theme";
 import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { FLAGS } from "@/lib/flags";
+import type { ApiBranchRow } from "@/lib/api-branch-row";
+import type { SequenceAnchor } from "@/lib/branch-sequence";
+import type { LimbId } from "@/lib/types";
+import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { LIFE_AREA_ORDER } from "./tree-data";
 import { mapToTreeData } from "./tree-data";
+import { AddAreaModal } from "./add-area-modal";
 import type { AreaData, MomentNode, TreeGoalNode } from "./tree-types";
-import type { TreeRenderQuality } from "./tree-render-quality";
 import { TreeSVG } from "./tree-svg";
-import { TimelineView, BranchView } from "./tree-alternate-views";
+import {
+  applyEditMapDraftOps,
+  buildEditMapStreamDraft,
+  type EditMapDraftOp,
+} from "./tree-edit-map-draft";
+import { TreeEditMapDoneDialog } from "./tree-edit-map-done-dialog";
+import { SwimlaneTimeline } from "@/components/timeline/swimlane-timeline";
+import { BranchView } from "./tree-alternate-views";
+import { MarkHoverCard, type MarkInteractionAnchor } from "./mark-hover-card";
 import { TreePanel } from "./tree-panel";
 import {
+  normalizeArchivedGoalsFromBranches,
   normalizeBranches,
   normalizeGoalsFromBranches,
   normalizeMarks,
 } from "./tree-view-normalize";
-import { countRoadmapGoalsInArea, findGoalInAreas } from "./tree-view-goal-queries";
+import { countRoadmapGoalsInArea, findGoalInAreas, findMarkInAreas } from "./tree-view-goal-queries";
 import {
-  MOCK_USER_STORAGE_KEY,
   TREE_ELEMENT_GUIDE_ENABLED,
   TREE_MAP_SURFACE_FILL,
-  TREE_RENDER_QUALITY_DEV_STORAGE_KEY,
 } from "./tree-view-constants";
 import {
   type AddGoalHubContext,
+  type AddMomentTreeContext,
+  type ArchivedGoalRow,
   type BranchesResponse,
   type MarksResponse,
-  type MockUserOption,
   type PanelState,
   type ViewMode,
 } from "./tree-view-types";
@@ -53,70 +80,221 @@ async function readApiFailureMessage(res: Response, fallback: string, includeSta
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-export function TreeView() {
+export function TreeView({ firstRun }: { firstRun: TreeFirstRunConfig }) {
+  return (
+    <StreamPreviewProvider>
+      <TreeViewInner firstRun={firstRun} />
+    </StreamPreviewProvider>
+  );
+}
+
+function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { update: refreshSession } = useSession();
+  const [firstRunCompleted, setFirstRunCompleted] = useState(firstRun.completed);
+  const firstRunCompletedRef = useRef(firstRun.completed);
+  const primaryLimbIdRef = useRef(firstRun.primaryLimbId);
+  useEffect(() => {
+    firstRunCompletedRef.current = firstRunCompleted;
+  }, [firstRunCompleted]);
+  useEffect(() => {
+    primaryLimbIdRef.current = firstRun.primaryLimbId;
+  }, [firstRun.primaryLimbId]);
+  const mapDeepLinkHandled = useRef<string | null>(null);
   const isDev = process.env.NODE_ENV === "development";
+  const { previewNodes, pendingPreviewNode, clearPreviewNodes } = useStreamPreview();
   const [areas, setAreas] = useState<AreaData[]>([]);
+  const [archivedGoals, setArchivedGoals] = useState<ArchivedGoalRow[]>([]);
+  const [archivedMarks, setArchivedMarks] = useState<
+    Array<{ id: string; branchId: string; title: string; date?: string | Date | null }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [focused, setFocused] = useState<string | null>(null);
   const [focusedLimbId, setFocusedLimbId] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ type: "none" });
+  const [markHover, setMarkHover] = useState<MarkInteractionAnchor | null>(null);
+  const [markPinned, setMarkPinned] = useState<MarkInteractionAnchor | null>(null);
+  const hoverMarksEnabledRef = useRef(false);
   const [viewMode, setViewMode] = useState<ViewMode>("tree");
   const [hiddenAreaIds, setHiddenAreaIds] = useState<Set<string>>(() => new Set());
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const [mockUsers, setMockUsers] = useState<MockUserOption[]>([]);
-  const [selectedMockUserId, setSelectedMockUserId] = useState<string | null>(null);
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [addGoalDefaultBranchId, setAddGoalDefaultBranchId] = useState<string | null>(null);
+  const [addGoalDefaultAnchor, setAddGoalDefaultAnchor] = useState<SequenceAnchor | null>(null);
   const [conversationalGoalCtx, setConversationalGoalCtx] = useState<AddGoalHubContext | null>(null);
+  const [conversationalMarkCtx, setConversationalMarkCtx] = useState<AddMomentTreeContext | null>(null);
+  const [streamSession, setStreamSession] = useState<
+    | { mode: "hub"; hub: StreamHubUiContext; initialDraft?: string; initialPlaceholder?: string }
+    | { mode: "theme"; theme: StreamThemeUiContext; initialDraft?: string; initialPlaceholder?: string }
+    | null
+  >(null);
+  const [editMapMode, setEditMapMode] = useState(false);
+  const [editMapDraftAreas, setEditMapDraftAreas] = useState<AreaData[] | null>(null);
+  const [editMapPendingOps, setEditMapPendingOps] = useState<EditMapDraftOp[]>([]);
+  const [editMapExitOpen, setEditMapExitOpen] = useState(false);
+  const [editMapApplying, setEditMapApplying] = useState(false);
+  const [apiBranchRows, setApiBranchRows] = useState<ApiBranchRow[]>([]);
+  const [markModal, setMarkModal] = useState<{
+    limbId: LimbId;
+    branchId: string;
+    anchor: SequenceAnchor | null;
+  } | null>(null);
   const [treeToast, setTreeToast] = useState<{ msg: string; color: string } | null>(null);
-  const [resettingProfiles, setResettingProfiles] = useState(false);
+  const [birthYear, setBirthYear] = useState<number | null>(null);
+  const [addAreaOpen, setAddAreaOpen] = useState(false);
 
   useEffect(() => {
-    if (!isDev) return;
-    void (async () => {
-      const res = await fetch("/api/dev/mock-users");
-      if (!res.ok) return;
-      const payload = (await res.json()) as { users?: MockUserOption[] };
-      const users = Array.isArray(payload.users) ? payload.users : [];
-      setMockUsers(users);
-      const stored = window.localStorage.getItem(MOCK_USER_STORAGE_KEY);
-      const fallbackId = users[0]?.id ?? null;
-      const chosen = users.some((u) => u.id === stored) ? stored : fallbackId;
-      setSelectedMockUserId(chosen);
-    })();
-  }, [isDev]);
+    try {
+      window.localStorage.removeItem("pathfinder.tree.mockUserId");
+      window.localStorage.removeItem("pathfinder-tree-mock-user-id");
+      window.localStorage.removeItem("pathfinder_mock_density");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
-  useEffect(() => {
-    if (!isDev || !selectedMockUserId) return;
-    window.localStorage.setItem(MOCK_USER_STORAGE_KEY, selectedMockUserId);
-  }, [isDev, selectedMockUserId]);
-
-  const loadData = useCallback(async (options?: { silent?: boolean }) => {
+  const loadData = useCallback(async (options?: { silent?: boolean }): Promise<AreaData[] | undefined> => {
     const silent = options?.silent === true;
     if (!silent) setLoading(true);
+    const fetchOpts: RequestInit = { cache: "no-store", signal: AbortSignal.timeout(30_000) };
     try {
-      const userQuery = isDev && selectedMockUserId ? `?userId=${encodeURIComponent(selectedMockUserId)}` : "";
       const [marksRes, branchesRes] = await Promise.all([
-        fetch(`/api/marks${userQuery}`, { cache: "no-store" }),
-        fetch(`/api/branches${userQuery}`, { cache: "no-store" }),
+        fetch("/api/marks?includeArchived=true", fetchOpts),
+        fetch("/api/branches", fetchOpts),
       ]);
-      const marksJson = (await marksRes.json()) as MarksResponse;
-      const branchesJson = (await branchesRes.json()) as BranchesResponse;
-      const marks = normalizeMarks(marksJson);
+
+      const parseJson = async <T,>(res: Response, label: string): Promise<T | null> => {
+        const text = await res.text();
+        if (!text.trim()) {
+          if (!res.ok) {
+            console.error(`[tree-view] GET ${label} empty body`, { status: res.status });
+          }
+          return null;
+        }
+        try {
+          return JSON.parse(text) as T;
+        } catch (err) {
+          console.error(`[tree-view] GET ${label} invalid JSON`, { status: res.status, err });
+          return null;
+        }
+      };
+
+      const marksJson = await parseJson<MarksResponse>(marksRes, "/api/marks");
+      const branchesJson = await parseJson<BranchesResponse>(branchesRes, "/api/branches");
+
+      if (!branchesRes.ok || branchesJson == null) {
+        const apiErr =
+          branchesJson &&
+          typeof branchesJson === "object" &&
+          "error" in branchesJson &&
+          typeof (branchesJson as { error?: unknown }).error === "string"
+            ? (branchesJson as { error: string }).error
+            : null;
+        const detail = apiErr ?? `Branches request failed (${branchesRes.status})`;
+        console.error("[tree-view] GET /api/branches failed — tree will show trunk only", {
+          status: branchesRes.status,
+          detail,
+        });
+        setTreeToast({
+          msg:
+            apiErr ??
+            "Could not load hubs. Stop the dev server, run npx prisma generate, restart, then sign out and sign in.",
+          color: "#e85d5d",
+        });
+        return undefined;
+      }
+
+      const branchesPayload = branchesJson as { branches?: ApiBranchRow[] };
+      setApiBranchRows(Array.isArray(branchesPayload.branches) ? branchesPayload.branches : []);
+      const allMarks = normalizeMarks(marksJson ?? { marks: [] });
+      const marks = allMarks.filter((m) => !m.archived);
+      setArchivedMarks(
+        allMarks
+          .filter((m) => m.archived && typeof m.id === "string" && typeof m.branchId === "string")
+          .map((m) => ({
+            id: m.id,
+            branchId: m.branchId,
+            title: (m.title ?? "Mark").trim() || "Mark",
+            date: m.date ?? null,
+          })),
+      );
+      const by = marksJson?.user?.birthYear;
+      let nextBirth: number | null = null;
+      if (typeof by === "number" && Number.isFinite(by)) nextBirth = by;
+      else if (by != null) {
+        const n = Number(by);
+        if (Number.isFinite(n)) nextBirth = n;
+      }
+      setBirthYear(nextBirth);
+      if (isDev) {
+        if (!marksRes.ok || marksJson == null) {
+          console.error("[tree-view] GET /api/marks failed — normalized list will be empty", {
+            status: marksRes.status,
+            body: marksJson,
+          });
+        } else if (FLAGS.TREE_DEBUG_MOMENT_CHAIN) {
+          console.log("[tree-view] GET /api/marks → normalized marks used by tree", {
+            httpOk: marksRes.ok,
+            status: marksRes.status,
+            count: marks.length,
+            marks: marks.map((m) => ({ id: m.id, branchId: m.branchId, title: m.title ?? null })),
+          });
+          console.log(
+            `[tree-view] confirm marks loading: count=${marks.length} (${marks.length > 0 ? "ok — data reached TreeView" : "empty — tree will show no mark-backed moments"})`,
+          );
+        }
+      }
       const branches = normalizeBranches(branchesJson);
       const goals = normalizeGoalsFromBranches(branchesJson);
-      setAreas(mapToTreeData(branches, marks, goals));
+      setArchivedGoals(normalizeArchivedGoalsFromBranches(branchesJson));
+      let nextAreas;
+      try {
+        nextAreas = mapToTreeData(branches, marks, goals);
+      } catch (mapErr) {
+        console.error("[tree-view] mapToTreeData failed", mapErr);
+        setTreeToast({
+          msg: "Tree data could not be built. Check the console and try refreshing.",
+          color: "#e85d5d",
+        });
+        return undefined;
+      }
+      setAreas(nextAreas);
+      if (isDev) {
+        const hubSlots = nextAreas.reduce((n, a) => n + a.branches.length, 0);
+        console.log("[tree-view] tree data loaded", {
+          lifeAreas: nextAreas.length,
+          hubSlots,
+          goals: goals.length,
+          marks: marks.length,
+        });
+      }
+      return nextAreas;
     } catch (err) {
+      const aborted = err instanceof Error && err.name === "TimeoutError";
       console.error("[tree-view] loadData failed", err);
+      setTreeToast({
+        msg: aborted
+          ? "Tree load timed out. Restart the dev server and refresh."
+          : "Could not load tree data. Sign out and sign in again.",
+        color: "#e85d5d",
+      });
       setAreas([]);
+      setApiBranchRows([]);
+      setBirthYear(null);
+      return undefined;
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [isDev, selectedMockUserId]);
+  }, [isDev]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    hoverMarksEnabledRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  }, []);
 
   useEffect(() => {
     const handler = () => {
@@ -130,6 +308,76 @@ export function TreeView() {
     setFocused(null);
     if (FLAGS.FOCUS_MODE) setFocusedLimbId(null);
     setPanel({ type: "none" });
+    setConversationalGoalCtx(null);
+    setConversationalMarkCtx(null);
+    setMarkHover(null);
+    setMarkPinned(null);
+  }, []);
+
+  const buildMarkAnchor = useCallback(
+    (moment: MomentNode, area: AreaData, clientX: number, clientY: number): MarkInteractionAnchor => {
+      const thread = areas
+        .flatMap((a) => a.branches)
+        .find((t) => t.id === moment.branchId);
+      return {
+        moment,
+        area,
+        hubLabel: thread?.type.trim() || "Hub",
+        clientX,
+        clientY,
+      };
+    },
+    [areas],
+  );
+
+  const markHoverDismissRef = useRef<number | null>(null);
+
+  const clearMarkHoverDismissTimer = useCallback(() => {
+    if (markHoverDismissRef.current != null) {
+      window.clearTimeout(markHoverDismissRef.current);
+      markHoverDismissRef.current = null;
+    }
+  }, []);
+
+  const dismissMarkCard = useCallback(() => {
+    clearMarkHoverDismissTimer();
+    setMarkPinned(null);
+    setMarkHover(null);
+  }, [clearMarkHoverDismissTimer]);
+
+  const handleMarkPointerEnter = useCallback(
+    (anchor: MarkInteractionAnchor) => {
+      if (!hoverMarksEnabledRef.current || markPinned) return;
+      clearMarkHoverDismissTimer();
+      setMarkHover(anchor);
+    },
+    [markPinned, clearMarkHoverDismissTimer],
+  );
+
+  const handleMarkPointerLeave = useCallback(
+    (momentId: string) => {
+      if (!hoverMarksEnabledRef.current || markPinned) return;
+      clearMarkHoverDismissTimer();
+      markHoverDismissRef.current = window.setTimeout(() => {
+        setMarkHover((curr) => (curr?.moment.id === momentId ? null : curr));
+      }, 200);
+    },
+    [markPinned, clearMarkHoverDismissTimer],
+  );
+
+  const handleMarkCardHoverEnter = useCallback(() => {
+    clearMarkHoverDismissTimer();
+  }, [clearMarkHoverDismissTimer]);
+
+  const handleMarkCardHoverLeave = useCallback(() => {
+    if (markPinned) return;
+    clearMarkHoverDismissTimer();
+    markHoverDismissRef.current = window.setTimeout(() => setMarkHover(null), 120);
+  }, [markPinned, clearMarkHoverDismissTimer]);
+
+  const handleMarkClick = useCallback((anchor: MarkInteractionAnchor) => {
+    setMarkPinned((curr) => (curr?.moment.id === anchor.moment.id ? null : anchor));
+    setMarkHover(null);
   }, []);
 
   const onToggleLimbFocus = useCallback((limbId: string) => {
@@ -156,25 +404,373 @@ export function TreeView() {
     setPanel({ type: "hub", area, thread });
   }, []);
 
+  const showTreeToast = useCallback((msg: string, color = "#7B68C8") => {
+    setTreeToast({ msg, color });
+    window.setTimeout(() => setTreeToast(null), 2400);
+  }, []);
+
+  const handleResolveAmbiguousMark = useCallback(
+    async (
+      markId: string,
+      resolution: "done" | "in_progress" | "not_started",
+      targetBranchId?: string,
+    ) => {
+      try {
+        const res = await fetch("/api/stream/resolve-ambiguous", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markId, resolution, targetBranchId }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Resolve failed (${res.status})`) };
+        }
+        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+        await loadData({ silent: true });
+        showTreeToast(
+          resolution === "done" ? "Marked as done on your map." : "Added as a pursuit on this hub.",
+        );
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while resolving." };
+      }
+    },
+    [loadData, showTreeToast],
+  );
+
+  const handleSparseEnriched = useCallback(async () => {
+    await loadData({ silent: true });
+    showTreeToast("Context saved.");
+  }, [loadData, showTreeToast]);
+
+  const [streamPanFocus, setStreamPanFocus] = useState<{
+    areaId: string;
+    branchId: string;
+    key: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (loading || areas.length === 0) return;
+
+    const goalId = searchParams.get("goalId");
+    const markId = searchParams.get("markId");
+    const linkKey = goalId ? `goal:${goalId}` : markId ? `mark:${markId}` : null;
+    if (!linkKey || mapDeepLinkHandled.current === linkKey) return;
+
+    if (goalId) {
+      const found = findGoalInAreas(areas, goalId);
+      if (!found) return;
+      mapDeepLinkHandled.current = linkKey;
+      setFocused(found.area.id);
+      setPanel({ type: "goal", goal: found.goal, area: found.area });
+      setStreamPanFocus({
+        areaId: found.area.id,
+        branchId: found.goal.branchId,
+        key: Date.now(),
+      });
+      router.replace("/tree");
+      return;
+    }
+
+    if (markId) {
+      const found = findMarkInAreas(areas, markId);
+      if (!found) return;
+      mapDeepLinkHandled.current = linkKey;
+      setFocused(found.area.id);
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      setMarkPinned({
+        moment: found.moment,
+        area: found.area,
+        hubLabel: found.hubLabel,
+        clientX: cx,
+        clientY: cy,
+      });
+      setMarkHover(null);
+      setStreamPanFocus({
+        areaId: found.area.id,
+        branchId: found.moment.branchId,
+        key: Date.now(),
+      });
+      router.replace("/tree");
+    }
+  }, [areas, loading, router, searchParams]);
+
+  const streamPanHubRef = useRef<{ areaId: string; branchId: string } | null>(null);
+  const handleStreamCardFocusHub = useCallback((areaId: string, branchId: string) => {
+    if (!branchId) return;
+    const prev = streamPanHubRef.current;
+    if (prev?.areaId === areaId && prev?.branchId === branchId) return;
+    streamPanHubRef.current = { areaId, branchId };
+    setStreamPanFocus({ areaId, branchId, key: Date.now() });
+  }, []);
+
+  const clearEditMapDraft = useCallback(() => {
+    setEditMapDraftAreas(null);
+    setEditMapPendingOps([]);
+  }, []);
+
+  const handleEditMapDraftDrop = useCallback((op: EditMapDraftOp, nextAreas: AreaData[]) => {
+    setEditMapDraftAreas(nextAreas);
+    setEditMapPendingOps((prev) => {
+      const rest = prev.filter((existing) => existing.goalId !== op.goalId);
+      return [...rest, op];
+    });
+  }, []);
+
+  const requestExitEditMap = useCallback(() => {
+    if (editMapPendingOps.length > 0) {
+      setEditMapExitOpen(true);
+      return;
+    }
+    setEditMapMode(false);
+    clearEditMapDraft();
+  }, [clearEditMapDraft, editMapPendingOps.length]);
+
+  const applyEditMapSession = useCallback(async (): Promise<boolean> => {
+    if (editMapPendingOps.length === 0) return true;
+    setEditMapApplying(true);
+    const result = await applyEditMapDraftOps(editMapPendingOps);
+    setEditMapApplying(false);
+    if (!result.ok) {
+      showTreeToast(result.error);
+      return false;
+    }
+    await loadData({ silent: true });
+    return true;
+  }, [editMapPendingOps, loadData, showTreeToast]);
+
+  const finishEditMapAfterApply = useCallback(() => {
+    setEditMapExitOpen(false);
+    setEditMapMode(false);
+    clearEditMapDraft();
+  }, [clearEditMapDraft]);
+
+  const handleEditMapApply = useCallback(async () => {
+    const ok = await applyEditMapSession();
+    if (ok) finishEditMapAfterApply();
+  }, [applyEditMapSession, finishEditMapAfterApply]);
+
+  const handleEditMapDiscard = useCallback(() => {
+    setEditMapExitOpen(false);
+    setEditMapMode(false);
+    clearEditMapDraft();
+  }, [clearEditMapDraft]);
+
+  const handleEditMapDiscussInStream = useCallback(async () => {
+    const streamDraft = buildEditMapStreamDraft(editMapPendingOps);
+    const firstGoalId = editMapPendingOps[0]?.goalId;
+    const found = firstGoalId ? findGoalInAreas(areas, firstGoalId) : null;
+    const area = (focused ? areas.find((a) => a.id === focused) : null) ?? found?.area ?? areas[0] ?? null;
+    const ok = await applyEditMapSession();
+    if (!ok) return;
+    finishEditMapAfterApply();
+    if (!area) return;
+    const theme = buildStreamThemeUiFromArea(area);
+    if (theme.hubs.length === 0) {
+      showTreeToast("No hubs found for this theme — try refreshing the tree.");
+      return;
+    }
+    setPanel({ type: "none" });
+    setFocusedLimbId(area.id);
+    setStreamSession({ mode: "theme", theme, initialDraft: streamDraft });
+  }, [
+    applyEditMapSession,
+    areas,
+    editMapPendingOps,
+    finishEditMapAfterApply,
+    focused,
+    showTreeToast,
+  ]);
+
+  useEffect(() => {
+    if (!streamSession) return;
+    setEditMapMode(false);
+    setEditMapExitOpen(false);
+    clearEditMapDraft();
+  }, [clearEditMapDraft, streamSession]);
+
+  const handleOpenThemeStream = useCallback((area: AreaData) => {
+    const theme = buildStreamThemeUiFromArea(area);
+    if (theme.hubs.length === 0) {
+      showTreeToast("No hubs found for this theme — try refreshing the tree.");
+      return;
+    }
+    setPanel({ type: "none" });
+    setFocusedLimbId(area.id);
+    setStreamSession({ mode: "theme", theme });
+  }, [showTreeToast]);
+
+  const handleOpenHubStream = useCallback((area: AreaData, thread: AreaData["branches"][number]) => {
+    const hub = buildStreamHubUiFromThread(area, thread);
+    setPanel({ type: "none" });
+    setFocusedLimbId(area.id);
+    setStreamSession({ mode: "hub", hub });
+  }, []);
+
+  const handleOpenGoalStream = useCallback((area: AreaData, goal: TreeGoalNode) => {
+    const thread = area.branches.find((branch) => branch.id === goal.branchId);
+    if (!thread) {
+      showTreeToast("Could not open Stream for this pursuit — try refreshing.");
+      return;
+    }
+    const hub = buildStreamHubUiFromThread(area, thread);
+    setPanel({ type: "none" });
+    setFocusedLimbId(area.id);
+    setStreamSession({
+      mode: "hub",
+      hub,
+      initialPlaceholder: `Tell me more about "${goal.title}" - add milestones, next steps, or marks from this pursuit.`,
+    });
+  }, [showTreeToast]);
+
+  const applyFirstRunFocus = useCallback(
+    (loadedAreas: AreaData[]) => {
+      const target = findFirstRunFocusTarget(loadedAreas, primaryLimbIdRef.current);
+      if (!target) return;
+
+      setFocused(target.area.id);
+      setFocusedLimbId(target.area.id);
+      dismissMarkCard();
+
+      if (target.kind === "goal") {
+        setPanel({ type: "goal", goal: target.goal, area: target.area });
+        setStreamPanFocus({
+          areaId: target.area.id,
+          branchId: target.goal.branchId,
+          key: Date.now(),
+        });
+        return;
+      }
+
+      const found = findMarkInAreas(loadedAreas, target.markId);
+      if (!found) return;
+
+      setPanel({ type: "none" });
+      const cx = typeof window !== "undefined" ? window.innerWidth / 2 : 0;
+      const cy = typeof window !== "undefined" ? window.innerHeight / 2 : 0;
+      setMarkPinned({
+        moment: found.moment,
+        area: found.area,
+        hubLabel: found.hubLabel,
+        clientX: cx,
+        clientY: cy,
+      });
+      setMarkHover(null);
+      setStreamPanFocus({
+        areaId: found.area.id,
+        branchId: found.moment.branchId,
+        key: Date.now(),
+      });
+    },
+    [dismissMarkCard],
+  );
+
+  const handleFirstRunStart = useCallback(() => {
+    const limbId = resolveFirstRunPrimaryLimbId(primaryLimbIdRef.current, areas);
+    if (!limbId) {
+      showTreeToast("No themes on your tree yet — try refreshing.");
+      return;
+    }
+    const area = areas.find((a) => a.id === limbId);
+    if (!area) {
+      showTreeToast("Could not open Stream for this theme — try refreshing.");
+      return;
+    }
+    const theme = buildStreamThemeUiFromArea(area);
+    if (theme.hubs.length === 0) {
+      showTreeToast("No hubs found for this theme — try refreshing the tree.");
+      return;
+    }
+    setPanel({ type: "none" });
+    setFocusedLimbId(area.id);
+    setStreamSession({
+      mode: "theme",
+      theme,
+      initialPlaceholder: getFirstRunStreamPrompt(limbId as LifeAreaId),
+    });
+  }, [areas, showTreeToast]);
+
+  const handleStreamCommitted = useCallback(async () => {
+    const wasFirstRun = !firstRunCompletedRef.current;
+    if (wasFirstRun) {
+      firstRunCompletedRef.current = true;
+      setFirstRunCompleted(true);
+    }
+
+    const loadedAreas = await loadData({ silent: true });
+
+    if (wasFirstRun) {
+      try {
+        const res = await fetch("/api/first-run/complete", { method: "POST" });
+        if (res.ok) {
+          await refreshSession();
+          if (loadedAreas?.length) {
+            applyFirstRunFocus(loadedAreas);
+          }
+          showTreeToast("Your map has started.");
+          return;
+        }
+        firstRunCompletedRef.current = false;
+        setFirstRunCompleted(false);
+      } catch {
+        firstRunCompletedRef.current = false;
+        setFirstRunCompleted(false);
+      }
+    }
+
+    showTreeToast("Tree updated from your stream.");
+  }, [applyFirstRunFocus, loadData, refreshSession, showTreeToast]);
+
+  const showFirstRunWelcome =
+    !firstRunCompleted && !streamSession && !loading && areas.length > 0;
+
   const handleAddGoalOnHub = useCallback((hub: AddGoalHubContext) => {
     setAddGoalDefaultBranchId(hub.branchId);
+    setAddGoalDefaultAnchor(hub.sequenceAnchor ?? null);
     if (FLAGS.CONVERSATIONAL_GOAL_CREATE) {
       setConversationalGoalCtx({
         ...hub,
-        anchorClient: {
-          x: window.innerWidth / 2,
-          y: Math.min(window.innerHeight - 100, window.innerHeight * 0.5),
-        },
+        anchorClient:
+          hub.sequenceAnchor != null
+            ? hub.anchorClient
+            : {
+                x: window.innerWidth / 2,
+                y: Math.min(window.innerHeight - 100, window.innerHeight * 0.5),
+              },
       });
       return;
     }
     setAddGoalOpen(true);
   }, []);
 
-  const handleMomentClick = useCallback((moment: MomentNode, area: AreaData) => {
-    setFocused(area.id);
-    setPanel({ type: "moment", moment, area });
-  }, []);
+  const handleAddMomentFromPanel = useCallback(
+    (ctx: { branchId: string; areaId: string; sequenceAnchor?: SequenceAnchor | null }) => {
+      const area = areas.find((a) => a.id === ctx.areaId);
+      const thread = area?.branches.find((b) => b.id === ctx.branchId);
+      const anchor = ctx.sequenceAnchor ?? null;
+      if (FLAGS.CONVERSATIONAL_GOAL_CREATE) {
+        setConversationalMarkCtx({
+          branchId: ctx.branchId,
+          limbId: ctx.areaId,
+          branchLabel: thread?.type?.trim() || "Hub",
+          areaLabel: area?.label ?? ctx.areaId,
+          anchorClient: {
+            x: window.innerWidth / 2,
+            y: Math.min(window.innerHeight - 100, window.innerHeight * 0.45),
+          },
+          sequenceAnchor: anchor,
+        });
+        return;
+      }
+      setMarkModal({
+        limbId: ctx.areaId as LimbId,
+        branchId: ctx.branchId,
+        anchor,
+      });
+    },
+    [areas],
+  );
 
   const handleGoalClick = useCallback((goal: TreeGoalNode, area: AreaData) => {
     let close = false;
@@ -190,12 +786,31 @@ export function TreeView() {
     [areas, hiddenAreaIds],
   );
 
+  const previewNodesForTree = useMemo(() => {
+    if (!pendingPreviewNode) return previewNodes;
+    const withoutPending = previewNodes.filter((n) => n.id !== pendingPreviewNode.id);
+    return [...withoutPending, pendingPreviewNode];
+  }, [previewNodes, pendingPreviewNode]);
+
+  const previewAreas = useMemo(
+    () => buildPreviewAreasFromNodes(areas, previewNodesForTree),
+    [areas, previewNodesForTree],
+  );
+
   const handleNavigateToGoal = useCallback(
     (goalId: string) => {
       const found = findGoalInAreas(visibleAreas, goalId);
       if (!found) return;
       setFocused(found.area.id);
-      setPanel({ type: "goal", goal: found.goal, area: found.area });
+      setPanel((curr) => {
+        const returnTo =
+          curr.type === "hub"
+            ? { type: "hub" as const, area: curr.area, thread: curr.thread }
+            : curr.type === "goal"
+              ? curr.returnTo
+              : undefined;
+        return { type: "goal", goal: found.goal, area: found.area, ...(returnTo ? { returnTo } : {}) };
+      });
     },
     [visibleAreas],
   );
@@ -219,138 +834,93 @@ export function TreeView() {
     setFocused((curr) => (curr === areaId ? null : curr));
     setPanel((curr) => {
       if (curr.type === "area" && curr.area.id === areaId) return { type: "none" };
-      if (curr.type === "moment" && curr.area.id === areaId) return { type: "none" };
       return curr;
     });
-  }, []);
+    dismissMarkCard();
+  }, [dismissMarkCard]);
 
   const addGoalBranches = useMemo(
     () =>
-      areas.flatMap((area) =>
-        area.branches.map((branchRow) => ({
-          id: branchRow.id,
-          lifeAreaId: area.id,
-          label: branchRow.type,
-        })),
-      ),
-    [areas],
-  );
-
-  const showTreeToast = useCallback((msg: string, color = "#7B68C8") => {
-    setTreeToast({ msg, color });
-    window.setTimeout(() => setTreeToast(null), 2400);
-  }, []);
-
-  const handleProposeEvolveGoal = useCallback(
-    async (
-      goalId: string,
-      body: {
-        whatsDifferent?: string;
-        correction?: string;
-        previousProposal?: {
-          title: string;
-          description: string;
-          targetDate: string | null;
-          milestoneTitles: string[];
-        };
-      },
-    ) => {
-      try {
-        const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/fork/propose`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          proposal?: {
-            title: string;
-            description: string;
-            targetDate: string | null;
-            milestoneTitles: string[];
+      apiBranchRows
+        .filter((b) => !b.parentBranchId)
+        .map((b) => {
+          const raw = (b.label ?? b.name ?? "").trim() || "Hub";
+          return {
+            id: b.id,
+            lifeAreaId: b.limbId,
+            label: canonicalHubDisplayLabel(b.limbId, raw),
+            isActive: b.isActive === true,
           };
-          usedFallback?: boolean;
-        };
-        if (!res.ok) {
-          return { ok: false, error: String(data.error ?? `Could not propose evolve (${res.status})`) };
-        }
-        if (!data.proposal) {
-          return { ok: false, error: "No proposal returned." };
-        }
-        return { ok: true, proposal: data.proposal, usedFallback: data.usedFallback };
-      } catch {
-        return { ok: false, error: "Network error while proposing evolve." };
-      }
-    },
-    [],
+        }),
+    [apiBranchRows],
   );
 
-  const handleCommitEvolveGoal = useCallback(
+  const dormantLimbIds = useMemo(() => {
+    const active = new Set(
+      apiBranchRows
+        .filter((b) => !b.parentBranchId && b.isActive === true)
+        .map((b) => b.limbId),
+    );
+    return LIFE_AREA_ORDER.filter((id) => !active.has(id));
+  }, [apiBranchRows]);
+
+  const patchGoal = useCallback(
     async (
       goalId: string,
       body: {
-        title: string;
-        description?: string;
-        deadline?: string;
-        proposal?: {
-          title: string;
-          description: string;
-          targetDate: string | null;
-          milestoneTitles: string[];
-        };
+        title?: string;
+        timelineStartIso?: string | null;
+        deadlineIso?: string | null;
+        archived?: boolean;
+        bloomStatus?: "ACTIVE" | "ON_HOLD" | "COMPLETE";
       },
     ) => {
       try {
-        const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/fork`, {
-          method: "POST",
+        const payload: Record<string, unknown> = {};
+        if (body.title !== undefined) payload.title = body.title;
+        if (body.timelineStartIso !== undefined) payload.timelineStart = body.timelineStartIso;
+        if (body.deadlineIso !== undefined) payload.deadline = body.deadlineIso;
+        if ("archived" in body && body.archived !== undefined) payload.archived = body.archived;
+        if (body.bloomStatus !== undefined) payload.bloomStatus = body.bloomStatus;
+        const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}`, {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify(payload),
         });
-        const data = (await res.json().catch(() => ({}))) as { error?: string; goal?: { id?: string } };
         if (!res.ok) {
-          return { ok: false, error: String(data.error ?? `Could not evolve goal (${res.status})`) };
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
         }
-        const newGoalId = typeof data.goal?.id === "string" ? data.goal.id : undefined;
         window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         await loadData({ silent: true });
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        });
-        showTreeToast("Next chapter created.");
-        return { ok: true, newGoalId };
+        return { ok: true };
       } catch {
-        return { ok: false, error: "Network error while evolving goal." };
+        return { ok: false, error: "Network error while updating pursuit." };
       }
     },
-    [loadData, showTreeToast],
+    [loadData],
   );
 
-  const handleResetDemoProfiles = useCallback(async () => {
-    if (!isDev) return;
-    if (
-      !window.confirm(
-        "Reset demo profiles 1 and 2 (fulltree@ / mygoals@ pathfinder.test) to fresh seed data? This replaces branches, marks, and goals for those users.",
-      )
-    ) {
-      return;
-    }
-    setResettingProfiles(true);
-    try {
-      const res = await fetch("/api/dev/reset-tree-profiles", { method: "POST" });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) {
-        showTreeToast(data.error ?? "Reset failed", "#f87171");
-        return;
+  const handleTimelineDeleteMoment = useCallback(
+    async (momentId: string) => {
+      try {
+        const res = await fetch(`/api/marks/${encodeURIComponent(momentId)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Remove failed (${res.status})`) };
+        }
+        await loadData({ silent: true });
+        dismissMarkCard();
+        showTreeToast("Mark removed from map.");
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while removing mark." };
       }
-      showTreeToast("Demo profiles reset to fresh seed.");
-      window.dispatchEvent(new Event(PATHFINDER_GOALS_CHANGED_EVENT));
-      await loadData();
-    } catch {
-      showTreeToast("Reset request failed.", "#f87171");
-    } finally {
-      setResettingProfiles(false);
-    }
-  }, [isDev, loadData, showTreeToast]);
+    },
+    [loadData, showTreeToast, dismissMarkCard],
+  );
 
   useEffect(() => {
     const h = () => {
@@ -376,15 +946,6 @@ export function TreeView() {
   const treeExportRootRef = useRef<HTMLDivElement | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [showTreeElementGuide, setShowTreeElementGuide] = useState(false);
-  const [treeRenderQualityDevPreset, setTreeRenderQualityDevPreset] = useState<TreeRenderQuality | null>(null);
-
-  useEffect(() => {
-    if (!isDev) return;
-    const raw = window.localStorage.getItem(TREE_RENDER_QUALITY_DEV_STORAGE_KEY);
-    if (raw === "restrained" || raw === "balanced" || raw === "cinematic") {
-      setTreeRenderQualityDevPreset(raw);
-    }
-  }, [isDev]);
 
   const handleExportTreePdf = useCallback(async () => {
     if (viewMode !== "tree") {
@@ -438,6 +999,20 @@ export function TreeView() {
     }
   }, [viewMode]);
 
+  const handleMarkPointerEnterNode = useCallback(
+    (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => {
+      handleMarkPointerEnter(buildMarkAnchor(moment, area, clientX, clientY));
+    },
+    [buildMarkAnchor, handleMarkPointerEnter],
+  );
+
+  const handleMarkClickNode = useCallback(
+    (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => {
+      handleMarkClick(buildMarkAnchor(moment, area, clientX, clientY));
+    },
+    [buildMarkAnchor, handleMarkClick],
+  );
+
   if (loading) {
     return (
       <div
@@ -458,7 +1033,7 @@ export function TreeView() {
 
   const detailRailOpen = panel.type === "goal" || panel.type === "hub" || panel.type === "area";
   const detailRailLabel =
-    panel.type === "hub" ? "Hub details" : panel.type === "area" ? "Theme details" : "Goal details";
+    panel.type === "hub" ? "Hub details" : panel.type === "area" ? "Theme details" : "Pursuit details";
   const treePanelKey =
     panel.type === "goal"
       ? `goal-${panel.goal.id}`
@@ -466,15 +1041,17 @@ export function TreeView() {
         ? `area-${panel.area.id}`
         : panel.type === "hub"
           ? `hub-${panel.thread.id}`
-          : panel.type === "moment"
-            ? `moment-${panel.moment.id}`
-            : "none";
+          : "none";
+
+  const markCardAnchor = markPinned ?? markHover;
+  const activeMarkId = markCardAnchor?.moment.id ?? null;
 
   const mapViews = (
     <>
       {viewMode === "tree" ? (
         <TreeSVG
           areas={visibleAreas}
+          previewAreas={previewAreas.length > 0 ? previewAreas : undefined}
           allAreasForForkGeometry={areas}
           focused={focused}
           focusedLimbId={focusedLimbId}
@@ -483,19 +1060,36 @@ export function TreeView() {
           onClear={clearAll}
           onAreaClick={handleAreaClick}
           onHubClick={handleHubClick}
-          onMomentClick={handleMomentClick}
+          activeMarkId={activeMarkId}
+          onMarkPointerEnter={handleMarkPointerEnterNode}
+          onMarkPointerLeave={handleMarkPointerLeave}
+          onMarkClick={handleMarkClickNode}
           onGoalClick={handleGoalClick}
           exportRootRef={treeExportRootRef}
           showElementGuide={TREE_ELEMENT_GUIDE_ENABLED && showTreeElementGuide}
-          renderQualityDevPreset={isDev ? treeRenderQualityDevPreset : null}
+          streamPanFocus={streamPanFocus}
+          streamPanelWidthPx={streamSession ? STREAM_PANEL_WIDTH_PX : 0}
+          editMapMode={editMapMode && !streamSession}
+          editMapDraftAreas={editMapDraftAreas}
+          onEditMapDraftDrop={handleEditMapDraftDrop}
         />
       ) : null}
       {viewMode === "timeline" ? (
-        <TimelineView
+        <SwimlaneTimeline
           areas={visibleAreas}
+          birthYear={birthYear}
           focused={focused}
           onAreaClick={handleAreaClick}
-          onMomentClick={handleMomentClick}
+          activeMarkId={activeMarkId}
+          onMarkPointerEnter={handleMarkPointerEnterNode}
+          onMarkPointerLeave={handleMarkPointerLeave}
+          onMarkClick={handleMarkClickNode}
+          onGoalClick={handleGoalClick}
+          onUpdateGoalTimeline={async (goalId, body) => {
+            const result = await patchGoal(goalId, body);
+            if (result.ok) showTreeToast("Timeline dates saved.");
+            return result;
+          }}
         />
       ) : null}
       {viewMode === "branch" ? (
@@ -503,7 +1097,10 @@ export function TreeView() {
           areas={visibleAreas}
           selectedThreadId={selectedThreadId}
           onSelectThread={setSelectedThreadId}
-          onMomentClick={handleMomentClick}
+          activeMarkId={activeMarkId}
+          onMarkPointerEnter={handleMarkPointerEnterNode}
+          onMarkPointerLeave={handleMarkPointerLeave}
+          onMarkClick={handleMarkClickNode}
           focused={focused}
           onAreaClick={handleAreaClick}
         />
@@ -521,11 +1118,13 @@ export function TreeView() {
         onClose={clearAll}
         onOpenArea={handleAreaClick}
         onOpenHub={handleHubClick}
+        onOpenThemeStream={handleOpenThemeStream}
+        onOpenHubStream={handleOpenHubStream}
+        onOpenGoalStream={handleOpenGoalStream}
+        editMapMode={editMapMode}
         onDeleteGoal={async (goalId) => {
           try {
-            const userQuery =
-              isDev && selectedMockUserId ? `?userId=${encodeURIComponent(selectedMockUserId)}` : "";
-            const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}${userQuery}`, {
+            const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}`, {
               method: "DELETE",
             });
             if (!res.ok) {
@@ -534,31 +1133,63 @@ export function TreeView() {
             }
             await loadData({ silent: true });
             setPanel({ type: "none" });
-            showTreeToast("Goal deleted.");
+            showTreeToast("Pursuit removed from map.");
             return { ok: true };
           } catch {
-            return { ok: false, error: "Network error while deleting goal." };
+            return { ok: false, error: "Network error while removing pursuit." };
           }
         }}
-        onUpdateGoal={async (goalId, body) => {
+        archivedGoals={archivedGoals}
+        archivedMarks={archivedMarks}
+        onReviveGoal={async (goalId) => {
+          const result = await patchGoal(goalId, { archived: false });
+          if (result.ok) showTreeToast("Pursuit restored to your map.");
+          return result;
+        }}
+        onReviveMark={async (markId) => {
           try {
-            const userQuery =
-              isDev && selectedMockUserId ? `?userId=${encodeURIComponent(selectedMockUserId)}` : "";
-            const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}${userQuery}`, {
+            const res = await fetch(`/api/marks/${encodeURIComponent(markId)}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
+              body: JSON.stringify({ archived: false }),
             });
             if (!res.ok) {
               const err = await res.json().catch(() => ({}));
-              return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
+              return { ok: false, error: String(err?.error ?? `Restore failed (${res.status})`) };
             }
-            window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
             await loadData({ silent: true });
-            showTreeToast("Goal updated.");
+            showTreeToast("Mark restored to your map.");
             return { ok: true };
           } catch {
-            return { ok: false, error: "Network error while updating goal." };
+            return { ok: false, error: "Network error while restoring mark." };
+          }
+        }}
+        onUpdateGoal={async (goalId, body) => {
+          const result = await patchGoal(goalId, body);
+          if (result.ok) showTreeToast("Pursuit updated.");
+          return result;
+        }}
+        onMoveGoalToHub={async (goalId, branchId) => {
+          try {
+            const target = visibleAreas.find((area) =>
+              area.branches.some((branch) => branch.id === branchId),
+            );
+            const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/reorganize`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ op: "moveToHub", branchId }),
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              return { ok: false, error: String(err?.error ?? `Move failed (${res.status})`) };
+            }
+            if (target) setFocused(target.id);
+            window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+            await loadData({ silent: true });
+            showTreeToast("Pursuit moved.");
+            return { ok: true };
+          } catch {
+            return { ok: false, error: "Network error while moving pursuit." };
           }
         }}
         onToggleSubtask={async (subtaskId) => {
@@ -578,10 +1209,8 @@ export function TreeView() {
         }}
         onAppendCanonicalTreeMilestone={async (goalId, title) => {
           try {
-            const userQuery =
-              isDev && selectedMockUserId ? `?userId=${encodeURIComponent(selectedMockUserId)}` : "";
             const res = await fetch(
-              `/api/goals/${encodeURIComponent(goalId)}/milestones${userQuery}`,
+              `/api/goals/${encodeURIComponent(goalId)}/milestones`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -601,10 +1230,8 @@ export function TreeView() {
         }}
         onSetMilestoneCompletion={async (goalId, milestoneId, completed) => {
           try {
-            const userQuery =
-              isDev && selectedMockUserId ? `?userId=${encodeURIComponent(selectedMockUserId)}` : "";
             const res = await fetch(
-              `/api/goals/${encodeURIComponent(goalId)}/milestones/${encodeURIComponent(milestoneId)}${userQuery}`,
+              `/api/goals/${encodeURIComponent(goalId)}/milestones/${encodeURIComponent(milestoneId)}`,
               {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -627,9 +1254,9 @@ export function TreeView() {
           }
         }}
         onAddGoal={handleAddGoalOnHub}
+        onAddMoment={handleAddMomentFromPanel}
         onNavigateToGoal={handleNavigateToGoal}
-        onProposeEvolveGoal={handleProposeEvolveGoal}
-        onCommitEvolveGoal={handleCommitEvolveGoal}
+        onSparseEnriched={handleSparseEnriched}
       />
     );
 
@@ -651,7 +1278,7 @@ export function TreeView() {
                 key={area.id}
                 type="button"
                 className={`rm-tree-toggle${off ? " rm-off" : ""}`}
-                title={`${countRoadmapGoalsInArea(area)} roadmap goals in this theme`}
+                title={`${countRoadmapGoalsInArea(area)} roadmap pursuits in this theme`}
                 onClick={() => toggleArea(area.id)}
               >
                 <div className="rm-tree-dot" style={{ background: area.color }} />
@@ -672,8 +1299,8 @@ export function TreeView() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              borderBottom: "0.5px solid var(--color-border-tertiary)",
-              background: "var(--color-background-primary)",
+              borderBottom: "1px solid var(--rm-border, #D8D9DC)",
+              background: "var(--rm-bgEl, #FFFFFF)",
               flexShrink: 0,
             }}
           >
@@ -682,7 +1309,7 @@ export function TreeView() {
                 fontSize: 13,
                 fontWeight: 500,
                 letterSpacing: ".1em",
-                color: "var(--color-text-tertiary)",
+                color: "var(--rm-text3, #6B7280)",
               }}
             >
               TREE VIEW
@@ -707,6 +1334,40 @@ export function TreeView() {
                   />
                   Element labels
                 </label>
+              ) : null}
+              {viewMode === "tree" ? (
+                <button
+                  type="button"
+                  disabled={Boolean(streamSession)}
+                  title={streamSession ? "Exit Stream to edit the map" : "Drag pursuits to move or nest them"}
+                  onClick={() => {
+                    if (editMapMode) {
+                      requestExitEditMap();
+                      return;
+                    }
+                    clearEditMapDraft();
+                    setEditMapMode(true);
+                  }}
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1,
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: editMapMode
+                      ? "0.5px solid rgba(129, 140, 248, 0.55)"
+                      : "0.5px solid var(--color-border-secondary)",
+                    background: editMapMode ? "rgba(99, 102, 241, 0.18)" : "transparent",
+                    color: editMapMode ? "var(--color-text-primary)" : "var(--color-text-tertiary)",
+                    cursor: streamSession ? "not-allowed" : "pointer",
+                    opacity: streamSession ? 0.5 : 1,
+                  }}
+                >
+                  {editMapMode
+                    ? editMapPendingOps.length > 0
+                      ? `Done editing (${editMapPendingOps.length})`
+                      : "Done editing"
+                    : "Edit map"}
+                </button>
               ) : null}
               {([
                 { id: "tree", label: "Tree" },
@@ -757,6 +1418,8 @@ export function TreeView() {
               {focused ? (
                 <button
                   onClick={clearAll}
+                  title="Exit focus — show all limbs at equal emphasis (does not reset zoom)"
+                  aria-label="Exit focus"
                   style={{
                     fontSize: 14,
                     color: "var(--color-text-secondary)",
@@ -767,117 +1430,7 @@ export function TreeView() {
                     padding: "3px 10px",
                   }}
                 >
-                  ← full tree
-                </button>
-              ) : isDev && mockUsers.length > 0 ? (
-                <label
-                  htmlFor="tree-view-dev-profile"
-                  style={{
-                    fontSize: 13,
-                    color: "var(--color-text-tertiary)",
-                    cursor: "pointer",
-                    userSelect: "none",
-                  }}
-                >
-                  Profile
-                </label>
-              ) : null}
-              {isDev && viewMode === "tree" ? (
-                <>
-                  <label
-                    htmlFor="tree-view-dev-render-quality"
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-text-tertiary)",
-                      cursor: "pointer",
-                      userSelect: "none",
-                    }}
-                  >
-                    Render
-                  </label>
-                  <select
-                    id="tree-view-dev-render-quality"
-                    value={treeRenderQualityDevPreset ?? "__flag__"}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "__flag__") {
-                        setTreeRenderQualityDevPreset(null);
-                        window.localStorage.removeItem(TREE_RENDER_QUALITY_DEV_STORAGE_KEY);
-                        return;
-                      }
-                      const preset = v as TreeRenderQuality;
-                      setTreeRenderQualityDevPreset(preset);
-                      window.localStorage.setItem(TREE_RENDER_QUALITY_DEV_STORAGE_KEY, preset);
-                    }}
-                    aria-label="Tree goal render quality preset"
-                    style={{
-                      fontSize: 14,
-                      lineHeight: 1.2,
-                      color: "var(--color-text-secondary)",
-                      background: "none",
-                      border: "0.5px solid var(--color-border-secondary)",
-                      borderRadius: 4,
-                      padding: "3px 10px",
-                      cursor: "pointer",
-                      minHeight: 28,
-                      maxWidth: 160,
-                    }}
-                  >
-                    <option value="__flag__">Flag default</option>
-                    <option value="restrained">Restrained</option>
-                    <option value="balanced">Balanced</option>
-                    <option value="cinematic">Cinematic</option>
-                  </select>
-                </>
-              ) : null}
-              {isDev && mockUsers.length > 0 ? (
-                <select
-                  id="tree-view-dev-profile"
-                  value={selectedMockUserId ?? mockUsers[0]?.id ?? ""}
-                  onChange={(e) => setSelectedMockUserId(e.target.value)}
-                  aria-label="Select profile to preview"
-                  style={{
-                    fontSize: 14,
-                    lineHeight: 1.2,
-                    color: "var(--color-text-secondary)",
-                    background: "none",
-                    border: "0.5px solid var(--color-border-secondary)",
-                    borderRadius: 4,
-                    padding: "3px 10px",
-                    cursor: "pointer",
-                    minHeight: 28,
-                    maxWidth: 220,
-                  }}
-                >
-                  {mockUsers.map((user) => (
-                    <option key={user.id} value={user.id} title={user.email}>
-                      {user.email.includes("fulltree@")
-                        ? `${user.name} (demo marks)`
-                        : user.name}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              {isDev && mockUsers.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => void handleResetDemoProfiles()}
-                  disabled={resettingProfiles}
-                  aria-label="Reset demo profiles to fresh seed data"
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1,
-                    padding: "6px 10px",
-                    borderRadius: 4,
-                    border: "0.5px solid var(--color-border-secondary)",
-                    color: "var(--color-text-secondary)",
-                    background: "transparent",
-                    cursor: resettingProfiles ? "wait" : "pointer",
-                    opacity: resettingProfiles ? 0.65 : 1,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {resettingProfiles ? "Resetting…" : "Reset profiles"}
+                  Exit focus
                 </button>
               ) : null}
             </div>
@@ -893,9 +1446,27 @@ export function TreeView() {
               position: "relative",
             }}
           >
-            <div style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                position: "relative",
+                ...(viewMode === "tree" || viewMode === "timeline"
+                  ? { overflow: "hidden" }
+                  : { overflowX: "hidden", overflowY: "auto" }),
+              }}
+            >
               {mapViews}
             </div>
+            {viewMode === "tree" && dormantLimbIds.length > 0 ? (
+              <button
+                type="button"
+                className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-[#141414]/90 px-4 py-2 text-xs text-zinc-400 shadow-lg backdrop-blur-sm transition hover:border-indigo-400/40 hover:text-indigo-200"
+                onClick={() => setAddAreaOpen(true)}
+              >
+                Add another area
+              </button>
+            ) : null}
             {detailRailOpen ? (
               <aside
                 role="complementary"
@@ -925,18 +1496,33 @@ export function TreeView() {
         </main>
       </div>
 
+
+      <TreeEditMapDoneDialog
+        open={editMapExitOpen}
+        ops={editMapPendingOps}
+        applying={editMapApplying}
+        onApply={() => void handleEditMapApply()}
+        onDiscard={handleEditMapDiscard}
+        onDiscussInStream={() => void handleEditMapDiscussInStream()}
+        onClose={() => setEditMapExitOpen(false)}
+      />
+
       {!FLAGS.CONVERSATIONAL_GOAL_CREATE ? (
         <AddGoalModal
           open={addGoalOpen}
           onOpenChange={(open) => {
             setAddGoalOpen(open);
-            if (!open) setAddGoalDefaultBranchId(null);
+            if (!open) {
+              setAddGoalDefaultBranchId(null);
+              setAddGoalDefaultAnchor(null);
+            }
           }}
           branches={addGoalBranches}
           defaultBranchId={addGoalDefaultBranchId}
-          devGoalsUserId={isDev ? selectedMockUserId : null}
+          defaultAnchor={addGoalDefaultAnchor}
           onGoalCreated={({ branchLabel }) => {
-            showTreeToast(`Goal created on ${branchLabel}.`);
+            void loadData({ silent: true });
+            showTreeToast(`Pursuit created on ${branchLabel}.`);
           }}
         />
       ) : null}
@@ -944,14 +1530,110 @@ export function TreeView() {
       {FLAGS.CONVERSATIONAL_GOAL_CREATE && conversationalGoalCtx ? (
         <TreeConversationalGoalCreate
           context={conversationalGoalCtx}
-          isDev={isDev}
-          devGoalsUserId={selectedMockUserId}
-          onClose={() => setConversationalGoalCtx(null)}
+          onClose={() => {
+            setConversationalGoalCtx(null);
+            setAddGoalDefaultAnchor(null);
+            setAddGoalDefaultBranchId(null);
+          }}
           onGoalCreated={({ branchLabel }) => {
-            showTreeToast(`Goal created on ${branchLabel}.`);
+            void loadData({ silent: true });
+            showTreeToast(`Pursuit created on ${branchLabel}.`);
           }}
         />
       ) : null}
+
+      {streamSession ? (
+        <div
+          aria-hidden
+          data-stream-tree-scrim="1"
+          style={{
+            position: "fixed",
+            inset: 0,
+            right: STREAM_PANEL_WIDTH_PX,
+            background: "rgba(0,0,0,0.3)",
+            pointerEvents: "none",
+            zIndex: 199990,
+          }}
+        />
+      ) : null}
+
+      {showFirstRunWelcome ? (
+        <FirstRunWelcomeOverlay userName={firstRun.userName} onStart={handleFirstRunStart} />
+      ) : null}
+
+      {streamSession ? (
+        <StreamOverlay
+          {...(streamSession.mode === "theme"
+            ? { mode: "theme" as const, theme: streamSession.theme }
+            : { mode: "hub" as const, hub: streamSession.hub })}
+          initialDraft={streamSession.initialDraft}
+          initialPlaceholder={streamSession.initialPlaceholder}
+          onCardFocusHub={handleStreamCardFocusHub}
+          onClose={() => {
+            clearPreviewNodes();
+            setStreamSession(null);
+            setStreamPanFocus(null);
+            streamPanHubRef.current = null;
+          }}
+          onClearPreview={clearPreviewNodes}
+          onCommitted={() => {
+            void handleStreamCommitted();
+          }}
+          onExtracted={() => {
+            void loadData({ silent: true });
+          }}
+        />
+      ) : null}
+
+      {FLAGS.CONVERSATIONAL_GOAL_CREATE && conversationalMarkCtx ? (
+        <TreeConversationalMarkCreate
+          context={conversationalMarkCtx}
+          onClose={() => setConversationalMarkCtx(null)}
+          onMarkCreated={() => {
+            void loadData({ silent: true });
+            showTreeToast("Mark added.");
+          }}
+        />
+      ) : null}
+
+      {markCardAnchor ? (
+        <MarkHoverCard
+          anchor={markCardAnchor}
+          areas={visibleAreas}
+          pinned={markPinned != null}
+          onDismiss={dismissMarkCard}
+          onRemoveMark={handleTimelineDeleteMoment}
+          onEnriched={handleSparseEnriched}
+          onResolveAmbiguous={handleResolveAmbiguousMark}
+          onHoverZoneEnter={handleMarkCardHoverEnter}
+          onHoverZoneLeave={handleMarkCardHoverLeave}
+        />
+      ) : null}
+
+      {markModal ? (
+        <CreateMarkModal
+          open
+          onClose={() => setMarkModal(null)}
+          branches={apiBranchRows}
+          defaultLifeAreaId={markModal.limbId}
+          defaultBranchId={markModal.branchId}
+          defaultAnchor={markModal.anchor}
+          onCreated={async () => {
+            await loadData({ silent: true });
+            showTreeToast("Mark added.");
+          }}
+        />
+      ) : null}
+
+      <AddAreaModal
+        open={addAreaOpen}
+        dormantLimbIds={dormantLimbIds}
+        onClose={() => setAddAreaOpen(false)}
+        onActivated={() => {
+          void loadData({ silent: true });
+          showTreeToast("Area added to your tree.");
+        }}
+      />
 
       {treeToast ? (
         <div
@@ -1059,6 +1741,34 @@ export function TreeView() {
           }
           50% {
             opacity: 1;
+          }
+        }
+        .tree-goal-ambient-breathe {
+          animation: tree-goal-ambient-breathe 3.8s ease-in-out infinite;
+        }
+        @keyframes tree-goal-ambient-breathe {
+          0%,
+          100% {
+            opacity: 0.88;
+            stroke-opacity: 0.44;
+          }
+          50% {
+            opacity: 1;
+            stroke-opacity: 1;
+          }
+        }
+        .tree-goal-ambient-breathe-outer {
+          animation: tree-goal-ambient-breathe-outer 3.8s ease-in-out infinite;
+        }
+        @keyframes tree-goal-ambient-breathe-outer {
+          0%,
+          100% {
+            opacity: 0.72;
+            stroke-opacity: 0.22;
+          }
+          50% {
+            opacity: 0.95;
+            stroke-opacity: 0.58;
           }
         }
       `}</style>

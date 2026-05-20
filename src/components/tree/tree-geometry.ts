@@ -16,14 +16,14 @@ export type Point = { x: number; y: number }
 export const TRUNK_BASE_Y = 1220
 export const TRUNK_TOP_Y = 120
 /** SVG canvas — large enough for wide theme spacing + hub spokes when panning. */
-export const VIEWBOX_WIDTH = 2600
-export const VIEWBOX_HEIGHT = 2600
+export const VIEWBOX_WIDTH = 3000
+export const VIEWBOX_HEIGHT = 3000
 
 /** Vertical axis pairing left life areas (finance, work) with right life areas (people, health) in fork data. */
 export const TREE_TRUNK_MIRROR_X = VIEWBOX_WIDTH / 2
 
 /**
- * Four evenly spaced trunk attach points for Work & Learning, People & Relationships,
+ * Four evenly spaced trunk attach points for Work & Career, People & Relationships,
  * Money & Finance, and Health & Body (slot 0 = highest toward crown, 3 = lowest toward the base).
  * {@link TREE_MAIN_LIMB_SHIFT_Y} moves the whole ladder down the trunk without changing relative gaps.
  */
@@ -32,7 +32,7 @@ const TREE_MAIN_LIMB_SHIFT_Y = 108
 const TREE_MAIN_FOUR_BAND_TOP = 488 + TREE_MAIN_LIMB_SHIFT_Y
 const TREE_MAIN_FOUR_BAND_BOT = 788 + TREE_MAIN_LIMB_SHIFT_Y
 
-/** Extra +Y for the main four trunk forks (work, people, finance, health) and pleasures; Becoming crown stays put via {@link TREE_FORK_TOP}. */
+/** Extra +Y for the main four trunk forks (work, people, finance, health). Becoming crown stays put via {@link TREE_FORK_TOP}. */
 const TREE_MAIN_FOUR_EXTRA_DROP_PX = 52
 
 /**
@@ -79,12 +79,6 @@ export const TREE_FORK_FINANCE: Point = deriveTrunkSurfaceAttach(
 )
 export const TREE_FORK_HEALTH: Point = deriveTrunkSurfaceAttach(
   conduitTrunkAttachY(FORK_Y_HEALTH),
-  "right",
-)
-
-/** Pleasures — slightly below the Health & Body fork on the trunk; stem aims toward lower-right. */
-export const TREE_FORK_PLEASURES: Point = deriveTrunkSurfaceAttach(
-  conduitTrunkAttachY(FORK_Y_HEALTH + 52),
   "right",
 )
 
@@ -179,7 +173,7 @@ export function lifeAreaTrunkForkLabelLayout(
       textAnchor: "end",
     };
   }
-  if (areaId === "people" || areaId === "health" || areaId === "pleasures") {
+  if (areaId === "people" || areaId === "health") {
     return {
       x: cx + LIFE_AREA_LABEL_TRUNK_GAP_X,
       y: trunkAttach.y,

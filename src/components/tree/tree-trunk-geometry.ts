@@ -3,14 +3,19 @@
  * Geometry is SVG-path friendly (layered closed paths, no bitmap noise). Numeric sampling keeps
  * future animation hooks (flow along centerline, pulse by pressure field) modular.
  */
+import { stableRenderJitter01 } from "./tree-render-materials";
 import type { Point } from "./tree-types";
 
-export const TRUNK_AXIS_X = 600;
+/**
+ * Horizontal center of the vascular trunk silhouette and pressure column.
+ * Must stay aligned with {@link TREE_TRUNK_MIRROR_X} (`VIEWBOX_WIDTH / 2`) and trunk-slot centerline.
+ */
+export const TRUNK_AXIS_X = 1500;
 
 /** Crown band — matches legacy silhouette top anchor (SVG y, down-positive). */
 export const TRUNK_CROWN_Y = 432;
 /** Ground pinch — shared organism anchor at the base of the trunk silhouette. */
-export const TRUNK_BASE_Y = 1356;
+export const TRUNK_BASE_Y = 1818;
 
 /** Vertical trunk domain for width / pressure evaluation. */
 const TRUNK_SPAN = TRUNK_BASE_Y - TRUNK_CROWN_Y;
@@ -55,7 +60,7 @@ export type TrunkEmergenceSide = "left" | "right" | "center";
 
 export function trunkEmergenceSideForArea(areaId: string): TrunkEmergenceSide {
   if (areaId === "work" || areaId === "finance") return "left";
-  if (areaId === "people" || areaId === "health" || areaId === "pleasures") return "right";
+  if (areaId === "people" || areaId === "health") return "right";
   return "center";
 }
 
@@ -111,6 +116,55 @@ export function deriveTrunkSurfaceAttach(y: number, side: TrunkEmergenceSide): P
   return { x, y };
 }
 
+/**
+ * Unit direction for a limb leaving the trunk surface toward `toward` (typically the theme gateway).
+ * Blends outward normal from the vascular mass with the chord so the curve grows off the contour.
+ */
+export function deriveTrunkEmergenceDirection(
+  y: number,
+  side: TrunkEmergenceSide,
+  toward: Point,
+): Point {
+  const surface = deriveTrunkSurfaceAttach(y, side);
+  const cx = deriveTrunkCenterlineX(y);
+  const eps = 10;
+  const yLo = Math.max(TRUNK_CROWN_Y, y - eps);
+  const yHi = Math.min(TRUNK_BASE_Y, y + eps);
+  const cxLo = deriveTrunkCenterlineX(yLo);
+  const cxHi = deriveTrunkCenterlineX(yHi);
+  let tx = cxHi - cxLo;
+  let ty = yHi - yLo;
+  const tLen = Math.hypot(tx, ty) || 1;
+  tx /= tLen;
+  ty /= tLen;
+
+  let ox: number;
+  let oy: number;
+  if (side === "center") {
+    ox = 0;
+    oy = -1;
+  } else {
+    ox = surface.x - cx;
+    oy = 0;
+    const oLen = Math.hypot(ox, oy) || 1;
+    ox /= oLen;
+    oy /= oLen;
+  }
+
+  const dx = toward.x - surface.x;
+  const dy = toward.y - surface.y;
+  const cLen = Math.hypot(dx, dy) || 1;
+  const chordUx = dx / cLen;
+  const chordUy = dy / cLen;
+
+  const outwardWeight = side === "center" ? 0.5 : 0.58;
+  const chordWeight = 1 - outwardWeight;
+  let ux = ox * outwardWeight + chordUx * chordWeight;
+  let uy = oy * outwardWeight + chordUy * chordWeight;
+  const uLen = Math.hypot(ux, uy) || 1;
+  return { x: ux / uLen, y: uy / uLen };
+}
+
 /** Reserved for parallax; keep 0 so branch strokes stay registered with stem/trunk (no lateral shear at bole). */
 export function deriveBranchDepthPhaseNudgePx(_areaId: string, _branchIndex: number): number {
   return 0;
@@ -155,13 +209,20 @@ export type TrunkLayerPaths = {
 };
 
 function outlineClosedPath(halfWidthMul: number): string {
+  return outlineClosedPathWithHalfWidth((y) => deriveTrunkHalfWidthAtY(y) * halfWidthMul, deriveTrunkCenterlineX);
+}
+
+function outlineClosedPathWithHalfWidth(
+  halfWidthAtY: (y: number) => number,
+  centerlineXAtY: (y: number) => number = deriveTrunkCenterlineX,
+): string {
   const yBottom = TRUNK_BASE_Y;
   const yTop = TRUNK_CROWN_Y;
   const nSide = 24;
   const yLeft = linspace(yTop, yBottom - 16, nSide);
   const leftPts: Point[] = yLeft.map((y) => {
-    const cx = deriveTrunkCenterlineX(y);
-    const hw = deriveTrunkHalfWidthAtY(y) * halfWidthMul;
+    const cx = centerlineXAtY(y);
+    const hw = halfWidthAtY(y);
     const asym = lateralAsym01(y);
     const x = cx - hw * (1 + asym);
     return { x, y };
@@ -175,8 +236,8 @@ function outlineClosedPath(halfWidthMul: number): string {
 
   const yRight = linspace(yBottom - 16, yTop, nSide);
   const rightPts: Point[] = yRight.map((y) => {
-    const cx = deriveTrunkCenterlineX(y);
-    const hw = deriveTrunkHalfWidthAtY(y) * halfWidthMul;
+    const cx = centerlineXAtY(y);
+    const hw = halfWidthAtY(y);
     const asym = lateralAsym01(y);
     const x = cx + hw * (1 - asym);
     return { x, y };
@@ -221,17 +282,163 @@ export function deriveTrunkPressureLayers(): TrunkLayerPaths {
 }
 
 function rootFlarePath(): string {
-  const y0 = TRUNK_BASE_Y - 14;
-  const spread = 138;
-  const lift = 48;
+  const y0 = TRUNK_BASE_Y - 16;
+  const spread = 248;
+  const lift = 72;
   const cx = TRUNK_AXIS_X;
   return [
-    `M${cx - 32},${y0}`,
-    `C${cx - spread * 0.92},${y0 + lift * 0.28} ${cx - spread},${y0 + lift * 0.72} ${cx - spread * 1.08},${y0 + lift + 22}`,
-    `C${cx - 72},${y0 + lift + 48} ${cx - 34},${y0 + lift + 56} ${cx},${y0 + lift + 60}`,
-    `C${cx + 34},${y0 + lift + 56} ${cx + 72},${y0 + lift + 48} ${cx + spread * 1.08},${y0 + lift + 22}`,
-    `C${cx + spread},${y0 + lift * 0.72} ${cx + spread * 0.92},${y0 + lift * 0.28} ${cx + 32},${y0}`,
-    `C${cx + 18},${y0 - 9} ${cx - 18},${y0 - 9} ${cx - 32},${y0}`,
+    `M${cx - 44},${y0}`,
+    `C${cx - spread * 0.96},${y0 + lift * 0.24} ${cx - spread * 1.04},${y0 + lift * 0.76} ${cx - spread * 1.12},${y0 + lift + 28}`,
+    `C${cx - 96},${y0 + lift + 58} ${cx - 42},${y0 + lift + 68} ${cx},${y0 + lift + 74}`,
+    `C${cx + 42},${y0 + lift + 68} ${cx + 96},${y0 + lift + 58} ${cx + spread * 1.12},${y0 + lift + 28}`,
+    `C${cx + spread * 1.04},${y0 + lift * 0.76} ${cx + spread * 0.96},${y0 + lift * 0.24} ${cx + 44},${y0}`,
+    `C${cx + 22},${y0 - 12} ${cx - 22},${y0 - 12} ${cx - 44},${y0}`,
     `Z`,
   ].join(" ");
+}
+
+/** Vertical extent below {@link TRUNK_BASE_Y} for root tendrils (fit-to-view sampling). */
+export function trunkRootExtentBelowBasePx(): number {
+  return TRUNK_SPAN * 0.36;
+}
+
+/** Hub-trunk layout: dramatic taper — ~1px half-width crown → ~4.5px at base, with lower knots. */
+export function deriveSimplifiedTrunkHalfWidthAtY(y: number): number {
+  const t = trunkNormY(y);
+  const baseHw = 1 + t * 3.55;
+  const limbSwell = emergenceSwellAtY(y) * 0.1;
+  let knot = 0;
+  if (t > 0.44) {
+    const lowerT = (t - 0.44) / 0.56;
+    knot += 1.15 * Math.exp(-((lowerT - 0.34) ** 2) / 0.038);
+    knot += 1.15 * Math.exp(-((lowerT - 0.68) ** 2) / 0.038);
+  }
+  return baseHw + limbSwell + knot;
+}
+
+/** Subtle bends in the long lower trunk (below limb band). */
+export function deriveSimplifiedTrunkCenterlineX(y: number): number {
+  const base = deriveTrunkCenterlineX(y);
+  const t = trunkNormY(y);
+  if (t < 0.44) return base;
+  const lower = (t - 0.44) / 0.56;
+  const bend =
+    9 * Math.sin(lower * Math.PI * 1.28 + 0.18) + 4.5 * Math.sin(lower * Math.PI * 2.45 + 0.42);
+  return base + bend;
+}
+
+/** Hub-trunk layout: narrow tapered read (~2px crown → ~9px base before flare). */
+export const SIMPLIFIED_TRUNK_HALF_WIDTH_SCALE = 0.125;
+
+/** Closed tapered silhouette for hub-trunk layout. */
+export function deriveSimplifiedTrunkSilhouetteD(
+  _halfWidthMul: number = SIMPLIFIED_TRUNK_HALF_WIDTH_SCALE,
+): string {
+  return outlineClosedPathWithHalfWidth(
+    deriveSimplifiedTrunkHalfWidthAtY,
+    deriveSimplifiedTrunkCenterlineX,
+  );
+}
+
+/** Center vein polyline along the simplified pressure column (crown → base). */
+export function deriveSimplifiedTrunkCenterVeinD(sampleCount = 18): string {
+  const yTop = TRUNK_CROWN_Y + 4;
+  const yBot = TRUNK_BASE_Y - 18;
+  let d = "";
+  for (let i = 0; i < sampleCount; i += 1) {
+    const u = i / (sampleCount - 1);
+    const y = yTop + u * (yBot - yTop);
+    const x = deriveSimplifiedTrunkCenterlineX(y);
+    d += i === 0 ? `M${snap(x)},${snap(y)}` : ` L${snap(x)},${snap(y)}`;
+  }
+  return d;
+}
+
+export type RootTendrilSpec = {
+  d: string;
+  strokeWidth: number;
+  strokeOpacity: number;
+};
+
+/** Decorative root tendrils below trunk base — deterministic, fading toward tips. */
+export function deriveRootTendrilSpecs(count = 6): RootTendrilSpec[] {
+  const cx = TRUNK_AXIS_X;
+  const y0 = TRUNK_BASE_Y;
+  const reachY = trunkRootExtentBelowBasePx();
+  const reachX = reachY * 0.72;
+  const out: RootTendrilSpec[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const side = i % 2 === 0 ? -1 : 1;
+    const spread = 0.55 + stableRenderJitter01(`trunk-root:${i}:spread`) * 0.62;
+    const depthMul = 0.72 + stableRenderJitter01(`trunk-root:${i}:depth`) * 0.38;
+    const depth = reachY * depthMul;
+    const lateral = (reachX * (0.42 + (i % 3) * 0.12) + stableRenderJitter01(`trunk-root:${i}:lat`) * reachX * 0.22) * side * spread;
+    const midX = cx + lateral * 0.46;
+    const midY = y0 + depth * 0.52;
+    const tipX = cx + lateral;
+    const tipY = y0 + depth;
+    const c1x = cx + lateral * 0.1;
+    const c1y = y0 + depth * 0.16;
+    const c2x = midX;
+    const c2y = midY;
+    const tipOp = 0.1 + stableRenderJitter01(`trunk-root:${i}:op`) * 0.22;
+    out.push({
+      d: `M${snap(cx)},${snap(y0)} C${snap(c1x)},${snap(c1y)} ${snap(c2x)},${snap(c2y)} ${snap(tipX)},${snap(tipY)}`,
+      strokeWidth: 1 + stableRenderJitter01(`trunk-root:${i}:sw`) * 1.1,
+      strokeOpacity: Math.min(0.34, tipOp + 0.08),
+    });
+  }
+  return out;
+}
+
+export type TrunkJunctionWarmthSpec = {
+  cx: number;
+  cy: number;
+  r: number;
+  opacity: number;
+};
+
+/** Soft radial warmth at limb trunk attach — reads as knot, not decorative dot. */
+export function deriveTrunkJunctionWarmthSpec(
+  areaId: string,
+  attach: Point,
+  halfWidthScale: number = SIMPLIFIED_TRUNK_HALF_WIDTH_SCALE,
+): TrunkJunctionWarmthSpec {
+  void halfWidthScale;
+  const hw = deriveSimplifiedTrunkHalfWidthAtY(attach.y);
+  const jitter = stableRenderJitter01(`trunk-junction:${areaId}`);
+  return {
+    cx: attach.x,
+    cy: attach.y,
+    r: 22 + hw * 1.35 + jitter * 6,
+    opacity: 0.042 + jitter * 0.022,
+  };
+}
+
+export type TrunkCrownForkSpec = {
+  d: string;
+  strokeOpacity: number;
+  strokeWidth: number;
+};
+
+/** Small Y-split at crown — canopy origin gesture (Becoming limb). */
+export function deriveTrunkCrownForkPaths(): TrunkCrownForkSpec[] {
+  const y0 = TRUNK_CROWN_Y - 2;
+  const cx = deriveTrunkCenterlineX(y0);
+  const reach = 28;
+  const spreadRad = (14 * Math.PI) / 180;
+  const specs: TrunkCrownForkSpec[] = [];
+  for (const side of [-1, 1] as const) {
+    const ang = -Math.PI / 2 + side * spreadRad;
+    const tipX = cx + Math.cos(ang) * reach;
+    const tipY = y0 + Math.sin(ang) * reach;
+    const c1x = cx + Math.cos(ang) * reach * 0.38;
+    const c1y = y0 + Math.sin(ang) * reach * 0.22 - 4;
+    specs.push({
+      d: `M${snap(cx)},${snap(y0)} Q${snap(c1x)},${snap(c1y)} ${snap(tipX)},${snap(tipY)}`,
+      strokeOpacity: 0.34,
+      strokeWidth: 1.15,
+    });
+  }
+  return specs;
 }

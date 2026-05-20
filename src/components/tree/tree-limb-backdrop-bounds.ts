@@ -1,10 +1,21 @@
 import {
+  branchOutwardUnitForLongitudinalRay,
+  branchTipPointForNodeCount,
+  domainClusterGoalRingGoalCount,
+  domainClusterGoalRingSlotIndex,
+  domainClusterHubPointFromCatalog,
+  goalScreenPositionForLifeAreaThread,
   pathPointAtT,
   pickThreadMomentsForTree,
   resolvedChainMomentPos,
+  type DomainClusterMomentChainContext,
 } from "./tree-branch-geometry";
+import { TREE_GOAL_ORBITAL_CRISP_RADIUS_PX } from "./goal-node-render-phase";
 import { isHubGatewayLayout, limbPathBetweenGlobalT } from "./tree-forks";
 import type { AreaForkSpec } from "./tree-forks";
+import type { AreaLayoutOverride } from "./tree-layout-edit";
+import { shouldDomainClusterThread } from "./tree-renderer-grammar";
+import { FLAGS } from "@/lib/flags";
 import type { DomainHubData, MomentNode, Point } from "./tree-types";
 import {
   TREE_THREAD_MARKER_VISUALS_ENABLED,
@@ -24,8 +35,36 @@ export const LIMB_BACKDROP_PAD_PX = 4;
  */
 const LIMB_BACKDROP_EDGE_PULLBACK_PX = 3;
 
-/** Limb tint behind nodes/lines — low so goal blooms remain the sacred focal read. */
-export const LIMB_BACKDROP_FILL_OPACITY = 0.046;
+/** Limb hull polygon tint (see `tree-svg` limb backdrop group). */
+export const LIMB_BACKDROP_HULL_POLYGON_OPACITY = 0.1;
+
+/** Outer principal-axis veil ellipse (`treeAreaVeilMass` blur). */
+export const LIMB_BACKDROP_VEIL_FILL_OPACITY = 0.2;
+
+/** Veil radial gradient — center stop (saturated territory core). */
+export const LIMB_BACKDROP_VEIL_CENTER_OPACITY = 0.26;
+
+/** Veil radial gradient — mid stop. */
+export const LIMB_BACKDROP_VEIL_MID_OPACITY = 0.14;
+
+/** Cap for hull pocket ellipse fills inside the clipped hull. */
+export const LIMB_BACKDROP_HULL_POCKET_OPACITY_MAX = 0.12;
+
+/** Cap for hull bleed ellipses outside the clip. */
+export const LIMB_BACKDROP_HULL_BLEED_OPACITY_MAX = 0.075;
+
+/** @deprecated Use {@link LIMB_BACKDROP_HULL_POLYGON_OPACITY}. */
+export const LIMB_BACKDROP_FILL_OPACITY = LIMB_BACKDROP_HULL_POLYGON_OPACITY;
+
+/** Minimum territory radius when a limb has only a gateway + 1–2 goals. */
+export const HUB_GATEWAY_MIN_HULL_RADIUS_PX = 80;
+
+/** Goal disc sample radius for hull points — cluster core, not full bloom envelope. */
+const HUB_GATEWAY_GOAL_HULL_DISC_MUL = 1.4;
+
+/** Theme gateway / hub anchor discs for hub-gateway hull sampling. */
+const HUB_GATEWAY_GATEWAY_DISC_R_PX = 44;
+const HUB_GATEWAY_DOMAIN_HUB_DISC_R_PX = 26;
 
 /** ~Collision radius per life area for “toys on water” separation (hub proxy, SVG px). */
 export const LIFE_AREA_FLOAT_PACKING_RADIUS_PX = 210;
@@ -125,8 +164,8 @@ function samplePathCenters(
 
 export function momentBoundsRadius(m: MomentNode): number {
   const r = nodeRadius(m.significance);
-  if (m.isTurningPoint && m.bloomStatus === "BLOOMED") return 14;
-  if (m.bloomStatus === "GROWING" || m.future) return r + 6;
+  if (m.isTurningPoint && m.bloomStatus === "COMPLETE") return 14;
+  if (m.bloomStatus === "ACTIVE" || m.future) return r + 6;
   return r + 3;
 }
 
@@ -140,6 +179,29 @@ export type LimbBackdropBranchRow = {
   nextGoalSlotT: number;
   momentChordTEnd: number;
   kFork: number;
+  /** Matches tree row: domain-cluster grammar for this hub. */
+  threadDomainCluster: boolean;
+};
+
+export type HubGatewayBackdropBranchRow = {
+  thread: DomainHubData;
+  idx: number;
+  threadCatalogFull: string;
+  kFork: number;
+};
+
+export type HubGatewayBackdropBoundsInput = {
+  areaId: string;
+  limbPath: string;
+  themeGateway: Point;
+  trunkAttach: Point;
+  branchCount: number;
+  branches: HubGatewayBackdropBranchRow[];
+  gatewaySpreadNormal?: Point;
+  /** 0–1 limb occupancy signal — tightens hull spread when dense (Profile 2 guard). */
+  hubDensity?: number;
+  layoutOverride?: AreaLayoutOverride;
+  layoutAnchors?: { trunkAttach: Point; gateway: Point };
 };
 
 export type LimbBackdropBoundsInput = {
@@ -151,7 +213,9 @@ export type LimbBackdropBoundsInput = {
   sortedBranchIdx: number[];
   branches: LimbBackdropBranchRow[];
   momentPositions: Record<string, Point> | undefined;
-  showMarksByZoom: boolean;
+  domainClusterGatewaySpreadNormal?: Point;
+  layoutOverride?: AreaLayoutOverride;
+  layoutAnchors?: { trunkAttach: Point; gateway: Point };
   showAllGoalMilestonesByZoom: boolean;
   goalHighlightId: string | undefined;
   trunkExcludeCenter: Point;
@@ -408,41 +472,85 @@ function collectLimbPoints(input: LimbBackdropBoundsInput): Point[] {
 
     if (!TREE_THREAD_MARKER_VISUALS_ENABLED) continue;
 
-    if (input.showMarksByZoom) {
-      const treeMoments = pickThreadMomentsForTree(row.thread.moments, TREE_THREAD_VISIBLE_MOMENTS);
-      const threadForTree: DomainHubData = { ...row.thread, moments: treeMoments };
-      threadForTree.moments.forEach((moment, momentIdx) => {
-        const pos = resolvedChainMomentPos(
-          input.areaId,
-          row.idx,
-          threadForTree,
-          momentIdx,
-          row.threadCatalogFull,
-          input.momentPositions,
-          row.momentChordTEnd,
-        );
-        pushDiscBoundary(pts, pos.x, pos.y, momentBoundsRadius(moment));
-      });
-    }
+    const dcChain: DomainClusterMomentChainContext | null =
+      !FLAGS.BRANCH_LONGITUDINAL_ALL &&
+      row.threadDomainCluster &&
+      shouldDomainClusterThread(input.areaId, row.thread)
+        ? {
+            catalogFullPath: row.threadCatalogFull,
+            kFork: row.kFork,
+            branchCountOnLimb: input.sortedBranchIdx.length,
+            goalsOnThread: row.thread.goals,
+            domainClusterGatewaySpreadNormal: input.domainClusterGatewaySpreadNormal,
+            layoutOv: input.layoutOverride,
+            layoutAnchors: input.layoutAnchors,
+            branchId: row.thread.id,
+          }
+        : null;
 
+    const treeMoments = pickThreadMomentsForTree(row.thread.moments, TREE_THREAD_VISIBLE_MOMENTS);
+    const threadForTree: DomainHubData = { ...row.thread, moments: treeMoments };
+    threadForTree.moments.forEach((moment, momentIdx) => {
+      const pos = resolvedChainMomentPos(
+        input.areaId,
+        row.idx,
+        threadForTree,
+        momentIdx,
+        row.threadCatalogFull,
+        input.momentPositions,
+        row.momentChordTEnd,
+        row.threadMainDraw,
+        dcChain,
+      );
+      pushDiscBoundary(pts, pos.x, pos.y, momentBoundsRadius(moment));
+    });
   }
 
   return pts;
 }
 
-/**
- * Convex hull of limb-visible points (same sources as the old AABB), then each edge offset outward
- * by {@link LIMB_BACKDROP_PAD_PX}. Trunk is backdrop-only — hull samples may overlap the column.
- */
-export function computeLimbBackdropHull(input: LimbBackdropBoundsInput): LimbBackdropHull | null {
-  const pts = collectLimbPoints(input);
+function clampHullVerticesToMaxSpread(
+  vertices: Point[],
+  centroid: Point,
+  maxRadiusPx: number,
+): Point[] {
+  if (maxRadiusPx <= 0) return vertices;
+  return vertices.map((v) => {
+    const dx = v.x - centroid.x;
+    const dy = v.y - centroid.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= maxRadiusPx) return v;
+    const s = maxRadiusPx / d;
+    return { x: centroid.x + dx * s, y: centroid.y + dy * s };
+  });
+}
+
+function ensureMinHullFootprint(vertices: Point[], minRadiusPx: number): Point[] {
+  if (vertices.length === 0) return vertices;
+  const c = polygonCentroid(vertices);
+  let maxD = 0;
+  for (const v of vertices) {
+    maxD = Math.max(maxD, Math.hypot(v.x - c.x, v.y - c.y));
+  }
+  if (maxD >= minRadiusPx) return vertices;
+  const scale = minRadiusPx / Math.max(maxD, 1e-6);
+  return vertices.map((v) => ({
+    x: c.x + (v.x - c.x) * scale,
+    y: c.y + (v.y - c.y) * scale,
+  }));
+}
+
+function buildBackdropHullFromPoints(
+  pts: Point[],
+  opts?: { hubDensity?: number },
+): LimbBackdropHull | null {
   if (pts.length === 0) return null;
 
   const d = LIMB_BACKDROP_PAD_PX;
 
   if (pts.length === 1) {
     const c = pts[0]!;
-    const r = Math.max(d, 6);
+    const r = Math.max(d, HUB_GATEWAY_MIN_HULL_RADIUS_PX * 0.5);
     const square: Point[] = [
       { x: c.x - r, y: c.y - r },
       { x: c.x + r, y: c.y - r },
@@ -456,7 +564,7 @@ export function computeLimbBackdropHull(input: LimbBackdropBoundsInput): LimbBac
   if (pts.length === 2) {
     const a = pts[0]!;
     const b = pts[1]!;
-    const quad = segmentAsPolygon(a, b, Math.max(d, 5));
+    const quad = segmentAsPolygon(a, b, Math.max(d, HUB_GATEWAY_MIN_HULL_RADIUS_PX * 0.42));
     const centroid = polygonCentroid(quad);
     return { pointsAttr: pointsAttr(quad), vertices: quad, centroid };
   }
@@ -481,7 +589,12 @@ export function computeLimbBackdropHull(input: LimbBackdropBoundsInput): LimbBac
     ];
   }
 
-  const centroid = polygonCentroid(hull);
+  const density = opts?.hubDensity ?? 0;
+  const preCentroid = polygonCentroid(hull);
+  const maxSpreadPx = 520 - density * 110;
+  hull = clampHullVerticesToMaxSpread(hull, preCentroid, maxSpreadPx);
+  hull = ensureMinHullFootprint(hull, HUB_GATEWAY_MIN_HULL_RADIUS_PX);
+
   let padded = offsetConvexPolygon(hull, d);
   if (padded.length < 3) return null;
   if (polygonSignedArea(padded) < 0) padded = padded.slice().reverse();
@@ -500,3 +613,84 @@ export function computeLimbBackdropHull(input: LimbBackdropBoundsInput): LimbBac
     centroid: c2,
   };
 }
+
+export function collectHubGatewayTerritoryPoints(input: HubGatewayBackdropBoundsInput): Point[] {
+  const pts: Point[] = [];
+  const sampleCount = 10;
+
+  pushDiscBoundary(pts, input.themeGateway.x, input.themeGateway.y, HUB_GATEWAY_GATEWAY_DISC_R_PX, 10);
+  pushDiscBoundary(pts, input.trunkAttach.x, input.trunkAttach.y, 18, 6);
+  samplePathCenters(pts, input.limbPath, 0.04, 0.96, sampleCount);
+
+  const goalDiscR = TREE_GOAL_ORBITAL_CRISP_RADIUS_PX * HUB_GATEWAY_GOAL_HULL_DISC_MUL;
+
+  for (const row of input.branches) {
+    const { thread, threadCatalogFull, kFork } = row;
+    const goalsOnThread = thread.goals;
+    const threadDc = shouldDomainClusterThread(input.areaId, thread);
+    const sampleHubDisc =
+      threadDc || FLAGS.BRANCH_LONGITUDINAL_ALL;
+
+    if (sampleHubDisc) {
+      const hub = domainClusterHubPointFromCatalog(
+        threadCatalogFull,
+        kFork,
+        input.branchCount,
+        input.gatewaySpreadNormal,
+        input.areaId,
+        input.layoutOverride,
+        input.layoutAnchors,
+        thread.id,
+      );
+      pushDiscBoundary(pts, hub.x, hub.y, HUB_GATEWAY_DOMAIN_HUB_DISC_R_PX, 8);
+      if (FLAGS.BRANCH_LONGITUDINAL_ALL) {
+        const outward = branchOutwardUnitForLongitudinalRay(threadCatalogFull, hub);
+        const ranked = thread.sequencedNodes.length;
+        const nodeCount =
+          ranked > 0 ? ranked : Math.max(thread.goals.length, thread.moments.length, 1);
+        const tip = branchTipPointForNodeCount(hub, outward, nodeCount);
+        pushDiscBoundary(pts, tip.x, tip.y, goalDiscR, 8);
+      }
+    }
+
+    for (let gi = 0; gi < goalsOnThread.length; gi += 1) {
+      const g = goalsOnThread[gi]!;
+      const ringN = threadDc ? domainClusterGoalRingGoalCount(thread) : goalsOnThread.length;
+      const ringGi = threadDc ? domainClusterGoalRingSlotIndex(thread, g.id) : gi;
+      const pos = goalScreenPositionForLifeAreaThread(
+        input.areaId,
+        thread,
+        threadCatalogFull,
+        ringGi,
+        g.id,
+        kFork,
+        input.branchCount,
+        ringN,
+        input.gatewaySpreadNormal,
+        input.layoutOverride,
+        input.layoutAnchors,
+        thread.id,
+      );
+      pushDiscBoundary(pts, pos.x, pos.y, goalDiscR, 8);
+    }
+  }
+
+  return pts;
+}
+
+export function computeHubGatewayBackdropHull(
+  input: HubGatewayBackdropBoundsInput,
+): LimbBackdropHull | null {
+  const pts = collectHubGatewayTerritoryPoints(input);
+  return buildBackdropHullFromPoints(pts, { hubDensity: input.hubDensity });
+}
+
+/**
+ * Convex hull of limb-visible points (same sources as the old AABB), then each edge offset outward
+ * by {@link LIMB_BACKDROP_PAD_PX}. Trunk is backdrop-only — hull samples may overlap the column.
+ */
+export function computeLimbBackdropHull(input: LimbBackdropBoundsInput): LimbBackdropHull | null {
+  const pts = collectLimbPoints(input);
+  return buildBackdropHullFromPoints(pts);
+}
+
