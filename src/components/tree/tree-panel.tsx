@@ -1567,7 +1567,9 @@ export function TreePanel({
           overflow: "hidden",
           borderRadius: goalRail ? 18 : undefined,
           background: "var(--color-background-primary, var(--pf-tree-glass-bg))",
-          border: panelSurface === "canvas" ? "1px solid rgba(255,255,255,0.08)" : undefined,
+          borderWidth: panelSurface === "canvas" ? 1 : undefined,
+          borderStyle: panelSurface === "canvas" ? "solid" : undefined,
+          borderColor: panelSurface === "canvas" ? "rgba(255,255,255,0.08)" : undefined,
           backdropFilter: panelSurface === "canvas" ? "blur(28px) saturate(1.1)" : undefined,
           WebkitBackdropFilter: panelSurface === "canvas" ? "blur(28px) saturate(1.1)" : undefined,
         }}
@@ -1890,8 +1892,9 @@ export function TreePanel({
                 style={{
                   padding: "12px 14px 12px 16px",
                   background: "rgba(255,255,255,0.018)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  borderLeft: `2px solid ${PF_TREE_MARK_COLOR}`,
+                  borderWidth: "1px 1px 1px 2px",
+                  borderStyle: "solid",
+                  borderColor: `rgba(255,255,255,0.05) rgba(255,255,255,0.05) rgba(255,255,255,0.05) ${PF_TREE_MARK_COLOR}`,
                   borderRadius: 10,
                 }}
               >
