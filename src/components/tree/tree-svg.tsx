@@ -3555,7 +3555,7 @@ export function TreeSVG({
         </g>
       </svg>
       </div>
-      {TREE_LAYOUT_EDIT_ENABLED ? (
+      {process.env.NODE_ENV === "development" && TREE_LAYOUT_EDIT_ENABLED ? (
         <TreeLayoutDevPanel
           areas={areas}
           allAreasForForkGeometry={allAreasForForkGeometry}

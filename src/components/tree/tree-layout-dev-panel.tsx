@@ -165,7 +165,7 @@ export function TreeLayoutDevPanel({
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-          <span style={{ fontWeight: 600, color: "#FBBF24" }}>Tree layout (dev)</span>
+          <span style={{ fontWeight: 600, color: "#FBBF24" }}>Map controls</span>
           <span style={{ fontSize: 12, color: "#A8A29E", lineHeight: 1.35 }} title="Press L to toggle panel">
             {summaryLabel}
             {statusMessage ? (
