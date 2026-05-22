@@ -464,6 +464,7 @@ export function SwimlaneTimeline({
         flexDirection: "column",
         gap: 10,
         boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <p
@@ -501,7 +502,8 @@ export function SwimlaneTimeline({
           minWidth: 0,
           flex: 1,
           minHeight: 0,
-          overflow: "auto",
+          overflowX: "auto",
+          overflowY: "hidden",
           overscrollBehaviorX: "contain",
           WebkitOverflowScrolling: "touch",
           border: "0.5px solid var(--color-border-tertiary)",
