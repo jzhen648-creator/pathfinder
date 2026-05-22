@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { completeOnboardingForUser } from "@/lib/complete-onboarding";
+import { completeOnboarding } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 
@@ -12,6 +13,10 @@ const confirmSchema = z.object({
   name: z.string().min(1, "Name is required."),
   activeLimbIds: z.array(LIFE_AREA_ENUM).min(2, "Select at least 2 areas."),
   confirm: z.literal(true),
+});
+
+const sceneCompleteSchema = z.object({
+  complete: z.literal(true),
 });
 
 export async function POST(request: Request) {
@@ -24,6 +29,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    const sceneComplete = sceneCompleteSchema.safeParse(body);
+    if (sceneComplete.success) {
+      await completeOnboarding(prisma, userId);
+      return NextResponse.json({ ok: true });
+    }
+
     const parsed = confirmSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(

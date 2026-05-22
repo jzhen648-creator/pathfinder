@@ -27,6 +27,9 @@ export async function completeOnboardingForUser(
       name: preferredName,
       onboardingCompleted: true,
       onboardingPrimaryLimbId: primaryLimbId,
+      onboardingScene: null,
+      onboardingThemeId: null,
+      onboardingHubId: null,
     },
   });
 }
