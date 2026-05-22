@@ -99,7 +99,7 @@ export type TreePanelProps = {
   onOpenHub: (area: AreaData, thread: AreaData["branches"][number]) => void;
   /** Open theme-level Stream (brain dump across all hubs in this theme). */
   onOpenThemeStream?: (area: AreaData) => void;
-  onOpenHubStream?: (area: AreaData, thread: AreaData["branches"][number]) => void;
+  onOpenHubStream?: (area: AreaData, thread: AreaData["branches"][number], initialPlaceholder?: string) => void;
   onOpenGoalStream?: (area: AreaData, goal: TreeGoalNode) => void;
   editMapMode?: boolean;
   onAddGoal: (hub: AddGoalHubContext) => void;

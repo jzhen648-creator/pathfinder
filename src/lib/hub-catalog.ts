@@ -14,6 +14,8 @@ export type HubCatalogEntry = {
   aiRoutingNote: string;
   /** Short example pursuits — shown as chips in the hub sidebar empty state. */
   examples: string[];
+  /** Conversational opening questions shown as clickable chips on empty hubs; each opens Stream pre-prompted. */
+  openingQuestions?: [string, string, string];
 };
 
 /** Locked default-hub copy — keyed by theme id + hub display name (`Branch.label` / `thread.type`). */
@@ -42,6 +44,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Land first mortgage broker role",
         "Track commission ramp in year one",
       ],
+      openingQuestions: [
+        "What does your income look like right now — is it where you want it to be?",
+        "Any conversation about pay or a new opportunity you've been putting off?",
+        "If you could change one thing about how money comes in, what would it be?",
+      ],
     },
     Assets: {
       about:
@@ -65,6 +72,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Rebalance portfolio allocation",
         "Hit £10k invested milestone",
         "Write a simple investment policy",
+      ],
+      openingQuestions: [
+        "Are you putting money to work anywhere, or is it mostly sitting in a current account?",
+        "What does financial independence look like to you, and are you moving toward it?",
+        "Any investment decision you've been overthinking?",
       ],
     },
     "Safety net": {
@@ -90,6 +102,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Top up high-interest savings",
         "Update will tied to protection plan",
       ],
+      openingQuestions: [
+        "How solid does your financial cushion feel — solid, thin, or nonexistent?",
+        "What's the scenario that would stress you out most if it happened tomorrow?",
+        "Any insurance or emergency fund you keep meaning to sort?",
+      ],
     },
     Liabilities: {
       about:
@@ -113,6 +130,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Snowball consumer debt",
         "Settle joint property with Dad",
         "Close BNPL balance before move",
+      ],
+      openingQuestions: [
+        "What do you owe, and does any of it feel like it's hanging over you?",
+        "Any debt with a plan attached, or is it still just floating?",
+        "What would it feel like to clear a specific debt — is there a clear target?",
       ],
     },
   },
@@ -140,6 +162,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "First interview with brokerage",
         "Map commission ramp timeline",
       ],
+      openingQuestions: [
+        "What's your current role, and does it feel like the right direction?",
+        "Any move — promotion, pivot, new company — you've been circling but not making?",
+        "Where do you want to be professionally in two to three years?",
+      ],
     },
     Skills: {
       about:
@@ -163,6 +190,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Find a mentor in your field",
         "LinkedIn outreach for learning (not social)",
         "Finish product management course",
+      ],
+      openingQuestions: [
+        "What's a gap in your toolkit that you're most aware of right now?",
+        "Any course, qualification, or skill you've been meaning to properly work on?",
+        "Who in your field do you admire for their craft — and what do they have that you're still building?",
       ],
     },
     "Builds & Launches": {
@@ -188,6 +220,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Publish paid newsletter issue",
         "Release portfolio website",
         "Reach 10k YouTube subscribers (continuation after 5k goal on this hub)",
+      ],
+      openingQuestions: [
+        "Is there a project or idea you've been building, stalling on, or shipping soon?",
+        "What's the last thing you finished and put out into the world?",
+        "Any side project or portfolio piece you've promised yourself you'd start?",
       ],
     },
   },
@@ -215,6 +252,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Values-led giving plan",
         "Figure out what I actually want long-term",
       ],
+      openingQuestions: [
+        "What gives your life a sense of direction right now — does that feel clear or fuzzy?",
+        "Any values you've been living by — or failing to live by — that feel worth naming?",
+        "Is there a version of your life you're aiming at that's hard to articulate?",
+      ],
     },
     "Inner life": {
       about:
@@ -239,6 +281,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Work through anger at Dad",
         "Build a morning reflection ritual",
       ],
+      openingQuestions: [
+        "How would you describe where you are emotionally at the moment?",
+        "Any pattern — in yourself, in relationships — that keeps coming up and you haven't got to the bottom of?",
+        "Are you doing any deliberate inner work right now — therapy, journalling, anything like that?",
+      ],
     },
     Joy: {
       about:
@@ -262,6 +309,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "See live jazz monthly",
         "Join local game night",
         "Book concert tickets",
+      ],
+      openingQuestions: [
+        "What's something you genuinely enjoy that you haven't done in too long?",
+        "Any trip, experience, or hobby that keeps getting pushed to next month?",
+        "What does a really good week look like for you — is there enough play in it?",
       ],
     },
   },
@@ -289,6 +341,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Discuss London return with parents",
         "Heal tension with mum",
       ],
+      openingQuestions: [
+        "How are things with your family right now — anything live that needs more attention from you?",
+        "Is there a relationship with a parent, sibling, or child you'd like to tend more carefully?",
+        "Any family dynamic that's been sitting in the background unresolved?",
+      ],
     },
     Romance: {
       about:
@@ -313,6 +370,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Date night ritual",
         "Spouse visa paperwork",
       ],
+      openingQuestions: [
+        "How are things in your romantic life — are you in it, building it, or still figuring it out?",
+        "Any conversation with your partner you've been putting off?",
+        "What does a strong version of this relationship look like — and what's the gap right now?",
+      ],
     },
     Friendships: {
       about:
@@ -336,6 +398,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Volunteer with local group",
         "Meet neighbours properly",
         "Find London Thai community",
+      ],
+      openingQuestions: [
+        "Who are the people you'd see more if life allowed — anyone who comes to mind immediately?",
+        "Is there a friendship that's drifted that you've been meaning to bring back — who is it with?",
+        "What kind of community do you want around you, and is it actually there?",
       ],
     },
   },
@@ -363,6 +430,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Fix hip mobility",
         "Couch-to-5k plan",
       ],
+      openingQuestions: [
+        "What does your movement look like right now — routine, sporadic, or nothing at all?",
+        "Any training goal — race, programme, physical milestone — you've been working toward or wanting to start?",
+        "Is there a way your body feels that you're actively trying to change?",
+      ],
     },
     Nutrition: {
       about:
@@ -386,6 +458,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Protein target for training",
         "Learn Thai cooking at home",
         "Calibrate London food budget",
+      ],
+      openingQuestions: [
+        "How's your relationship with food day to day — is it working for you?",
+        "Any eating habit you've been meaning to fix or build?",
+        "What does eating well actually mean to you — do you have a clear picture of it?",
       ],
     },
     Appearance: {
@@ -411,6 +488,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Finish dental work before move",
         "Skincare routine for confidence",
       ],
+      openingQuestions: [
+        "Is there something about how you look or present yourself that you've been wanting to change?",
+        "Any grooming, dental, or skin project that's been on the list for a while?",
+        "Is there a version of how you present yourself that still feels out of reach?",
+      ],
     },
     Rest: {
       about:
@@ -434,6 +516,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Address chronic undersleep",
         "Protect sleep during newborn phase",
         "Take a real no-plan Sunday",
+      ],
+      openingQuestions: [
+        "How's your sleep — is it restoring you, or do you wake up still tired?",
+        "Any wind-down ritual or recovery habit you keep meaning to build?",
+        "When did you last have a proper stretch of rest — not just a night off, but real downtime?",
       ],
     },
   },
@@ -478,6 +565,11 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
     ],
     aiRoutingNote: `Route here only when the item clearly fits ${label} under ${themeLine}.`,
     examples: ["Add a pursuit that fits this track", "Capture a mark"],
+    openingQuestions: [
+      `What's been happening in ${label} lately?`,
+      `Is there something in ${label} you've been meaning to work on?`,
+      `What would progress look like for you in ${label}?`,
+    ],
   };
 }
 

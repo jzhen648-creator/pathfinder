@@ -561,11 +561,11 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     setStreamSession({ mode: "theme", theme });
   }, [showTreeToast]);
 
-  const handleOpenHubStream = useCallback((area: AreaData, thread: AreaData["branches"][number]) => {
+  const handleOpenHubStream = useCallback((area: AreaData, thread: AreaData["branches"][number], initialPlaceholder?: string) => {
     const hub = buildStreamHubUiFromThread(area, thread);
     setPanel({ type: "none" });
     setFocusedLimbId(area.id);
-    setStreamSession({ mode: "hub", hub });
+    setStreamSession({ mode: "hub", hub, ...(initialPlaceholder ? { initialPlaceholder } : {}) });
   }, []);
 
   const handleOpenGoalStream = useCallback((area: AreaData, goal: TreeGoalNode) => {

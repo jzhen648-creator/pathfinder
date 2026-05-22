@@ -1121,39 +1121,86 @@ export function TreePanel({
       </div>
     ) : null;
 
-    const hubPursuitsBlock =
-      hubGoals.length === 0 ? (
-        hubCanvasRail ? (
-          <p className="pf-tree-rail-empty">
-            No pursuits on this hub yet. Tell Pathfinder about this part of your life — it&apos;ll surface
-            what&apos;s there.
-          </p>
-        ) : (
-          <div
+    const hubEmptyQuestions = hubCopy.openingQuestions ?? [];
+
+    const hubEmptyStateBlock = onOpenHubStream && hubEmptyQuestions.length > 0 ? (
+      <div style={{ display: "grid", gap: hubCanvasRail ? 6 : 8 }}>
+        {hubEmptyQuestions.map((q) => (
+          <button
+            key={q}
+            type="button"
+            onClick={() => onOpenHubStream(area, thread, q)}
             style={{
-              padding: "20px 16px",
-              borderRadius: 12,
-              border: "1px dashed var(--color-border-secondary)",
-              background: "var(--color-background-secondary, rgba(255,255,255,0.02))",
-              textAlign: "center",
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: hubCanvasRail ? "8px 12px" : "9px 13px",
+              borderRadius: 9,
+              border: `1px solid ${area.color}33`,
+              background: hubCanvasRail ? "rgba(255,255,255,0.04)" : `${area.color}0d`,
+              color: hubCanvasRail ? "rgba(255,255,255,0.72)" : "var(--color-text-secondary)",
+              fontSize: 13,
+              lineHeight: 1.45,
+              cursor: "pointer",
+              transition: "border-color 120ms, background 120ms",
             }}
           >
-            <p
-              style={{
-                margin: "0 0 4px",
-                fontSize: 15,
-                fontWeight: 500,
-                color: "var(--color-text-primary)",
-              }}
-            >
-              No pursuits yet
-            </p>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
-              Add a pursuit to start tracking on this hub.
-            </p>
-          </div>
-        )
+            {q}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onOpenHubStream(area, thread)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: "4px 2px",
+            fontSize: 12,
+            color: hubCanvasRail ? "rgba(255,255,255,0.38)" : "var(--color-text-tertiary)",
+            cursor: "pointer",
+            textAlign: "left",
+            textDecoration: "underline",
+            textUnderlineOffset: 3,
+          }}
+        >
+          or just start talking →
+        </button>
+      </div>
+    ) : (
+      hubCanvasRail ? (
+        <p className="pf-tree-rail-empty">
+          No pursuits on this hub yet. Tell Pathfinder about this part of your life — it&apos;ll surface
+          what&apos;s there.
+        </p>
       ) : (
+        <div
+          style={{
+            padding: "20px 16px",
+            borderRadius: 12,
+            border: "1px dashed var(--color-border-secondary)",
+            background: "var(--color-background-secondary, rgba(255,255,255,0.02))",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 4px",
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--color-text-primary)",
+            }}
+          >
+            No pursuits yet
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
+            Add a pursuit to start tracking on this hub.
+          </p>
+        </div>
+      )
+    );
+
+    const hubPursuitsBlock =
+      hubGoals.length === 0 ? hubEmptyStateBlock : (
         <>
           {hubActiveGoals.map((goal) =>
             renderHubPursuitCard(goal, area, areas, onNavigateToGoal, pursuitCardVariant),
