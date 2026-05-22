@@ -179,9 +179,10 @@ async function commitItemsToBranchInTx(
       archived: false,
       goalType: { notIn: ["moment", "event"] },
     },
-    select: { id: true, goalType: true },
+    select: { id: true, goalType: true, bloomStatus: true },
   });
   const hubGoalIds = new Set(hubGoals.map((g) => g.id));
+  const currentBloomByGoalId = new Map(hubGoals.map((g) => [g.id, g.bloomStatus]));
 
   for (const p of pursuits) {
     if (p.existingGoalId && !hubGoalIds.has(p.existingGoalId)) {
@@ -275,15 +276,18 @@ async function commitItemsToBranchInTx(
       sequencePosition?: null;
     } = {};
 
-    if (p.bloomStatus === "COMPLETE") {
-      updateData.bloomStatus = "COMPLETE";
-      updateData.bloomedAt = new Date();
-      forceBloomedGoalIds.add(goalId);
-      bloomedPursuits += 1;
-    } else if (p.bloomStatus === "ON_HOLD") {
-      updateData.bloomStatus = "ON_HOLD";
-    } else if (p.bloomStatus === "ACTIVE") {
-      updateData.bloomStatus = "ACTIVE";
+    const currentBloom = currentBloomByGoalId.get(goalId);
+    if (currentBloom === "ACTIVE" || currentBloom === "ON_HOLD") {
+      if (p.bloomStatus === "COMPLETE") {
+        updateData.bloomStatus = "COMPLETE";
+        updateData.bloomedAt = new Date();
+        forceBloomedGoalIds.add(goalId);
+        bloomedPursuits += 1;
+      } else if (p.bloomStatus === "ON_HOLD") {
+        updateData.bloomStatus = "ON_HOLD";
+      } else if (p.bloomStatus === "ACTIVE") {
+        updateData.bloomStatus = "ACTIVE";
+      }
     }
 
     if (title) {

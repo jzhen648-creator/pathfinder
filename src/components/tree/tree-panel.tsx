@@ -616,6 +616,7 @@ export function TreePanel({
   const [hubShowInactiveGoals, setHubShowInactiveGoals] = useState(false);
   const [pendingMilestoneIds, setPendingMilestoneIds] = useState<Set<string>>(() => new Set());
   const [milestoneError, setMilestoneError] = useState<string | null>(null);
+  const [milestoneNotice, setMilestoneNotice] = useState<string | null>(null);
   const [appendBusy, setAppendBusy] = useState(false);
   const [orbitalError, setOrbitalError] = useState<string | null>(null);
   const [goalEditOpen, setGoalEditOpen] = useState(false);
@@ -627,6 +628,7 @@ export function TreePanel({
   useEffect(() => {
     setPendingMilestoneIds(new Set());
     setMilestoneError(null);
+    setMilestoneNotice(null);
     setAppendBusy(false);
     setGoalEditOpen(false);
     setGoalEditTitle("");
@@ -1802,6 +1804,7 @@ export function TreePanel({
                       onChange={async () => {
                         const next = !milestoneComplete;
                         setMilestoneError(null);
+                        setMilestoneNotice(null);
                         setPendingMilestoneIds((prev) => new Set(prev).add(m.id));
                         const result = await onSetMilestoneCompletion(goal.id, m.id, next);
                         setPendingMilestoneIds((prev) => {
@@ -1810,6 +1813,9 @@ export function TreePanel({
                           return n;
                         });
                         if (!result.ok) setMilestoneError(result.error ?? "Could not update milestone.");
+                        else if (goal.bloomStatus === "ON_HOLD" && next) {
+                          setMilestoneNotice("Milestone saved — status updates when pursuit is reactivated.");
+                        }
                       }}
                       style={{ accentColor: area.color, marginTop: 2, cursor: msPending ? "wait" : "pointer" }}
                     />
@@ -1864,6 +1870,11 @@ export function TreePanel({
               {milestoneError || orbitalError ? (
                 <p style={{ color: "var(--color-text-danger, #f87171)", fontSize: 13, margin: "8px 0 0" }}>
                   {milestoneError ?? orbitalError}
+                </p>
+              ) : null}
+              {milestoneNotice ? (
+                <p style={{ color: "var(--color-text-subtle, rgba(255,255,255,0.52))", fontSize: 13, margin: "8px 0 0" }}>
+                  {milestoneNotice}
                 </p>
               ) : null}
             </PursuitPanelSection>
