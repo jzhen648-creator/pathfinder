@@ -254,6 +254,7 @@ export async function buildStreamThemeContextInput(
       aiRoutingNote: copy.aiRoutingNote,
       belongsHere: copy.belongsHere,
       doesNotBelongHere: copy.doesNotBelongHere,
+      examples: copy.examples,
       branchId: h.branchId,
       existingPursuits: goalsByBranch.get(h.branchId) ?? [],
       existingMarks: marksByBranch.get(h.branchId) ?? [],

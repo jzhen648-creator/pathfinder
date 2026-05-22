@@ -182,6 +182,8 @@ export type StreamThemeHubContextInput = {
   aiRoutingNote: string;
   belongsHere: [string, string, string];
   doesNotBelongHere: [string, string, string];
+  /** Example pursuits from hub catalog — sent to the model in every extract. */
+  examples: string[];
   /** Resolved server-side; included for commit/preview, not sent to the model. */
   branchId: string;
   existingPursuits: Array<{

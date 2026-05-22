@@ -505,15 +505,17 @@ export function shouldIncludePriorContext(input: string): boolean {
   );
 }
 
-function formatHubCatalogForPrompt(copy: HubCatalogEntry, scope: "hub" | "theme"): string {
-  const lines = [`About: ${copy.about}`, `AI routing: ${copy.aiRoutingNote}`];
-  if (scope === "theme") {
-    lines.push(
-      "Belongs here:",
-      ...copy.belongsHere.map((item) => `- ${item}`),
-      "Does not belong here:",
-      ...copy.doesNotBelongHere.map((item) => `- ${item}`),
-    );
+function formatHubCatalogForPrompt(copy: HubCatalogEntry): string {
+  const lines = [
+    `About: ${copy.about}`,
+    `AI routing: ${copy.aiRoutingNote}`,
+    "Belongs here:",
+    ...copy.belongsHere.map((item) => `- ${item}`),
+    "Does not belong here:",
+    ...copy.doesNotBelongHere.map((item) => `- ${item}`),
+  ];
+  if (copy.examples.length > 0) {
+    lines.push("Examples:", ...copy.examples.map((e) => `- ${e}`));
   }
   return lines.join("\n");
 }
@@ -522,7 +524,7 @@ export function buildStreamExtractUserMessage(
   hub: StreamHubContextInput,
   input: string,
 ): string {
-  const catalog = formatHubCatalogForPrompt(hubPanelCopy(hub.limbId, hub.hubLabel), "hub");
+  const catalog = formatHubCatalogForPrompt(hubPanelCopy(hub.limbId, hub.hubLabel));
   const includePriorContext = shouldIncludePriorContext(input);
   return [
     `Today's date: ${todayYmdUtc()}`,
@@ -748,17 +750,14 @@ export function buildStreamThemeExtractUserMessage(
       `- branchId (internal, do not echo in output): ${h.branchId}`,
       "",
       "#### Hub catalog (scope + routing)",
-      formatHubCatalogForPrompt(
-        {
-          about: h.about,
-          aiRoutingNote: h.aiRoutingNote,
-          belongsHere: h.belongsHere,
-          doesNotBelongHere: h.doesNotBelongHere,
-          why: "",
-          examples: [],
-        },
-        "theme",
-      ),
+      formatHubCatalogForPrompt({
+        about: h.about,
+        aiRoutingNote: h.aiRoutingNote,
+        belongsHere: h.belongsHere,
+        doesNotBelongHere: h.doesNotBelongHere,
+        why: "",
+        examples: h.examples,
+      }),
       "",
       "#### Existing pursuits",
       JSON.stringify(capPromptPursuits(h.existingPursuits)),
