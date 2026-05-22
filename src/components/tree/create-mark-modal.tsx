@@ -73,8 +73,7 @@ export function CreateMarkModal({
     const allInArea = [...activeBranchesForLifeArea, ...dormantBranchesForLifeArea];
     const first = allInArea[0]?.id ?? "";
     const preferred =
-      defaultBranchId?.trim() &&
-      allInArea.some((b) => b.id === defaultBranchId.trim())
+      defaultBranchId?.trim() && allInArea.some((b) => b.id === defaultBranchId.trim())
         ? defaultBranchId.trim()
         : null;
     setBranchId((prev) => {
@@ -134,9 +133,11 @@ export function CreateMarkModal({
 
   if (!open) return null;
 
+  const mutedTextStyle = { color: "var(--rm-text3,#6B7280)" };
+
   const overlay = (
     <div
-      className="fixed inset-0 z-[200000] flex items-center justify-center p-4"
+      className="fixed inset-0 z-200000 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.45)" }}
       role="presentation"
       onMouseDown={(e) => {
@@ -160,7 +161,8 @@ export function CreateMarkModal({
           </h2>
           <button
             type="button"
-            className="rounded-lg border-0 bg-transparent px-2 py-1 text-sm text-[var(--rm-text3,#6B7280)] hover:text-[var(--rm-text1,#1A1C1E)]"
+            className="rounded-lg border-0 bg-transparent px-2 py-1 text-sm"
+            style={mutedTextStyle}
             onClick={onClose}
           >
             Close
@@ -169,7 +171,7 @@ export function CreateMarkModal({
 
         <div className="flex flex-col gap-3 text-sm">
           <label className="flex flex-col gap-1">
-            <span className="text-[var(--rm-text3,#6B7280)]">Theme</span>
+            <span style={mutedTextStyle}>Theme</span>
             <select
               className={`rounded-lg ${PF_NATIVE_SELECT_CLASS}`}
               style={pfNativeSelectStyle}
@@ -188,7 +190,7 @@ export function CreateMarkModal({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[var(--rm-text3,#6B7280)]">Hub</span>
+            <span style={mutedTextStyle}>Hub</span>
             {/* UI: group dormant hubs under "Add a new area"; POST /api/marks activates dormant hub inline. */}
             <select
               className={`rounded-lg ${PF_NATIVE_SELECT_CLASS}`}
@@ -223,7 +225,7 @@ export function CreateMarkModal({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[var(--rm-text3,#6B7280)]">Title</span>
+            <span style={mutedTextStyle}>Title</span>
             <input
               className="rounded-lg border px-2 py-2"
               style={{ borderColor: "var(--rm-border)", color: "var(--rm-text1)" }}
@@ -234,7 +236,7 @@ export function CreateMarkModal({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[var(--rm-text3,#6B7280)]">Date</span>
+            <span style={mutedTextStyle}>Date</span>
             <input
               type="date"
               className="rounded-lg border px-2 py-2"
@@ -245,7 +247,7 @@ export function CreateMarkModal({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[var(--rm-text3,#6B7280)]">Description (optional)</span>
+            <span style={mutedTextStyle}>Description (optional)</span>
             <textarea
               className="min-h-[80px] rounded-lg border px-2 py-2"
               style={{ borderColor: "var(--rm-border)", color: "var(--rm-text1)" }}
@@ -273,7 +275,7 @@ export function CreateMarkModal({
               disabled={saving || !branchId}
               onClick={() => void submit()}
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>

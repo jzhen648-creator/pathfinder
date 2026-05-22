@@ -50,7 +50,7 @@ export const PF_ROADMAP_THEME_CSS = `
 .pf-roadmap .pf-roadmap-shell {
   display: grid;
   grid-template-rows: 1fr;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 1fr;
   height: var(--pf-app-content-height, 100dvh);
   min-height: var(--pf-app-content-height, 100dvh);
 }
@@ -74,7 +74,7 @@ export const PF_ROADMAP_THEME_CSS = `
 }
 .pf-roadmap .rm-main {
   grid-row: 1;
-  grid-column: 2;
+  grid-column: 1;
   background: var(--rm-canvas2);
   overflow: hidden;
   display: flex;

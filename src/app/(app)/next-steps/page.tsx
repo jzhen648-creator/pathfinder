@@ -15,8 +15,6 @@ export default async function NextStepsPage() {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      name: true,
-      email: true,
       goals: {
         include: {
           milestones: {
@@ -59,8 +57,6 @@ export default async function NextStepsPage() {
     <NextStepsShell
       initialGoals={initialGoals}
       initialBranches={branches}
-      userName={user.name ?? ""}
-      userEmail={user.email ?? ""}
     />
   );
 }

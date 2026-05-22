@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdf-parse", "mammoth"],
   /** Playwright and some browsers hit 127.0.0.1; without this, client HMR can fail and the tree stays on "Growing your tree…". */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  async redirects() {
+    return [
+      {
+        source: "/roadmap",
+        destination: "/tree",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

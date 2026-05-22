@@ -1,32 +1,20 @@
 "use client";
 
-import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { PF_ROADMAP_THEME_CSS } from "@/components/shell/pf-roadmap-theme";
 import { IssuesEmptyState } from "./issues-empty-state";
 import { IssuesList } from "./issues-list";
 import { useMapIssues } from "./use-map-issues";
 
-type Props = {
-  avatarInitials: string;
-  avatarTitle: string;
-};
-
-export function IssuesShell({ avatarInitials, avatarTitle }: Props) {
+export function IssuesShell() {
   const { snapshot, loading, error, refetch } = useMapIssues();
 
   const issues = snapshot?.issues ?? [];
   const hasIssues = issues.length > 0;
 
   return (
-    <div className="pf-roadmap min-h-dvh overflow-hidden text-(--rm-text1)">
+    <div className="pf-roadmap h-(--pf-app-content-height) overflow-hidden text-(--rm-text1)">
       <style>{PF_ROADMAP_THEME_CSS}</style>
       <div className="pf-roadmap-shell bg-(--rm-canvas)">
-        <PfChromeTopbar shell="roadmap" avatarInitials={avatarInitials} avatarTitle={avatarTitle} />
-        <aside className="rm-sidebar">
-          <PfChromeViewsNav shell="roadmap" />
-          <div className="rm-sidebar-divider" />
-        </aside>
-
         <main className="rm-main flex min-h-0 flex-col overflow-hidden">
           <div
             className="shrink-0 border-b px-7 py-5"

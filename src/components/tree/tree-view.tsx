@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
-import { CreateMarkModal } from "@/components/roadmap/create-mark-modal";
+import { CreateMarkModal } from "@/components/tree/create-mark-modal";
 import { TreeConversationalGoalCreate } from "@/components/tree/tree-conversational-goal-create";
 import { TreeConversationalMarkCreate } from "@/components/tree/tree-conversational-mark-create";
 import { buildPreviewAreasFromNodes } from "@/components/stream/stream-hub-preview-data";

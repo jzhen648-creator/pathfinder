@@ -18,9 +18,6 @@ export default async function Home() {
           <Link href="/tree">/tree</Link> (default home after onboarding)
         </li>
         <li>
-          <Link href="/roadmap">/roadmap</Link>
-        </li>
-        <li>
           <Link href="/next-steps">/next-steps</Link>
         </li>
         <li>

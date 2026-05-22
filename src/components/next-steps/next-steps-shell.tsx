@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
-import { PfChromeTopbar, PfChromeViewsNav } from "@/components/shell/pf-chrome";
 import { getLifeArea } from "@/lib/life-areas";
 import {
   ROADMAP_LIFE_AREA_COLUMN_ORDER,
@@ -17,19 +16,6 @@ import {
   nextStepsGoalFromApi,
 } from "@/lib/next-steps-serialize";
 import type { LimbId } from "@/lib/types";
-
-function initialsFromProfile(name: string, email: string): string {
-  const n = name.trim();
-  if (n.length >= 2) return (n[0] + n[1]).toUpperCase();
-  if (n.length === 1) {
-    const e = (email[0] ?? "?").toUpperCase();
-    return `${n[0].toUpperCase()}${e}`;
-  }
-  const local = email.split("@")[0] ?? "";
-  if (local.length >= 2) return local.slice(0, 2).toUpperCase();
-  if (local.length === 1) return `${local[0].toUpperCase()}P`;
-  return "PF";
-}
 
 function subscribeDark(cb: () => void) {
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -60,11 +46,9 @@ function limbTextColors(limbId: LimbId, isDark: boolean): { sub: string; text: s
 type Props = {
   initialGoals: NextStepsGoalDTO[];
   initialBranches: { id: string; limbId: string; name: string | null; label: string | null }[];
-  userName: string;
-  userEmail: string;
 };
 
-export function NextStepsShell({ initialGoals, initialBranches, userName, userEmail }: Props) {
+export function NextStepsShell({ initialGoals, initialBranches }: Props) {
   const router = useRouter();
   const isDark = useSyncExternalStore(subscribeDark, getDarkSnapshot, getServerDarkSnapshot);
   const [goals, setGoals] = useState(initialGoals);
@@ -72,8 +56,6 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
   const [filterLimb, setFilterLimb] = useState<LimbId | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(() => initialGoals[0]?.id ?? null);
   const [toast, setToast] = useState<{ msg: string; color: string } | null>(null);
-
-  const avatarInitials = initialsFromProfile(userName, userEmail);
 
   const addGoalBranches = useMemo(
     () =>
@@ -142,7 +124,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
   const ink300 = isDark ? "#2E3236" : "#D4D6DA";
 
   return (
-    <div className="pf-ns min-h-dvh overflow-hidden bg-[var(--ns-canvas)] text-[var(--ns-text1)]">
+    <div className="pf-ns h-(--pf-app-content-height) overflow-hidden bg-(--ns-canvas) text-(--ns-text1)">
       <style>{`
         .pf-ns {
           --ns-canvas: #F5F3EE;
@@ -172,9 +154,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
           }
         }
         .pf-ns .ns-shell {
-          display: grid;
-          grid-template-rows: 1fr;
-          grid-template-columns: 220px 1fr;
+          display: block;
           height: var(--pf-app-content-height, 100dvh);
           width: 100%;
         }
@@ -621,47 +601,6 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
       `}</style>
 
       <div className="ns-shell">
-        <PfChromeTopbar
-          shell="nextSteps"
-          avatarInitials={avatarInitials}
-          avatarTitle={userName || userEmail || "Profile"}
-        />
-
-        <aside className="ns-sidebar">
-          <PfChromeViewsNav shell="nextSteps" />
-
-          <div className="ns-sidebar-divider shrink-0" />
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <div className="ns-sidebar-label px-3">Filter by area</div>
-            <button
-              type="button"
-              className={`ns-limb-item${filterLimb === "all" ? " ns-on" : ""}`}
-              onClick={() => setLimbFilter("all")}
-            >
-              <div className="ns-nav-dot" style={{ background: ink300 }} />
-              <span className="ns-limb-name" style={{ color: "var(--ns-text2)" }}>
-                All areas
-              </span>
-            </button>
-            {ROADMAP_LIFE_AREA_COLUMN_ORDER.map((id) => {
-              const limb = getLifeArea(id);
-              if (!limb) return null;
-              const dot = getRoadmapLifeAreaColor(id, isDark);
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`ns-limb-item${filterLimb === id ? " ns-on" : ""}`}
-                  onClick={() => setLimbFilter(id)}
-                >
-                  <div className="ns-nav-dot" style={{ background: dot }} />
-                  <span className="ns-limb-name">{limb.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
         <main className="ns-main">
           <div className="ns-page-header">
             <div className="mb-0.5 flex items-center justify-between gap-3">
@@ -741,10 +680,10 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                   </svg>
                 </div>
                 <div>
-                  <div className="text-[13px] text-[var(--ns-text3)]">Nothing here yet</div>
-                  <div className="mt-1 text-[12px] text-[var(--ns-text3)] opacity-70">
+                  <div className="text-[13px] text-(--ns-text3)">Nothing here yet</div>
+                  <div className="mt-1 text-[12px] text-(--ns-text3) opacity-70">
                     Add a roadmap from{" "}
-                    <Link href="/dashboard" className="text-[var(--ns-text2)] underline">
+                    <Link href="/dashboard" className="text-(--ns-text2) underline">
                       Dashboard
                     </Link>{" "}
                     to see next steps here.
@@ -794,7 +733,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                                 {goal.statusTag === "just started" ? "just started" : "in progress"}
                               </span>
                             ) : (
-                              <span className="rounded-full bg-[var(--ns-ink100)] px-2 py-0.5 text-[11px] font-medium text-[var(--ns-text3)]">
+                              <span className="rounded-full bg-(--ns-ink100) px-2 py-0.5 text-[11px] font-medium text-(--ns-text3)">
                                 complete
                               </span>
                             )}
@@ -803,7 +742,7 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                             {goal.lastMarkSummary ? (
                               <>
                                 Last mark: <strong>{goal.lastMarkSummary.title} · </strong>
-                                <span className="font-[family-name:var(--font-pf-ns-mono)] text-[11px]">
+                                <span className="font-(family-name:--font-pf-ns-mono) text-[11px]">
                                   {goal.lastMarkSummary.relative}
                                 </span>
                               </>
@@ -892,10 +831,10 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
                       </svg>
                     </div>
                     <div>
-                      <div className="text-[13px] text-[var(--ns-text3)]">
+                      <div className="text-[13px] text-(--ns-text3)">
                         No active roadmaps in {getLifeArea(filterLimb)?.label ?? filterLimb}
                       </div>
-                      <div className="mt-1 text-[12px] text-[var(--ns-text3)] opacity-70">
+                      <div className="mt-1 text-[12px] text-(--ns-text3) opacity-70">
                         Add a roadmap from Dashboard to get started.
                       </div>
                     </div>
