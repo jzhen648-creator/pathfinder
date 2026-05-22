@@ -1,8 +1,9 @@
 "use client";
 
+import { memo } from "react";
 import type { ViewMode } from "./tree-view-types";
 
-export function TreeCanvasHud({
+export const TreeCanvasHud = memo(function TreeCanvasHud({
   viewMode,
   onViewModeChange,
   showElementGuide,
@@ -73,4 +74,4 @@ export function TreeCanvasHud({
       </div>
     </div>
   );
-}
+});

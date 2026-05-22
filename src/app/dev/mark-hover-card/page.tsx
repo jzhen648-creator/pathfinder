@@ -153,6 +153,7 @@ export default function MarkHoverCardDevPage() {
       {anchor ? (
         <MarkHoverCard
           anchor={anchor}
+          areas={[DEV_AREA]}
           pinned={pinned}
           onDismiss={() => {
             setAnchor(null);

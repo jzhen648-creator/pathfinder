@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -245,7 +246,7 @@ function trunkHubFanSlotIndex(
   return sortedBranchIdx.indexOf(branchIdx);
 }
 
-export function TreeSVG({
+function TreeSVGInner({
   areas,
   previewAreas,
   allAreasForForkGeometry = areas,
@@ -382,11 +383,13 @@ export function TreeSVG({
   const [isPanning, setIsPanning] = useState(false);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
   const panStart = useRef<{ x: number; y: number } | null>(null);
+  const pendingPanPointRef = useRef<{ x: number; y: number } | null>(null);
+  const panRafRef = useRef<number | null>(null);
   const panMovedRef = useRef(false);
   const notifyPanMoved = useCallback(() => {
     panMovedRef.current = true;
   }, []);
-  const shouldSuppressMapClick = () => panMovedRef.current;
+  const shouldSuppressMapClick = useCallback(() => panMovedRef.current, []);
   const beginGoalDragRef = useRef<
     ((payload: EditDragGoalPayload, clientX: number, clientY: number, originX: number, originY: number) => void) | null
   >(null);
@@ -434,8 +437,43 @@ export function TreeSVG({
     [],
   );
 
+  const flushPanUpdate = useCallback(() => {
+    panRafRef.current = null;
+    const next = pendingPanPointRef.current;
+    pendingPanPointRef.current = null;
+    if (!next || !lastPan.current) return;
+
+    const dx = next.x - lastPan.current.x;
+    const dy = next.y - lastPan.current.y;
+    lastPan.current = next;
+
+    if (panStart.current) {
+      const totalDx = next.x - panStart.current.x;
+      const totalDy = next.y - panStart.current.y;
+      if (Math.hypot(totalDx, totalDy) > 5) panMovedRef.current = true;
+    }
+
+    if (dx === 0 && dy === 0) return;
+    setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
+  }, []);
+
+  const cancelPanFrame = useCallback(
+    (flush = false) => {
+      if (panRafRef.current != null) {
+        window.cancelAnimationFrame(panRafRef.current);
+        panRafRef.current = null;
+      }
+      if (flush) flushPanUpdate();
+      else pendingPanPointRef.current = null;
+    },
+    [flushPanUpdate],
+  );
+
+  useEffect(() => () => cancelPanFrame(false), [cancelPanFrame]);
+
   const beginPan = (x: number, y: number) => {
     if (editMapMode) return;
+    cancelPanFrame(false);
     window.getSelection()?.removeAllRanges();
     setIsPanning(true);
     panMovedRef.current = false;
@@ -445,21 +483,18 @@ export function TreeSVG({
 
   const updatePan = (x: number, y: number) => {
     if (!lastPan.current) return;
-    const dx = x - lastPan.current.x;
-    const dy = y - lastPan.current.y;
-    lastPan.current = { x, y };
-    if (panStart.current) {
-      const totalDx = x - panStart.current.x;
-      const totalDy = y - panStart.current.y;
-      if (Math.hypot(totalDx, totalDy) > 5) panMovedRef.current = true;
+    pendingPanPointRef.current = { x, y };
+    if (panRafRef.current == null) {
+      panRafRef.current = window.requestAnimationFrame(flushPanUpdate);
     }
-    setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
   };
 
   const endPan = () => {
+    cancelPanFrame(true);
     setIsPanning(false);
     lastPan.current = null;
     panStart.current = null;
+    pendingPanPointRef.current = null;
   };
 
   const isLayoutEditHandleTarget = (target: EventTarget | null) => {
@@ -2787,6 +2822,7 @@ export function TreeSVG({
                                   area={area}
                                   x={pos.x}
                                   y={pos.y}
+                                  zoomRatio={zoomRatio}
                                   isSelected={selectedMomentId === moment.id}
                                   shouldSuppressClick={shouldSuppressMapClick}
                                   onMarkClick={onMarkClick}
@@ -3628,3 +3664,5 @@ export function TreeSVG({
     </div>
   );
 }
+
+export const TreeSVG = memo(TreeSVGInner);

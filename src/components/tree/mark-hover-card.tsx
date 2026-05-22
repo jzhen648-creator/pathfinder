@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StreamAmbiguousResolution } from "@/types/stream";
 import type { AreaData, MomentNode } from "./tree-types";
@@ -59,7 +59,7 @@ export type MarkHoverCardProps = {
   onHoverZoneLeave?: () => void;
 };
 
-export function MarkHoverCard({
+export const MarkHoverCard = memo(function MarkHoverCard({
   anchor,
   areas,
   pinned,
@@ -391,4 +391,4 @@ export function MarkHoverCard({
 
   if (typeof document === "undefined") return shell;
   return createPortal(shell, document.body);
-}
+});

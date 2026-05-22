@@ -11,7 +11,8 @@ export const FLAGS = {
   DEV_PANEL: true,
   PERF_MONITOR: true,
   FOCUS_MODE: true,
-  /** Pointy-top hex goals, orbital milestone dots, thread stroke gap through hex interior. */
+  // Orbital dots disabled by design — milestone
+  // progress encoded in node appearance instead.
   GOAL_MILESTONES: false,
   /**
    * Goal bloom luminous preset: restrained / balanced / cinematic.

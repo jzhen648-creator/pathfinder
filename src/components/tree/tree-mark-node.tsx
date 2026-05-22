@@ -1,10 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import type { AreaData, MomentNode } from "./tree-types";
 import {
   MARK_DIAMOND_HALF_PX,
   MARK_NODE_HIT_PADDING_PX,
   MARK_TREE_AMBER,
+  MARK_VISIBILITY_FULL_ZOOM,
+  MARK_VISIBILITY_MIN_ZOOM,
   snapTreeSvgScalar,
 } from "./tree-view-constants";
 
@@ -18,6 +21,7 @@ export type TreeMarkNodeProps = {
   area: AreaData;
   x: number;
   y: number;
+  zoomRatio?: number;
   isSelected: boolean;
   shouldSuppressClick: () => boolean;
   onMarkClick: (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => void;
@@ -25,12 +29,19 @@ export type TreeMarkNodeProps = {
   onMarkPointerLeave?: (momentId: string) => void;
 };
 
+function markZoomOpacityMul(zoomRatio: number): number {
+  if (zoomRatio <= MARK_VISIBILITY_MIN_ZOOM) return 0;
+  if (zoomRatio >= MARK_VISIBILITY_FULL_ZOOM) return 1;
+  return (zoomRatio - MARK_VISIBILITY_MIN_ZOOM) / (MARK_VISIBILITY_FULL_ZOOM - MARK_VISIBILITY_MIN_ZOOM);
+}
+
 /** Hub-branch mark: amber diamond beside the branch ray; detail lives in the hover card. */
-export function TreeMarkNode({
+export const TreeMarkNode = memo(function TreeMarkNode({
   moment,
   area,
   x,
   y,
+  zoomRatio = MARK_VISIBILITY_FULL_ZOOM,
   isSelected,
   shouldSuppressClick,
   onMarkClick,
@@ -42,10 +53,11 @@ export function TreeMarkNode({
   const unresolved = moment.needsResolution === true;
   const half = unresolved ? MARK_DIAMOND_HALF_PX + 1 : MARK_DIAMOND_HALF_PX;
   const hitR = half + MARK_NODE_HIT_PADDING_PX + 6;
+  const markOpacityMul = markZoomOpacityMul(zoomRatio);
 
   return (
     <g style={{ cursor: "pointer" }}>
-      <g transform={`translate(${sx},${sy})`} pointerEvents="none">
+      <g transform={`translate(${sx},${sy})`} opacity={markOpacityMul} pointerEvents="none">
         {unresolved ? (
           <circle
             cx={0}
@@ -117,4 +129,4 @@ export function TreeMarkNode({
       />
     </g>
   );
-}
+});

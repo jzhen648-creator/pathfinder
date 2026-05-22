@@ -102,6 +102,8 @@ export function snapTreeSvgScalar(n: number): number {
 
 /** Circumradius (centre → vertex) for pointy-top roadmap goal hex (`FLAGS.GOAL_MILESTONES`). */
 export const TREE_GOAL_HEX_VERTEX_RADIUS_PX = 48;
+/** Progress ring radius around the painted pursuit hex; intentionally smaller than orbital layout radius. */
+export const TREE_GOAL_PROGRESS_RING_RADIUS_PX = 26;
 
 /** Radius around each root goal centre where the thread stroke is cut (no hex geometry). */
 export const TREE_GOAL_BRANCH_STROKE_GAP_RADIUS_PX = 29;
@@ -161,6 +163,10 @@ export const BRANCH_TIP_PADDING_PX = 48;
 export const BRANCH_GOAL_NODE_RADIUS_PX = 12;
 /** Half-width of the on-tree mark diamond (inscribed; ~65% of pursuit hex footprint). */
 export const MARK_DIAMOND_HALF_PX = 7;
+/** Marks are fully hidden below this zoom ratio to keep overview zoom uncluttered. */
+export const MARK_VISIBILITY_MIN_ZOOM = 0.6;
+/** Marks reach their normal visual weight at this zoom ratio and above. */
+export const MARK_VISIBILITY_FULL_ZOOM = 0.9;
 /** Lateral offset (px) from the branch ray — marks sit in branch space beside the stroke. */
 export const BRANCH_MARK_LATERAL_OFFSET_PX = 22;
 /** Extra hit padding around diamond + label block. */

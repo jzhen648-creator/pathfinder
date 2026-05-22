@@ -368,7 +368,7 @@ function StreamHubPreviewSvg({ bundle, areaColor }: StreamHubPreviewProps) {
                         x={pos.x}
                         y={pos.y}
                         isSelected={false}
-                        panMoved={{ current: false }}
+                        shouldSuppressClick={() => false}
                         onMarkClick={() => {}}
                       />
                     </g>
@@ -415,7 +415,7 @@ function StreamHubPreviewSvg({ bundle, areaColor }: StreamHubPreviewProps) {
                     panel,
                     bloomPlayingIds,
                     () => {},
-                    panMoved,
+                    () => false,
                     0,
                     0,
                     false,

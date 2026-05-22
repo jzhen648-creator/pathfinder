@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent } from "react";
+import { memo, type CSSProperties, type MouseEvent } from "react";
 import { splitCanvasLabelLines } from "./tree-canvas-label";
 import { snapTreeSvgScalar } from "./tree-view-constants";
 import { treeLabelPillWidth } from "./tree-label-lod";
@@ -39,7 +39,7 @@ const LINE_HEIGHT_MUL = 1.22;
 /**
  * Consistent tree label: optional pill + stroked fill text (readable on branch color).
  */
-export function TreeSvgTextLabel({
+export const TreeSvgTextLabel = memo(function TreeSvgTextLabel({
   x,
   y,
   text,
@@ -140,4 +140,4 @@ export function TreeSvgTextLabel({
       </text>
     </g>
   );
-}
+});

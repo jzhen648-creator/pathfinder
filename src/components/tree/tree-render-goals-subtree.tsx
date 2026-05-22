@@ -31,6 +31,7 @@ import {
   snapTreeSvgScalar,
   TREE_GOAL_HEX_VERTEX_RADIUS_PX,
   TREE_GOAL_MAX_CHILDREN_PER_NODE,
+  TREE_GOAL_PROGRESS_RING_RADIUS_PX,
   TREE_GOAL_RENDER_MAX_DEPTH,
 } from "./tree-view-constants";
 
@@ -109,12 +110,10 @@ export function renderGoalsSubtree(
   const hideForEditDrag = editDraggedGoalId != null && goal.id === editDraggedGoalId;
   const orbitals = goal.orbitalMilestones ?? [];
   const showOrbitalDots = FLAGS.GOAL_MILESTONES && orbitals.length > 0;
-  const orbitalDerived = FLAGS.GOAL_MILESTONES
-    ? deriveGoalNodeRenderState({
-        bloomStatus: goal.bloomStatus,
-        orbitalMilestones: orbitals,
-      })
-    : undefined;
+  const milestoneVisual = deriveGoalNodeRenderState({
+    bloomStatus: goal.bloomStatus,
+    orbitalMilestones: orbitals,
+  });
   const visualAuthority = deriveGoalVisualAuthoritySpec({
     goal,
     depth,
@@ -123,7 +122,7 @@ export function renderGoalsSubtree(
   });
   const authorityFactors = authorityRenderFactors(visualAuthority.authorityMul);
   const visibleOrbitalCountForLayout =
-    orbitalDerived?.visibleOrbitalCount ?? orbitals.length;
+    milestoneVisual.visibleOrbitalCount;
   const trunkOverviewOrbitalMul =
     FLAGS.TREE_TRUNK_LAYOUT && !goalSelected && zoomRatio < 1.35 ? 0.78 : 1;
   const orbitalR =
@@ -150,6 +149,30 @@ export function renderGoalsSubtree(
   const dotsVisible = zoomRatio >= ORBITAL_DOT_VISIBILITY_MIN_ZOOM;
   const maxMilestonePosition =
     goal.milestones.length > 0 ? Math.max(...goal.milestones.map((mm) => mm.position)) : 0;
+  const hasMilestones = milestoneVisual.visibleOrbitalCount > 0;
+  const progress01 = milestoneVisual.progress01;
+  const milestoneProgressDecor =
+    !hasMilestones || milestoneVisual.visualPhase === "COMPLETE" || milestoneVisual.visualPhase === "ON_HOLD" ? null : (
+      <circle
+        cx={x}
+        cy={y}
+        r={TREE_GOAL_PROGRESS_RING_RADIUS_PX}
+        fill="none"
+        stroke={areaColor}
+        strokeWidth={progress01 > 0 ? 2 : 1.4}
+        strokeOpacity={progress01 === 0 ? 0.24 : progress01 < 0.5 ? 0.4 : 0.6}
+        strokeDasharray={
+          progress01 === 0
+            ? "2 4"
+            : `${progress01} ${1 - progress01}`
+        }
+        pathLength={progress01 > 0 ? 1 : undefined}
+        strokeLinecap={progress01 > 0 ? "round" : undefined}
+        transform={progress01 > 0 ? `rotate(-90 ${x} ${y})` : undefined}
+        pointerEvents="none"
+        aria-hidden
+      />
+    );
 
   const orbitalConnectors =
     showOrbitalDots && orbitalLayoutVerts && dotsVisible
@@ -325,7 +348,7 @@ export function renderGoalsSubtree(
           goalSelected,
         })}
         hexRotationRad={hexRotationRad}
-        milestoneVisual={orbitalDerived}
+        milestoneVisual={milestoneVisual}
         labelAuthorityMul={authorityFactors.labelFontSizeMul}
         pulseGrowing={roadmapGoalShowsProgressPulse(goal.bloomStatus)}
         ambientBreathing={goal.bloomStatus === "ACTIVE"}
@@ -346,6 +369,7 @@ export function renderGoalsSubtree(
             : undefined
         }
       />
+      {milestoneProgressDecor}
       {showElementGuide ? <TreeElementGuideTag x={x} y={y - 14} text="roadmap-goal" /> : null}
       {orbitalConnectors}
       {orbitalDots}

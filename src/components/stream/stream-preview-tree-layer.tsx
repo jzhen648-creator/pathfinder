@@ -275,7 +275,7 @@ export function StreamPreviewMarkersLayer({
                       panel,
                       bloomPlayingIds,
                       onGoalClick,
-                      panMoved,
+                      () => panMoved.current,
                       0,
                       idx,
                       false,
@@ -351,7 +351,7 @@ export function StreamPreviewMarkersLayer({
                       panel,
                       bloomPlayingIds,
                       onGoalClick,
-                      panMoved,
+                      () => panMoved.current,
                       1,
                       idx,
                       false,
@@ -403,8 +403,9 @@ export function StreamPreviewMarkersLayer({
                       area={area}
                       x={pos.x}
                       y={pos.y}
+                      zoomRatio={zoomRatio}
                       isSelected={false}
-                      panMoved={panMoved}
+                      shouldSuppressClick={() => panMoved.current}
                       onMarkClick={() => {}}
                     />
                   </g>

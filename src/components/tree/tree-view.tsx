@@ -941,26 +941,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     [buildMarkAnchor, handleMarkClick],
   );
 
-  if (loading) {
-    return (
-      <div className="pf-tree-canvas h-full overflow-hidden">
-        <style>{PF_TREE_CANVAS_CSS}</style>
-        <div
-          className="pf-tree-canvas-shell"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--pf-tree-ink-dim)",
-            fontSize: 15,
-          }}
-        >
-          Growing your tree...
-        </div>
-      </div>
-    );
-  }
-
   const detailRailOpen = panel.type === "goal" || panel.type === "hub" || panel.type === "area";
   const detailRailLabel =
     panel.type === "hub" ? "Hub details" : panel.type === "area" ? "Theme details" : "Pursuit details";
@@ -1025,6 +1005,187 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     </>
   );
 
+  const handlePanelDeleteGoal = useCallback(
+    async (goalId: string) => {
+      try {
+        const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Delete failed (${res.status})`) };
+        }
+        await loadData({ silent: true });
+        setPanel({ type: "none" });
+        showTreeToast("Pursuit removed from map.");
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while removing pursuit." };
+      }
+    },
+    [loadData, showTreeToast],
+  );
+
+  const handlePanelReviveGoal = useCallback(
+    async (goalId: string) => {
+      const result = await patchGoal(goalId, { archived: false });
+      if (result.ok) showTreeToast("Pursuit restored to your map.");
+      return result;
+    },
+    [patchGoal, showTreeToast],
+  );
+
+  const handlePanelReviveMark = useCallback(
+    async (markId: string) => {
+      try {
+        const res = await fetch(`/api/marks/${encodeURIComponent(markId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archived: false }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Restore failed (${res.status})`) };
+        }
+        await loadData({ silent: true });
+        showTreeToast("Mark restored to your map.");
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while restoring mark." };
+      }
+    },
+    [loadData, showTreeToast],
+  );
+
+  const handlePanelUpdateGoal = useCallback(
+    async (goalId: string, body: Parameters<typeof patchGoal>[1]) => {
+      const result = await patchGoal(goalId, body);
+      if (result.ok) showTreeToast("Pursuit updated.");
+      return result;
+    },
+    [patchGoal, showTreeToast],
+  );
+
+  const handlePanelMoveGoalToHub = useCallback(
+    async (goalId: string, branchId: string) => {
+      try {
+        const target = visibleAreas.find((area) =>
+          area.branches.some((branch) => branch.id === branchId),
+        );
+        const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/reorganize`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ op: "moveToHub", branchId }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Move failed (${res.status})`) };
+        }
+        if (target) setFocused(target.id);
+        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+        await loadData({ silent: true });
+        showTreeToast("Pursuit moved.");
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while moving pursuit." };
+      }
+    },
+    [loadData, showTreeToast, visibleAreas],
+  );
+
+  const handlePanelToggleSubtask = useCallback(
+    async (subtaskId: string) => {
+      try {
+        const res = await fetch(`/api/subtasks/${encodeURIComponent(subtaskId)}/complete`, {
+          method: "PATCH",
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
+        }
+        await loadData({ silent: true });
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while updating subtask." };
+      }
+    },
+    [loadData],
+  );
+
+  const handlePanelAppendCanonicalTreeMilestone = useCallback(
+    async (goalId: string, title: string) => {
+      try {
+        const res = await fetch(
+          `/api/goals/${encodeURIComponent(goalId)}/milestones`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title }),
+          },
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
+        }
+        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+        await loadData({ silent: true });
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while adding milestone." };
+      }
+    },
+    [loadData],
+  );
+
+  const handlePanelSetMilestoneCompletion = useCallback(
+    async (goalId: string, milestoneId: string, completed: boolean) => {
+      try {
+        const res = await fetch(
+          `/api/goals/${encodeURIComponent(goalId)}/milestones/${encodeURIComponent(milestoneId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ completed }),
+          },
+        );
+        if (!res.ok) {
+          const msg = await readApiFailureMessage(
+            res,
+            `Update failed (${res.status})`,
+            isDev,
+          );
+          return { ok: false, error: msg };
+        }
+        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+        await loadData({ silent: true });
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Network error while updating milestone." };
+      }
+    },
+    [isDev, loadData],
+  );
+
+  if (loading) {
+    return (
+      <div className="pf-tree-canvas h-full overflow-hidden">
+        <style>{PF_TREE_CANVAS_CSS}</style>
+        <div
+          className="pf-tree-canvas-shell"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--pf-tree-ink-dim)",
+            fontSize: 15,
+          }}
+        >
+          Growing your tree...
+        </div>
+      </div>
+    );
+  }
+
   const treePanelEl =
     panel.type === "none" ? null : (
       <TreePanel
@@ -1041,137 +1202,16 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         onOpenHubStream={handleOpenHubStream}
         onOpenGoalStream={handleOpenGoalStream}
         editMapMode={editMapMode}
-        onDeleteGoal={async (goalId) => {
-          try {
-            const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}`, {
-              method: "DELETE",
-            });
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              return { ok: false, error: String(err?.error ?? `Delete failed (${res.status})`) };
-            }
-            await loadData({ silent: true });
-            setPanel({ type: "none" });
-            showTreeToast("Pursuit removed from map.");
-            return { ok: true };
-          } catch {
-            return { ok: false, error: "Network error while removing pursuit." };
-          }
-        }}
+        onDeleteGoal={handlePanelDeleteGoal}
         archivedGoals={archivedGoals}
         archivedMarks={archivedMarks}
-        onReviveGoal={async (goalId) => {
-          const result = await patchGoal(goalId, { archived: false });
-          if (result.ok) showTreeToast("Pursuit restored to your map.");
-          return result;
-        }}
-        onReviveMark={async (markId) => {
-          try {
-            const res = await fetch(`/api/marks/${encodeURIComponent(markId)}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ archived: false }),
-            });
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              return { ok: false, error: String(err?.error ?? `Restore failed (${res.status})`) };
-            }
-            await loadData({ silent: true });
-            showTreeToast("Mark restored to your map.");
-            return { ok: true };
-          } catch {
-            return { ok: false, error: "Network error while restoring mark." };
-          }
-        }}
-        onUpdateGoal={async (goalId, body) => {
-          const result = await patchGoal(goalId, body);
-          if (result.ok) showTreeToast("Pursuit updated.");
-          return result;
-        }}
-        onMoveGoalToHub={async (goalId, branchId) => {
-          try {
-            const target = visibleAreas.find((area) =>
-              area.branches.some((branch) => branch.id === branchId),
-            );
-            const res = await fetch(`/api/goals/${encodeURIComponent(goalId)}/reorganize`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ op: "moveToHub", branchId }),
-            });
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              return { ok: false, error: String(err?.error ?? `Move failed (${res.status})`) };
-            }
-            if (target) setFocused(target.id);
-            window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
-            await loadData({ silent: true });
-            showTreeToast("Pursuit moved.");
-            return { ok: true };
-          } catch {
-            return { ok: false, error: "Network error while moving pursuit." };
-          }
-        }}
-        onToggleSubtask={async (subtaskId) => {
-          try {
-            const res = await fetch(`/api/subtasks/${encodeURIComponent(subtaskId)}/complete`, {
-              method: "PATCH",
-            });
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
-            }
-            await loadData({ silent: true });
-            return { ok: true };
-          } catch {
-            return { ok: false, error: "Network error while updating subtask." };
-          }
-        }}
-        onAppendCanonicalTreeMilestone={async (goalId, title) => {
-          try {
-            const res = await fetch(
-              `/api/goals/${encodeURIComponent(goalId)}/milestones`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title }),
-              },
-            );
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
-            }
-            window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
-            await loadData({ silent: true });
-            return { ok: true };
-          } catch {
-            return { ok: false, error: "Network error while adding milestone." };
-          }
-        }}
-        onSetMilestoneCompletion={async (goalId, milestoneId, completed) => {
-          try {
-            const res = await fetch(
-              `/api/goals/${encodeURIComponent(goalId)}/milestones/${encodeURIComponent(milestoneId)}`,
-              {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ completed }),
-              },
-            );
-            if (!res.ok) {
-              const msg = await readApiFailureMessage(
-                res,
-                `Update failed (${res.status})`,
-                isDev,
-              );
-              return { ok: false, error: msg };
-            }
-            window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
-            await loadData({ silent: true });
-            return { ok: true };
-          } catch {
-            return { ok: false, error: "Network error while updating milestone." };
-          }
-        }}
+        onReviveGoal={handlePanelReviveGoal}
+        onReviveMark={handlePanelReviveMark}
+        onUpdateGoal={handlePanelUpdateGoal}
+        onMoveGoalToHub={handlePanelMoveGoalToHub}
+        onToggleSubtask={handlePanelToggleSubtask}
+        onAppendCanonicalTreeMilestone={handlePanelAppendCanonicalTreeMilestone}
+        onSetMilestoneCompletion={handlePanelSetMilestoneCompletion}
         onAddGoal={handleAddGoalOnHub}
         onAddMoment={handleAddMomentFromPanel}
         onNavigateToGoal={handleNavigateToGoal}
