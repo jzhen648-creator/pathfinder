@@ -808,10 +808,12 @@ export function TreePanel({
               <div className="pf-tree-rail-section-head">
                 <span>Hubs · {branchN}</span>
               </div>
-              {branchN === 0 && inactiveHubsForTheme.length > 0 && onActivateHub ? (
+              {inactiveHubsForTheme.length > 0 && onActivateHub ? (
                 <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
                   <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.45 }}>
-                    Open a hub to start tracking on this theme.
+                    {branchN === 0
+                      ? "Open a hub to start tracking on this theme."
+                      : "More hubs on this theme are still closed."}
                   </p>
                   {inactiveHubsForTheme.map((row) => {
                     const hubLabel = canonicalHubDisplayLabel(area.id, row.label ?? row.name ?? "Hub");
