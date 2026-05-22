@@ -10,6 +10,9 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
+import { FLAGS } from "@/lib/flags";
+import type { DensityLevel } from "./tree-density";
 import type { AreaData } from "./tree-types";
 import type { AreaForkSpec } from "./tree-forks";
 import {
@@ -90,7 +93,9 @@ export function TreeLayoutDevPanel({
   const geometryFileInputRef = useRef<HTMLInputElement | null>(null);
   const [saveDefaultGeomStatus, setSaveDefaultGeomStatus] = useState<"idle" | "saving" | "ok" | "err">("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [densityLevel, setDensityLevel] = useState<DensityLevel>(FLAGS.TREE_DENSITY);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const densityLevels: DensityLevel[] = ["MIN", "MED", "EXTENSIVE"];
 
   const summary = useMemo(
     () => summarizeLayoutOverrides(layoutOverrides, layoutEditByAreaId),
@@ -106,6 +111,16 @@ export function TreeLayoutDevPanel({
       statusTimerRef.current = null;
     }, 3200);
   }, []);
+
+  const setTreeDensity = useCallback(
+    (level: DensityLevel) => {
+      (FLAGS as { TREE_DENSITY: DensityLevel }).TREE_DENSITY = level;
+      setDensityLevel(level);
+      window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+      flashStatus(`Tree density: ${level}`);
+    },
+    [flashStatus],
+  );
 
   useEffect(() => {
     return () => {
@@ -202,6 +217,29 @@ export function TreeLayoutDevPanel({
             >
               Reset all chains
             </button>
+          </div>
+
+          <div style={sectionBox}>
+            <span style={{ fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
+              Tree density
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {densityLevels.map((level) => {
+                const active = densityLevel === level;
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    style={active ? btnAccent : btnNeutral}
+                    onClick={() => setTreeDensity(level)}
+                    aria-pressed={active}
+                  >
+                    {level}
+                  </button>
+                );
+              })}
+            </div>
+            <span style={{ fontSize: 12, color: "#A8A29E" }}>{`Active: ${densityLevel}`}</span>
           </div>
 
           <div style={sectionBox}>

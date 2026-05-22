@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
+import { FLAGS } from "@/lib/flags";
+import type { DensityLevel } from "@/components/tree/tree-density";
 
 export type DevHoverInfo = {
   type: "node" | "gap" | "branch" | "subbranch";
@@ -94,6 +97,14 @@ export function DevPanel({
   const frameCount = useRef(0);
   const lastSecondTs = useRef<number | null>(null);
   const fpsValueRef = useRef<HTMLDivElement | null>(null);
+  const [densityLevel, setDensityLevel] = useState<DensityLevel>(FLAGS.TREE_DENSITY);
+  const densityLevels: DensityLevel[] = ["MIN", "MED", "EXTENSIVE"];
+
+  const setTreeDensity = (level: DensityLevel) => {
+    (FLAGS as { TREE_DENSITY: DensityLevel }).TREE_DENSITY = level;
+    setDensityLevel(level);
+    window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -191,6 +202,35 @@ export function DevPanel({
       }}
     >
       <div style={{ color: "#60A5FA", marginBottom: 10, letterSpacing: 1.1 }}>DEV PANEL</div>
+
+      <section style={{ marginBottom: 10, border: "1px solid #1E293B", borderRadius: 8, padding: 8 }}>
+        <div style={{ color: "#93C5FD", marginBottom: 6 }}>TREE DENSITY</div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {densityLevels.map((level) => {
+            const active = densityLevel === level;
+            return (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setTreeDensity(level)}
+                style={{
+                  cursor: "pointer",
+                  border: `1px solid ${active ? "#60A5FA" : "#1E293B"}`,
+                  borderRadius: 6,
+                  padding: "4px 7px",
+                  background: active ? "rgba(96,165,250,0.2)" : "rgba(15,23,42,0.85)",
+                  color: active ? "#BFDBFE" : "#CBD5E1",
+                  fontSize: 10,
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                {level}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 6, opacity: 0.7 }}>{`Active: ${densityLevel}`}</div>
+      </section>
 
       <section style={{ marginBottom: 10, border: "1px solid #1E293B", borderRadius: 8, padding: 8 }}>
         <div style={{ color: "#93C5FD", marginBottom: 6 }}>HEALTH</div>

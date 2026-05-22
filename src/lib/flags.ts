@@ -1,4 +1,5 @@
 import type { TreeRenderQuality } from "@/components/tree/tree-render-quality";
+import type { DensityLevel } from "@/components/tree/tree-density";
 
 const TREE_TRUNK_LAYOUT_RAW = process.env.NEXT_PUBLIC_TREE_TRUNK_LAYOUT?.toLowerCase();
 
@@ -17,6 +18,8 @@ export const FLAGS = {
    * Cinematic explores tighter fields + jewel cores (deterministic SVG only — no particles).
    */
   TREE_GOAL_RENDER_QUALITY: "restrained" as TreeRenderQuality,
+  /** Tree overview semantic filtering: minimal, medium, or all mapped nodes. */
+  TREE_DENSITY: "EXTENSIVE" as DensityLevel,
   /** Tree: NL + Gemini parse → confirm, for goals (`/api/goals/parse`) and moments (`/api/marks/parse`) instead of full modals. */
   CONVERSATIONAL_GOAL_CREATE: true,
   /**

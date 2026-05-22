@@ -29,6 +29,7 @@ import type { LimbId } from "@/lib/types";
 import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
 import { LIFE_AREA_ORDER } from "./tree-data";
 import { mapToTreeData } from "./tree-data";
+import { applyTreeDensity } from "./tree-density";
 import { AddAreaModal } from "./add-area-modal";
 import type { AreaData, MomentNode, TreeGoalNode } from "./tree-types";
 import { TreeSVG } from "./tree-svg";
@@ -248,7 +249,8 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
       setArchivedGoals(normalizeArchivedGoalsFromBranches(branchesJson));
       let nextAreas;
       try {
-        nextAreas = mapToTreeData(branches, marks, goals);
+        const rawAreas = mapToTreeData(branches, marks, goals);
+        nextAreas = applyTreeDensity(rawAreas, FLAGS.TREE_DENSITY);
       } catch (mapErr) {
         console.error("[tree-view] mapToTreeData failed", mapErr);
         setTreeToast({
