@@ -197,6 +197,11 @@ const PURSUIT_STATUS_TABS: Array<{ value: TreeGoalNode["bloomStatus"]; label: st
   { value: "COMPLETE", label: "Complete" },
 ];
 
+type MilestoneSuggestionCacheEntry = {
+  status: "loading" | "ready";
+  suggestions: string[];
+};
+
 function PursuitStateTabs({
   current,
   color,
@@ -620,8 +625,13 @@ export function TreePanel({
   const [goalEditTitle, setGoalEditTitle] = useState("");
   const [goalEditBusy, setGoalEditBusy] = useState(false);
   const [goalEditError, setGoalEditError] = useState<string | null>(null);
+  const [milestoneSuggestionCache, setMilestoneSuggestionCache] = useState<
+    Record<string, MilestoneSuggestionCacheEntry>
+  >({});
   const goalPanelId = panel.type === "goal" ? panel.goal.id : null;
   const hubPanelId = panel.type === "hub" ? panel.thread.id : null;
+  const activeSuggestionGoal =
+    panel.type === "goal" ? (findGoalInAreas(areas, panel.goal.id)?.goal ?? panel.goal) : null;
   useEffect(() => {
     setPendingMilestoneIds(new Set());
     setMilestoneError(null);
@@ -638,6 +648,56 @@ export function TreePanel({
   useEffect(() => {
     setHubShowInactiveGoals(false);
   }, [hubPanelId]);
+
+  useEffect(() => {
+    if (
+      !activeSuggestionGoal ||
+      activeSuggestionGoal.bloomStatus !== "ACTIVE" ||
+      activeSuggestionGoal.milestones.length > 0 ||
+      milestoneSuggestionCache[activeSuggestionGoal.id]
+    ) {
+      return;
+    }
+
+    const goalId = activeSuggestionGoal.id;
+    const goalTitle = activeSuggestionGoal.title;
+    const existing = activeSuggestionGoal.milestones.map((m) => m.title);
+    let cancelled = false;
+
+    setMilestoneSuggestionCache((prev) =>
+      prev[goalId] ? prev : { ...prev, [goalId]: { status: "loading", suggestions: [] } },
+    );
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/goals/suggest-milestones", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ goalTitle, existing }),
+        });
+        if (!res.ok) throw new Error("suggest failed");
+        const data = (await res.json()) as { suggestions?: unknown };
+        const suggestions = Array.isArray(data.suggestions)
+          ? data.suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          : [];
+        if (cancelled) return;
+        setMilestoneSuggestionCache((prev) => ({
+          ...prev,
+          [goalId]: { status: "ready", suggestions: suggestions.map((item) => item.trim()) },
+        }));
+      } catch {
+        if (cancelled) return;
+        setMilestoneSuggestionCache((prev) => ({
+          ...prev,
+          [goalId]: { status: "ready", suggestions: [] },
+        }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSuggestionGoal, milestoneSuggestionCache]);
 
   /** Append one relational milestone from tree UX. */
   const appendCanonicalToServer = useCallback(
@@ -1434,10 +1494,39 @@ export function TreePanel({
       goalDateSummary ||
       `${userFirstName ? `${userFirstName} is` : "You are"} tracking this through ${area.label} › ${hubLabel}.`;
     const significance = goal.significanceTier ?? 4;
+    const milestoneSuggestions = milestoneSuggestionCache[goal.id];
     const addMilestone = () => {
       const title = formatUserInput(window.prompt("Add milestone") ?? "");
       if (!title || appendBusy) return;
-      void appendCanonicalToServer(goal.id, title);
+      void appendCanonicalToServer(goal.id, title, () => {
+        setMilestoneSuggestionCache((prev) => {
+          const next = { ...prev };
+          delete next[goal.id];
+          return next;
+        });
+      });
+    };
+    const addSuggestedMilestone = (title: string) => {
+      const normalized = formatUserInput(title);
+      if (!normalized || appendBusy) return;
+      setMilestoneSuggestionCache((prev) => {
+        const current = prev[goal.id];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [goal.id]: {
+            ...current,
+            suggestions: current.suggestions.filter((item) => item !== title),
+          },
+        };
+      });
+      void appendCanonicalToServer(goal.id, normalized, () => {
+        setMilestoneSuggestionCache((prev) => {
+          const next = { ...prev };
+          delete next[goal.id];
+          return next;
+        });
+      });
     };
 
     const openGoalEdit = () => {
@@ -1923,7 +2012,66 @@ export function TreePanel({
                   lineHeight: 1.45,
                 }}
               >
-                No milestones yet — use Stream to plan the steps.
+                {goal.bloomStatus === "ACTIVE" && milestoneSuggestions?.status === "loading" ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }} aria-hidden>
+                    {[0, 1, 2].map((n) => (
+                      <span
+                        key={n}
+                        style={{
+                          width: n === 1 ? 128 : 104,
+                          height: 28,
+                          borderRadius: 999,
+                          border: `1px solid ${area.color}33`,
+                          background: `linear-gradient(90deg, rgba(255,255,255,0.025), ${area.color}18, rgba(255,255,255,0.025))`,
+                          opacity: 0.65,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {goal.bloomStatus === "ACTIVE" &&
+                milestoneSuggestions?.status === "ready" &&
+                milestoneSuggestions.suggestions.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                    {milestoneSuggestions.suggestions.map((title) => (
+                      <button
+                        key={title}
+                        type="button"
+                        disabled={appendBusy}
+                        onClick={() => addSuggestedMilestone(title)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 7,
+                          maxWidth: "100%",
+                          border: `1px solid ${area.color}66`,
+                          borderRadius: 999,
+                          background: `${area.color}10`,
+                          color: "rgba(255,255,255,0.84)",
+                          cursor: appendBusy ? "wait" : "pointer",
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          lineHeight: 1.25,
+                          padding: "6px 10px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: area.color,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            lineHeight: 1,
+                          }}
+                          aria-hidden
+                        >
+                          +
+                        </span>
+                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <span>No milestones yet — use Stream to plan the steps.</span>
               </div>
             )}
             {goal.milestones.length > 0 ? (
