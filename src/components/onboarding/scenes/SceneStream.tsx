@@ -74,14 +74,14 @@ export function SceneStream({ themeId, hubSlug, hubs, onAdvance, pending }: Scen
           onboardingQuestion={onboardingQuestion}
           onClose={() => {}}
           onCommitted={() => {}}
-          onOnboardingFirstCardConfirmed={() => onAdvance(5)}
+          onOnboardingFirstCardConfirmed={() => onAdvance(6)}
         />
       </StreamPreviewProvider>
       {process.env.NODE_ENV === "development" ? (
         <button
           type="button"
           disabled={pending}
-          onClick={() => onAdvance(5)}
+          onClick={() => onAdvance(6)}
           className="w-full rounded-xl border border-dashed border-white/20 px-4 py-3 text-sm text-zinc-500 hover:border-white/35 disabled:opacity-50"
         >
           Skip for now (dev only)

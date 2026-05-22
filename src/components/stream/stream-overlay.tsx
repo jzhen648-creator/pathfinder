@@ -565,7 +565,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
             proposalCount={extraction ? extraction.pursuits.length + extraction.milestones.length + extraction.marks.length : 0}
             onSend={() => void handleExtract()}
             onVoiceUsed={() => setVoiceUsedInSession(true)}
-            voiceOptions={{ enabled: !onboardingMode }}
+            voiceOptions={{ enabled: true }}
             showFooterHints={!onboardingMode}
             sendLabel="Send"
           />

@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import type { AreaData } from "@/components/tree/tree-types";
 import type { LifeAreaId } from "@/lib/types";
 import type { OnboardingProgress, OnboardingScene } from "@/lib/onboarding-progress";
-import { SceneConfirm } from "./scenes/SceneConfirm";
 import { SceneHorizon } from "./scenes/SceneHorizon";
 import { SceneHubPick } from "./scenes/SceneHubPick";
 import { SceneStream } from "./scenes/SceneStream";
@@ -30,7 +29,7 @@ type OnboardingSceneRouterProps = {
 
 /** Scenes that escape the card layout and take over the viewport. */
 function isFullscreenScene(scene: OnboardingScene): boolean {
-  return scene === 2 || scene === 6;
+  return scene === 1 || scene === 2 || scene === 3 || scene === 6;
 }
 
 export function OnboardingSceneRouter({
@@ -122,35 +121,38 @@ export function OnboardingSceneRouter({
 
   return (
     <>
-      {/* Card container — visible for scenes 1, 3, 4, 5 */}
-      {!fullscreen ? (
+      {/* Fullscreen scenes — all scenes escape card layout */}
+      {progress.scene === 4 ? (
         <div className="mx-auto w-full max-w-2xl px-4 py-10">
-          {progress.scene === 1 ? <SceneThreshold onAdvance={onAdvance} pending={pending} /> : null}
-          {progress.scene === 3 ? (
-            <SceneHubPick
-              themeId={progress.themeId}
-              hubs={selectedThemeHubs}
-              onAdvance={onAdvance}
-              pending={pending}
-            />
-          ) : null}
-          {progress.scene === 4 ? (
-            <SceneStream
-              themeId={progress.themeId}
-              hubSlug={progress.hubSlug}
-              hubs={hubs}
-              onAdvance={onAdvance}
-              pending={pending}
-            />
-          ) : null}
-          {progress.scene === 5 ? <SceneConfirm onAdvance={onAdvance} pending={pending} /> : null}
+          <SceneStream
+            themeId={progress.themeId}
+            hubSlug={progress.hubSlug}
+            hubs={hubs}
+            onAdvance={onAdvance}
+            pending={pending}
+          />
           {error ? <p className="mt-5 text-sm text-rose-400">{error}</p> : null}
         </div>
       ) : null}
 
-      {/* Fullscreen scenes — escape the card container via fixed positioning */}
+      {progress.scene === 1 ? (
+        <SceneThreshold
+          syntheticAreas={syntheticAreas}
+          onAdvance={onAdvance}
+          pending={pending}
+        />
+      ) : null}
       {progress.scene === 2 ? (
         <SceneThemePick areas={syntheticAreas} onAdvance={onAdvance} pending={pending} />
+      ) : null}
+      {progress.scene === 3 ? (
+        <SceneHubPick
+          themeId={progress.themeId}
+          hubs={selectedThemeHubs}
+          syntheticAreas={syntheticAreas}
+          onAdvance={onAdvance}
+          pending={pending}
+        />
       ) : null}
       {progress.scene === 6 ? (
         <SceneHorizon
@@ -161,6 +163,7 @@ export function OnboardingSceneRouter({
           pending={pending}
         />
       ) : null}
+      {error && progress.scene !== 4 ? <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-sm text-rose-400">{error}</p> : null}
     </>
   );
 }

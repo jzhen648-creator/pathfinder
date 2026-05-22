@@ -1,6 +1,9 @@
 "use client";
 
+import type { AreaData } from "@/components/tree/tree-types";
 import type { OnboardingScene } from "@/lib/onboarding-progress";
+import { LIFE_AREA_IDS } from "@/lib/taxonomy";
+import { OnboardingTreeBackground } from "@/components/onboarding/onboarding-tree-background";
 
 const THRESHOLD_CSS = `
 @keyframes obFadeIn {
@@ -8,77 +11,106 @@ const THRESHOLD_CSS = `
   to   { opacity: 1; transform: translateY(0); }
 }
 .ob-threshold-text {
-  animation: obFadeIn 800ms ease forwards;
+  animation: obFadeIn 900ms ease forwards;
   opacity: 0;
 }
 .ob-threshold-btn {
   animation: obFadeIn 400ms ease forwards;
-  animation-delay: 1200ms;
+  animation-delay: 1300ms;
   opacity: 0;
   animation-fill-mode: forwards;
 }
 `;
 
 type SceneThresholdProps = {
+  syntheticAreas: AreaData[];
   onAdvance: (nextScene: OnboardingScene) => void;
   pending: boolean;
 };
 
-export function SceneThreshold({ onAdvance, pending }: SceneThresholdProps) {
+export function SceneThreshold({ syntheticAreas, onAdvance, pending }: SceneThresholdProps) {
   return (
-    <section
+    <div
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 50,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#07060a",
-        padding: "0 24px",
+        overflow: "hidden",
       }}
     >
       <style dangerouslySetInnerHTML={{ __html: THRESHOLD_CSS }} />
 
-      <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
-        <p
-          className="ob-threshold-text"
-          style={{
-            margin: 0,
-            fontSize: "clamp(18px, 4vw, 24px)",
-            lineHeight: 1.55,
-            color: "rgba(245, 243, 250, 0.88)",
-            fontFamily: "'Lora', Georgia, serif",
-            fontStyle: "italic",
-          }}
-        >
-          In a few minutes, we&apos;ll turn one thing on your mind into the start of your life map.
-        </p>
+      {/* Dormant tree breathing in the background */}
+      <OnboardingTreeBackground
+        areas={syntheticAreas}
+        dormantLimbIds={LIFE_AREA_IDS}
+        unlockedLimbIds={[]}
+        nonInteractive
+      />
 
-        <div className="ob-threshold-btn" style={{ marginTop: 40 }}>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => onAdvance(2)}
+      {/* Dark gradient so text stays readable */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "radial-gradient(ellipse at center, rgba(7,6,10,0.72) 30%, rgba(7,6,10,0.40) 100%)",
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Centred framing text */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 2,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 24px",
+        }}
+      >
+        <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+          <p
+            className="ob-threshold-text"
             style={{
-              display: "inline-block",
-              background: "#EF9F27",
-              color: "#07060A",
-              border: "none",
-              borderRadius: 12,
-              padding: "13px 40px",
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: pending ? "wait" : "pointer",
-              opacity: pending ? 0.6 : 1,
-              letterSpacing: "0.02em",
+              margin: 0,
+              fontSize: "clamp(18px, 4vw, 24px)",
+              lineHeight: 1.55,
+              color: "rgba(245, 243, 250, 0.92)",
+              fontFamily: "'Lora', Georgia, serif",
+              fontStyle: "italic",
             }}
           >
-            {pending ? "…" : "I'm ready"}
-          </button>
+            In a few minutes, we&apos;ll turn one thing on your mind into the start of your life map.
+          </p>
+
+          <div className="ob-threshold-btn" style={{ marginTop: 40 }}>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => onAdvance(2)}
+              style={{
+                display: "inline-block",
+                background: "#EF9F27",
+                color: "#07060A",
+                border: "none",
+                borderRadius: 12,
+                padding: "13px 40px",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: pending ? "wait" : "pointer",
+                opacity: pending ? 0.6 : 1,
+                letterSpacing: "0.02em",
+              }}
+            >
+              {pending ? "…" : "I'm ready"}
+            </button>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
