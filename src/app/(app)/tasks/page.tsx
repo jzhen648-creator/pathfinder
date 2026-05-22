@@ -1,62 +1,40 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import { TasksShell } from "@/components/next-steps/next-steps-shell";
-import { authOptions } from "@/lib/auth";
-import { buildNextStepsGoals } from "@/lib/next-steps-serialize";
-import { prisma } from "@/lib/prisma";
+import { useMapData } from "@/contexts/map-data-context";
 
-export default async function TasksPage() {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) {
-    redirect("/login");
-  }
+export default function TasksPage() {
+  const { snapshot, ensureLoaded, refetch } = useMapData();
+  const [error, setError] = useState<string | null>(null);
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      goals: {
-        include: {
-          milestones: {
-            orderBy: { position: "asc" },
-            include: {
-              subtasks: { orderBy: { position: "asc" } },
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+  const retry = useCallback(async () => {
+    setError(null);
+    const result = await refetch();
+    setError(result.ok ? null : result.error);
+  }, [refetch]);
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const marks = await prisma.mark.findMany({
-    where: { userId, archived: false },
-    orderBy: { date: "desc" },
-    take: 300,
-    select: { limbId: true, title: true, date: true, archived: true },
-  });
-
-  const branches = await prisma.branch.findMany({
-    where: { userId, parentBranchId: null },
-    orderBy: [{ limbId: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      limbId: true,
-      name: true,
-      label: true,
-    },
-  });
-
-  const initialGoals = buildNextStepsGoals(user.goals, marks);
+  useEffect(() => {
+    if (snapshot?.ok) {
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    void ensureLoaded().then((result) => {
+      if (cancelled) return;
+      setError(result.ok ? null : result.error);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ensureLoaded, snapshot]);
 
   return (
     <TasksShell
-      initialGoals={initialGoals}
-      initialBranches={branches}
+      areas={snapshot?.ok ? snapshot.areas : []}
+      loading={!snapshot?.ok && error == null}
+      error={error}
+      onRetry={retry}
     />
   );
 }

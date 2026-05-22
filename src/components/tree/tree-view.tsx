@@ -29,7 +29,6 @@ import type { SequenceAnchor } from "@/lib/branch-sequence";
 import type { LimbId } from "@/lib/types";
 import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
 import { LIFE_AREA_ORDER } from "./tree-data";
-import { mapToTreeData } from "./tree-data";
 import { applyTreeDensity } from "./tree-density";
 import { AddAreaModal } from "./add-area-modal";
 import type { AreaData, MomentNode, TreeGoalNode } from "./tree-types";
@@ -46,8 +45,6 @@ import { MarkHoverCard, type MarkInteractionAnchor } from "./mark-hover-card";
 import { TreePanel } from "./tree-panel";
 import {
   normalizeArchivedGoalsFromBranches,
-  normalizeBranches,
-  normalizeGoalsFromBranches,
   normalizeMarks,
 } from "./tree-view-normalize";
 import { findGoalInAreas, findMarkInAreas } from "./tree-view-goal-queries";
@@ -92,7 +89,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { update: refreshSession } = useSession();
-  const { ensureLoaded: ensureMapDataLoaded, refetch: refetchMapData } = useMapData();
+  const { snapshot: mapDataSnapshot, ensureLoaded: ensureMapDataLoaded, refetch: refetchMapData } = useMapData();
   const [firstRunCompleted, setFirstRunCompleted] = useState(firstRun.completed);
   const firstRunCompletedRef = useRef(firstRun.completed);
   const primaryLimbIdRef = useRef(firstRun.primaryLimbId);
@@ -157,7 +154,11 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     const silent = options?.silent === true;
     if (!silent) setLoading(true);
     try {
-      const result = silent ? await refetchMapData() : await ensureMapDataLoaded();
+      const result = silent
+        ? await refetchMapData()
+        : mapDataSnapshot?.ok && Array.isArray(mapDataSnapshot.areas)
+          ? mapDataSnapshot
+          : await ensureMapDataLoaded();
 
       if (!result.ok) {
         console.error("[tree-view] GET /api/branches failed — tree will show trunk only", {
@@ -206,15 +207,12 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           );
         }
       }
-      const branches = normalizeBranches(branchesJson);
-      const goals = normalizeGoalsFromBranches(branchesJson);
       setArchivedGoals(normalizeArchivedGoalsFromBranches(branchesJson));
-      let nextAreas;
+      let nextAreas: AreaData[];
       try {
-        const rawAreas = mapToTreeData(branches, marks, goals);
-        nextAreas = applyTreeDensity(rawAreas, FLAGS.TREE_DENSITY);
+        nextAreas = applyTreeDensity(result.areas, FLAGS.TREE_DENSITY);
       } catch (mapErr) {
-        console.error("[tree-view] mapToTreeData failed", mapErr);
+        console.error("[tree-view] applyTreeDensity failed", mapErr);
         setTreeToast({
           msg: "Tree data could not be built. Check the console and try refreshing.",
           color: "#e85d5d",
@@ -227,7 +225,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         console.log("[tree-view] tree data loaded", {
           lifeAreas: nextAreas.length,
           hubSlots,
-          goals: goals.length,
+          goals: nextAreas.reduce((n, a) => n + a.branches.reduce((m, b) => m + b.goals.length, 0), 0),
           marks: marks.length,
         });
       }
@@ -248,7 +246,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [ensureMapDataLoaded, isDev, refetchMapData]);
+  }, [ensureMapDataLoaded, isDev, mapDataSnapshot, refetchMapData]);
 
   useEffect(() => {
     void loadData();

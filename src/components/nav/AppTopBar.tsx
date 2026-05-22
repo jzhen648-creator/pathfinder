@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccountMenu, type AccountMenuUser } from "@/components/nav/AccountMenu";
+import { useMapIssuesCount } from "@/contexts/map-issues-count-context";
 
 type AppTopBarVariant = "dark" | "light";
 
@@ -29,6 +30,7 @@ export function AppTopBar({
   variant?: AppTopBarVariant;
 }) {
   const pathname = usePathname();
+  const { count: mapIssuesCount } = useMapIssuesCount();
   const resolvedVariant = variant ?? routeVariant(pathname);
   const isLight = resolvedVariant === "light";
 
@@ -57,13 +59,14 @@ export function AppTopBar({
       >
         {SURFACES.map((surface) => {
           const active = isActive(pathname, surface.match);
+          const showIssuesCount = surface.href === "/issues" && mapIssuesCount != null && mapIssuesCount > 0;
           return (
             <Link
               key={surface.href}
               href={surface.href}
               aria-current={active ? "page" : undefined}
               className={[
-                "rounded-full px-3 py-1.5 text-[12px] font-medium leading-none no-underline transition",
+                "inline-flex items-center rounded-full px-3 py-1.5 text-[12px] font-medium leading-none no-underline transition",
                 active
                   ? isLight
                     ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
@@ -73,7 +76,23 @@ export function AppTopBar({
                     : "hover:bg-white/8 hover:text-white/85",
               ].join(" ")}
             >
-              {surface.label}
+              <span>{surface.label}</span>
+              {showIssuesCount ? (
+                <span
+                  className={[
+                    "ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                    isLight
+                      ? active
+                        ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100"
+                        : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                      : active
+                        ? "bg-white/18 text-white"
+                        : "bg-white/10 text-white/80",
+                  ].join(" ")}
+                >
+                  {mapIssuesCount}
+                </span>
+              ) : null}
             </Link>
           );
         })}

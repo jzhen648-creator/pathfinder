@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
+import type { AreaData, TreeGoalNode } from "@/components/tree/tree-types";
+import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
 import { getLifeArea } from "@/lib/life-areas";
 import {
   ROADMAP_LIFE_AREA_COLUMN_ORDER,
+  coerceRoadmapLifeAreaId,
   getRoadmapLifeAreaColor,
   getRoadmapLifeAreaSub,
 } from "@/lib/roadmap/roadmap-data";
@@ -32,32 +36,138 @@ function limbTextColors(limbId: LimbId, isDark: boolean): { sub: string; text: s
 }
 
 type Props = {
-  initialGoals: NextStepsGoalDTO[];
-  initialBranches: { id: string; limbId: string; name: string | null; label: string | null }[];
+  areas: AreaData[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => Promise<unknown>;
 };
 
-export function TasksShell({ initialGoals, initialBranches }: Props) {
+function flattenGoals(goals: TreeGoalNode[]): TreeGoalNode[] {
+  return goals.flatMap((goal) => [goal, ...flattenGoals(goal.childGoals)]);
+}
+
+function goalStatus(
+  progressPct: number,
+  completed: number,
+  total: number,
+): NextStepsGoalDTO["statusTag"] {
+  if (total > 0 && completed === total) return "complete";
+  if (progressPct === 0) return "just started";
+  return "in progress";
+}
+
+function formatDeadlineShort(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", { month: "short", day: "numeric" }).format(new Date(iso));
+}
+
+function buildNextStepsGoalsFromAreas(areas: AreaData[]): NextStepsGoalDTO[] {
+  const lastByLimb = new Map<LimbId, { title: string; date: Date }>();
+  for (const area of areas) {
+    const limbId = coerceRoadmapLifeAreaId(area.id);
+    for (const branch of area.branches) {
+      for (const moment of branch.moments) {
+        if (!moment.calendarDateIso) continue;
+        const date = new Date(`${moment.calendarDateIso}T00:00:00Z`);
+        if (Number.isNaN(date.getTime())) continue;
+        const current = lastByLimb.get(limbId);
+        if (!current || date.getTime() > current.date.getTime()) {
+          lastByLimb.set(limbId, { title: moment.label, date });
+        }
+      }
+    }
+  }
+
+  const goals = areas.flatMap((area) => {
+    const limbId = coerceRoadmapLifeAreaId(area.id);
+    const lifeArea = area.label;
+    const last = lastByLimb.get(limbId);
+    return area.branches.flatMap((branch) =>
+      flattenGoals(branch.goals).map((goal) => ({ goal, limbId, lifeArea, last })),
+    );
+  });
+
+  return goals
+    .filter(({ goal }) => goal.bloomStatus !== "COMPLETE" && goal.bloomStatus !== "ON_HOLD")
+    .filter(({ goal }) => goal.milestones.length > 0)
+    .sort((a, b) => {
+      const at = a.goal.deadlineIso ? Date.parse(a.goal.deadlineIso) : Number.MAX_SAFE_INTEGER;
+      const bt = b.goal.deadlineIso ? Date.parse(b.goal.deadlineIso) : Number.MAX_SAFE_INTEGER;
+      const d = at - bt;
+      if (d !== 0) return d;
+      return a.goal.title.localeCompare(b.goal.title);
+    })
+    .map(({ goal, limbId, lifeArea, last }) => {
+      const steps: NextStepsGoalDTO["steps"] = [];
+      let firstIncompleteAssignedDue = false;
+      const dueStr = goal.deadlineIso ? `due ${formatDeadlineShort(goal.deadlineIso)}` : null;
+
+      for (const milestone of [...goal.milestones].sort((a, b) => a.position - b.position)) {
+        for (const subtask of [...milestone.subtasks].sort((a, b) => a.position - b.position)) {
+          if (isScaffoldingSubtaskTitle(subtask.title)) continue;
+          const dueLabel = !subtask.isCompleted && !firstIncompleteAssignedDue ? dueStr : null;
+          if (dueLabel) firstIncompleteAssignedDue = true;
+          steps.push({
+            id: subtask.id,
+            title: subtask.title,
+            isCompleted: subtask.isCompleted,
+            milestoneTitle: milestone.title,
+            dueLabel,
+          });
+        }
+      }
+
+      const totalSubtasks = steps.length;
+      const completedSubtasks = steps.filter((step) => step.isCompleted).length;
+      const progressPct = totalSubtasks ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+
+      return {
+        id: goal.id,
+        title: goal.title,
+        lifeArea,
+        limbId,
+        progressPct,
+        completedSubtasks,
+        totalSubtasks,
+        statusTag: goalStatus(progressPct, completedSubtasks, totalSubtasks),
+        steps,
+        lastMarkSummary: last
+          ? {
+              title: last.title,
+              relative: formatDistanceToNow(last.date, { addSuffix: true }),
+            }
+          : null,
+      };
+    });
+}
+
+export function TasksShell({ areas, loading, error, onRetry }: Props) {
   const router = useRouter();
   const isDark = true;
-  const [goals, setGoals] = useState(initialGoals);
+  const sourceGoals = useMemo(() => buildNextStepsGoalsFromAreas(areas), [areas]);
+  const [goals, setGoals] = useState<NextStepsGoalDTO[]>([]);
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [filterLimb, setFilterLimb] = useState<LimbId | "all">("all");
-  const [expandedId, setExpandedId] = useState<string | null>(() => initialGoals[0]?.id ?? null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; color: string } | null>(null);
 
   const addGoalBranches = useMemo(
     () =>
-      initialBranches.map((b) => ({
-        id: b.id,
-        lifeAreaId: b.limbId,
-        label: b.name ?? b.label ?? "Branch",
-      })),
-    [initialBranches],
+      areas.flatMap((area) =>
+        area.branches.map((branch) => ({
+          id: branch.id,
+          lifeAreaId: area.id,
+          label: branch.type,
+        })),
+      ),
+    [areas],
   );
 
   useEffect(() => {
-    setGoals(initialGoals);
-  }, [initialGoals]);
+    setGoals(sourceGoals);
+    setExpandedId((current) =>
+      current && sourceGoals.some((goal) => goal.id === current) ? current : sourceGoals[0]?.id ?? null,
+    );
+  }, [sourceGoals]);
 
   const visibleGoals = useMemo(() => {
     if (filterLimb === "all") return goals;
@@ -626,7 +736,24 @@ export function TasksShell({ initialGoals, initialBranches }: Props) {
           </div>
 
           <div className="ns-content">
-            {showGlobalEmpty ? (
+            {loading ? (
+              <div className="ns-empty-card">
+                <div className="text-[13px] text-(--ns-text3)">Loading tasks...</div>
+              </div>
+            ) : error ? (
+              <div className="ns-empty-card">
+                <div className="min-w-0">
+                  <div className="text-[13px] text-red-300">{error}</div>
+                  <button
+                    type="button"
+                    className="mt-2 text-[12px] font-medium text-(--ns-text2) underline"
+                    onClick={() => void onRetry()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
+            ) : showGlobalEmpty ? (
               <div className="ns-empty-card">
                 <div
                   className="flex size-10 shrink-0 items-center justify-center rounded-[10px]"
@@ -824,6 +951,7 @@ export function TasksShell({ initialGoals, initialBranches }: Props) {
         defaultBranchId={null}
         onGoalCreated={({ branchLabel }) => {
           showToast(`Pursuit created on ${branchLabel}.`);
+          void onRetry();
           router.refresh();
         }}
       />
