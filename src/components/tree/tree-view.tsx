@@ -262,13 +262,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     hoverMarksEnabledRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   }, []);
 
-  useEffect(() => {
-    const handler = () => {
-      void loadData({ silent: true });
-    };
-    window.addEventListener("bark:saved", handler);
-    return () => window.removeEventListener("bark:saved", handler);
-  }, [loadData]);
 
   const clearAll = useCallback(() => {
     setFocused(null);
@@ -385,7 +378,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           const err = await res.json().catch(() => ({}));
           return { ok: false, error: String(err?.error ?? `Resolve failed (${res.status})`) };
         }
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         await loadData({ silent: true });
         showTreeToast(
           resolution === "done" ? "Marked as done on your map." : "Added as a pursuit on this hub.",
@@ -865,7 +857,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           const err = await res.json().catch(() => ({}));
           return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
         }
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         await loadData({ silent: true });
         return { ok: true };
       } catch {
@@ -1127,7 +1118,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           return { ok: false, error: String(err?.error ?? `Move failed (${res.status})`) };
         }
         if (target) setFocused(target.id);
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         await loadData({ silent: true });
         showTreeToast("Pursuit moved.");
         return { ok: true };
@@ -1172,7 +1162,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           const err = await res.json().catch(() => ({}));
           return { ok: false, error: String(err?.error ?? `Update failed (${res.status})`) };
         }
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         await loadData({ silent: true });
         return { ok: true };
       } catch {
@@ -1201,7 +1190,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           );
           return { ok: false, error: msg };
         }
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         await loadData({ silent: true });
         return { ok: true };
       } catch {

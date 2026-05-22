@@ -656,55 +656,38 @@ export function TreePanel({
     setHubShowInactiveGoals(false);
   }, [hubPanelId]);
 
-  useEffect(() => {
-    if (
-      !activeSuggestionGoal ||
-      activeSuggestionGoal.bloomStatus !== "ACTIVE" ||
-      activeSuggestionGoal.milestones.length > 0 ||
-      milestoneSuggestionCache[activeSuggestionGoal.id]
-    ) {
-      return;
-    }
-
-    const goalId = activeSuggestionGoal.id;
-    const goalTitle = activeSuggestionGoal.title;
-    const existing = activeSuggestionGoal.milestones.map((m) => m.title);
-    let cancelled = false;
-
-    setMilestoneSuggestionCache((prev) =>
-      prev[goalId] ? prev : { ...prev, [goalId]: { status: "loading", suggestions: [] } },
-    );
-
-    void (async () => {
-      try {
-        const res = await fetch("/api/goals/suggest-milestones", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goalTitle, existing }),
-        });
-        if (!res.ok) throw new Error("suggest failed");
-        const data = (await res.json()) as { suggestions?: unknown };
-        const suggestions = Array.isArray(data.suggestions)
-          ? data.suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-          : [];
-        if (cancelled) return;
-        setMilestoneSuggestionCache((prev) => ({
-          ...prev,
-          [goalId]: { status: "ready", suggestions: suggestions.map((item) => item.trim()) },
-        }));
-      } catch {
-        if (cancelled) return;
-        setMilestoneSuggestionCache((prev) => ({
-          ...prev,
-          [goalId]: { status: "ready", suggestions: [] },
-        }));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSuggestionGoal, milestoneSuggestionCache]);
+  const fetchMilestoneSuggestions = useCallback(
+    (goalId: string, goalTitle: string, existing: string[]) => {
+      if (milestoneSuggestionCache[goalId]) return;
+      setMilestoneSuggestionCache((prev) =>
+        prev[goalId] ? prev : { ...prev, [goalId]: { status: "loading", suggestions: [] } },
+      );
+      void (async () => {
+        try {
+          const res = await fetch("/api/goals/suggest-milestones", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ goalTitle, existing }),
+          });
+          if (!res.ok) throw new Error("suggest failed");
+          const data = (await res.json()) as { suggestions?: unknown };
+          const suggestions = Array.isArray(data.suggestions)
+            ? data.suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+            : [];
+          setMilestoneSuggestionCache((prev) => ({
+            ...prev,
+            [goalId]: { status: "ready", suggestions: suggestions.map((item) => item.trim()) },
+          }));
+        } catch {
+          setMilestoneSuggestionCache((prev) => ({
+            ...prev,
+            [goalId]: { status: "ready", suggestions: [] },
+          }));
+        }
+      })();
+    },
+    [milestoneSuggestionCache],
+  );
 
   /** Append one relational milestone from tree UX. */
   const appendCanonicalToServer = useCallback(
@@ -2136,6 +2119,32 @@ export function TreePanel({
                   </div>
                 ) : null}
                 <span>No milestones yet — use Stream to plan the steps.</span>
+                {goal.bloomStatus === "ACTIVE" && !milestoneSuggestions ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      fetchMilestoneSuggestions(
+                        goal.id,
+                        goal.title,
+                        goal.milestones.map((m) => m.title),
+                      )
+                    }
+                    style={{
+                      display: "block",
+                      marginTop: 10,
+                      border: `1px solid ${area.color}44`,
+                      borderRadius: 999,
+                      background: "transparent",
+                      color: area.color,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      padding: "5px 12px",
+                    }}
+                  >
+                    Suggest milestones
+                  </button>
+                ) : null}
               </div>
             )}
             {goal.milestones.length > 0 ? (

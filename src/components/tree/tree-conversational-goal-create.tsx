@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { formatUserInput } from "@/utils/text";
 import { parseLocalDateOnly } from "@/lib/validation/create-goal";
 import type { ParseGoalResponse } from "@/lib/validation/parse-goal";
@@ -202,7 +201,6 @@ export function TreeConversationalGoalCreate({
           typeof raw?.goal?.title === "string" && raw.goal.title.trim()
             ? raw.goal.title.trim()
             : input.title.trim();
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
         onGoalCreated({ branchLabel, title });
         onClose();
       } catch {

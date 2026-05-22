@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { LIFE_AREA_CONFIG, LIFE_AREA_ORDER } from "@/components/tree/tree-data";
-import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
 import type { CreateGoalGoalType } from "@/lib/validation/create-goal";
 import {
@@ -157,8 +156,6 @@ export function AddGoalModal({
             : typeof raw?.branch?.name === "string"
               ? raw.branch.name
               : "your hub";
-
-        window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
 
         form.reset(defaultValues);
         onOpenChange(false);
