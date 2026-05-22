@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
 import { getOnboardingProgress } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
+import { normalizeHubLabelKey } from "@/lib/taxonomy";
 import { OnboardingResumeRedirect } from "@/components/onboarding/onboarding-resume-redirect";
 import { OnboardingSceneRouter } from "@/components/onboarding/onboarding-scene-router";
 
@@ -21,7 +22,7 @@ export default async function OnboardingPage() {
       onboardingCompleted: true,
       onboardingScene: true,
       onboardingThemeId: true,
-      onboardingHubId: true,
+      onboardingHubSlug: true,
     },
   });
 
@@ -49,11 +50,15 @@ export default async function OnboardingPage() {
     <main className="flex min-h-screen items-center justify-center bg-[#111210] px-4 py-10 text-white">
       <OnboardingSceneRouter
         initialProgress={getOnboardingProgress(user)}
-        hubs={hubs.map((hub) => ({
-          id: hub.id,
-          limbId: hub.limbId,
-          label: (hub.label ?? hub.name ?? "Hub").trim() || "Hub",
-        }))}
+        hubs={hubs.map((hub) => {
+          const label = (hub.label ?? hub.name ?? "Hub").trim() || "Hub";
+          return {
+            id: hub.id,
+            limbId: hub.limbId,
+            label,
+            slug: normalizeHubLabelKey(label),
+          };
+        })}
       />
     </main>
   );

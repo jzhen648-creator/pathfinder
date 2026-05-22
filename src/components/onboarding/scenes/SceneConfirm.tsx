@@ -10,18 +10,14 @@ type SceneConfirmProps = {
 export function SceneConfirm({ onAdvance, pending }: SceneConfirmProps) {
   return (
     <section className="space-y-6 rounded-2xl border border-white/10 bg-[#151515] p-6">
-      <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[#EF9F27]">Scene 5 / 6</p>
-        <h1 className="text-3xl font-semibold text-white">Confirm goes here</h1>
-        <p className="text-sm text-zinc-400">First pursuit confirmation placeholder.</p>
-      </div>
+      <p className="text-sm text-zinc-400">[Confirm pursuit goes here — Phase 5]</p>
       <button
         type="button"
         disabled={pending}
         onClick={() => onAdvance(6)}
-        className="w-full rounded-xl bg-[#EF9F27] px-4 py-3 text-sm font-semibold text-[#07060A] transition hover:bg-[#f5b34d] disabled:opacity-50"
+        className="w-full rounded-xl border border-dashed border-white/20 px-4 py-3 text-sm text-zinc-400 transition hover:border-white/35 hover:text-zinc-200 disabled:opacity-50"
       >
-        Continue
+        {pending ? "…" : "Skip for now (dev only)"}
       </button>
     </section>
   );

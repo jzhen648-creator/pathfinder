@@ -29,7 +29,7 @@ export async function completeOnboardingForUser(
       onboardingPrimaryLimbId: primaryLimbId,
       onboardingScene: null,
       onboardingThemeId: null,
-      onboardingHubId: null,
+      onboardingHubSlug: null,
     },
   });
 }

@@ -20,8 +20,8 @@ model User {
   onboardingScene            Int?
   /// Theme picked during guided onboarding Scene 2 (`LifeAreaId` / limb id).
   onboardingThemeId          String?
-  /// Hub picked during guided onboarding Scene 3 (`Branch.id`).
-  onboardingHubId            String?
+  /// Hub picked during guided onboarding Scene 3 (normalized label slug).
+  onboardingHubSlug          String?
   /// First theme picked during onboarding (selection order); drives first-run Stream prompt.
   onboardingPrimaryLimbId    String?
   /// Post-onboarding welcome + first Stream commit; one-time.

@@ -10,14 +10,14 @@ import {
 } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-hubs";
-import { LIFE_AREA_IDS } from "@/lib/taxonomy";
+import { LIFE_AREA_IDS, normalizeHubLabelKey } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 
 const advanceSchema = z.object({
   scene: z.number().int().min(1).max(6),
-  themeId: z.enum(LIFE_AREA_IDS).optional(),
-  hubId: z.string().min(1).optional(),
+  themeId: z.enum(LIFE_AREA_IDS).nullable().optional(),
+  hubSlug: z.string().min(1).nullable().optional(),
 });
 
 export async function POST(request: Request) {
@@ -45,14 +45,31 @@ export async function POST(request: Request) {
 
     await ensureHubTaxonomyCurrent(prisma, userId);
 
-    const selectedHub = parsed.data.hubId
-      ? await prisma.branch.findFirst({
-          where: { id: parsed.data.hubId, userId, parentBranchId: null, isSystemHub: true },
-          select: { id: true, limbId: true },
-        })
+    const hubSlugKey = parsed.data.hubSlug
+      ? normalizeHubLabelKey(parsed.data.hubSlug)
       : null;
-    if (parsed.data.hubId && !selectedHub) {
-      return NextResponse.json({ error: "Hub not found" }, { status: 404 });
+
+    const themeRoots =
+      parsed.data.themeId || hubSlugKey
+        ? await prisma.branch.findMany({
+            where: {
+              userId,
+              parentBranchId: null,
+              isSystemHub: true,
+              ...(parsed.data.themeId ? { limbId: parsed.data.themeId } : {}),
+            },
+            select: { id: true, limbId: true, label: true, name: true },
+          })
+        : [];
+
+    const selectedHub = hubSlugKey
+      ? themeRoots.find(
+          (hub) => normalizeHubLabelKey(hub.label ?? hub.name ?? "") === hubSlugKey,
+        )
+      : null;
+
+    if (parsed.data.hubSlug && !selectedHub) {
+      return NextResponse.json({ error: "Hub not found." }, { status: 404 });
     }
 
     const selectedHubThemeId = selectedHub?.limbId;
@@ -60,7 +77,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid hub theme" }, { status: 400 });
     }
 
-    const themeId = (parsed.data.themeId ?? selectedHubThemeId) as LifeAreaId | undefined;
+    const themeId =
+      parsed.data.themeId === null
+        ? undefined
+        : ((parsed.data.themeId ?? selectedHubThemeId) as LifeAreaId | undefined);
     if (themeId) {
       await unlockThemesForUser(prisma, userId, [themeId]);
     }
@@ -68,12 +88,25 @@ export async function POST(request: Request) {
       await activateHubForUser(prisma, userId, selectedHub.id);
     }
 
+    const themeIdToSave =
+      parsed.data.themeId !== undefined
+        ? parsed.data.themeId
+        : themeId !== undefined
+          ? themeId
+          : undefined;
+    const hubSlugToSave =
+      parsed.data.hubSlug === null
+        ? null
+        : parsed.data.hubSlug !== undefined
+          ? hubSlugKey
+          : undefined;
+
     await advanceOnboardingScene(
       prisma,
       userId,
       scene as OnboardingScene,
-      themeId,
-      parsed.data.hubId,
+      themeIdToSave,
+      hubSlugToSave,
     );
 
     return NextResponse.json({ ok: true });

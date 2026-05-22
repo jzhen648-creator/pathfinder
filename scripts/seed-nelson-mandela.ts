@@ -4,6 +4,7 @@
  */
 import { BloomStatus, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ensureHubTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
 
 const prisma = new PrismaClient();
 
@@ -391,6 +392,9 @@ async function main() {
   for (const goal of chain) {
     console.log(`  - ${goal.title}: parentGoalId=${goal.parentGoalId ?? "null"} -> id=${goal.id}`);
   }
+
+  await ensureHubTaxonomyCurrent(prisma, user.id);
+  console.log("Hub taxonomy stamped for fast theme-unlock E2E.");
 }
 
 main()

@@ -9,19 +9,17 @@ type SceneThresholdProps = {
 
 export function SceneThreshold({ onAdvance, pending }: SceneThresholdProps) {
   return (
-    <section className="space-y-6 rounded-2xl border border-white/10 bg-[#151515] p-6">
-      <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[#EF9F27]">Scene 1 / 6</p>
-        <h1 className="text-3xl font-semibold text-white">Welcome</h1>
-        <p className="text-sm text-zinc-400">Threshold placeholder for the guided onboarding redesign.</p>
-      </div>
+    <section className="space-y-8 rounded-2xl border border-white/10 bg-[#0a0a0a] p-8 text-center">
+      <p className="text-lg leading-relaxed text-zinc-200">
+        In a few minutes, we&apos;ll turn one thing on your mind into the start of your life map.
+      </p>
       <button
         type="button"
         disabled={pending}
         onClick={() => onAdvance(2)}
         className="w-full rounded-xl bg-[#EF9F27] px-4 py-3 text-sm font-semibold text-[#07060A] transition hover:bg-[#f5b34d] disabled:opacity-50"
       >
-        Continue
+        {pending ? "…" : "I'm ready"}
       </button>
     </section>
   );

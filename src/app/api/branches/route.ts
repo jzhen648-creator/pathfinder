@@ -4,6 +4,8 @@ import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
+import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
 /** Root hub rows + goals for tree/roadmap. Read-only; taxonomy sync on register, onboarding, activate, or backfill. */
@@ -23,10 +25,16 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, unlockedLimbIds: true },
+      select: { id: true, unlockedLimbIds: true, hubTaxonomyVersion: true },
     });
     if (!user) {
       return NextResponse.json({ error: "Session expired. Sign in again." }, { status: 401 });
+    }
+
+    if (user.hubTaxonomyVersion !== TAXONOMY_VERSION) {
+      void ensureHubTaxonomyCurrent(prisma, userId).catch((err) => {
+        console.error("[GET /api/branches] hub taxonomy backfill failed", err);
+      });
     }
 
     const branches = await prisma.branch.findMany({

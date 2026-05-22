@@ -1,12 +1,14 @@
 "use client";
 
+import { getLifeArea } from "@/lib/life-areas";
+import type { LifeAreaId } from "@/lib/types";
 import type { OnboardingScene } from "@/lib/onboarding-progress";
 import type { OnboardingHubOption } from "../onboarding-scene-router";
 
 type SceneHubPickProps = {
   themeId: string | null;
   hubs: OnboardingHubOption[];
-  onAdvance: (nextScene: OnboardingScene, themeId?: string, hubId?: string) => void;
+  onAdvance: (nextScene: OnboardingScene, themeId?: string | null, hubSlug?: string | null) => void;
   pending: boolean;
 };
 
@@ -14,11 +16,7 @@ export function SceneHubPick({ themeId, hubs, onAdvance, pending }: SceneHubPick
   if (!themeId) {
     return (
       <section className="space-y-6 rounded-2xl border border-white/10 bg-[#151515] p-6">
-        <div className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-[#EF9F27]">Scene 3 / 6</p>
-          <h1 className="text-3xl font-semibold text-white">Pick a hub</h1>
-          <p className="text-sm text-zinc-400">Choose a theme first.</p>
-        </div>
+        <p className="text-sm text-zinc-400">Choose a theme first.</p>
         <button
           type="button"
           disabled={pending}
@@ -31,12 +29,17 @@ export function SceneHubPick({ themeId, hubs, onAdvance, pending }: SceneHubPick
     );
   }
 
+  const lifeArea = getLifeArea(themeId as LifeAreaId);
+  const themeLabel = lifeArea?.label ?? themeId;
+  const hubCount = hubs.length;
+
   return (
     <section className="space-y-6 rounded-2xl border border-white/10 bg-[#151515] p-6">
-      <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[#EF9F27]">Scene 3 / 6</p>
-        <h1 className="text-3xl font-semibold text-white">Pick a hub</h1>
-        <p className="text-sm text-zinc-400">Theme: {themeId}. Choose one hub to continue.</p>
+      <div className="space-y-3">
+        <p className="text-base text-zinc-200">
+          Inside {themeLabel} there are {hubCount} {hubCount === 1 ? "hub" : "hubs"}.
+        </p>
+        <p className="text-sm text-zinc-400">Tap the one that fits what&apos;s on your mind.</p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {hubs.map((hub) => (
@@ -44,11 +47,10 @@ export function SceneHubPick({ themeId, hubs, onAdvance, pending }: SceneHubPick
             key={hub.id}
             type="button"
             disabled={pending}
-            onClick={() => onAdvance(4, themeId, hub.id)}
+            onClick={() => onAdvance(4, themeId, hub.slug)}
             className="rounded-xl border border-white/10 px-4 py-3 text-left transition hover:border-white/25 disabled:opacity-50"
           >
             <span className="block text-sm font-semibold text-zinc-100">{hub.label}</span>
-            <span className="mt-1 block text-xs text-zinc-500">{hub.id}</span>
           </button>
         ))}
       </div>

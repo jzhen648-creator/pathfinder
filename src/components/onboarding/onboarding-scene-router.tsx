@@ -15,6 +15,7 @@ export type OnboardingHubOption = {
   id: string;
   limbId: string;
   label: string;
+  slug: string;
 };
 
 type OnboardingSceneRouterProps = {
@@ -34,14 +35,26 @@ export function OnboardingSceneRouter({ initialProgress, hubs }: OnboardingScene
     [hubs, progress.themeId],
   );
 
-  async function onAdvance(nextScene: OnboardingScene, themeId?: string, hubId?: string) {
+  async function onAdvance(
+    nextScene: OnboardingScene,
+    themeId?: string | null,
+    hubSlug?: string | null,
+  ) {
     setPending(true);
     setError(null);
     try {
+      const payload: {
+        scene: number;
+        themeId?: string | null;
+        hubSlug?: string | null;
+      } = { scene: nextScene };
+      if (themeId !== undefined) payload.themeId = themeId;
+      if (hubSlug !== undefined) payload.hubSlug = hubSlug;
+
       const response = await fetch("/api/onboarding/advance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scene: nextScene, themeId, hubId }),
+        body: JSON.stringify(payload),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -51,8 +64,8 @@ export function OnboardingSceneRouter({ initialProgress, hubs }: OnboardingScene
 
       setProgress((current) => ({
         scene: nextScene,
-        themeId: themeId ?? current.themeId,
-        hubId: hubId ?? current.hubId,
+        themeId: themeId !== undefined ? themeId : current.themeId,
+        hubSlug: hubSlug !== undefined ? hubSlug : current.hubSlug,
       }));
       router.refresh();
     } catch {
@@ -101,7 +114,9 @@ export function OnboardingSceneRouter({ initialProgress, hubs }: OnboardingScene
       ) : null}
       {progress.scene === 4 ? <SceneStream onAdvance={onAdvance} pending={pending} /> : null}
       {progress.scene === 5 ? <SceneConfirm onAdvance={onAdvance} pending={pending} /> : null}
-      {progress.scene === 6 ? <SceneHorizon onComplete={onComplete} pending={pending} /> : null}
+      {progress.scene === 6 ? (
+        <SceneHorizon onAdvance={onAdvance} onComplete={onComplete} pending={pending} />
+      ) : null}
       {error ? <p className="mt-5 text-sm text-rose-400">{error}</p> : null}
     </div>
   );
