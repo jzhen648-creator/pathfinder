@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
+import type { LifeAreaId } from "@/lib/types";
 import type { MarkInteractionAnchor } from "./mark-hover-card";
 import type { AreaData, MomentNode, Point, TreeGoalNode, TreeOrbitalMilestone } from "./tree-types";
 
@@ -80,6 +81,13 @@ export type TreeSVGProps = {
   /** Draft layout while edit-map session has uncommitted drops. */
   editMapDraftAreas?: AreaData[] | null;
   onEditMapDraftDrop?: (op: import("./tree-edit-map-draft").EditMapDraftOp, nextAreas: AreaData[]) => void;
+  /** Themes with no active root hubs — canvas click activates instead of opening panel first. */
+  dormantLimbIds?: readonly LifeAreaId[];
+  /** Theme currently awaiting POST /api/branches/activate. */
+  activatingLimbId?: LifeAreaId | null;
+  /** Theme that just activated — drives staged grow-in SMIL once. */
+  limbRevealLimbId?: LifeAreaId | null;
+  onLimbRevealComplete?: (limbId: LifeAreaId) => void;
 };
 
 export type TreePanelPresentation = "sheet" | "rail";

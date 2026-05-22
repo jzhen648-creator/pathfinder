@@ -6,6 +6,7 @@ const TREE_TRUNK_LAYOUT_RAW = process.env.NEXT_PUBLIC_TREE_TRUNK_LAYOUT?.toLower
 /** Inlined at compile time; restart `next dev` after changing `.env.local`. */
 const TREE_DEBUG_MOMENT_CHAIN_RAW = process.env.NEXT_PUBLIC_DEBUG_TREE_MOMENT_CHAIN;
 const TREE_THREAD_MARKER_VISUALS_RAW = process.env.NEXT_PUBLIC_TREE_THREAD_MARKER_VISUALS?.toLowerCase();
+const TREE_THEME_ACTIVATION_ANIM_RAW = process.env.NEXT_PUBLIC_TREE_THEME_ACTIVATION_ANIM?.toLowerCase();
 
 export const FLAGS = {
   DEV_PANEL: true,
@@ -48,6 +49,14 @@ export const FLAGS = {
    * Set `NEXT_PUBLIC_DEBUG_TREE_MOMENT_CHAIN=1` in `.env.local`, then **restart** `next dev`.
    */
   TREE_DEBUG_MOMENT_CHAIN: TREE_DEBUG_MOMENT_CHAIN_RAW === "1",
+  /**
+   * Staged SMIL grow-in when a dormant theme is activated from the canvas.
+   * Set `NEXT_PUBLIC_TREE_THEME_ACTIVATION_ANIM=0` in `.env.local` to disable (restart dev server).
+   */
+  TREE_THEME_ACTIVATION_ANIM:
+    TREE_THEME_ACTIVATION_ANIM_RAW === "0" || TREE_THEME_ACTIVATION_ANIM_RAW === "false"
+      ? false
+      : true,
 } as const;
 
 export type FeatureFlag = keyof typeof FLAGS;

@@ -31,6 +31,7 @@ import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
 import { LIFE_AREA_ORDER } from "./tree-data";
 import { applyTreeDensity } from "./tree-density";
 import { AddAreaModal } from "./add-area-modal";
+import { activateLimbOnServer } from "./tree-activate-limb";
 import type { AreaData, MomentNode, TreeGoalNode } from "./tree-types";
 import { TreeSVG } from "./tree-svg";
 import {
@@ -139,6 +140,8 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [treeToast, setTreeToast] = useState<{ msg: string; color: string } | null>(null);
   const [birthYear, setBirthYear] = useState<number | null>(null);
   const [addAreaOpen, setAddAreaOpen] = useState(false);
+  const [activatingLimbId, setActivatingLimbId] = useState<LifeAreaId | null>(null);
+  const [limbRevealLimbId, setLimbRevealLimbId] = useState<LifeAreaId | null>(null);
 
   useEffect(() => {
     try {
@@ -352,11 +355,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const handleAreaClick = useCallback((area: AreaData) => {
-    setFocused(area.id);
-    setPanel({ type: "area", area });
   }, []);
 
   const handleHubClick = useCallback((area: AreaData, thread: AreaData["branches"][number]) => {
@@ -797,6 +795,36 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     return LIFE_AREA_ORDER.filter((id) => !active.has(id));
   }, [apiBranchRows]);
 
+  const handleAreaClick = useCallback(
+    async (area: AreaData) => {
+      const limbId = area.id as LifeAreaId;
+      if (dormantLimbIds.includes(limbId)) {
+        if (activatingLimbId || streamSession || editMapMode) return;
+        setActivatingLimbId(limbId);
+        const result = await activateLimbOnServer(limbId);
+        setActivatingLimbId(null);
+        if (!result.ok) {
+          showTreeToast(result.error ?? "Could not add this area.", "#e85d5d");
+          return;
+        }
+        if (result.activated === 0) {
+          showTreeToast("No hubs were found for this area. Try refreshing the page.", "#e85d5d");
+          return;
+        }
+        const nextAreas = await loadData({ silent: true });
+        const fresh = nextAreas?.find((a) => a.id === limbId) ?? area;
+        setFocused(limbId);
+        setLimbRevealLimbId(limbId);
+        setPanel({ type: "area", area: fresh });
+        window.setTimeout(() => setLimbRevealLimbId(null), 950);
+        return;
+      }
+      setFocused(area.id);
+      setPanel({ type: "area", area });
+    },
+    [activatingLimbId, dormantLimbIds, editMapMode, loadData, showTreeToast, streamSession],
+  );
+
   const patchGoal = useCallback(
     async (
       goalId: string,
@@ -982,6 +1010,9 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           editMapMode={editMapMode && !streamSession}
           editMapDraftAreas={editMapDraftAreas}
           onEditMapDraftDrop={handleEditMapDraftDrop}
+          dormantLimbIds={dormantLimbIds}
+          activatingLimbId={activatingLimbId}
+          limbRevealLimbId={limbRevealLimbId}
         />
       ) : null}
       {viewMode === "timeline" ? (
@@ -1254,23 +1285,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
             }}
             editMapDisabled={Boolean(streamSession)}
           />
-
-          {viewMode === "tree" && dormantLimbIds.length > 0 ? (
-            <button
-              type="button"
-              className="pf-tree-hud-btn"
-              style={{
-                position: "absolute",
-                bottom: 72,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 26,
-              }}
-              onClick={() => setAddAreaOpen(true)}
-            >
-              Add another area
-            </button>
-          ) : null}
 
           {detailRailOpen ? (
             <aside

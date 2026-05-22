@@ -204,6 +204,12 @@ import { FLAGS } from "@/lib/flags";
 import { branchIconForHub, limbIconForLifeArea, normalizedLimbIconSize } from "@/components/icons";
 import { TreeIconMedallion, iconMedallionRadii } from "./tree-icon-medallion";
 import { TreeFocusPathPulse } from "./tree-focus-path-pulse";
+import {
+  LimbRevealGateway,
+  LimbRevealHubNode,
+  LimbRevealSpoke,
+  LimbRevealStem,
+} from "./tree-limb-reveal-animation";
 import type { LifeAreaId } from "@/lib/types";
 import { StreamPreviewMarkersLayer } from "@/components/stream/stream-preview-tree-layer";
 import { TreeEditMapOverlay } from "./tree-edit-map-overlay";
@@ -269,9 +275,20 @@ function TreeSVGInner({
   editMapMode = false,
   editMapDraftAreas = null,
   onEditMapDraftDrop,
+  dormantLimbIds = [],
+  activatingLimbId = null,
+  limbRevealLimbId = null,
+  onLimbRevealComplete,
 }: TreeSVGProps) {
   const selectedMomentId = activeMarkId;
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    if (!limbRevealLimbId || !FLAGS.TREE_THEME_ACTIVATION_ANIM) return;
+    const id = limbRevealLimbId;
+    const t = window.setTimeout(() => onLimbRevealComplete?.(id), 950);
+    return () => window.clearTimeout(t);
+  }, [limbRevealLimbId, onLimbRevealComplete]);
   const layoutDragRef = useRef<LayoutPointerDrag | null>(null);
   const renderMarksRef = useRef<number[]>([]);
   /** Per-limb toggles: SVG handles + limb ° input only where enabled. */
@@ -1530,6 +1547,12 @@ function TreeSVGInner({
             );
 
             const hubGatewayLayout = forkSpec != null && isHubGatewayLayout(forkSpec);
+            const areaLimbId = area.id as LifeAreaId;
+            const isDormant = dormantLimbIds.includes(areaLimbId);
+            const isActivating = activatingLimbId === areaLimbId;
+            const isRevealing = limbRevealLimbId === areaLimbId && area.branches.length > 0;
+            const revealActive = isRevealing && FLAGS.TREE_THEME_ACTIVATION_ANIM;
+            const themeDisplayLabel = TREE_THEME_SHORT_LABEL[areaLimbId] ?? area.label;
 
             const hubMomentCount = area.branches.reduce((s, br) => s + br.moments.length, 0);
             const hubGoalCount = area.branches.reduce((s, br) => s + br.goals.length, 0);
@@ -2005,14 +2028,13 @@ function TreeSVGInner({
                         TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.limbStemOuterOpacity : 0.12
                       }
                     />
-                    <path
+                    <LimbRevealStem
+                      active={revealActive}
+                      begin="0.2s"
                       d={slots.limb}
-                      fill="none"
                       stroke={area.color}
                       strokeWidth={slots.limbStrokeWidth * CONDUIT_LIMB_STEM_STROKE_SCALE * 0.52}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      opacity={
+                      strokeOpacity={
                         TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.limbStemMidOpacity : 0.4
                       }
                     />
@@ -2401,17 +2423,18 @@ function TreeSVGInner({
                                 forkSpec,
                                 layoutOverrides[area.id],
                               );
+                              const spokePathD = domainClusterGatewayHubPathD(
+                                themeGatewayPt,
+                                domainHubPt,
+                                area.id,
+                                TREE_THEME_GATEWAY_ICON_PX,
+                                hubIconPx,
+                              );
                               return (
-                                <path
-                                  data-tree-domain-gateway-spoke="1"
-                                  d={domainClusterGatewayHubPathD(
-                                    themeGatewayPt,
-                                    domainHubPt,
-                                    area.id,
-                                    TREE_THEME_GATEWAY_ICON_PX,
-                                    hubIconPx,
-                                  )}
-                                  fill="none"
+                                <LimbRevealSpoke
+                                  active={revealActive}
+                                  begin={`${0.5 + kFork * 0.1}s`}
+                                  d={spokePathD}
                                   stroke={area.color}
                                   strokeWidth={TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX}
                                   strokeOpacity={TREE_DOMAIN_GATEWAY_SPOKE_OPACITY}
@@ -2421,6 +2444,7 @@ function TreeSVGInner({
                               );
                             })()}
                           </g>
+                          <LimbRevealHubNode active={revealActive} begin="0.9s">
                           <g pointerEvents="none" aria-hidden>
                           {(() => {
                             const HubGlyph = branchIconForHub(area.id as LifeAreaId, thread.type, idx);
@@ -2437,7 +2461,7 @@ function TreeSVGInner({
                                 tier="domainHub"
                               >
                                 <g opacity={trunkDomainHub ? 0.84 : 0.92}>
-                                  {trunkDomainHub ? null : (
+                                  {trunkDomainHub || revealActive ? null : (
                                   <animate
                                     attributeName="opacity"
                                     values="0.82;1;0.82"
@@ -2490,6 +2514,7 @@ function TreeSVGInner({
                             );
                           })()}
                           </g>
+                          </LimbRevealHubNode>
                           {(() => {
                             const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
                             const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
@@ -3036,8 +3061,9 @@ function TreeSVGInner({
                   const onLimbLabelRowClick = (e: MouseEvent<SVGElement>) => {
                     e.stopPropagation();
                     if (shouldSuppressMapClick()) return;
-                    // Theme gateway / icon opens the theme panel; icon-only focus toggle when focus mode is on.
-                    if (clusterHit && gatewayPt) {
+                    if (isActivating) return;
+                    // Theme gateway / icon opens the theme panel; dormant themes activate on click.
+                    if (isDormant || (clusterHit && gatewayPt)) {
                       onAreaClick(area);
                       return;
                     }
@@ -3049,11 +3075,13 @@ function TreeSVGInner({
                   };
                   const limbIconHitR =
                     normalizedLimbIconSize(area.id as LifeAreaId, TREE_LIMB_ICON_SIZE_PX) * 0.55 + 14;
+                  const dormantAriaLabel = `Add ${themeDisplayLabel} to your tree`;
                   return (
                     <g
                       data-tree-limb-label-row="1"
                       data-tree-theme-cluster={clusterHit ? "1" : undefined}
-                      style={{ cursor: "pointer" }}
+                      data-tree-dormant-gateway={isDormant ? "1" : undefined}
+                      style={{ cursor: isActivating ? "wait" : "pointer" }}
                     >
                       <rect
                         x={hitX0}
@@ -3072,32 +3100,91 @@ function TreeSVGInner({
                             r={themeMedallion!.discR + 8}
                             fill="transparent"
                             pointerEvents="all"
-                            style={{ cursor: "pointer" }}
+                            style={{ cursor: isActivating ? "wait" : "pointer" }}
+                            aria-label={isDormant ? dormantAriaLabel : undefined}
                             onClick={onLimbLabelRowClick}
                           />
-                          <TreeIconMedallion
+                          {isActivating ? (
+                            <circle
+                              cx={snapTreeSvgScalar(gatewayPt.x)}
+                              cy={snapTreeSvgScalar(gatewayPt.y)}
+                              r={themeMedallion!.discR + 10}
+                              fill="none"
+                              stroke={area.color}
+                              strokeWidth={2}
+                              pointerEvents="none"
+                              opacity={0.55}
+                            >
+                              <animate
+                                attributeName="r"
+                                values={`${themeMedallion!.discR + 6};${themeMedallion!.discR + 14};${themeMedallion!.discR + 6}`}
+                                dur="1.1s"
+                                repeatCount="indefinite"
+                              />
+                              <animate
+                                attributeName="opacity"
+                                values="0.35;0.85;0.35"
+                                dur="1.1s"
+                                repeatCount="indefinite"
+                              />
+                            </circle>
+                          ) : null}
+                          <LimbRevealGateway
+                            active={revealActive}
+                            begin="0s"
                             cx={snapTreeSvgScalar(gatewayPt.x)}
                             cy={snapTreeSvgScalar(gatewayPt.y)}
-                            color={area.color}
-                            artworkSpanPx={TREE_THEME_GATEWAY_ICON_PX}
-                            tier="theme"
                           >
-                            <LimbIc
-                              size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_THEME_GATEWAY_ICON_PX)}
+                            <TreeIconMedallion
+                              cx={snapTreeSvgScalar(gatewayPt.x)}
+                              cy={snapTreeSvgScalar(gatewayPt.y)}
                               color={area.color}
-                              opacity={1}
-                            />
-                          </TreeIconMedallion>
+                              artworkSpanPx={TREE_THEME_GATEWAY_ICON_PX}
+                              tier="theme"
+                            >
+                              <LimbIc
+                                size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_THEME_GATEWAY_ICON_PX)}
+                                color={area.color}
+                                opacity={1}
+                              />
+                            </TreeIconMedallion>
+                          </LimbRevealGateway>
                         </g>
                       ) : (
                         <>
+                          {isActivating ? (
+                            <circle
+                              cx={icx}
+                              cy={icy}
+                              r={limbIconHitR}
+                              fill="none"
+                              stroke={area.color}
+                              strokeWidth={2}
+                              pointerEvents="none"
+                              opacity={0.55}
+                            >
+                              <animate
+                                attributeName="r"
+                                values={`${limbIconHitR * 0.92};${limbIconHitR * 1.14};${limbIconHitR * 0.92}`}
+                                dur="1.1s"
+                                repeatCount="indefinite"
+                              />
+                              <animate
+                                attributeName="opacity"
+                                values="0.35;0.85;0.35"
+                                dur="1.1s"
+                                repeatCount="indefinite"
+                              />
+                            </circle>
+                          ) : null}
                           <circle
                             cx={icx}
                             cy={icy}
                             r={limbIconHitR}
                             fill="transparent"
                             pointerEvents="all"
-                            style={{ cursor: "pointer" }}
+                            style={{ cursor: isActivating ? "wait" : "pointer" }}
+                            aria-label={isDormant ? dormantAriaLabel : undefined}
                             onClick={onLimbLabelRowClick}
                           />
                           <g data-tree-limb-label-icon="1" pointerEvents="none">
@@ -3105,7 +3192,7 @@ function TreeSVGInner({
                               <LimbIc
                                 size={normalizedLimbIconSize(area.id as LifeAreaId, TREE_LIMB_ICON_SIZE_PX)}
                                 color={area.color}
-                                opacity={0.92}
+                                opacity={isDormant ? 0.72 : 0.92}
                               />
                             </g>
                           </g>
