@@ -89,6 +89,7 @@ export type TreePanelSurface = "roadmap" | "canvas";
 export type TreePanelProps = {
   panel: PanelState;
   areas: AreaData[];
+  currentUserName?: string | null;
   /** Goal detail: `rail` = left overlay column (does not shrink the map); others use bottom `sheet`. */
   panelPresentation?: TreePanelPresentation;
   /** Visual tokens — `canvas` uses dark glass on the tree HUD. */

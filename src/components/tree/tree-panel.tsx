@@ -589,9 +589,16 @@ function railSectionStyle(
   };
 }
 
+function firstNameFromUserName(name: string | null | undefined): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+  return trimmed.split(/\s+/)[0] ?? null;
+}
+
 export function TreePanel({
   panel,
   areas,
+  currentUserName,
   panelPresentation = "sheet",
   panelSurface = "roadmap",
   onClose,
@@ -1432,8 +1439,11 @@ export function TreePanel({
     ]
       .filter(Boolean)
       .join(" · ");
+    const userFirstName = firstNameFromUserName(currentUserName);
     const goalSubtitle =
-      goalDescription || goalDateSummary || `Alex Carter is tracking this through ${area.label} › ${hubLabel}.`;
+      goalDescription ||
+      goalDateSummary ||
+      `${userFirstName ? `${userFirstName} is` : "You are"} tracking this through ${area.label} › ${hubLabel}.`;
     const significance = goal.significanceTier ?? 4;
     const completedDisplay = goalCompletedDisplay(goal);
     const addMilestone = () => {

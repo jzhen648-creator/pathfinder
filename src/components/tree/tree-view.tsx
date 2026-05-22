@@ -88,7 +88,7 @@ export function TreeView({ firstRun }: { firstRun: TreeFirstRunConfig }) {
 function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { update: refreshSession } = useSession();
+  const { data: session, update: refreshSession } = useSession();
   const { snapshot: mapDataSnapshot, ensureLoaded: ensureMapDataLoaded, refetch: refetchMapData } = useMapData();
   const [firstRunCompleted, setFirstRunCompleted] = useState(firstRun.completed);
   const firstRunCompletedRef = useRef(firstRun.completed);
@@ -1031,6 +1031,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         key={treePanelKey}
         panel={panel}
         areas={visibleAreas}
+        currentUserName={session?.user?.name ?? firstRun.userName}
         panelPresentation={detailRailOpen ? "rail" : "sheet"}
         panelSurface="canvas"
         onClose={clearAll}
