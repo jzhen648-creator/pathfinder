@@ -147,7 +147,7 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 
 ### Stream (theme / hub)
 
-- [ ] **Tell me about this** on theme panel → theme Stream extract → confirm pursuits / marks → tree updates.
+- [ ] **Open Stream** on theme panel → theme Stream extract → confirm pursuits / marks → tree updates.
 - [ ] Hub Stream adds items on the correct hub only.
 - [ ] Status-only dump (“finished X”) updates bloom on existing pursuit — no duplicate pursuit.
 - [ ] Ambiguous extract → dashed `?` on tree → resolve Done / In progress / Not started → mark normalizes.
@@ -155,7 +155,7 @@ Use during real testing sessions. Check **Pass / Fail / N/A** and note payload s
 ### Panels & marks
 
 - [ ] Theme / hub / pursuit open in **left rail**; mark uses **hover card** (no bottom-sheet moment panel).
-- [ ] **Add mark** only on hub panel; pursuit panel has no add-mark.
+- [ ] Hub panel shows existing marks; direct **Add mark** buttons are removed from hub and pursuit panels.
 - [ ] Archive pursuit or mark → hidden from tree → revive from hub archive section.
 
 ### Edit map & map chrome

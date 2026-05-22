@@ -17,7 +17,7 @@ Stream is not a feature bolted onto a goal-entry form. It *is* the entry form â€
 The original insight: nobody wants to open a dropdown to categorise a moment in their life.
 Stream removes that moment completely.
 
-**Entry points:** **Tell me about this** on the **theme** panel (whole theme) or **hub** panel (one hub). Not from the pursuit detail panel.
+**Entry points:** **Open Stream** on the theme, hub, or pursuit panel (one button per panel; no duplicate chips or links).
 
 ---
 

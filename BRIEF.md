@@ -16,7 +16,7 @@ A user speaks or types freely — messy, non-linear, emotional. AI extracts stru
 
 | | |
 |--|--|
-| **Entry** | **Tell me about this** on the **theme** panel (whole theme) or **hub** panel (one hub). Not from the pursuit detail panel. |
+| **Entry** | **Open Stream** on the theme, hub, or pursuit panel (one button per panel). |
 | **Input** | Open text or voice — no interview, no mandatory prompts. |
 | **Extract** | Pursuits, timeline notes, milestones, status updates on existing pursuits, and **ambiguous** items the model is unsure about. |
 | **Confirm** | Card queue for structured items; user confirms or skips each piece before commit. |
@@ -38,8 +38,8 @@ Default surface after onboarding. Interactive SVG with five **themes** and **17 
 
 **Panels (May 2026)**
 
-- **Theme** — one-line about, hub list, **Tell me about this** (theme Stream).
-- **Hub** — catalog copy, pursuits (active first; on hold/complete behind “show more”), **Add mark**, hub Stream.
+- **Theme** — one-line about, hub list, **Open Stream** (theme Stream).
+- **Hub** — catalog copy, marks list, pursuits (active first; on hold/complete behind “show more”), hub Stream.
 - **Pursuit** — status (**Active / On hold / Complete**), milestones, roadmap depth; no “add mark on pursuit” (marks are hub-level only).
 
 **Edit map**

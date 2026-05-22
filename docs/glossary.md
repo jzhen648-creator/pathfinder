@@ -13,7 +13,7 @@ Terms that materially affect reasoning. User-facing vocabulary; code symbols in 
 | **Pursuit** | User word for **`Goal`** — transformational work with optional milestones. |
 | **Timeline note** | Hub-scoped dated item; Prisma **`Mark`**. Not on pursuits. |
 | **Milestone** | Phase **inside one goal** only; relational `Milestone` / `Subtask`. |
-| **Stream** | Brain dump: extract → confirm → commit; entry **Tell me about this** on theme/hub panels. |
+| **Stream** | Brain dump: extract → confirm → commit; entry **Open Stream** on theme/hub/pursuit panels. |
 
 ---
 

@@ -15,7 +15,7 @@ Practical snapshot for contributors and AI sessions. Revisit after major changel
 | Area | Direction |
 |------|-----------|
 | Layout | Trunk grammar live; longitudinal grammar opt-in; domain-cluster still default visual |
-| Intake | Evolve removed → Stream only for new pursuits/marks |
+| Intake | Stream is primary for pursuits/marks; hub **Add pursuit** remains for explicit manual adds (no panel **Add mark**) |
 | Panels | Rail for theme/hub/pursuit; marks off rail (hover card) |
 | Ordering | `sequencePosition` + `branch-sequence.ts` anchors across goals and marks |
 | Bloom | Simplified enum (`ACTIVE`/`ON_HOLD`/`COMPLETE`); milestone-driven recompute |

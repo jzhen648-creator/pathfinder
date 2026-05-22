@@ -12,12 +12,11 @@ import {
 } from "./tree-view-goal-queries";
 import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
 import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
-import type { SequenceAnchor } from "@/lib/branch-sequence";
 import { canonicalHubDisplayLabel, hubPanelCopy } from "@/lib/hub-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { HubCatalogPanelSections } from "./hub-catalog-panel-sections";
 import { themePanelCopy } from "@/lib/theme-catalog";
-import type { DomainHubData, TreeGoalNode, TreeMilestoneNode } from "./tree-types";
+import type { DomainHubData, MomentNode, TreeGoalNode, TreeMilestoneNode } from "./tree-types";
 import type { TreePanelProps, TreePanelSurface } from "./tree-view-types";
 import { pointyTopHexPathD } from "./tree-design-visual";
 
@@ -44,10 +43,17 @@ function StreamEntryButton({
   testId: string;
   variant?: "default" | "canvas";
 }) {
+  const label = "Open Stream";
   if (variant === "canvas") {
     return (
-      <button type="button" data-testid={testId} onClick={onClick} className="pf-tree-rail-btn-primary">
-        Tell me about this
+      <button
+        type="button"
+        data-testid={testId}
+        onClick={onClick}
+        className="pf-tree-rail-btn-primary"
+        aria-label={`${label} — ${subjectName}`}
+      >
+        {label}
       </button>
     );
   }
@@ -57,6 +63,7 @@ function StreamEntryButton({
         type="button"
         data-testid={testId}
         onClick={onClick}
+        aria-label={`${label} — ${subjectName}`}
         style={{
           width: "100%",
           fontSize: 14,
@@ -69,7 +76,7 @@ function StreamEntryButton({
           cursor: "pointer",
         }}
       >
-        Talk to me about {subjectName}
+        {label}
       </button>
       <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-tertiary)", lineHeight: 1.45 }}>
         {STREAM_ENTRY_SUBTITLE}
@@ -278,6 +285,12 @@ function PursuitStateTabs({
 type PursuitPanelMoment = { id: string; text: string; date: string };
 type PursuitPanelRelated = { id: string; title: string; hub: string; color: string };
 
+function formatMomentDate(moment: MomentNode): string {
+  if (moment.calendarDateIso) return formatGoalDateDisplay(moment.calendarDateIso) ?? moment.calendarDateIso;
+  if (moment.year != null) return String(moment.year);
+  return "Undated";
+}
+
 function momentsAttachedToGoal(thread: DomainHubData | undefined, goal: TreeGoalNode): PursuitPanelMoment[] {
   if (!thread) return [];
   const goalIndex = thread.sequencedNodes.findIndex((node) => node.kind === "goal" && node.goal.id === goal.id);
@@ -300,14 +313,6 @@ function momentsAttachedToGoal(thread: DomainHubData | undefined, goal: TreeGoal
     });
   }
   return moments;
-}
-
-/** Hub “Add moment”: insert before the first root goal on the branch line (nearest the hub). */
-function sequenceAnchorForAddMomentFromHub(thread: DomainHubData): SequenceAnchor | null {
-  for (const n of thread.sequencedNodes) {
-    if (n.kind === "goal") return { kind: "before", nodeId: n.goal.id };
-  }
-  return null;
 }
 
 function goalEffectiveStartIso(g: TreeGoalNode): string {
@@ -603,7 +608,6 @@ export function TreePanel({
   onOpenHubStream,
   onOpenGoalStream,
   onAddGoal,
-  onAddMoment,
   archivedGoals,
   archivedMarks,
   onReviveGoal,
@@ -1073,6 +1077,7 @@ export function TreePanel({
     ).length;
     const hubCanvasRail = isCanvasDetailRail(panelSurface, panelPresentation);
     const pursuitCardVariant = hubCanvasRail ? "canvas" : "default";
+    const hubMarks = thread.moments.filter((m) => m.synthetic !== true);
 
     const hubArchiveBlock = hasArchiveSection ? (
       <div style={{ display: "grid", gap: 10, marginTop: hubCanvasRail ? 16 : 0 }}>
@@ -1178,82 +1183,111 @@ export function TreePanel({
       </div>
     ) : null;
 
-    const hubEmptyQuestions = hubCopy.openingQuestions ?? [];
-
-    const hubEmptyStateBlock = onOpenHubStream && hubEmptyQuestions.length > 0 ? (
-      <div style={{ display: "grid", gap: hubCanvasRail ? 6 : 8 }}>
-        {hubEmptyQuestions.map((q) => (
-          <button
-            key={q}
-            type="button"
-            onClick={() => onOpenHubStream(area, thread, q)}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: hubCanvasRail ? "8px 12px" : "9px 13px",
-              borderRadius: 9,
-              border: `1px solid ${area.color}33`,
-              background: hubCanvasRail ? "rgba(255,255,255,0.04)" : `${area.color}0d`,
-              color: hubCanvasRail ? "rgba(255,255,255,0.72)" : "var(--color-text-secondary)",
-              fontSize: 13,
-              lineHeight: 1.45,
-              cursor: "pointer",
-              transition: "border-color 120ms, background 120ms",
-            }}
-          >
-            {q}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => onOpenHubStream(area, thread)}
-          style={{
-            background: "none",
-            border: "none",
-            padding: "4px 2px",
-            fontSize: 12,
-            color: hubCanvasRail ? "rgba(255,255,255,0.38)" : "var(--color-text-tertiary)",
-            cursor: "pointer",
-            textAlign: "left",
-            textDecoration: "underline",
-            textUnderlineOffset: 3,
-          }}
-        >
-          or just start talking →
-        </button>
-      </div>
-    ) : (
-      hubCanvasRail ? (
-        <p className="pf-tree-rail-empty">
-          No pursuits on this hub yet. Tell Pathfinder about this part of your life — it&apos;ll surface
-          what&apos;s there.
-        </p>
-      ) : (
-        <div
-          style={{
-            padding: "20px 16px",
-            borderRadius: 12,
-            border: "1px dashed var(--color-border-secondary)",
-            background: "var(--color-background-secondary, rgba(255,255,255,0.02))",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              margin: "0 0 4px",
-              fontSize: 15,
-              fontWeight: 500,
-              color: "var(--color-text-primary)",
-            }}
-          >
-            No pursuits yet
-          </p>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
-            Add a pursuit to start tracking on this hub.
-          </p>
+    const hubMarksBlock =
+      hubMarks.length > 0 ? (
+        <div style={{ display: "grid", gap: 10 }}>
+          <div className={hubCanvasRail ? "pf-tree-rail-section-head" : undefined}>
+            <span
+              style={
+                hubCanvasRail
+                  ? undefined
+                  : {
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: ".07em",
+                      textTransform: "uppercase",
+                      color: "var(--color-text-tertiary)",
+                    }
+              }
+            >
+              Marks · {hubMarks.length}
+            </span>
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {hubMarks.map((mark) => {
+              const text = mark.description?.trim() || mark.label.trim() || "Untitled mark";
+              const dateLabel = formatMomentDate(mark);
+              return (
+                <div
+                  key={mark.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "auto 1fr",
+                    gap: 9,
+                    alignItems: "start",
+                    border: hubCanvasRail
+                      ? "1px solid rgba(255,255,255,0.045)"
+                      : "1px solid var(--color-border-tertiary)",
+                    borderRadius: 10,
+                    padding: hubCanvasRail ? "9px 10px" : "10px 12px",
+                    background: hubCanvasRail
+                      ? "rgba(255,255,255,0.025)"
+                      : "var(--color-background-secondary, rgba(255,255,255,0.02))",
+                  }}
+                >
+                  <span style={{ color: PF_TREE_MARK_COLOR, lineHeight: 1.2 }} aria-hidden>
+                    ◆
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: 13.5,
+                        fontWeight: 500,
+                        lineHeight: 1.35,
+                        color: hubCanvasRail ? "rgba(255,255,255,0.78)" : "var(--color-text-secondary)",
+                      }}
+                    >
+                      {text}
+                    </span>
+                    <span
+                      style={{
+                        display: "block",
+                        marginTop: 3,
+                        fontSize: 11.5,
+                        lineHeight: 1.25,
+                        color: mark.needsResolution === true ? area.color : "var(--color-text-tertiary)",
+                      }}
+                    >
+                      {mark.needsResolution === true ? "Needs your input" : dateLabel}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )
+      ) : null;
+
+    const hubEmptyStateBlock = hubCanvasRail ? (
+      <p className="pf-tree-rail-empty">
+        No pursuits on this hub yet. Use <strong>Open Stream</strong> above to talk about this part of your
+        life — Pathfinder will surface what belongs here.
+      </p>
+    ) : (
+      <div
+        style={{
+          padding: "20px 16px",
+          borderRadius: 12,
+          border: "1px dashed var(--color-border-secondary)",
+          background: "var(--color-background-secondary, rgba(255,255,255,0.02))",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            margin: "0 0 4px",
+            fontSize: 15,
+            fontWeight: 500,
+            color: "var(--color-text-primary)",
+          }}
+        >
+          No pursuits yet
+        </p>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
+          Use Open Stream above, or add a pursuit to start tracking on this hub.
+        </p>
+      </div>
     );
 
     const hubPursuitsBlock =
@@ -1341,28 +1375,10 @@ export function TreePanel({
                     variant="canvas"
                   />
                 ) : null}
-                {onAddMoment ? (
-                  <button
-                    type="button"
-                    data-testid="tree-add-moment"
-                    className="pf-tree-rail-btn-ghost"
-                    onClick={() =>
-                      onAddMoment({
-                        branchId: thread.id,
-                        areaId: area.id,
-                        sequenceAnchor: sequenceAnchorForAddMomentFromHub(thread),
-                      })
-                    }
-                  >
-                    <span style={{ color: PF_TREE_MARK_COLOR }} aria-hidden>
-                      ◆
-                    </span>
-                    Add mark
-                  </button>
-                ) : null}
               </div>
             </div>
             <div className="pf-tree-rail-scroll">
+              {hubMarksBlock}
               <div className="pf-tree-rail-section-head">
                 <span>
                   Pursuits · {hubGoals.length}
@@ -1469,59 +1485,23 @@ export function TreePanel({
               ) : null}
               <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                 {hubGoals.length === 0 ? (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      data-testid="tree-add-goal"
-                      onClick={() => onAddGoal(hubCtx)}
-                      style={hubGhostBtnStyle}
-                    >
-                      Add pursuit
-                    </button>
-                    {onAddMoment ? (
-                      <button
-                        type="button"
-                        data-testid="tree-add-moment"
-                        onClick={() =>
-                          onAddMoment({
-                            branchId: thread.id,
-                            areaId: area.id,
-                            sequenceAnchor: sequenceAnchorForAddMomentFromHub(thread),
-                          })
-                        }
-                        style={hubGhostBtnStyle}
-                      >
-                        Add mark
-                      </button>
-                    ) : null}
-                  </div>
+                  <button
+                    type="button"
+                    data-testid="tree-add-goal"
+                    onClick={() => onAddGoal(hubCtx)}
+                    style={hubGhostBtnStyle}
+                  >
+                    Add pursuit
+                  </button>
                 ) : (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      data-testid="tree-add-goal"
-                      onClick={() => onAddGoal(hubCtx)}
-                      style={{ ...hubGhostBtnStyle, flex: 1 }}
-                    >
-                      Add pursuit
-                    </button>
-                    {onAddMoment ? (
-                      <button
-                        type="button"
-                        data-testid="tree-add-moment"
-                        onClick={() =>
-                          onAddMoment({
-                            branchId: thread.id,
-                            areaId: area.id,
-                            sequenceAnchor: sequenceAnchorForAddMomentFromHub(thread),
-                          })
-                        }
-                        style={{ ...hubGhostBtnStyle, flex: 1 }}
-                      >
-                        Add mark
-                      </button>
-                    ) : null}
-                  </div>
+                  <button
+                    type="button"
+                    data-testid="tree-add-goal"
+                    onClick={() => onAddGoal(hubCtx)}
+                    style={hubGhostBtnStyle}
+                  >
+                    Add pursuit
+                  </button>
                 )}
               </div>
             </div>
@@ -1529,6 +1509,7 @@ export function TreePanel({
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 18px 20px" }}>
               <div style={{ display: "grid", gap: 18 }}>
                 <HubCatalogPanelSections copy={hubCopy} areaColor={area.color} areas={areas} compact />
+                {hubMarksBlock}
                 {hubGoals.length === 0 ? (
                   hubPursuitsBlock
                 ) : (
@@ -1579,6 +1560,7 @@ export function TreePanel({
     const relatedPursuits: PursuitPanelRelated[] = [];
     const isCompletedFor = (s: { isCompleted: boolean }) => s.isCompleted;
     const goalRail = panelPresentation === "rail";
+    const goalCanvasRail = isCanvasDetailRail(panelSurface, panelPresentation);
     const parentContinuation = goal.parentGoalId
       ? findGoalInAreas(areas, goal.parentGoalId)
       : null;
@@ -1936,39 +1918,14 @@ export function TreePanel({
             {goalSubtitle}
           </p>
           {onOpenGoalStream ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                marginTop: 12,
-                padding: "10px 12px",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.02)",
-              }}
-            >
-              <span style={{ fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.52)" }}>
-                Add milestones, marks, or context via Stream
-              </span>
-              <button
-                type="button"
+            <div style={{ marginTop: 12 }} className={goalCanvasRail ? "pf-tree-rail-actions" : undefined}>
+              <StreamEntryButton
+                subjectName={goal.title}
+                accent={area.color}
                 onClick={() => onOpenGoalStream(area, goal)}
-                style={{
-                  flexShrink: 0,
-                  border: "none",
-                  background: "transparent",
-                  color: area.color,
-                  cursor: "pointer",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  padding: 0,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Open Stream →
-              </button>
+                testId="tree-open-goal-stream"
+                variant={goalCanvasRail ? "canvas" : "default"}
+              />
             </div>
           ) : null}
         </div>
@@ -2268,27 +2225,6 @@ export function TreePanel({
                 }}
               >
                 <span>No marks are attached after this pursuit yet.</span>
-                {onOpenGoalStream ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenGoalStream(area, goal)}
-                    style={{
-                      justifySelf: "start",
-                      border: "none",
-                      background: "transparent",
-                      color: PF_TREE_MARK_COLOR,
-                      cursor: "pointer",
-                      fontFamily: "var(--font-pf-tree-mono, ui-monospace, monospace)",
-                      fontSize: 10.5,
-                      fontWeight: 500,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      padding: 0,
-                    }}
-                  >
-                    Add via Stream
-                  </button>
-                ) : null}
               </div>
             )}
           </PursuitPanelSection>

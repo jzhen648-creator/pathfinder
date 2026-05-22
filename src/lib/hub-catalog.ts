@@ -14,7 +14,10 @@ export type HubCatalogEntry = {
   aiRoutingNote: string;
   /** Short example pursuits — shown as chips in the hub sidebar empty state. */
   examples: string[];
-  /** Conversational opening questions shown as clickable chips on empty hubs; each opens Stream pre-prompted. */
+  /**
+   * Optional hub-scoped conversation starters (catalog / future Stream prompts).
+   * Not rendered as hub-panel chips — panel uses a single **Open Stream** entry.
+   */
   openingQuestions?: [string, string, string];
   /** First-time guided onboarding Stream Lite placeholder (Scene 4). */
   firstTimeQuestion: string;

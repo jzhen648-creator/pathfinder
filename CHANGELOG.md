@@ -2,16 +2,22 @@
 
 Hand-maintained work log. Line-level history: `git log` in this repo (`pathfinder/`). **Latest commit on `HEAD`:** `70f44e3` (2026-05-14). The **2026-05-16** section below is **local WIP** (uncommitted) unless you have since committed it.
 
+## 2026-05-22
+
+- **Hub panel UX:** Unified **Open Stream** on theme/hub/pursuit panels; removed hub question chips, duplicate stream links, and manual **Add mark**. Hub panel lists existing marks.
+- **Cleanup:** Removed unwired manual mark create flow from `TreeView` (`onAddMoment`, mark modals). Pursuit Stream placeholder no longer implies marks attach to pursuits.
+- **QA:** `e2e/hub-panel-stream.spec.ts` (Mandela Friendships hub).
+
 ## 2026-05-19
 
 - **Docs:** Refreshed [`BRIEF.md`](./BRIEF.md), [`DECISIONS.md`](./DECISIONS.md), [`GLOSSARY.md`](./GLOSSARY.md), [`ONTOLOGY.md`](./ONTOLOGY.md), [`docs/STABILIZATION.md`](./docs/STABILIZATION.md), [`docs/DIARY.md`](./docs/DIARY.md), [`AGENTS.md`](./AGENTS.md) for the May 2026 tree/Stream sprint (see bullets below).
 - **Mark detail UX (G1):** Timeline notes use **`MarkHoverCard`** (hover + pin on the map) instead of a bottom-sheet `moment` panel in `TreePanel`. Theme / hub / pursuit panels stay in the left **rail** when open.
 - **Soft delete (G4):** `Goal.archived` / `Mark.archived` hide rows from the tree; hub panel **Archive** section with revive (`PATCH` `archived: false`). Remove copy says “archived,” not hard-deleted.
-- **Marks hub-level only (G5):** **Add mark** only from the hub panel; removed pursuit-panel mark creation and pursuit-coupled `sequenceAnchor`. Stream prompts: marks belong to the hub, never `pursuitRef`.
+- **Marks hub-level only (G5):** Hub panel lists existing marks; direct panel **Add mark** buttons are removed. Stream prompts: marks belong to the hub, never `pursuitRef`.
 - **Tree hit targets:** Removed clicks on limb hull polygons, wide limb-stem strokes, and hub branch-line labels. Theme navigation uses gateway/icon + label row only; limb focus (when enabled) toggles from the theme icon, not backdrop geometry.
 - **Edit map drag-and-drop (G10):** Tree toolbar **Edit map** mode (disabled during Stream). Drag pursuits — hub ring moves to another hub (`POST /api/goals/[goalId]/reorganize` `moveToHub`), pursuit target nests (`reparent`), branch slots reorder via `sequenceAnchor`. Pan disabled while editing; 5px drag threshold preserves tap-to-open panel. After edits, opening Stream pre-fills an acknowledgement draft.
 - **Ambiguous on tree (G6):** Stream `ambiguous[]` items commit immediately as unresolved marks (`needsResolution`, dashed ring + `?` on tree). Resolve via mark hover card (Done / In progress / Not started) or `POST /api/stream/resolve-ambiguous`. Hub panel shows “N items need your input”. Confirmation queue skips ambiguous cards; informational banner only.
-- **Panel redesign (G2):** Theme panel — one-line about, stats in header, **Tell me about this**, scannable hub list only (removed evaluation, stats grid, prompt chips, all-pursuits list). Hub panel — **Tell me about this** (hub Stream), compact about copy, active pursuits + **Show more** for on hold/complete; removed recent-timeline and example chips. Pursuit panel — **Active / On hold / Complete** buttons (`PATCH` `bloomStatus`).
+- **Panel redesign (G2):** Theme panel — one-line about, stats in header, **Open Stream**, scannable hub list only (removed evaluation, stats grid, prompt chips, all-pursuits list). Hub panel — **Open Stream**, compact about copy, marks list, active pursuits + **Show more** for on hold/complete; removed hub question chips and manual **Add mark**. Pursuit panel — **Active / On hold / Complete** buttons (`PATCH` `bloomStatus`) and unified **Open Stream**.
 - **Evolve removed:** Deleted `evolve-goal-proposal.ts`, `POST /api/goals/[goalId]/fork`, and `POST /api/goals/[goalId]/fork/propose`. Tree panel no longer offers **Evolve this pursuit**; **Stream** is the supported path for new pursuits/marks/milestones. Continuation geometry renamed to `continuationChildScreenPosition`; `parentGoalId` data unchanged. E2E: `milestone-bloom-evolve.spec.ts` keeps milestone → bloom only.
 - **Stream status changes:** Hub + theme extract prompts (Rule 9) map finished → `existingGoalId` + `COMPLETE`, paused → `ON_HOLD`, resuming → `ACTIVE` — no new pursuit for status-only dumps. `STREAM_BLOOM_VALUES` and commit path apply `ON_HOLD` / `ACTIVE` updates on existing goals.
 - **Mark placement (G9):** Marks share `sequencedNodes` rank with pursuits but render **beside** the branch ray (lateral offset). Amber **diamond** on canvas (no labels); detail in hover card. `TreeMarkNode` + `branchMarkScreenPosition`.

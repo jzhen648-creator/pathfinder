@@ -17,7 +17,7 @@ Stream extract prompts are bounded before model calls: active and archived hub r
 ### Panels and tree chrome
 
 - **Theme / hub / pursuit** detail uses a left **rail** (`panelPresentation="rail"`). Timeline notes do **not** use `TreePanel` — they use **`MarkHoverCard`** (hover + pin) on the map.
-- **Theme panel:** scannable hub list, **Tell me about this** (theme Stream). **Hub panel:** catalog sections, pursuits (active first), **Add mark**, hub Stream, archive revive. **Pursuit panel:** **Active / On hold / Complete** (`PATCH` `bloomStatus`); no add-mark from pursuit.
+- **Theme panel:** scannable hub list, **Open Stream** (theme Stream). **Hub panel:** catalog sections, marks list, pursuits (active first), **Open Stream**, archive revive. **Pursuit panel:** **Active / On hold / Complete** (`PATCH` `bloomStatus`), **Open Stream**; no add-mark from pursuit.
 - **Marks are hub-level only** — never attached to a pursuit row; Stream prompts forbid `pursuitRef` on marks. Milestones remain on pursuits (hex orbitals).
 
 ### Ambiguous Stream items on the tree

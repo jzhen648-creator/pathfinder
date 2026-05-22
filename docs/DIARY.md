@@ -88,7 +88,7 @@ We removed **Evolve this pursuit** and the fork/propose APIs. **Stream** replace
 
 ## 2026-05-19 — Tree interaction sprint (panels, marks, edit map)
 
-**Panels:** Theme / hub / pursuit moved to a consistent **left rail** and were simplified (Stream entry on theme + hub, status chips on pursuit, hub-only **Add mark**). Timeline notes left the bottom sheet for a **hover card** on the map — marks are hub-scoped, not pursuit checkpoints.
+**Panels:** Theme / hub / pursuit moved to a consistent **left rail** and were simplified (Stream entry on theme + hub, hub marks list, status chips on pursuit). Timeline notes left the bottom sheet for a **hover card** on the map — marks are hub-scoped, not pursuit checkpoints.
 
 **Stream ambiguous:** Items the model cannot classify no longer clog the confirmation queue. They land on the tree immediately as **unresolved** marks; the user resolves intent on the map. That matches “the map is the source of truth,” not “the queue is the source of truth.”
 

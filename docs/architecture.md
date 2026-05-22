@@ -86,7 +86,7 @@ Prefer **small pure modules** over framework indirection. Tree code is intention
 
 ## Transition states
 
-- **Evolve/fork APIs removed** — `parentGoalId` chains remain for display/navigation only; new pursuits via Stream.
+- **Evolve/fork APIs removed** — `parentGoalId` chains remain for display/navigation only; new pursuits/marks primarily via Stream; hub **Add pursuit** kept for explicit manual adds.
 - **Radial theme-star → trunk grammar** — Trunk default on; radial restorable via env.
 - **JSON treeMilestones → relational** — Complete; projection is single source for hex.
 - **Bottom-sheet moment panel → MarkHoverCard** — Complete for tree.

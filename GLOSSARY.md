@@ -17,7 +17,7 @@ For ongoing UX wording inventory and Phase 2 notes, see [`docs/UX-TERMINOLOGY-AU
 | **Branch** | A persisted **`Branch`** row: the database anchor for a **hub**; owns **timeline notes** (`Mark`) and goals via `branchId`. **Not** the same as **goal evolution** (`Goal.parentGoalId`). Columns `parentBranchId` / `turningPointId` remain for legacy rows; **new hub splits from the timeline are disabled** (2026-05). |
 | **Goal evolution (legacy)** | Successor goal linked via `Goal.parentGoalId` / `forkedGoals`. Fork API removed; **Stream** adds new pursuits. Older docs: **continuation**. |
 | **Goal** | Roadmap item (`Goal` model): types such as project, practice, identity; may include timeline-style `moment` / `event` goals. Carries **bloom** lifecycle for that pursuit alone. |
-| **Timeline note** (`Mark`) | Dated item on a **hub** (`Mark` via `branchId`) — **not** on a pursuit. Created from the **hub panel** or Stream; never “add mark” from the pursuit panel. Product word: **timeline note**; Prisma model **`Mark`**. `Mark.kind` ∈ {`mark`, `stream`}. |
+| **Timeline note** (`Mark`) | Dated item on a **hub** (`Mark` via `branchId`) — **not** on a pursuit. Displayed in the hub panel and on the tree; created through Stream, not direct panel buttons. Product word: **timeline note**; Prisma model **`Mark`**. `Mark.kind` ∈ {`mark`, `stream`}. |
 | **Unresolved mark** | `Mark.needsResolution` after Stream `ambiguous[]` auto-commit. Dashed **`?`** on tree; resolve on hover card or `POST /api/stream/resolve-ambiguous`. |
 | **Archived** | `Goal.archived` / `Mark.archived` — hidden from tree; revivable from hub **Archive** section (`PATCH` `archived: false`). |
 | **Sequence position** | `Goal.sequencePosition` / `Mark.sequencePosition`. Explicit branch-line order; both tables co-sort to form the unified `sequencedNodes` list on each hub. Continuation children (`parentGoalId`) opt out — they keep parent-anchored satellite layout. |
@@ -86,8 +86,8 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md) and `npm run backfill:goal-bloom` for normali
 
 - **Theme** — pillar labels (Money & Finance, Work & Career, Who I'm Becoming, …).
 - **Hub** — which track a goal or timeline note sits on (maps to a root **`Branch`** row).
-- **Stream** — brain dump from **Tell me about this** on theme or hub panel (replaces Evolve/fork UX).
-- **Tell me about this** — opens Stream for the current theme or hub.
+- **Stream** — brain dump from **Open Stream** on theme, hub, or pursuit panel (replaces Evolve/fork UX).
+- **Open Stream** — opens Stream for the current theme, hub, or pursuit.
 - **Edit map** — toolbar toggle to drag-reorganize pursuits on the SVG map.
 - **Continuation** — legacy prose for goal evolution; prefer **evolution** in new UI.
 - **Goal** — user-facing word for roadmap items (some APIs still use `moments` internally).

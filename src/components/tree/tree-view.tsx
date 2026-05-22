@@ -6,9 +6,7 @@ import { useSession } from "next-auth/react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
-import { CreateMarkModal } from "@/components/tree/create-mark-modal";
 import { TreeConversationalGoalCreate } from "@/components/tree/tree-conversational-goal-create";
-import { TreeConversationalMarkCreate } from "@/components/tree/tree-conversational-mark-create";
 import { buildPreviewAreasFromNodes } from "@/components/stream/stream-hub-preview-data";
 import { StreamOverlay, STREAM_PANEL_WIDTH_PX } from "@/components/stream/stream-overlay";
 import { useMapData } from "@/contexts/map-data-context";
@@ -59,7 +57,6 @@ import {
 } from "./tree-view-constants";
 import {
   type AddGoalHubContext,
-  type AddMomentTreeContext,
   type ArchivedGoalRow,
   type PanelState,
   type ViewMode,
@@ -124,7 +121,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [addGoalDefaultBranchId, setAddGoalDefaultBranchId] = useState<string | null>(null);
   const [addGoalDefaultAnchor, setAddGoalDefaultAnchor] = useState<SequenceAnchor | null>(null);
   const [conversationalGoalCtx, setConversationalGoalCtx] = useState<AddGoalHubContext | null>(null);
-  const [conversationalMarkCtx, setConversationalMarkCtx] = useState<AddMomentTreeContext | null>(null);
   const [streamSession, setStreamSession] = useState<
     | { mode: "hub"; hub: StreamHubUiContext; initialDraft?: string; initialPlaceholder?: string }
     | { mode: "theme"; theme: StreamThemeUiContext; initialDraft?: string; initialPlaceholder?: string }
@@ -136,11 +132,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [editMapExitOpen, setEditMapExitOpen] = useState(false);
   const [editMapApplying, setEditMapApplying] = useState(false);
   const [apiBranchRows, setApiBranchRows] = useState<ApiBranchRow[]>([]);
-  const [markModal, setMarkModal] = useState<{
-    limbId: LimbId;
-    branchId: string;
-    anchor: SequenceAnchor | null;
-  } | null>(null);
   const [treeToast, setTreeToast] = useState<{ msg: string; color: string } | null>(null);
   const [birthYear, setBirthYear] = useState<number | null>(null);
   const [addAreaOpen, setAddAreaOpen] = useState(false);
@@ -285,7 +276,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     if (FLAGS.FOCUS_MODE) setFocusedLimbId(null);
     setPanel({ type: "none" });
     setConversationalGoalCtx(null);
-    setConversationalMarkCtx(null);
     setMarkHover(null);
     setMarkPinned(null);
   }, []);
@@ -591,7 +581,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     setStreamSession({
       mode: "hub",
       hub,
-      initialPlaceholder: `Tell me more about "${goal.title}" - add milestones, next steps, or marks from this pursuit.`,
+      initialPlaceholder: `Tell me more about "${goal.title}" — milestones, next steps, or context for this pursuit.`,
     });
   }, [showTreeToast]);
 
@@ -714,34 +704,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     }
     setAddGoalOpen(true);
   }, []);
-
-  const handleAddMomentFromPanel = useCallback(
-    (ctx: { branchId: string; areaId: string; sequenceAnchor?: SequenceAnchor | null }) => {
-      const area = areas.find((a) => a.id === ctx.areaId);
-      const thread = area?.branches.find((b) => b.id === ctx.branchId);
-      const anchor = ctx.sequenceAnchor ?? null;
-      if (FLAGS.CONVERSATIONAL_GOAL_CREATE) {
-        setConversationalMarkCtx({
-          branchId: ctx.branchId,
-          limbId: ctx.areaId,
-          branchLabel: thread?.type?.trim() || "Hub",
-          areaLabel: area?.label ?? ctx.areaId,
-          anchorClient: {
-            x: window.innerWidth / 2,
-            y: Math.min(window.innerHeight - 100, window.innerHeight * 0.45),
-          },
-          sequenceAnchor: anchor,
-        });
-        return;
-      }
-      setMarkModal({
-        limbId: ctx.areaId as LimbId,
-        branchId: ctx.branchId,
-        anchor,
-      });
-    },
-    [areas],
-  );
 
   const handleGoalClick = useCallback((goal: TreeGoalNode, area: AreaData) => {
     let close = false;
@@ -1297,7 +1259,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         onAppendCanonicalTreeMilestone={handlePanelAppendCanonicalTreeMilestone}
         onSetMilestoneCompletion={handlePanelSetMilestoneCompletion}
         onAddGoal={handleAddGoalOnHub}
-        onAddMoment={handleAddMomentFromPanel}
         onNavigateToGoal={handleNavigateToGoal}
         onSparseEnriched={handleSparseEnriched}
         themeUnlockBanner={recentlyUnlockedLimbId}
@@ -1492,17 +1453,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         />
       ) : null}
 
-      {FLAGS.CONVERSATIONAL_GOAL_CREATE && conversationalMarkCtx ? (
-        <TreeConversationalMarkCreate
-          context={conversationalMarkCtx}
-          onClose={() => setConversationalMarkCtx(null)}
-          onMarkCreated={() => {
-            void loadData({ silent: true });
-            showTreeToast("Mark added.");
-          }}
-        />
-      ) : null}
-
       {markCardAnchor ? (
         <MarkHoverCard
           anchor={markCardAnchor}
@@ -1514,21 +1464,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           onResolveAmbiguous={handleResolveAmbiguousMark}
           onHoverZoneEnter={handleMarkCardHoverEnter}
           onHoverZoneLeave={handleMarkCardHoverLeave}
-        />
-      ) : null}
-
-      {markModal ? (
-        <CreateMarkModal
-          open
-          onClose={() => setMarkModal(null)}
-          branches={apiBranchRows}
-          defaultLifeAreaId={markModal.limbId}
-          defaultBranchId={markModal.branchId}
-          defaultAnchor={markModal.anchor}
-          onCreated={async () => {
-            await loadData({ silent: true });
-            showTreeToast("Mark added.");
-          }}
         />
       ) : null}
 

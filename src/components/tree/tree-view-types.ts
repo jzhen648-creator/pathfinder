@@ -41,17 +41,6 @@ export type AddGoalHubContext = {
   sequenceAnchor?: SequenceAnchor | null;
 };
 
-/** Tree-originated moment create (hub or insert-between); same conversational flag as goals. */
-export type AddMomentTreeContext = {
-  branchId: string;
-  limbId: string;
-  branchLabel: string;
-  areaLabel: string;
-  anchorClient: { x: number; y: number };
-  /** Insert on branch line when set; omit or null to append. */
-  sequenceAnchor?: SequenceAnchor | null;
-};
-
 export type TreeSVGProps = {
   areas: AreaData[];
   /** Ghost preview nodes merged from Stream — rendered in a separate SVG layer. */
@@ -115,15 +104,6 @@ export type TreePanelProps = {
   onAddGoal: (hub: AddGoalHubContext) => void;
   /** @deprecated Hub Stream removed — use theme spoke affordance. */
   onOpenStream?: (hub: AddGoalHubContext, opts?: { initialDraft?: string }) => void;
-  /**
-   * Open “Add moment” from hub or goal panel (`areaId` = theme / limb id, `branchId` = hub row).
-   * `sequenceAnchor` from hub = before first sequenced root goal (near hub); from root goal = after that goal; omit/null → append.
-   */
-  onAddMoment?: (ctx: {
-    branchId: string;
-    areaId: string;
-    sequenceAnchor?: SequenceAnchor | null;
-  }) => void;
   onDeleteGoal: (goalId: string) => Promise<{ ok: boolean; error?: string }>;
   /** Soft-removed pursuits and marks (hub archive section). */
   archivedGoals?: ArchivedGoalRow[];
