@@ -150,7 +150,7 @@ export type TreePanelProps = {
   onSparseEnriched?: () => void | Promise<void>;
 };
 
-export type ViewMode = "tree" | "timeline" | "branch";
+export type ViewMode = "tree" | "timeline";
 
 export type LayoutPointerDrag =
   | {

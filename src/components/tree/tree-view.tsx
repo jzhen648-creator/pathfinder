@@ -39,7 +39,7 @@ import {
 } from "./tree-edit-map-draft";
 import { TreeEditMapDoneDialog } from "./tree-edit-map-done-dialog";
 import { SwimlaneTimeline } from "@/components/timeline/swimlane-timeline";
-import { BranchView } from "./tree-alternate-views";
+// BranchView remains in `./tree-alternate-views.tsx`; it is currently unwired from the map HUD.
 import { MarkHoverCard, type MarkInteractionAnchor } from "./mark-hover-card";
 import { TreePanel } from "./tree-panel";
 import {
@@ -117,8 +117,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [markPinned, setMarkPinned] = useState<MarkInteractionAnchor | null>(null);
   const hoverMarksEnabledRef = useRef(false);
   const [viewMode, setViewMode] = useState<ViewMode>("tree");
-  const [hiddenAreaIds, setHiddenAreaIds] = useState<Set<string>>(() => new Set());
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [addGoalDefaultBranchId, setAddGoalDefaultBranchId] = useState<string | null>(null);
   const [addGoalDefaultAnchor, setAddGoalDefaultAnchor] = useState<SequenceAnchor | null>(null);
@@ -143,7 +141,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [treeToast, setTreeToast] = useState<{ msg: string; color: string } | null>(null);
   const [birthYear, setBirthYear] = useState<number | null>(null);
   const [addAreaOpen, setAddAreaOpen] = useState(false);
-  const [themesDrawerOpen, setThemesDrawerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -782,10 +779,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     setFocused(close ? null : area.id);
   }, []);
 
-  const visibleAreas = useMemo(
-    () => areas.filter((area) => !hiddenAreaIds.has(area.id)),
-    [areas, hiddenAreaIds],
-  );
+  const visibleAreas = areas;
 
   const previewNodesForTree = useMemo(() => {
     if (!pendingPreviewNode) return previewNodes;
@@ -815,30 +809,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     },
     [visibleAreas],
   );
-
-  const allThreads = useMemo(
-    () => visibleAreas.flatMap((area) => area.branches.map((thread) => ({ area, thread }))),
-    [visibleAreas],
-  );
-  useEffect(() => {
-    if (selectedThreadId && allThreads.some((entry) => entry.thread.id === selectedThreadId)) return;
-    setSelectedThreadId(allThreads[0]?.thread.id ?? null);
-  }, [allThreads, selectedThreadId]);
-
-  const toggleArea = useCallback((areaId: string) => {
-    setHiddenAreaIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(areaId)) next.delete(areaId);
-      else next.add(areaId);
-      return next;
-    });
-    setFocused((curr) => (curr === areaId ? null : curr));
-    setPanel((curr) => {
-      if (curr.type === "area" && curr.area.id === areaId) return { type: "none" };
-      return curr;
-    });
-    dismissMarkCard();
-  }, [dismissMarkCard]);
 
   const addGoalBranches = useMemo(
     () =>
@@ -931,19 +901,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     return () => window.removeEventListener(PATHFINDER_GOALS_CHANGED_EVENT, h);
   }, [loadData]);
 
-  useEffect(() => {
-    setHiddenAreaIds((prev) => {
-      const validIds = new Set(areas.map((a) => a.id));
-      let changed = false;
-      const next = new Set<string>();
-      for (const id of prev) {
-        if (validIds.has(id)) next.add(id);
-        else changed = true;
-      }
-      return changed ? next : prev;
-    });
-  }, [areas]);
-
   const treeExportRootRef = useRef<HTMLDivElement | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [showTreeElementGuide, setShowTreeElementGuide] = useState(false);
@@ -999,6 +956,14 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
       setExportingPdf(false);
     }
   }, [viewMode]);
+
+  useEffect(() => {
+    const onExport = () => {
+      void handleExportTreePdf();
+    };
+    window.addEventListener("pathfinder:export-tree-pdf", onExport);
+    return () => window.removeEventListener("pathfinder:export-tree-pdf", onExport);
+  }, [handleExportTreePdf]);
 
   const handleMarkPointerEnterNode = useCallback(
     (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => {
@@ -1093,19 +1058,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
             if (result.ok) showTreeToast("Timeline dates saved.");
             return result;
           }}
-        />
-      ) : null}
-      {viewMode === "branch" ? (
-        <BranchView
-          areas={visibleAreas}
-          selectedThreadId={selectedThreadId}
-          onSelectThread={setSelectedThreadId}
-          activeMarkId={activeMarkId}
-          onMarkPointerEnter={handleMarkPointerEnterNode}
-          onMarkPointerLeave={handleMarkPointerLeave}
-          onMarkClick={handleMarkClickNode}
-          focused={focused}
-          onAreaClick={handleAreaClick}
         />
       ) : null}
     </>
@@ -1275,21 +1227,15 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
             style={{
               position: "absolute",
               inset: 0,
-              ...(viewMode === "tree" || viewMode === "timeline"
-                ? { overflow: "hidden" }
-                : { overflowX: "hidden", overflowY: "auto" }),
+              overflow: "hidden",
             }}
           >
             {mapViews}
           </div>
 
           <TreeCanvasHud
-            areas={areas}
-            hiddenAreaIds={hiddenAreaIds}
-            panel={panel}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            userName={firstRun.userName}
             showElementGuide={showTreeElementGuide}
             onShowElementGuideChange={setShowTreeElementGuide}
             showElementGuideToggle={TREE_ELEMENT_GUIDE_ENABLED}
@@ -1304,13 +1250,6 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
               setEditMapMode(true);
             }}
             editMapDisabled={Boolean(streamSession)}
-            exportingPdf={exportingPdf}
-            onExportPdf={() => void handleExportTreePdf()}
-            focused={focused}
-            onClearFocus={clearAll}
-            themesOpen={themesDrawerOpen}
-            onThemesOpenChange={setThemesDrawerOpen}
-            onToggleArea={toggleArea}
           />
 
           {viewMode === "tree" && dormantLimbIds.length > 0 ? (
