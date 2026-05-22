@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
 /** Root hub rows + goals for tree/roadmap. Read-only; taxonomy sync on register, onboarding, activate, or backfill. */
 const createBranchSchema = z
@@ -20,7 +21,10 @@ export async function GET() {
     if (!auth.ok) return auth.response;
     const userId = auth.userId;
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, unlockedLimbIds: true },
+    });
     if (!user) {
       return NextResponse.json({ error: "Session expired. Sign in again." }, { status: 401 });
     }
@@ -53,7 +57,8 @@ export async function GET() {
         select: { id: true, title: true, branchId: true, updatedAt: true },
       }),
     ]);
-    return NextResponse.json({ branches, goals, archivedGoals });
+    const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), branches);
+    return NextResponse.json({ branches, goals, archivedGoals, unlockedLimbIds });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load branches";
     console.error("[GET /api/branches]", err);

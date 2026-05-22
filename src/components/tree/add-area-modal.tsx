@@ -28,18 +28,14 @@ export function AddAreaModal({
     setError(null);
     setActivatingId(limbId);
     try {
-      const res = await fetch("/api/branches/activate", {
+      const res = await fetch("/api/branches/unlock-theme", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limbIds: [limbId] }),
       });
-      const data = (await res.json()) as { error?: string; activated?: number };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not add this area.");
-        return;
-      }
-      if ((data.activated ?? 0) === 0) {
-        setError("No hubs were found for this area. Try refreshing the page.");
         return;
       }
       onActivated();

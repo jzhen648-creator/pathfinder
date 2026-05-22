@@ -29,6 +29,8 @@ model User {
   /// Last applied {@link TAXONOMY_VERSION} from hub-taxonomy-sync; null = never synced.
   hubTaxonomyVersion         String?
   hubTaxonomySyncedAt        DateTime?
+  /// Life-area ids unlocked on the tree (`finance` | `work` | …). Hubs under a theme stay dormant until opened individually.
+  unlockedLimbIds            Json?
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
   goals                      Goal[]

@@ -28,10 +28,14 @@ import type { ApiBranchRow } from "@/lib/api-branch-row";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
 import type { LimbId } from "@/lib/types";
 import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { getLifeArea } from "@/lib/life-areas";
+import { TREE_THEME_SHORT_LABEL } from "@/components/tree/tree-design-visual";
 import { LIFE_AREA_ORDER } from "./tree-data";
 import { applyTreeDensity } from "./tree-density";
 import { AddAreaModal } from "./add-area-modal";
-import { activateLimbOnServer } from "./tree-activate-limb";
+import { activateHubOnServer, unlockThemeOnServer } from "./tree-activate-limb";
+import { ActivateThemeConfirmModal } from "./activate-theme-confirm-modal";
+import { dormantLimbIdsFromUnlocked, mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 import type { AreaData, MomentNode, TreeGoalNode } from "./tree-types";
 import { TreeSVG } from "./tree-svg";
 import {
@@ -142,6 +146,9 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const [addAreaOpen, setAddAreaOpen] = useState(false);
   const [activatingLimbId, setActivatingLimbId] = useState<LifeAreaId | null>(null);
   const [limbRevealLimbId, setLimbRevealLimbId] = useState<LifeAreaId | null>(null);
+  const [recentlyUnlockedLimbId, setRecentlyUnlockedLimbId] = useState<LifeAreaId | null>(null);
+  const [unlockedLimbIds, setUnlockedLimbIds] = useState<LifeAreaId[]>([]);
+  const [pendingThemeConfirm, setPendingThemeConfirm] = useState<LifeAreaId | null>(null);
 
   useEffect(() => {
     try {
@@ -177,8 +184,14 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
       }
 
       const { marksJson, branchesJson } = result;
-      const branchesPayload = branchesJson as { branches?: ApiBranchRow[] };
-      setApiBranchRows(Array.isArray(branchesPayload.branches) ? branchesPayload.branches : []);
+      const branchesPayload = branchesJson as {
+        branches?: ApiBranchRow[];
+        unlockedLimbIds?: LifeAreaId[];
+      };
+      const rows = Array.isArray(branchesPayload.branches) ? branchesPayload.branches : [];
+      setApiBranchRows(rows);
+      const storedUnlocked = parseUnlockedLimbIds(branchesPayload.unlockedLimbIds);
+      setUnlockedLimbIds(mergeUnlockedLimbIds(storedUnlocked, rows));
       const allMarks = normalizeMarks(marksJson ?? { marks: [] });
       const marks = allMarks.filter((m) => !m.archived);
       setArchivedMarks(
@@ -786,43 +799,82 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     [apiBranchRows],
   );
 
-  const dormantLimbIds = useMemo(() => {
-    const active = new Set(
-      apiBranchRows
-        .filter((b) => !b.parentBranchId && b.isActive === true)
-        .map((b) => b.limbId),
-    );
-    return LIFE_AREA_ORDER.filter((id) => !active.has(id));
-  }, [apiBranchRows]);
+  const dormantLimbIds = useMemo(
+    () => dormantLimbIdsFromUnlocked(unlockedLimbIds),
+    [unlockedLimbIds],
+  );
 
   const handleAreaClick = useCallback(
-    async (area: AreaData) => {
+    (area: AreaData) => {
       const limbId = area.id as LifeAreaId;
       if (dormantLimbIds.includes(limbId)) {
         if (activatingLimbId || streamSession || editMapMode) return;
-        setActivatingLimbId(limbId);
-        const result = await activateLimbOnServer(limbId);
-        setActivatingLimbId(null);
-        if (!result.ok) {
-          showTreeToast(result.error ?? "Could not add this area.", "#e85d5d");
-          return;
-        }
-        if (result.activated === 0) {
-          showTreeToast("No hubs were found for this area. Try refreshing the page.", "#e85d5d");
-          return;
-        }
-        const nextAreas = await loadData({ silent: true });
-        const fresh = nextAreas?.find((a) => a.id === limbId) ?? area;
-        setFocused(limbId);
-        setLimbRevealLimbId(limbId);
-        setPanel({ type: "area", area: fresh });
-        window.setTimeout(() => setLimbRevealLimbId(null), 950);
+        setPendingThemeConfirm(limbId);
         return;
       }
       setFocused(area.id);
       setPanel({ type: "area", area });
     },
-    [activatingLimbId, dormantLimbIds, editMapMode, loadData, showTreeToast, streamSession],
+    [activatingLimbId, dormantLimbIds, editMapMode, streamSession],
+  );
+
+  const handleConfirmThemeUnlock = useCallback(async () => {
+    const limbId = pendingThemeConfirm;
+    if (!limbId) return;
+    const lifeArea = getLifeArea(limbId);
+    const shortLabel = TREE_THEME_SHORT_LABEL[limbId] ?? lifeArea?.label ?? limbId;
+    const accent = lifeArea?.color ?? "#7B68C8";
+    setPendingThemeConfirm(null);
+    setActivatingLimbId(limbId);
+    showTreeToast(`Adding ${shortLabel} to your map…`, accent);
+    const result = await unlockThemeOnServer(limbId);
+    setActivatingLimbId(null);
+    if (!result.ok) {
+      showTreeToast(result.error ?? "Could not add this area.", "#e85d5d");
+      return;
+    }
+    if (result.unlockedLimbIds) {
+      setUnlockedLimbIds(result.unlockedLimbIds);
+    }
+    const nextAreas = await loadData({ silent: true });
+    const fresh = nextAreas?.find((a) => a.id === limbId);
+    if (!fresh) {
+      showTreeToast("Theme added — refresh if the map looks out of date.", accent);
+      return;
+    }
+    setFocused(limbId);
+    setLimbRevealLimbId(limbId);
+    setRecentlyUnlockedLimbId(limbId);
+    setPanel({ type: "area", area: fresh });
+    showTreeToast(
+      `${shortLabel} is on your map — choose a hub to open first in the panel.`,
+      accent,
+    );
+    window.setTimeout(() => setLimbRevealLimbId(null), 950);
+    window.setTimeout(() => setRecentlyUnlockedLimbId(null), 14_000);
+  }, [loadData, pendingThemeConfirm, showTreeToast]);
+
+  const handleActivateHubFromPanel = useCallback(
+    async (branchId: string, area: AreaData) => {
+      const result = await activateHubOnServer(branchId);
+      if (!result.ok) {
+        showTreeToast(result.error ?? "Could not open this hub.", "#e85d5d");
+        return;
+      }
+      const nextAreas = await loadData({ silent: true });
+      const fresh = nextAreas?.find((a) => a.id === area.id) ?? area;
+      const thread = fresh.branches.find((b) => b.id === branchId);
+      if (thread) {
+        setFocused(area.id);
+        setPanel({ type: "hub", area: fresh, thread });
+        showTreeToast(`Opened ${thread.type.trim() || "hub"}.`);
+      } else {
+        setFocused(area.id);
+        setPanel({ type: "area", area: fresh });
+        showTreeToast("Hub opened.");
+      }
+    },
+    [loadData, showTreeToast],
   );
 
   const patchGoal = useCallback(
@@ -1011,6 +1063,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           editMapDraftAreas={editMapDraftAreas}
           onEditMapDraftDrop={handleEditMapDraftDrop}
           dormantLimbIds={dormantLimbIds}
+          unlockedLimbIds={unlockedLimbIds}
           activatingLimbId={activatingLimbId}
           limbRevealLimbId={limbRevealLimbId}
         />
@@ -1247,6 +1300,9 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
         onAddMoment={handleAddMomentFromPanel}
         onNavigateToGoal={handleNavigateToGoal}
         onSparseEnriched={handleSparseEnriched}
+        themeUnlockBanner={recentlyUnlockedLimbId}
+        apiBranchRows={apiBranchRows}
+        onActivateHub={handleActivateHubFromPanel}
       />
     );
 
@@ -1285,6 +1341,49 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
             }}
             editMapDisabled={Boolean(streamSession)}
           />
+
+          {viewMode === "tree" && activatingLimbId ? (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                position: "absolute",
+                bottom: 88,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 28,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 18px",
+                borderRadius: 999,
+                border: `1px solid ${getLifeArea(activatingLimbId)?.color ?? "#7B68C8"}55`,
+                background: "rgba(11, 10, 15, 0.92)",
+                color: "rgba(255, 255, 255, 0.88)",
+                fontSize: 14,
+                fontWeight: 500,
+                boxShadow: "0 10px 32px rgba(0,0,0,0.45)",
+                pointerEvents: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: getLifeArea(activatingLimbId)?.color ?? "#7B68C8",
+                  boxShadow: `0 0 10px ${getLifeArea(activatingLimbId)?.color ?? "#7B68C8"}`,
+                  animation: "pulse-ring 1.1s ease-in-out infinite",
+                }}
+              />
+              Adding{" "}
+              {TREE_THEME_SHORT_LABEL[activatingLimbId] ??
+                getLifeArea(activatingLimbId)?.label ??
+                activatingLimbId}{" "}
+              to your map…
+            </div>
+          ) : null}
 
           {detailRailOpen ? (
             <aside
@@ -1441,6 +1540,14 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           void loadData({ silent: true });
           showTreeToast("Area added to your tree.");
         }}
+      />
+
+      <ActivateThemeConfirmModal
+        open={pendingThemeConfirm != null}
+        limbId={pendingThemeConfirm}
+        busy={activatingLimbId != null}
+        onConfirm={() => void handleConfirmThemeUnlock()}
+        onCancel={() => setPendingThemeConfirm(null)}
       />
 
       {treeToast ? (

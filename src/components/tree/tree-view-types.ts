@@ -83,6 +83,8 @@ export type TreeSVGProps = {
   onEditMapDraftDrop?: (op: import("./tree-edit-map-draft").EditMapDraftOp, nextAreas: AreaData[]) => void;
   /** Themes with no active root hubs — canvas click activates instead of opening panel first. */
   dormantLimbIds?: readonly LifeAreaId[];
+  /** Themes unlocked on the map (hubs may still be closed). */
+  unlockedLimbIds?: readonly LifeAreaId[];
   /** Theme currently awaiting POST /api/branches/activate. */
   activatingLimbId?: LifeAreaId | null;
   /** Theme that just activated — drives staged grow-in SMIL once. */
@@ -157,6 +159,11 @@ export type TreePanelProps = {
   onNavigateToGoal: (goalId: string) => void;
   /** After sparse-context enrich (reload tree data). */
   onSparseEnriched?: () => void | Promise<void>;
+  /** Brief welcome after activating a dormant theme from the map. */
+  themeUnlockBanner?: LifeAreaId | null;
+  /** Raw branch rows for opening inactive hubs on an unlocked theme. */
+  apiBranchRows?: import("@/lib/api-branch-row").ApiBranchRow[];
+  onActivateHub?: (branchId: string, area: AreaData) => void;
 };
 
 export type ViewMode = "tree" | "timeline";

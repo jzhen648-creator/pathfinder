@@ -612,6 +612,9 @@ export function TreePanel({
   onAppendCanonicalTreeMilestone,
   onSetMilestoneCompletion,
   onNavigateToGoal,
+  themeUnlockBanner = null,
+  apiBranchRows = [],
+  onActivateHub,
 }: TreePanelProps) {
   const [goalStatusBusy, setGoalStatusBusy] = useState(false);
   const [goalStatusError, setGoalStatusError] = useState<string | null>(null);
@@ -732,6 +735,10 @@ export function TreePanel({
       area.summary?.trim() || lifeArea?.emptyPrompt || themeCopy.vision;
     const themeTagline = lifeArea?.sublabel;
     const areaCanvasRail = isCanvasDetailRail(panelSurface, panelPresentation);
+    const showUnlockBanner = themeUnlockBanner === area.id;
+    const inactiveHubsForTheme = apiBranchRows.filter(
+      (b) => !b.parentBranchId && b.limbId === area.id && b.isActive !== true,
+    );
     return (
       <section style={railSectionStyle(areaRail, area.color, panelSurface)}>
         {areaCanvasRail ? (
@@ -750,6 +757,32 @@ export function TreePanel({
             </div>
             <div className="pf-tree-rail-catalog">
               <h2 className="pf-tree-rail-title">{area.label}</h2>
+              {showUnlockBanner ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: `1px solid ${area.color}44`,
+                    background: `${area.color}14`,
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: "0 0 6px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
+                    Added to your map
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--color-text-secondary)" }}>
+                    This theme is on your map. Hubs stay closed until you open them — pick one below when you are
+                    ready, or use Stream to talk freely about this part of your life.
+                  </p>
+                </div>
+              ) : null}
               {themeTagline ? <p className="pf-tree-rail-meta">{themeTagline}</p> : null}
               {themeAbout ? <p className="pf-tree-rail-body">{themeAbout}</p> : null}
               <p className="pf-tree-rail-meta">
@@ -775,6 +808,28 @@ export function TreePanel({
               <div className="pf-tree-rail-section-head">
                 <span>Hubs · {branchN}</span>
               </div>
+              {branchN === 0 && inactiveHubsForTheme.length > 0 && onActivateHub ? (
+                <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.45 }}>
+                    Open a hub to start tracking on this theme.
+                  </p>
+                  {inactiveHubsForTheme.map((row) => {
+                    const hubLabel = canonicalHubDisplayLabel(area.id, row.label ?? row.name ?? "Hub");
+                    const blurb = hubPanelCopy(area.id, hubLabel).about;
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        className="pf-tree-rail-hub-card"
+                        onClick={() => onActivateHub(row.id, area)}
+                      >
+                        <span className="pf-tree-rail-hub-card-title">Open {hubLabel}</span>
+                        <p className="pf-tree-rail-hub-card-blurb">{blurb}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               {area.branches.map((thread) => {
                 const threadGoalCount = countRoadmapGoalsOnThread(thread);
                 const hubLabel = thread.type.trim() || "Hub";

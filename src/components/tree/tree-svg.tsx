@@ -276,6 +276,7 @@ function TreeSVGInner({
   editMapDraftAreas = null,
   onEditMapDraftDrop,
   dormantLimbIds = [],
+  unlockedLimbIds = [],
   activatingLimbId = null,
   limbRevealLimbId = null,
   onLimbRevealComplete,
@@ -1549,8 +1550,10 @@ function TreeSVGInner({
             const hubGatewayLayout = forkSpec != null && isHubGatewayLayout(forkSpec);
             const areaLimbId = area.id as LifeAreaId;
             const isDormant = dormantLimbIds.includes(areaLimbId);
+            const isUnlockedEmpty =
+              unlockedLimbIds.includes(areaLimbId) && area.branches.length === 0;
             const isActivating = activatingLimbId === areaLimbId;
-            const isRevealing = limbRevealLimbId === areaLimbId && area.branches.length > 0;
+            const isRevealing = limbRevealLimbId === areaLimbId;
             const revealActive = isRevealing && FLAGS.TREE_THEME_ACTIVATION_ANIM;
             const themeDisplayLabel = TREE_THEME_SHORT_LABEL[areaLimbId] ?? area.label;
 
@@ -3217,6 +3220,28 @@ function TreeSVGInner({
                         pointerEvents="visiblePainted"
                         onClick={onLimbLabelRowClick}
                       />
+                      {isDormant || isActivating || isUnlockedEmpty ? (
+                        <TreeSvgTextLabel
+                          x={lifeAreaLabel.x}
+                          y={lifeAreaLabel.y + (TREE_LIFE_AREA_TITLE_FONT_PX + 6) * 0.55}
+                          text={
+                            isActivating
+                              ? "Adding to your map…"
+                              : isDormant
+                                ? "Tap to add"
+                                : "Open a hub in the panel"
+                          }
+                          color={area.color}
+                          ink={treeMapLimbHueReadableInk(area.color)}
+                          fontSize={11}
+                          fontWeight={600}
+                          fontFamily={TREE_THEME_CANVAS_SERIF}
+                          textAnchor={lifeAreaLabel.textAnchor}
+                          opacity={isActivating ? 0.95 : 0.62}
+                          letterSpacing="0.06em"
+                          pointerEvents="none"
+                        />
+                      ) : null}
                     </g>
                   );
                 })()}
