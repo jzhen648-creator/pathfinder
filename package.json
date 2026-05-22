@@ -35,6 +35,7 @@
     "audit:map-health": "npx tsx scripts/audit-map-health.ts",
     "benchmark:api": "npx tsx scripts/benchmark-api.ts",
     "seed:demo-user": "npx tsx scripts/seed-demo-user.ts",
+    "seed:mandela": "npx tsx scripts/seed-nelson-mandela.ts",
     "smoke-test": "npx tsx scripts/smoke-test.ts"
   },
   "dependencies": {
