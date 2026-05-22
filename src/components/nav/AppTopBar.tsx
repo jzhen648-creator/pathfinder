@@ -13,11 +13,6 @@ const SURFACES = [
   { label: "Review", href: "/issues", match: ["/issues"] },
 ] as const;
 
-function routeVariant(pathname: string): AppTopBarVariant {
-  if (pathname === "/issues" || pathname.startsWith("/issues/")) return "light";
-  return "dark";
-}
-
 function isActive(pathname: string, matchers: readonly string[]): boolean {
   return matchers.some((href) => pathname === href || pathname.startsWith(`${href}/`));
 }
@@ -31,7 +26,7 @@ export function AppTopBar({
 }) {
   const pathname = usePathname();
   const { count: mapIssuesCount } = useMapIssuesCount();
-  const resolvedVariant = variant ?? routeVariant(pathname);
+  const resolvedVariant = variant ?? "dark";
   const isLight = resolvedVariant === "light";
 
   return (

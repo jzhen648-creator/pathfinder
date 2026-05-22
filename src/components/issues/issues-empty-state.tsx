@@ -1,25 +1,34 @@
 export function IssuesEmptyState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-      <svg
-        width="28"
-        height="28"
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden
-        className="mb-3 opacity-40"
-        style={{ color: "var(--rm-text3, #6B7280)" }}
+    <div className="ns-empty-card">
+      <div
+        className="flex size-10 shrink-0 items-center justify-center rounded-[10px]"
+        style={{ background: "var(--ns-ink100)" }}
       >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-        <path
-          d="M7.5 12.5l3 3 6-6.5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <p className="text-[15px] text-(--rm-text2)">Everything looks good</p>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 18 18"
+          fill="none"
+          aria-hidden
+          style={{ color: "var(--ns-text3)" }}
+        >
+          <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.3" />
+          <path
+            d="M5.5 9.3l2.3 2.3 4.8-5.1"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <div>
+        <div className="text-[13px] text-(--ns-text3)">Everything looks good</div>
+        <div className="mt-1 text-[12px] text-(--ns-text3) opacity-70">
+          Your map has no checks that need review.
+        </div>
+      </div>
     </div>
   );
 }
