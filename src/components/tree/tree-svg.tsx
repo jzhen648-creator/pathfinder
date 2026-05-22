@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   memo,
   useCallback,
   useEffect,
@@ -1629,8 +1630,9 @@ function TreeSVGInner({
             const limbTransformOrigin = `${TREE_TRUNK_MIRROR_X}px ${TRUNK_CROWN_Y + (TRUNK_BASE_Y - TRUNK_CROWN_Y) * 0.38}px`;
 
             return (
-              <DormantPulse key={area.id} active={themeVisualState === "dormant"}>
-                <GhostPulse active={themeVisualState === "ghost"}>
+              <Fragment key={area.id}>
+              <DormantPulse active={themeVisualState === "dormant" && !isActivating}>
+                <GhostPulse active={themeVisualState === "ghost" && !isActivating}>
                   <g
                     data-tree-limb-depth-plane={depthStage.plane}
                     style={{
@@ -2937,6 +2939,15 @@ function TreeSVGInner({
                         const hx = snapTreeSvgScalar(tip.x);
                         const hy = snapTreeSvgScalar(tip.y);
                         const HubGlyph = branchIconForHub(areaLimbId, template.threadType, slotIndex);
+                        const ghostLabelFontPx = TREE_DOMAIN_HUB_LABEL_FONT_PX_TRUNK;
+                        const ghostLabelPos = domainHubLabelLayout(
+                          areaLimbId,
+                          tip,
+                          slotIndex,
+                          discR,
+                          TREE_DOMAIN_HUB_LABEL_GAP_PX,
+                          ghostLabelFontPx,
+                        );
                         return (
                           <g key={template.threadType} data-tree-ghost-hub="1">
                             <line
@@ -2960,6 +2971,21 @@ function TreeSVGInner({
                             <g transform={`translate(${hx},${hy})`}>
                               <HubGlyph size={hubIconPx} color={area.color} opacity={0.85} />
                             </g>
+                            <TreeSvgTextLabel
+                              x={ghostLabelPos.x}
+                              y={ghostLabelPos.y}
+                              text={template.name}
+                              color={area.color}
+                              ink={treeMapLimbHueReadableInk(area.color)}
+                              fontSize={ghostLabelFontPx}
+                              fontWeight={700}
+                              textAnchor={ghostLabelPos.textAnchor}
+                              dominantBaseline={ghostLabelPos.dominantBaseline}
+                              opacity={0.5}
+                              maxLines={2}
+                              maxWidthPx={ghostLabelFontPx * 11}
+                              letterSpacing="0.04em"
+                            />
                           </g>
                         );
                       })}
@@ -3272,28 +3298,6 @@ function TreeSVGInner({
                         pointerEvents="visiblePainted"
                         onClick={onLimbLabelRowClick}
                       />
-                      {isDormant || isActivating || isUnlockedEmpty ? (
-                        <TreeSvgTextLabel
-                          x={lifeAreaLabel.x}
-                          y={lifeAreaLabel.y + (TREE_LIFE_AREA_TITLE_FONT_PX + 6) * 0.55}
-                          text={
-                            isActivating
-                              ? "Adding to your map…"
-                              : isDormant
-                                ? "Tap to add"
-                                : "Open a hub in the panel"
-                          }
-                          color={area.color}
-                          ink={treeMapLimbHueReadableInk(area.color)}
-                          fontSize={11}
-                          fontWeight={600}
-                          fontFamily={TREE_THEME_CANVAS_SERIF}
-                          textAnchor={lifeAreaLabel.textAnchor}
-                          opacity={isActivating ? 0.95 : 0.62}
-                          letterSpacing="0.06em"
-                          pointerEvents="none"
-                        />
-                      ) : null}
                     </g>
                   );
                 })()}
@@ -3310,6 +3314,29 @@ function TreeSVGInner({
                   </g>
                 </GhostPulse>
               </DormantPulse>
+              {(isDormant || isActivating || isUnlockedEmpty) ? (
+                <TreeSvgTextLabel
+                  x={lifeAreaLabel.x}
+                  y={lifeAreaLabel.y + (TREE_LIFE_AREA_TITLE_FONT_PX + 6) * 0.55}
+                  text={
+                    isActivating
+                      ? "Adding to your map…"
+                      : isDormant
+                        ? "Tap to add"
+                        : "Open a hub in the panel"
+                  }
+                  color={area.color}
+                  ink={treeMapLimbHueReadableInk(area.color)}
+                  fontSize={11}
+                  fontWeight={600}
+                  fontFamily={TREE_THEME_CANVAS_SERIF}
+                  textAnchor={lifeAreaLabel.textAnchor}
+                  opacity={(isActivating ? 0.95 : 0.62) * composedLimbOpacity}
+                  letterSpacing="0.06em"
+                  pointerEvents="none"
+                />
+              ) : null}
+              </Fragment>
             );
           })}
           {/* eslint-enable react-hooks/refs */}
