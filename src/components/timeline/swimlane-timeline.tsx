@@ -98,15 +98,6 @@ function birthAnchorMs(birthYear: number | null | undefined): number | null {
   return utcMidnightFromParts(y, 0, 1);
 }
 
-function formatAxisDate(ms: number, hasDayPrecision = true): string {
-  const d = new Date(ms);
-  const y = d.getUTCFullYear();
-  const mo = d.getUTCMonth() + 1;
-  const day = d.getUTCDate();
-  if (!hasDayPrecision) return String(y);
-  return `${y}-${String(mo).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
 function excerpt(text: string | null | undefined, max = DESC_PREVIEW_MAX): string | null {
   const t = text?.trim();
   if (!t) return null;
@@ -179,26 +170,34 @@ type SpanSlot = { startMs: number; endMs: number };
 
 function assignGoalBarDepth(goals: GoalSwimNode[]): Map<string, number> {
   const map = new Map<string, number>();
-  const sorted = [...goals].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs || a.id.localeCompare(b.id));
-  const lanes: SpanSlot[] = [];
-  for (const g of sorted) {
-    let depth = 0;
-    while (depth < lanes.length) {
-      const slot = lanes[depth]!;
-      if (g.startMs <= slot.endMs && slot.startMs <= g.endMs) {
-        depth++;
-        continue;
+  const byArea = new Map<string, GoalSwimNode[]>();
+  for (const g of goals) {
+    const list = byArea.get(g.area.id);
+    if (list) list.push(g);
+    else byArea.set(g.area.id, [g]);
+  }
+  for (const [, list] of byArea) {
+    const sorted = [...list].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs || a.id.localeCompare(b.id));
+    const lanes: SpanSlot[] = [];
+    for (const g of sorted) {
+      let depth = 0;
+      while (depth < lanes.length) {
+        const slot = lanes[depth]!;
+        if (g.startMs <= slot.endMs && slot.startMs <= g.endMs) {
+          depth++;
+          continue;
+        }
+        break;
       }
-      break;
+      if (depth === lanes.length) lanes.push({ startMs: g.startMs, endMs: g.endMs });
+      else {
+        lanes[depth] = {
+          startMs: Math.min(lanes[depth]!.startMs, g.startMs),
+          endMs: Math.max(lanes[depth]!.endMs, g.endMs),
+        };
+      }
+      map.set(staggerKey(g), depth);
     }
-    if (depth === lanes.length) lanes.push({ startMs: g.startMs, endMs: g.endMs });
-    else {
-      lanes[depth] = {
-        startMs: Math.min(lanes[depth]!.startMs, g.startMs),
-        endMs: Math.max(lanes[depth]!.endMs, g.endMs),
-      };
-    }
-    map.set(staggerKey(g), depth);
   }
   return map;
 }
@@ -255,8 +254,8 @@ export function SwimlaneTimeline({
   onGoalClick,
   onUpdateGoalTimeline,
 }: SwimlaneTimelineProps) {
-  const [hover, setHover] = useState<{
-    node: SwimNode;
+  const [selectedGoal, setSelectedGoal] = useState<{
+    node: GoalSwimNode;
     clientX: number;
     clientY: number;
   } | null>(null);
@@ -334,6 +333,36 @@ export function SwimlaneTimeline({
     () => assignMomentStagger(momentNodes, (n) => xForMs(n.ms)),
     [momentNodes, xForMs],
   );
+
+  useEffect(() => {
+    if (!selectedGoal) return;
+    const nextNode = goalNodes.find((g) => g.id === selectedGoal.node.id && g.area.id === selectedGoal.node.area.id);
+    if (!nextNode) {
+      setSelectedGoal(null);
+      return;
+    }
+    if (nextNode !== selectedGoal.node) {
+      setSelectedGoal((curr) =>
+        curr && curr.node.id === nextNode.id && curr.node.area.id === nextNode.area.id
+          ? { ...curr, node: nextNode }
+          : curr,
+      );
+    }
+  }, [goalNodes, selectedGoal]);
+
+  useEffect(() => {
+    if (!selectedGoal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedGoal(null);
+    };
+    const onClickAway = () => setSelectedGoal(null);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("click", onClickAway);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("click", onClickAway);
+    };
+  }, [selectedGoal]);
 
   const maxDepthByArea = useMemo(() => {
     const m = new Map<string, number>();
@@ -496,22 +525,21 @@ export function SwimlaneTimeline({
           onMarkPointerEnter={onMarkPointerEnter}
           onMarkPointerLeave={onMarkPointerLeave}
           onMarkClick={onMarkClick}
-          onGoalClick={onGoalClick}
-          setHover={setHover}
+          onSelectGoal={setSelectedGoal}
           onJumpToToday={scrollToNow}
           canJumpToToday={nowX != null}
         />
       </div>
 
-      {hover?.node.kind === "goal" ? (
-        <SwimlaneHoverCard
-          node={hover.node}
-          clientX={hover.clientX}
-          clientY={hover.clientY}
+      {selectedGoal ? (
+        <SwimlaneGoalCard
+          node={selectedGoal.node}
+          clientX={selectedGoal.clientX}
+          clientY={selectedGoal.clientY}
           onUpdateGoalTimeline={onUpdateGoalTimeline}
           onOpen={() => {
-            const node = hover.node;
-            if (node.kind === "goal") onGoalClick(node.goal, node.area);
+            const node = selectedGoal.node;
+            onGoalClick(node.goal, node.area);
           }}
         />
       ) : null}
@@ -566,8 +594,7 @@ type SwimlaneChartProps = {
   onMarkPointerEnter: SwimlaneTimelineProps["onMarkPointerEnter"];
   onMarkPointerLeave: SwimlaneTimelineProps["onMarkPointerLeave"];
   onMarkClick: SwimlaneTimelineProps["onMarkClick"];
-  onGoalClick: SwimlaneTimelineProps["onGoalClick"];
-  setHover: (h: { node: SwimNode; clientX: number; clientY: number } | null) => void;
+  onSelectGoal: (h: { node: GoalSwimNode; clientX: number; clientY: number } | null) => void;
   onJumpToToday: () => void;
   canJumpToToday: boolean;
 };
@@ -589,8 +616,7 @@ function SwimlaneChart({
   onMarkPointerEnter,
   onMarkPointerLeave,
   onMarkClick,
-  onGoalClick,
-  setHover,
+  onSelectGoal,
   onJumpToToday,
   canJumpToToday,
 }: SwimlaneChartProps) {
@@ -682,14 +708,10 @@ function SwimlaneChart({
                         key={`goal-${n.id}`}
                         type="button"
                         aria-label={titleFor(n)}
-                        onClick={() => onGoalClick(n.goal, n.area)}
-                        onMouseEnter={(e) =>
-                          setHover({ node: n, clientX: e.clientX, clientY: e.clientY })
-                        }
-                        onMouseMove={(e) =>
-                          setHover({ node: n, clientX: e.clientX, clientY: e.clientY })
-                        }
-                        onMouseLeave={() => setHover(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectGoal({ node: n, clientX: e.clientX, clientY: e.clientY });
+                        }}
                         style={{
                           position: "absolute",
                           left: x0,
@@ -956,14 +978,14 @@ function effectiveGoalDeadlineIso(g: TreeGoalNode): string {
   return "";
 }
 
-function SwimlaneHoverCard({
+function SwimlaneGoalCard({
   node,
   clientX,
   clientY,
   onUpdateGoalTimeline,
   onOpen,
 }: {
-  node: SwimNode;
+  node: GoalSwimNode;
   clientX: number;
   clientY: number;
   onUpdateGoalTimeline?: SwimlaneTimelineProps["onUpdateGoalTimeline"];
@@ -984,7 +1006,6 @@ function SwimlaneHoverCard({
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (node.kind !== "goal") return;
     setStartIso(effectiveGoalStartIso(node.goal));
     setDeadlineIso(effectiveGoalDeadlineIso(node.goal));
     setErr(null);
@@ -1041,46 +1062,40 @@ function SwimlaneHoverCard({
       ) : null}
       <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.45, marginBottom: 10 }}>{track}</div>
 
-      {node.kind === "moment" ? (
-        <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 10 }}>
-          {formatAxisDate(node.ms, node.dayPrecision)}
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
-          <label>
-            <span style={labelStyle}>Started</span>
-            <input
-              type="date"
-              value={startIso}
-              disabled={busy || !onUpdateGoalTimeline}
-              onChange={(e) => setStartIso(e.target.value)}
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            <span style={labelStyle}>Target deadline</span>
-            <input
-              type="date"
-              value={deadlineIso}
-              disabled={busy || !onUpdateGoalTimeline}
-              onChange={(e) => setDeadlineIso(e.target.value)}
-              style={inputStyle}
-            />
-          </label>
-          {!node.goal.timelineStartIso && node.goal.createdAtIso ? (
-            <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-tertiary)" }}>
-              Default start is created {node.goal.createdAtIso}. Change the date above to override.
-            </p>
-          ) : null}
-        </div>
-      )}
+      <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
+        <label>
+          <span style={labelStyle}>Started</span>
+          <input
+            type="date"
+            value={startIso}
+            disabled={busy || !onUpdateGoalTimeline}
+            onChange={(e) => setStartIso(e.target.value)}
+            style={inputStyle}
+          />
+        </label>
+        <label>
+          <span style={labelStyle}>Target deadline</span>
+          <input
+            type="date"
+            value={deadlineIso}
+            disabled={busy || !onUpdateGoalTimeline}
+            onChange={(e) => setDeadlineIso(e.target.value)}
+            style={inputStyle}
+          />
+        </label>
+        {!node.goal.timelineStartIso && node.goal.createdAtIso ? (
+          <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-tertiary)" }}>
+            Default start is created {node.goal.createdAtIso}. Change the date above to override.
+          </p>
+        ) : null}
+      </div>
 
       {err ? (
         <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--color-text-danger, #f87171)" }}>{err}</p>
       ) : null}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {node.kind === "goal" && onUpdateGoalTimeline ? (
+        {onUpdateGoalTimeline ? (
           <button
             type="button"
             disabled={busy || !/^\d{4}-\d{2}-\d{2}$/.test(startIso)}
