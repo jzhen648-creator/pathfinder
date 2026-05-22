@@ -10,7 +10,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { FLAGS } from "@/lib/flags";
 import type { DensityLevel } from "./tree-density";
@@ -100,6 +100,7 @@ export function TreeLayoutDevPanel({
   collapsed,
   onCollapsedChange,
 }: TreeLayoutDevPanelProps) {
+  const { data: session } = useSession();
   const geometryFileInputRef = useRef<HTMLInputElement | null>(null);
   const [saveDefaultGeomStatus, setSaveDefaultGeomStatus] = useState<"idle" | "saving" | "ok" | "err">("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -113,6 +114,7 @@ export function TreeLayoutDevPanel({
     [layoutOverrides, layoutEditByAreaId],
   );
   const summaryLabel = formatLayoutOverrideSummary(summary);
+  const activeAccountEmail = session?.user?.email ?? "not signed in";
 
   const flashStatus = useCallback((message: string) => {
     setStatusMessage(message);
@@ -137,21 +139,13 @@ export function TreeLayoutDevPanel({
     async (email: string) => {
       setSwitchingAccount(email);
       try {
-        const result = await signIn("credentials", {
+        await signIn("credentials", {
           email,
           password: DEV_ACCOUNT_PASSWORD,
-          redirect: false,
           callbackUrl: "/tree",
         });
-        if (result?.error) {
-          flashStatus(`Sign-in failed for ${email}`);
-          return;
-        }
-        flashStatus(`Signed in as ${email}`);
-        window.location.assign("/tree");
       } catch {
         flashStatus(`Sign-in failed for ${email}`);
-      } finally {
         setSwitchingAccount(null);
       }
     },
@@ -277,37 +271,6 @@ export function TreeLayoutDevPanel({
             </div>
             <span style={{ fontSize: 12, color: "#A8A29E" }}>{`Active: ${densityLevel}`}</span>
           </div>
-
-          {process.env.NODE_ENV === "development" ? (
-            <div style={sectionBox}>
-              <span style={{ fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
-                Dev accounts
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                {DEV_ACCOUNTS.map((email) => {
-                  const switching = switchingAccount === email;
-                  return (
-                    <button
-                      key={email}
-                      type="button"
-                      disabled={switchingAccount != null}
-                      style={{
-                        ...btnNeutral,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        opacity: switchingAccount != null && !switching ? 0.55 : 1,
-                      }}
-                      onClick={() => void switchDevAccount(email)}
-                    >
-                      <span>{email}</span>
-                      {switching ? <span>Signing in...</span> : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
 
           <div style={sectionBox}>
             <span style={{ fontSize: 13, color: "#A8A29E", lineHeight: 1.45 }}>
@@ -572,6 +535,40 @@ export function TreeLayoutDevPanel({
               </button>
             </div>
           </div>
+          {process.env.NODE_ENV === "development" ? (
+            <div style={sectionBox}>
+              <span style={{ fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
+                Dev accounts
+              </span>
+              <span style={{ fontSize: 12, color: "#A8A29E" }}>{`Current: ${activeAccountEmail}`}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {DEV_ACCOUNTS.map((email) => {
+                  const active = activeAccountEmail === email;
+                  const switching = switchingAccount === email;
+                  return (
+                    <button
+                      key={email}
+                      type="button"
+                      disabled={switchingAccount != null}
+                      style={{
+                        ...(active ? btnAccent : btnNeutral),
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        opacity: switchingAccount != null && !switching ? 0.55 : 1,
+                        cursor: switchingAccount != null ? "wait" : "pointer",
+                      }}
+                      onClick={() => void switchDevAccount(email)}
+                      aria-pressed={active}
+                    >
+                      <span>{email}</span>
+                      {switching ? <span>Signing in...</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
