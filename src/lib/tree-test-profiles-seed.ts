@@ -182,6 +182,7 @@ const branchSeedsMyGoals: BranchSeed[] = NEW_PROFILE_ROOT_BRANCH_TEMPLATES.map((
 }));
 
 export async function seedUserTree(prisma: PrismaClient, passwordHash: string, seed: UserTreeSeed) {
+  const seedsExistingMapContent = seed.markSeeds.length > 0 || (seed.goalSeeds?.length ?? 0) > 0;
   const existing = await prisma.user.findUnique({
     where: { email: seed.email },
     select: { id: true },
@@ -194,6 +195,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
           name: seed.name,
           passwordHash,
           onboardingCompleted: true,
+          ...(seedsExistingMapContent ? { firstRunCompleted: true } : {}),
           ...(seed.birthYear !== undefined ? { birthYear: seed.birthYear } : {}),
           ...(seed.birthPlace !== undefined ? { birthPlace: seed.birthPlace } : {}),
         },
@@ -205,6 +207,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
           name: seed.name,
           passwordHash,
           onboardingCompleted: true,
+          firstRunCompleted: seedsExistingMapContent,
           birthYear: seed.birthYear ?? null,
           birthPlace: seed.birthPlace ?? null,
         },
