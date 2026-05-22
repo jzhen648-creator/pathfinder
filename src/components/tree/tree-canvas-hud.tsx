@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useMapIssuesCount } from "@/contexts/map-issues-count-context";
 import { loadMapData } from "@/lib/load-map-data";
 import type { AreaData } from "./tree-types";
@@ -33,7 +33,6 @@ export function TreeCanvasHud({
   panel,
   viewMode,
   onViewModeChange,
-  userName,
   showElementGuide,
   onShowElementGuideChange,
   showElementGuideToggle,
@@ -72,7 +71,6 @@ export function TreeCanvasHud({
 }) {
   const { count, setCount } = useMapIssuesCount();
   const themesRef = useRef<HTMLDivElement>(null);
-  const [navOpen, setNavOpen] = useState(false);
   const stats = computeTreeMapHudStats(areas, hiddenAreaIds);
   const sel = selectionPill(panel);
 
@@ -191,39 +189,6 @@ export function TreeCanvasHud({
           <button type="button" className="pf-tree-hud-btn" onClick={onClearFocus}>
             Exit focus
           </button>
-        ) : null}
-        <button type="button" className="pf-tree-hud-btn" onClick={() => setNavOpen((o) => !o)}>
-          Navigate
-        </button>
-        {navOpen ? (
-          <div
-            className="pf-tree-glass-panel"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              padding: 8,
-              minWidth: 140,
-            }}
-          >
-            {(
-              [
-                { href: "/tree", label: "Tree" },
-                { href: "/roadmap", label: "Roadmap" },
-                { href: "/next-steps", label: "Next steps" },
-              ] as const
-            ).map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="pf-tree-hud-btn"
-                style={{ textDecoration: "none", borderRadius: 8 }}
-                onClick={() => setNavOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
         ) : null}
       </div>
 
