@@ -1441,7 +1441,6 @@ export function TreePanel({
       .join(" · ");
     const userFirstName = firstNameFromUserName(currentUserName);
     const goalSubtitle =
-      goalDescription ||
       goalDateSummary ||
       `${userFirstName ? `${userFirstName} is` : "You are"} tracking this through ${area.label} › ${hubLabel}.`;
     const significance = goal.significanceTier ?? 4;
@@ -1452,20 +1451,54 @@ export function TreePanel({
       void appendCanonicalToServer(goal.id, title);
     };
 
-    const footerButtonStyle: CSSProperties = {
+    const openGoalEdit = () => {
+      setGoalEditTitle(goal.title);
+      setGoalEditError(null);
+      setGoalEditOpen(true);
+    };
+    const setGoalStatus = async (next: TreeGoalNode["bloomStatus"]) => {
+      if (next === goal.bloomStatus || goalStatusBusy) return;
+      setGoalStatusError(null);
+      setGoalStatusBusy(true);
+      const result = await onUpdateGoal(goal.id, { bloomStatus: next });
+      setGoalStatusBusy(false);
+      if (!result.ok) setGoalStatusError(result.error ?? "Could not update status.");
+    };
+    const footerBaseButtonStyle: CSSProperties = {
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
       border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 8,
-      background: "transparent",
-      color: "rgba(255,255,255,0.72)",
+      borderRadius: 999,
+      background: "rgba(255,255,255,0.03)",
+      color: "rgba(245,235,214,0.78)",
       cursor: "pointer",
       fontSize: 12,
       fontWeight: 500,
       padding: "7px 11px",
       whiteSpace: "nowrap",
+      lineHeight: 1,
+    };
+    const footerPrimaryButtonStyle: CSSProperties = {
+      ...footerBaseButtonStyle,
+      borderColor: `${area.color}88`,
+      background: "rgba(255,255,255,0.045)",
+      color: "rgba(255,248,232,0.92)",
+      boxShadow: `inset 0 0 0 1px ${area.color}22`,
+      padding: "8px 13px",
+    };
+    const footerSecondaryButtonStyle: CSSProperties = {
+      ...footerBaseButtonStyle,
+      color: "rgba(245,235,214,0.72)",
+    };
+    const footerTertiaryButtonStyle: CSSProperties = {
+      ...footerBaseButtonStyle,
+      borderColor: "rgba(255,255,255,0.05)",
+      background: "rgba(255,255,255,0.015)",
+      color: "rgba(245,235,214,0.58)",
+      fontSize: 11.5,
+      padding: "6px 9px",
     };
 
     return (
@@ -1741,6 +1774,22 @@ export function TreePanel({
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "18px 22px 16px" }}>
+          {goalDescription ? (
+            <PursuitPanelSection label="About">
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 14,
+                  lineHeight: 1.55,
+                  color: "rgba(255,255,255,0.72)",
+                  textWrap: "pretty",
+                }}
+              >
+                {goalDescription}
+              </p>
+            </PursuitPanelSection>
+          ) : null}
+
           {heardFirstQuote ? (
             <PursuitPanelSection label="Heard first">
               <div
@@ -1780,83 +1829,98 @@ export function TreePanel({
             </PursuitPanelSection>
           ) : null}
 
-          {goal.milestones.length > 0 ? (
-            <PursuitPanelSection label="Milestones" count={goal.milestones.length}>
-              {goal.milestones.map((m) => {
-                const milestoneComplete = milestoneDoneForSemantics({
-                  completedAt: m.completedAt ?? null,
-                  subtasks: m.subtasks.map((s) => ({
-                    isCompleted: isCompletedFor(s),
-                    title: s.title,
-                  })),
-                });
-                const msPending = pendingMilestoneIds.has(m.id);
-                const displayMilestoneComplete = msPending ? !milestoneComplete : milestoneComplete;
-                const dueLabel = milestoneDueLabel(m);
+          <PursuitPanelSection label="Milestones" count={goal.milestones.length}>
+            {goal.milestones.length > 0 ? (
+              goal.milestones.map((m) => {
+                  const milestoneComplete = milestoneDoneForSemantics({
+                    completedAt: m.completedAt ?? null,
+                    subtasks: m.subtasks.map((s) => ({
+                      isCompleted: isCompletedFor(s),
+                      title: s.title,
+                    })),
+                  });
+                  const msPending = pendingMilestoneIds.has(m.id);
+                  const displayMilestoneComplete = msPending ? !milestoneComplete : milestoneComplete;
+                  const dueLabel = milestoneDueLabel(m);
 
-                return (
-                  <label
-                    key={m.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 11,
-                      padding: "8px 0",
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      cursor: msPending ? "wait" : "pointer",
-                      opacity: msPending ? 0.72 : 1,
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={displayMilestoneComplete}
-                      disabled={msPending}
-                      onChange={async () => {
-                        const next = !milestoneComplete;
-                        setMilestoneError(null);
-                        setMilestoneNotice(null);
-                        setPendingMilestoneIds((prev) => new Set(prev).add(m.id));
-                        const result = await onSetMilestoneCompletion(goal.id, m.id, next);
-                        setPendingMilestoneIds((prev) => {
-                          const n = new Set(prev);
-                          n.delete(m.id);
-                          return n;
-                        });
-                        if (!result.ok) setMilestoneError(result.error ?? "Could not update milestone.");
-                        else if (goal.bloomStatus === "ON_HOLD" && next) {
-                          setMilestoneNotice("Milestone saved — status updates when pursuit is reactivated.");
-                        }
-                      }}
-                      style={{ accentColor: area.color, marginTop: 2, cursor: msPending ? "wait" : "pointer" }}
-                    />
-                    <span
+                  return (
+                    <label
+                      key={m.id}
                       style={{
-                        flex: 1,
-                        minWidth: 0,
-                        fontSize: 13.5,
-                        lineHeight: 1.4,
-                        color: displayMilestoneComplete ? "rgba(255,255,255,0.42)" : "rgba(255,255,255,0.92)",
-                        textDecoration: displayMilestoneComplete ? "line-through" : "none",
-                        textDecorationColor: "rgba(255,255,255,0.20)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 11,
+                        padding: "8px 0",
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        cursor: msPending ? "wait" : "pointer",
+                        opacity: msPending ? 0.72 : 1,
                       }}
                     >
-                      {m.title}
-                    </span>
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        marginTop: 3,
-                        fontFamily: "var(--font-pf-tree-mono, ui-monospace, monospace)",
-                        fontSize: 10.5,
-                        color: "rgba(255,255,255,0.42)",
-                        letterSpacing: "0.04em",
-                      }}
-                    >
-                      {dueLabel ?? "this cycle"}
-                    </span>
-                  </label>
-                );
-              })}
+                      <input
+                        type="checkbox"
+                        checked={displayMilestoneComplete}
+                        disabled={msPending}
+                        onChange={async () => {
+                          const next = !milestoneComplete;
+                          setMilestoneError(null);
+                          setMilestoneNotice(null);
+                          setPendingMilestoneIds((prev) => new Set(prev).add(m.id));
+                          const result = await onSetMilestoneCompletion(goal.id, m.id, next);
+                          setPendingMilestoneIds((prev) => {
+                            const n = new Set(prev);
+                            n.delete(m.id);
+                            return n;
+                          });
+                          if (!result.ok) setMilestoneError(result.error ?? "Could not update milestone.");
+                          else if (goal.bloomStatus === "ON_HOLD" && next) {
+                            setMilestoneNotice("Milestone saved — status updates when pursuit is reactivated.");
+                          }
+                        }}
+                        style={{ accentColor: area.color, marginTop: 2, cursor: msPending ? "wait" : "pointer" }}
+                      />
+                      <span
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          fontSize: 13.5,
+                          lineHeight: 1.4,
+                          color: displayMilestoneComplete ? "rgba(255,255,255,0.42)" : "rgba(255,255,255,0.92)",
+                          textDecoration: displayMilestoneComplete ? "line-through" : "none",
+                          textDecorationColor: "rgba(255,255,255,0.20)",
+                        }}
+                      >
+                        {m.title}
+                      </span>
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          marginTop: 3,
+                          fontFamily: "var(--font-pf-tree-mono, ui-monospace, monospace)",
+                          fontSize: 10.5,
+                          color: "rgba(255,255,255,0.42)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {dueLabel ?? "this cycle"}
+                      </span>
+                    </label>
+                  );
+                })
+            ) : (
+              <div
+                style={{
+                  padding: "14px 16px",
+                  border: "1px dashed rgba(255,255,255,0.10)",
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.018)",
+                  color: "rgba(255,255,255,0.52)",
+                  fontSize: 13.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                No milestones yet. Add the next phase when it becomes clear.
+              </div>
+            )}
               <button
                 type="button"
                 disabled={appendBusy}
@@ -1887,12 +1951,11 @@ export function TreePanel({
                   {milestoneNotice}
                 </p>
               ) : null}
-            </PursuitPanelSection>
-          ) : null}
+          </PursuitPanelSection>
 
-          {pursuitMoments.length > 0 ? (
-            <PursuitPanelSection label="Moments" count={pursuitMoments.length}>
-              {pursuitMoments.map((m) => (
+          <PursuitPanelSection label="Marks" count={pursuitMoments.length}>
+            {pursuitMoments.length > 0 ? (
+              pursuitMoments.map((m) => (
                 <div
                   key={m.id}
                   style={{
@@ -1927,9 +1990,46 @@ export function TreePanel({
                     </div>
                   </div>
                 </div>
-              ))}
-            </PursuitPanelSection>
-          ) : null}
+              ))
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  padding: "14px 16px",
+                  border: "1px dashed rgba(201,162,39,0.18)",
+                  borderRadius: 10,
+                  background: "rgba(201,162,39,0.035)",
+                  color: "rgba(255,255,255,0.52)",
+                  fontSize: 13.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                <span>No marks are attached after this pursuit yet.</span>
+                {onOpenGoalStream ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenGoalStream(area, goal)}
+                    style={{
+                      justifySelf: "start",
+                      border: "none",
+                      background: "transparent",
+                      color: PF_TREE_MARK_COLOR,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-pf-tree-mono, ui-monospace, monospace)",
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      padding: 0,
+                    }}
+                  >
+                    Add via Stream
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </PursuitPanelSection>
 
           {parentContinuation || goal.childGoals.length > 0 ? (
             <PursuitPanelSection label="Lineage">
@@ -1992,18 +2092,20 @@ export function TreePanel({
             borderTop: "1px solid rgba(255,255,255,0.05)",
             background: "rgba(7,6,10,0.4)",
             display: "flex",
-            gap: 4,
+            gap: 8,
             alignItems: "center",
+            flexWrap: "wrap",
             overflowX: "auto",
           }}
         >
           {isComplete ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px" }}>
+            <>
               <span
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
+                  flex: 1,
                   color: area.color,
                   fontFamily: "var(--font-pf-tree-mono, ui-monospace, monospace)",
                   fontSize: 11.5,
@@ -2014,58 +2116,54 @@ export function TreePanel({
               >
                 ✓ Completed {completedDisplay}
               </span>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setGoalEditTitle(goal.title);
-                  setGoalEditError(null);
-                  setGoalEditOpen(true);
-                }}
-                style={footerButtonStyle}
-              >
+              <button type="button" onClick={openGoalEdit} style={footerTertiaryButtonStyle}>
                 Edit
               </button>
-              <button
-                type="button"
-                disabled={goalStatusBusy}
-                onClick={async () => {
-                  const next = isOnHold ? "ACTIVE" : "ON_HOLD";
-                  setGoalStatusError(null);
-                  setGoalStatusBusy(true);
-                  const result = await onUpdateGoal(goal.id, { bloomStatus: next });
-                  setGoalStatusBusy(false);
-                  if (!result.ok) setGoalStatusError(result.error ?? "Could not update status.");
-                }}
-                style={footerButtonStyle}
-              >
-                {isOnHold ? "Resume" : "Pause"}
-              </button>
-              <button
-                type="button"
-                disabled={goalStatusBusy}
-                onClick={async () => {
-                  setGoalStatusError(null);
-                  setGoalStatusBusy(true);
-                  const result = await onUpdateGoal(goal.id, { bloomStatus: "COMPLETE" });
-                  setGoalStatusBusy(false);
-                  if (!result.ok) setGoalStatusError(result.error ?? "Could not update status.");
-                }}
-                style={footerButtonStyle}
-              >
-                Mark done
-              </button>
+            </>
+          ) : (
+            <>
               {onOpenGoalStream ? (
                 <button
                   type="button"
                   onClick={() => onOpenGoalStream(area, goal)}
-                  style={{ ...footerButtonStyle, marginLeft: "auto" }}
+                  style={footerPrimaryButtonStyle}
                 >
                   Open in Stream
                 </button>
               ) : null}
+              <button
+                type="button"
+                disabled={goalStatusBusy}
+                onClick={() => void setGoalStatus(isOnHold ? "ACTIVE" : "ON_HOLD")}
+                style={{
+                  ...footerSecondaryButtonStyle,
+                  cursor: goalStatusBusy ? "wait" : "pointer",
+                  opacity: goalStatusBusy ? 0.72 : 1,
+                }}
+              >
+                {isOnHold ? "Reactivate" : "Pause"}
+              </button>
+              {!isOnHold ? (
+                <button
+                  type="button"
+                  disabled={goalStatusBusy}
+                  onClick={() => void setGoalStatus("COMPLETE")}
+                  style={{
+                    ...footerSecondaryButtonStyle,
+                    cursor: goalStatusBusy ? "wait" : "pointer",
+                    opacity: goalStatusBusy ? 0.72 : 1,
+                  }}
+                >
+                  Mark done
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={openGoalEdit}
+                style={{ ...footerTertiaryButtonStyle, marginLeft: "auto" }}
+              >
+                Edit
+              </button>
             </>
           )}
         </div>
