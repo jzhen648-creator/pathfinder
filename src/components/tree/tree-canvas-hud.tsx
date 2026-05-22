@@ -27,16 +27,6 @@ function selectionPill(panel: PanelState): { label: string; accent?: string; mon
   return null;
 }
 
-function userInitials(name: string | null | undefined): string {
-  const trimmed = name?.trim();
-  if (!trimmed) return "PF";
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
-  }
-  return trimmed.slice(0, 2).toUpperCase();
-}
-
 export function TreeCanvasHud({
   areas,
   hiddenAreaIds,
@@ -85,7 +75,6 @@ export function TreeCanvasHud({
   const [navOpen, setNavOpen] = useState(false);
   const stats = computeTreeMapHudStats(areas, hiddenAreaIds);
   const sel = selectionPill(panel);
-  const initials = userInitials(userName);
 
   useEffect(() => {
     if (count != null) return;
@@ -132,37 +121,6 @@ export function TreeCanvasHud({
         >
           {issuesLabel(count)}
         </Link>
-        <div
-          className="pf-tree-glass-panel"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "6px 12px 6px 8px",
-            borderRadius: 999,
-          }}
-          title={userName?.trim() || "Profile"}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "rgba(239, 159, 39, 0.85)",
-              color: "#07060a",
-              fontSize: 11,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {initials}
-          </div>
-          <span style={{ fontSize: 13, color: "var(--pf-tree-ink)", maxWidth: 120 }} className="truncate">
-            {userName?.trim().split(/\s+/)[0] ?? "You"}
-          </span>
-        </div>
         {sel ? (
           <div
             className="pf-tree-glass-panel"

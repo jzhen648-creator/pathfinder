@@ -173,9 +173,9 @@ export function NextStepsShell({ initialGoals, initialBranches, userName, userEm
         }
         .pf-ns .ns-shell {
           display: grid;
-          grid-template-rows: 48px 1fr;
+          grid-template-rows: 1fr;
           grid-template-columns: 220px 1fr;
-          height: 100dvh;
+          height: var(--pf-app-content-height, 100dvh);
           width: 100%;
         }
         .pf-ns .ns-topbar {

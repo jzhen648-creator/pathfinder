@@ -49,16 +49,16 @@ export const PF_ROADMAP_THEME_CSS = `
 }
 .pf-roadmap .pf-roadmap-shell {
   display: grid;
-  grid-template-rows: 48px 1fr;
+  grid-template-rows: 1fr;
   grid-template-columns: 200px 1fr;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: var(--pf-app-content-height, 100dvh);
+  min-height: var(--pf-app-content-height, 100dvh);
 }
 .pf-roadmap .pf-roadmap-shell > header {
   grid-column: 1 / -1;
 }
 .pf-roadmap .rm-sidebar {
-  grid-row: 2;
+  grid-row: 1;
   grid-column: 1;
   background: var(--rm-bgEl);
   border-right: 1px solid var(--rm-border);
@@ -73,7 +73,7 @@ export const PF_ROADMAP_THEME_CSS = `
   margin: 10px 12px;
 }
 .pf-roadmap .rm-main {
-  grid-row: 2;
+  grid-row: 1;
   grid-column: 2;
   background: var(--rm-canvas2);
   overflow: hidden;

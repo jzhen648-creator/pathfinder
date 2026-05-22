@@ -34,8 +34,8 @@ export const PF_TREE_CANVAS_CSS = `
 .pf-tree-canvas-shell {
   position: relative;
   width: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: var(--pf-app-content-height, 100dvh);
+  min-height: var(--pf-app-content-height, 100dvh);
   overflow: hidden;
   background: var(--pf-tree-bg);
 }

@@ -9,42 +9,14 @@ import { loadMapData } from "@/lib/load-map-data";
 
 export type PfChromeShell = "roadmap" | "nextSteps";
 
-export function PfChromeTopbar({
-  shell,
-  avatarInitials,
-  avatarLoading,
-  avatarTitle,
-}: {
+export function PfChromeTopbar(_props: {
   shell: PfChromeShell;
   avatarInitials: string;
   avatarLoading?: boolean;
   avatarTitle: string;
 }) {
-  const ns = shell === "nextSteps";
-  const border = ns ? "var(--ns-border, #D8D9DC)" : "var(--rm-border, #D8D9DC)";
-  const bg = ns ? "var(--ns-bgEl, #fff)" : "var(--rm-bgEl, #fff)";
-  const text1 = ns ? "var(--ns-text1, #1A1C1E)" : "var(--rm-text1, #1A1C1E)";
-  const serif = ns
-    ? "var(--font-pf-ns-serif), Lora, Georgia, serif"
-    : "var(--font-pf-roadmap-serif), Lora, Georgia, serif";
-
-  return (
-    <header className="flex h-12 shrink-0 items-center border-b px-5" style={{ borderColor: border, background: bg }}>
-      <span className="text-[17px] italic leading-none" style={{ color: text1, fontFamily: serif }}>
-        Pathfinder{" "}
-        <span className="ml-1.5 font-sans text-[13px] not-italic opacity-40">Life map</span>
-      </span>
-      <div className="ml-auto flex items-center gap-2">
-        <div
-          className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[12px] font-medium text-white transition-opacity dark:bg-zinc-200 dark:text-zinc-900"
-          style={{ opacity: avatarLoading ? 0.45 : 1 }}
-          title={avatarTitle}
-        >
-          {avatarInitials}
-        </div>
-      </div>
-    </header>
-  );
+  // The authenticated route-group layout renders the unified AppTopBar.
+  return null;
 }
 
 function issuesNavLabel(count: number | null): string {

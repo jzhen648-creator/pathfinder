@@ -17,7 +17,6 @@ export default async function NextStepsPage() {
     select: {
       name: true,
       email: true,
-      onboardingCompleted: true,
       goals: {
         include: {
           milestones: {
@@ -34,10 +33,6 @@ export default async function NextStepsPage() {
 
   if (!user) {
     redirect("/login");
-  }
-
-  if (!user.onboardingCompleted) {
-    redirect("/onboarding");
   }
 
   const marks = await prisma.mark.findMany({

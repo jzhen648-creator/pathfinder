@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { IssuesShell } from "@/components/issues/issues-shell";
 import { authOptions } from "@/lib/auth";
-import { requireOnboardingComplete } from "@/lib/onboarding-gate";
 
 function initialsFromProfile(name: string, email: string): string {
   const n = name.trim();
@@ -18,8 +17,6 @@ function initialsFromProfile(name: string, email: string): string {
 }
 
 export default async function IssuesPage() {
-  await requireOnboardingComplete();
-
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) {
