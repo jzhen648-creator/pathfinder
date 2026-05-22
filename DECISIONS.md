@@ -2,6 +2,10 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-05-22 — Stream extract context budget + session summary scaffold
+
+Stream extract prompts are bounded before model calls: active and archived hub rows use the same caps (`10` pursuits / `20` marks), previous theme session dumps are truncated to three 500-character snippets, and extract/commit input text shares an 8,000-character limit. Theme Stream still routes by catalog inference first; if inference finds no hub matches, context falls back to the two most recently updated theme hubs via `Branch.updatedAt` instead of sending every hub in the theme. V2 session summarisation is scaffolded only: `StreamSession.summaryJson` can later store a structured `StreamSessionSummary` (`intent`, `hubSlugs`, `pursuitTitlesReferenced`, `summary`) from a fail-soft post-commit summarisation step near `recordStreamThemeSession`.
+
 ## 2026-05-19 — Tree / Stream product sprint (panels, marks, edit map)
 
 **Product brief:** [`BRIEF.md`](./BRIEF.md) — current onboarding summary. **Ship log:** [`CHANGELOG.md`](./CHANGELOG.md) (2026-05-19).

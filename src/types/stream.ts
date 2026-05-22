@@ -205,9 +205,18 @@ export type StreamThemeContextInput = {
   previousThemeSessionContext: string;
 };
 
+export const STREAM_EXTRACT_INPUT_MAX_LENGTH = 8000;
+
+export type StreamSessionSummary = {
+  intent: "planning" | "reporting" | "reflecting" | "mixed";
+  hubSlugs: string[];
+  pursuitTitlesReferenced: string[];
+  summary: string;
+};
+
 /** Raw dump + mode sent with theme Stream commit (persisted after successful commit). */
 export const streamSessionCommitFieldsSchema = z.object({
-  inputText: z.string().min(1).max(4000),
+  inputText: z.string().min(1).max(STREAM_EXTRACT_INPUT_MAX_LENGTH),
   inputMode: z.enum(["text", "voice"]),
   itemsAdded: z.number().int().nonnegative(),
   itemsSkipped: z.number().int().nonnegative(),
@@ -218,7 +227,7 @@ export type StreamSessionCommitFields = z.infer<typeof streamSessionCommitFields
 /** Single-hub extract (legacy hub panel entry). */
 export const streamHubExtractRequestSchema = z.object({
   hubId: z.string().min(1),
-  input: z.string().min(1),
+  input: z.string().min(1).max(STREAM_EXTRACT_INPUT_MAX_LENGTH),
   inputMode: z.enum(["text", "voice"]),
 });
 
@@ -226,7 +235,7 @@ export type StreamHubExtractRequest = z.infer<typeof streamHubExtractRequestSche
 
 export const streamThemeExtractRequestSchema = z.object({
   themeId: z.string().min(1),
-  input: z.string().min(1),
+  input: z.string().min(1).max(STREAM_EXTRACT_INPUT_MAX_LENGTH),
   inputMode: z.enum(["text", "voice"]),
 });
 

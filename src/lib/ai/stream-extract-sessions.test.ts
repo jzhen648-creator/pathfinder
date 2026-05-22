@@ -37,6 +37,36 @@ assert.ok(formatted.includes("First dump"));
 assert.ok(formatted.includes("### Session 2 (2026-05-12, voice)"));
 assert.ok(formatted.includes("Second dump"));
 
+const longDump = `${"This is a useful sentence. ".repeat(30)}This tail should not survive.`;
+const cappedDumps = formatPreviousStreamSessionDumps([
+  {
+    inputText: "Dropped oldest dump",
+    inputMode: "text",
+    createdAt: new Date("2026-05-01T12:00:00.000Z"),
+  },
+  {
+    inputText: "Kept first dump",
+    inputMode: "text",
+    createdAt: new Date("2026-05-02T12:00:00.000Z"),
+  },
+  {
+    inputText: longDump,
+    inputMode: "voice",
+    createdAt: new Date("2026-05-03T12:00:00.000Z"),
+  },
+  {
+    inputText: "Kept last dump",
+    inputMode: "text",
+    createdAt: new Date("2026-05-04T12:00:00.000Z"),
+  },
+]);
+
+assert.ok(!cappedDumps.includes("Dropped oldest dump"));
+assert.equal((cappedDumps.match(/### Session/g) ?? []).length, 3);
+assert.ok(cappedDumps.includes("Kept first dump"));
+assert.ok(!cappedDumps.includes("This tail should not survive"));
+assert.ok(cappedDumps.includes("..."));
+
 const withNullParentRef = preprocessStreamExtractJson({
   narrativeSentence: "  You are sorting what matters next.  ",
   marks: [],

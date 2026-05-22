@@ -12,6 +12,7 @@ export type ResolvedHubBranch = {
   hubSlug: string;
   hubLabel: string;
   limbId: LifeAreaId;
+  updatedAt?: Date;
 };
 
 export function normalizeStreamHubSlug(hubSlugOrLabel: string): string {
@@ -50,7 +51,7 @@ export async function resolveBranchForHub(
 
   const roots = await prisma.branch.findMany({
     where: { userId, limbId: themeId, parentBranchId: null },
-    select: { id: true, label: true, name: true, limbId: true },
+    select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
   });
 
   const match = roots.find(
@@ -63,6 +64,7 @@ export async function resolveBranchForHub(
     hubSlug: hubSlugNorm,
     hubLabel: template.threadType,
     limbId: themeId,
+    updatedAt: match.updatedAt,
   };
 }
 
@@ -75,7 +77,7 @@ export async function resolveAllHubBranchesForTheme(
   const templates = hubsForTheme(themeId);
   const roots = await prisma.branch.findMany({
     where: { userId, limbId: themeId, parentBranchId: null },
-    select: { id: true, label: true, name: true, limbId: true },
+    select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
   });
 
   const byKey = new Map<string, (typeof roots)[number]>();
@@ -93,6 +95,7 @@ export async function resolveAllHubBranchesForTheme(
       hubSlug: normalizeHubLabelKey(t.threadType),
       hubLabel: t.threadType,
       limbId: themeId,
+      updatedAt: branch.updatedAt,
     });
   }
   return out;

@@ -227,6 +227,7 @@ model StreamSession {
   inputMode    StreamInputMode
   itemsAdded   Int
   itemsSkipped Int
+  summaryJson  Json?
   createdAt    DateTime        @default(now())
 
   @@index([userId, limbId, createdAt])

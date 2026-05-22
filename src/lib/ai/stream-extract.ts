@@ -451,13 +451,39 @@ export type StreamSessionDumpRow = {
   createdAt: Date;
 };
 
-/** Full prior brain dumps (oldest first), or "None yet". */
+const STREAM_SESSION_DUMP_LIMIT = 3;
+const STREAM_SESSION_DUMP_MAX_CHARS = 500;
+
+function truncateAtSentenceBoundary(text: string, maxChars: number): string {
+  const trimmed = text.trim().replace(/\s+/g, " ");
+  if (trimmed.length <= maxChars) return trimmed;
+
+  const clipped = trimmed.slice(0, maxChars);
+  const sentenceBoundary = Math.max(
+    clipped.lastIndexOf("."),
+    clipped.lastIndexOf("!"),
+    clipped.lastIndexOf("?"),
+  );
+  const boundary =
+    sentenceBoundary >= Math.floor(maxChars * 0.5)
+      ? sentenceBoundary + 1
+      : clipped.lastIndexOf(" ");
+  const cut = boundary > 0 ? clipped.slice(0, boundary).trim() : clipped.trim();
+
+  return `${cut.replace(/[.!?]$/, "")}...`;
+}
+
+/** Truncated prior brain dumps (oldest first), or "None yet". */
 export function formatPreviousStreamSessionDumps(sessions: StreamSessionDumpRow[]): string {
   if (sessions.length === 0) return "None yet";
   return sessions
+    .slice(-STREAM_SESSION_DUMP_LIMIT)
     .map((s, i) => {
       const date = s.createdAt.toISOString().slice(0, 10);
-      return `### Session ${i + 1} (${date}, ${s.inputMode})\n${s.inputText.trim()}`;
+      return `### Session ${i + 1} (${date}, ${s.inputMode})\n${truncateAtSentenceBoundary(
+        s.inputText,
+        STREAM_SESSION_DUMP_MAX_CHARS,
+      )}`;
     })
     .join("\n\n");
 }
@@ -519,10 +545,10 @@ export function buildStreamExtractUserMessage(
     ...(includePriorContext
       ? [
           "## Removed from map (dedup only — hidden pursuits)",
-          JSON.stringify(hub.removedPursuits),
+          JSON.stringify(capPromptPursuits(hub.removedPursuits)),
           "",
           "## Removed from map (dedup only — hidden marks)",
-          JSON.stringify(hub.removedMarks),
+          JSON.stringify(capPromptMarks(hub.removedMarks)),
           "",
         ]
       : []),
@@ -620,7 +646,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "You receive:",
   "- Theme metadata (themeId, themeName)",
   "- For each provided hub in this theme: hubId (normalized slug — use exactly as given), hubLabel (display only), catalog description, existing pursuits (goalId, title, goalType, bloomStatus, parentGoalId — parentGoalId: null means it is currently a root pursuit), existing marks",
-  "- Previous theme-level Stream sessions (full text of up to 3 prior brain dumps on this theme)",
+  "- Previous theme-level Stream sessions (truncated text of up to 3 prior brain dumps on this theme)",
   "- The user's brain dump (typed or transcribed)",
   "",
   "Your job: return one warm narrativeSentence plus proposed marks, pursuits, and milestones with correct hub routing, plus flagged ambiguities — never write prose outside JSON, never explain, never ask questions in running text. Return ONLY one valid JSON object matching the schema below.",
@@ -743,10 +769,10 @@ export function buildStreamThemeExtractUserMessage(
         ? [
             "",
             "#### Removed from map (dedup only — pursuits)",
-            JSON.stringify(h.removedPursuits),
+            JSON.stringify(capPromptPursuits(h.removedPursuits)),
             "",
             "#### Removed from map (dedup only — marks)",
-            JSON.stringify(h.removedMarks),
+            JSON.stringify(capPromptMarks(h.removedMarks)),
           ]
         : []),
     ].join("\n"),

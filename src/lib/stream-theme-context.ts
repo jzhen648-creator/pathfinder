@@ -116,6 +116,16 @@ export function inferLikelyThemeHubSlugs(inputText: string, themeId: LifeAreaId,
   return new Set(scored.map((row) => row.slug));
 }
 
+function fallbackRecentThemeHubs<T extends { updatedAt?: Date }>(hubs: T[], limit = 2): T[] {
+  return [...hubs]
+    .sort((a, b) => {
+      const aTime = a.updatedAt?.getTime() ?? 0;
+      const bTime = b.updatedAt?.getTime() ?? 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit);
+}
+
 /** Load inferred theme hubs with pursuits, marks, and prior session dumps for extract. */
 export async function buildStreamThemeContextInput(
   prisma: PrismaClient,
@@ -135,7 +145,7 @@ export async function buildStreamThemeContextInput(
   const scopedResolved =
     inferredHubSlugs.size > 0
       ? resolved.filter((h) => inferredHubSlugs.has(h.hubSlug))
-      : resolved;
+      : fallbackRecentThemeHubs(resolved);
   const branchIds = scopedResolved.map((h) => h.branchId);
 
   const streamSession = getStreamSessionDelegate(prisma);
