@@ -1,11 +1,11 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { TasksShell } from "@/components/next-steps/next-steps-shell";
 import { authOptions } from "@/lib/auth";
 import { buildNextStepsGoals } from "@/lib/next-steps-serialize";
 import { prisma } from "@/lib/prisma";
-import { NextStepsShell } from "@/components/next-steps/next-steps-shell";
 
-export default async function NextStepsPage() {
+export default async function TasksPage() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) {
@@ -54,7 +54,7 @@ export default async function NextStepsPage() {
   const initialGoals = buildNextStepsGoals(user.goals, marks);
 
   return (
-    <NextStepsShell
+    <TasksShell
       initialGoals={initialGoals}
       initialBranches={branches}
     />

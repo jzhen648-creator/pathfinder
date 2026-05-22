@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
         destination: "/tree",
         permanent: false,
       },
+      {
+        source: "/next-steps",
+        destination: "/tasks",
+        permanent: false,
+      },
+      {
+        source: "/next-steps/:path*",
+        destination: "/tasks/:path*",
+        permanent: false,
+      },
     ];
   },
 };

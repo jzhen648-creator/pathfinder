@@ -8,12 +8,11 @@ type AppTopBarVariant = "dark" | "light";
 
 const SURFACES = [
   { label: "Map", href: "/tree", match: ["/tree"] },
-  { label: "Do", href: "/next-steps", match: ["/next-steps"] },
+  { label: "Tasks", href: "/tasks", match: ["/tasks", "/next-steps"] },
   { label: "Review", href: "/issues", match: ["/issues"] },
 ] as const;
 
 function routeVariant(pathname: string): AppTopBarVariant {
-  if (pathname === "/next-steps" || pathname.startsWith("/next-steps/")) return "light";
   if (pathname === "/issues" || pathname.startsWith("/issues/")) return "light";
   return "dark";
 }

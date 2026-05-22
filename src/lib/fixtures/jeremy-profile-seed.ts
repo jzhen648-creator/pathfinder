@@ -58,7 +58,7 @@ export const JEREMY_SEEDS: MockHubSeed[] = [
     { date: "2024-05-01", title: "Pathfinder concept born", description: "Initial idea: a life map that visualises meaningful moments across life domains. Evolved from gamified life to grounded life-mapping.", type: "decision", sentiment: "positive" },
     { date: "2024-09-15", title: "First radial life wheel working", description: "Self → Limb → Branch → Mark hierarchy rendered as interactive radial map with five colour-coded domains.", type: "achievement", sentiment: "positive" },
     { date: "2025-06-01", title: "Architecture stabilised", description: "Locked core data model: marks are immutable, lines are visual not data, compute don't store.", type: "milestone", sentiment: "positive" },
-    { date: "2025-11-20", title: "Roadmap and Next Steps surfaces built", description: "Goal decomposition into milestones and action planning — product now has three core surfaces.", type: "milestone", sentiment: "positive" },
+    { date: "2025-11-20", title: "Roadmap and Tasks surfaces built", description: "Goal decomposition into milestones and action planning — product now has three core surfaces.", type: "milestone", sentiment: "positive" },
     { date: "2026-03-15", title: "Tree layout redesign started", description: "Moved from radial scatter to trunk-based tree — visual hierarchy finally readable. Feature-flagged for safe iteration.", type: "decision", sentiment: "positive" },
     { date: "2026-05-14", title: "First dogfood session", description: "Used own product with real data — found 8 issues, triaged them, started fixing. Product feels close to real.", type: "milestone", sentiment: "positive" },
   ]},

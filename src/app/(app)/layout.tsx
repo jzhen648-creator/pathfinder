@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getServerSession } from "next-auth";
 import { AppTopBar } from "@/components/nav/AppTopBar";
+import { MapDataProvider } from "@/contexts/map-data-context";
 import { authOptions } from "@/lib/auth";
 import { requireOnboardingComplete } from "@/lib/onboarding-gate";
 
@@ -19,13 +20,15 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         } as CSSProperties
       }
     >
-      <AppTopBar
-        user={{
-          name: session?.user?.name ?? null,
-          email: session?.user?.email ?? null,
-        }}
-      />
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <MapDataProvider>
+        <AppTopBar
+          user={{
+            name: session?.user?.name ?? null,
+            email: session?.user?.email ?? null,
+          }}
+        />
+        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      </MapDataProvider>
     </div>
   );
 }

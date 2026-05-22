@@ -22,11 +22,11 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next Steps · Pathfinder",
-  description: "Pursuit progress and subtasks across themes",
+  title: "Tasks · Pathfinder",
+  description: "Pursuit progress and tasks across themes",
 };
 
-export default function NextStepsLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function TasksLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div
       className={`${lora.variable} ${dmSans.variable} ${dmMono.variable} ${dmSans.className} h-full min-h-0 overflow-hidden`}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
 import { getLifeArea } from "@/lib/life-areas";
 import {
@@ -16,18 +16,6 @@ import {
   nextStepsGoalFromApi,
 } from "@/lib/next-steps-serialize";
 import type { LimbId } from "@/lib/types";
-
-function subscribeDark(cb: () => void) {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-function getDarkSnapshot() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-function getServerDarkSnapshot() {
-  return false;
-}
 
 const LIMB_SHORT: Record<LimbId, string> = {
   work: "Work",
@@ -48,9 +36,9 @@ type Props = {
   initialBranches: { id: string; limbId: string; name: string | null; label: string | null }[];
 };
 
-export function NextStepsShell({ initialGoals, initialBranches }: Props) {
+export function TasksShell({ initialGoals, initialBranches }: Props) {
   const router = useRouter();
-  const isDark = useSyncExternalStore(subscribeDark, getDarkSnapshot, getServerDarkSnapshot);
+  const isDark = true;
   const [goals, setGoals] = useState(initialGoals);
   const [addGoalOpen, setAddGoalOpen] = useState(false);
   const [filterLimb, setFilterLimb] = useState<LimbId | "all">("all");
@@ -127,31 +115,20 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
     <div className="pf-ns h-full overflow-hidden bg-(--ns-canvas) text-(--ns-text1)">
       <style>{`
         .pf-ns {
-          --ns-canvas: #F5F3EE;
-          --ns-canvas2: #EDEBE4;
-          --ns-ink900: #1A1C1E;
-          --ns-ink700: #3D4046;
-          --ns-ink500: #6B7280;
-          --ns-ink300: #B8BDC4;
-          --ns-ink100: #ECEEF0;
-          --ns-bgEl: #FFFFFF;
-          --ns-border: #D8D9DC;
+          --ns-canvas: #07060a;
+          --ns-canvas2: #07060a;
+          --ns-ink900: #e8e4dc;
+          --ns-ink700: rgba(232, 228, 220, 0.68);
+          --ns-ink500: rgba(232, 228, 220, 0.46);
+          --ns-ink300: rgba(232, 228, 220, 0.32);
+          --ns-ink100: rgba(255, 255, 255, 0.06);
+          --ns-bgEl: rgba(255, 255, 255, 0.03);
+          --ns-bgElHover: rgba(255, 255, 255, 0.06);
+          --ns-border: rgba(255, 255, 255, 0.08);
           --ns-text1: var(--ns-ink900);
           --ns-text2: var(--ns-ink700);
           --ns-text3: var(--ns-ink500);
           --ns-ai: #7B68C8;
-        }
-        @media (prefers-color-scheme: dark) {
-          .pf-ns {
-            --ns-canvas: #16181A;
-            --ns-canvas2: #1E2022;
-            --ns-bgEl: #242628;
-            --ns-border: #2E3236;
-            --ns-text1: #E8EAEC;
-            --ns-text2: #9CA3AF;
-            --ns-text3: #6B7280;
-            --ns-ink100: #252729;
-          }
         }
         .pf-ns .ns-shell {
           display: block;
@@ -206,19 +183,13 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
           width: 30px;
           height: 30px;
           border-radius: 50%;
-          background: #1a1c1e;
-          color: #fff;
+          background: var(--ns-ink100);
+          color: var(--ns-text1);
           font-size: 12px;
           font-weight: 500;
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-        @media (prefers-color-scheme: dark) {
-          .pf-ns .ns-avatar {
-            background: #e8eaec;
-            color: #1a1c1e;
-          }
         }
         .pf-ns .ns-sidebar {
           background: var(--ns-bgEl);
@@ -333,20 +304,14 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
           font-family: var(--font-pf-ns-sans), sans-serif;
         }
         .pf-ns .ns-filter-chip:hover {
-          border-color: var(--ns-text3);
+          background: var(--ns-bgElHover);
+          border-color: rgba(255, 255, 255, 0.14);
           color: var(--ns-text1);
         }
         .pf-ns .ns-filter-chip.ns-chip-active {
-          background: #1a1c1e;
-          color: #fff;
-          border-color: #1a1c1e;
-        }
-        @media (prefers-color-scheme: dark) {
-          .pf-ns .ns-filter-chip.ns-chip-active {
-            background: #e8eaec;
-            color: #1a1c1e;
-            border-color: #e8eaec;
-          }
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--ns-text1);
+          border-color: rgba(255, 255, 255, 0.14);
         }
         .pf-ns .ns-content {
           padding: 20px 28px;
@@ -363,11 +328,11 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
           transition: box-shadow 200ms, border-color 200ms;
         }
         .pf-ns .ns-branch-card:hover {
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
           border-color: var(--ns-ink300);
         }
         .pf-ns .ns-branch-card.ns-expanded {
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
         }
         .pf-ns .ns-card-main {
           display: flex;
@@ -480,16 +445,9 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
           cursor: pointer;
         }
         .pf-ns .ns-step-check.ns-done {
-          background: #1a1c1e;
-          border-color: #1a1c1e;
-          color: #fff;
-        }
-        @media (prefers-color-scheme: dark) {
-          .pf-ns .ns-step-check.ns-done {
-            background: #e8eaec;
-            border-color: #e8eaec;
-            color: #1a1c1e;
-          }
+          background: #e8e4dc;
+          border-color: #e8e4dc;
+          color: #07060a;
         }
         .pf-ns .ns-step-check.ns-done::after {
           content: "✓";
@@ -608,11 +566,11 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
         <main className="ns-main">
           <div className="ns-page-header">
             <div className="mb-0.5 flex items-center justify-between gap-3">
-              <h1 className="ns-page-title">Next Steps</h1>
+              <h1 className="ns-page-title">Tasks</h1>
               <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
-                  data-testid="next-steps-add-goal"
+                  data-testid="tasks-add-goal"
                   className="ns-add-goal-btn"
                   onClick={() => setAddGoalOpen(true)}
                 >
@@ -629,7 +587,7 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
                 </Link>
               </div>
             </div>
-            <p className="ns-page-sub">From branches to next steps.</p>
+            <p className="ns-page-sub">From hubs to tasks.</p>
             <div className="ns-filter-row">
               <button
                 type="button"
@@ -690,7 +648,7 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
                     <Link href="/dashboard" className="text-(--ns-text2) underline">
                       Dashboard
                     </Link>{" "}
-                    to see next steps here.
+                    to see tasks here.
                   </div>
                 </div>
               </div>
@@ -705,7 +663,7 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
                   const col = getRoadmapLifeAreaColor(goal.limbId, isDark);
                   const statusStyles =
                     goal.statusTag === "just started"
-                      ? { bg: "rgba(185,140,80,.12)", color: "#7A5820" }
+                      ? { bg: "rgba(185, 140, 80, 0.18)", color: "#e8c58d" }
                       : { bg: sub, color: text };
                   return (
                     <div
@@ -810,7 +768,7 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
                             }}
                           >
                             <div className="ns-add-plus">+</div>
-                            Add next step
+                            Add task
                           </button>
                         </div>
                       ) : null}

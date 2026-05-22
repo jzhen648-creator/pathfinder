@@ -57,7 +57,7 @@ export default async function DashboardPage() {
                 Open life tree
               </Link>
               <Link
-                href="/next-steps"
+                href="/tasks"
                 className="rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-4 py-2 text-sm font-medium text-indigo-200 transition hover:border-indigo-300/60 hover:bg-indigo-500/25"
               >
                 Add pursuit

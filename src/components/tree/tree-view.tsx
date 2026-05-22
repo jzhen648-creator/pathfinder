@@ -11,6 +11,7 @@ import { TreeConversationalGoalCreate } from "@/components/tree/tree-conversatio
 import { TreeConversationalMarkCreate } from "@/components/tree/tree-conversational-mark-create";
 import { buildPreviewAreasFromNodes } from "@/components/stream/stream-hub-preview-data";
 import { StreamOverlay, STREAM_PANEL_WIDTH_PX } from "@/components/stream/stream-overlay";
+import { useMapData } from "@/contexts/map-data-context";
 import { StreamPreviewProvider, useStreamPreview } from "@/contexts/stream-preview-context";
 import { FirstRunWelcomeOverlay } from "@/components/onboarding/first-run-welcome-overlay";
 import { findFirstRunFocusTarget, resolveFirstRunPrimaryLimbId } from "@/lib/first-run-focus";
@@ -58,8 +59,6 @@ import {
   type AddGoalHubContext,
   type AddMomentTreeContext,
   type ArchivedGoalRow,
-  type BranchesResponse,
-  type MarksResponse,
   type PanelState,
   type ViewMode,
 } from "./tree-view-types";
@@ -93,6 +92,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { update: refreshSession } = useSession();
+  const { ensureLoaded: ensureMapDataLoaded, refetch: refetchMapData } = useMapData();
   const [firstRunCompleted, setFirstRunCompleted] = useState(firstRun.completed);
   const firstRunCompletedRef = useRef(firstRun.completed);
   const primaryLimbIdRef = useRef(firstRun.primaryLimbId);
@@ -156,54 +156,23 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const loadData = useCallback(async (options?: { silent?: boolean }): Promise<AreaData[] | undefined> => {
     const silent = options?.silent === true;
     if (!silent) setLoading(true);
-    const fetchOpts: RequestInit = { cache: "no-store", signal: AbortSignal.timeout(30_000) };
     try {
-      const [marksRes, branchesRes] = await Promise.all([
-        fetch("/api/marks?includeArchived=true", fetchOpts),
-        fetch("/api/branches", fetchOpts),
-      ]);
+      const result = silent ? await refetchMapData() : await ensureMapDataLoaded();
 
-      const parseJson = async <T,>(res: Response, label: string): Promise<T | null> => {
-        const text = await res.text();
-        if (!text.trim()) {
-          if (!res.ok) {
-            console.error(`[tree-view] GET ${label} empty body`, { status: res.status });
-          }
-          return null;
-        }
-        try {
-          return JSON.parse(text) as T;
-        } catch (err) {
-          console.error(`[tree-view] GET ${label} invalid JSON`, { status: res.status, err });
-          return null;
-        }
-      };
-
-      const marksJson = await parseJson<MarksResponse>(marksRes, "/api/marks");
-      const branchesJson = await parseJson<BranchesResponse>(branchesRes, "/api/branches");
-
-      if (!branchesRes.ok || branchesJson == null) {
-        const apiErr =
-          branchesJson &&
-          typeof branchesJson === "object" &&
-          "error" in branchesJson &&
-          typeof (branchesJson as { error?: unknown }).error === "string"
-            ? (branchesJson as { error: string }).error
-            : null;
-        const detail = apiErr ?? `Branches request failed (${branchesRes.status})`;
+      if (!result.ok) {
         console.error("[tree-view] GET /api/branches failed — tree will show trunk only", {
-          status: branchesRes.status,
-          detail,
+          detail: result.error,
         });
         setTreeToast({
           msg:
-            apiErr ??
+            result.error ??
             "Could not load hubs. Stop the dev server, run npx prisma generate, restart, then sign out and sign in.",
           color: "#e85d5d",
         });
         return undefined;
       }
 
+      const { marksJson, branchesJson } = result;
       const branchesPayload = branchesJson as { branches?: ApiBranchRow[] };
       setApiBranchRows(Array.isArray(branchesPayload.branches) ? branchesPayload.branches : []);
       const allMarks = normalizeMarks(marksJson ?? { marks: [] });
@@ -227,15 +196,8 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
       }
       setBirthYear(nextBirth);
       if (isDev) {
-        if (!marksRes.ok || marksJson == null) {
-          console.error("[tree-view] GET /api/marks failed — normalized list will be empty", {
-            status: marksRes.status,
-            body: marksJson,
-          });
-        } else if (FLAGS.TREE_DEBUG_MOMENT_CHAIN) {
+        if (FLAGS.TREE_DEBUG_MOMENT_CHAIN) {
           console.log("[tree-view] GET /api/marks → normalized marks used by tree", {
-            httpOk: marksRes.ok,
-            status: marksRes.status,
             count: marks.length,
             marks: marks.map((m) => ({ id: m.id, branchId: m.branchId, title: m.title ?? null })),
           });
@@ -286,7 +248,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [isDev]);
+  }, [ensureMapDataLoaded, isDev, refetchMapData]);
 
   useEffect(() => {
     void loadData();
