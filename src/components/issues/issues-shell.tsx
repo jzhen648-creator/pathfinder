@@ -12,7 +12,7 @@ export function IssuesShell() {
   const hasIssues = issues.length > 0;
 
   return (
-    <div className="pf-roadmap h-(--pf-app-content-height) overflow-hidden text-(--rm-text1)">
+    <div className="pf-roadmap h-full overflow-hidden text-(--rm-text1)">
       <style>{PF_ROADMAP_THEME_CSS}</style>
       <div className="pf-roadmap-shell bg-(--rm-canvas)">
         <main className="rm-main flex min-h-0 flex-col overflow-hidden">
@@ -32,7 +32,7 @@ export function IssuesShell() {
             <p className="mt-1 text-[14px] text-(--rm-text3)">Data quality on your map</p>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             {loading ? (
               <p className="px-5 py-8 text-[14px] text-(--rm-text3)">Loading issues…</p>
             ) : error ? (

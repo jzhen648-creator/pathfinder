@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function IssuesLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div
-      className={`${lora.variable} ${dmSans.variable} ${dmSans.className} min-h-dvh`}
+      className={`${lora.variable} ${dmSans.variable} ${dmSans.className} h-full min-h-0 overflow-hidden`}
       style={{ fontFamily: "var(--font-pf-roadmap-sans), system-ui, sans-serif" }}
     >
       {children}

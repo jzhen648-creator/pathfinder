@@ -983,7 +983,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
 
   if (loading) {
     return (
-      <div className="pf-tree-canvas">
+      <div className="pf-tree-canvas h-full overflow-hidden">
         <style>{PF_TREE_CANVAS_CSS}</style>
         <div
           className="pf-tree-canvas-shell"
@@ -1221,7 +1221,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const detailRailWidthPx = panel?.type === "goal" ? 480 : TREE_DETAIL_RAIL_WIDTH_PX;
 
   return (
-    <div className="pf-tree-canvas min-h-dvh overflow-hidden">
+    <div className="pf-tree-canvas h-full overflow-hidden">
       <style>{PF_TREE_CANVAS_CSS}</style>
       <div className="pf-tree-canvas-shell">
         <div className="pf-tree-canvas-stage">

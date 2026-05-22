@@ -124,7 +124,7 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
   const ink300 = isDark ? "#2E3236" : "#D4D6DA";
 
   return (
-    <div className="pf-ns h-(--pf-app-content-height) overflow-hidden bg-(--ns-canvas) text-(--ns-text1)">
+    <div className="pf-ns h-full overflow-hidden bg-(--ns-canvas) text-(--ns-text1)">
       <style>{`
         .pf-ns {
           --ns-canvas: #F5F3EE;
@@ -155,7 +155,8 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
         }
         .pf-ns .ns-shell {
           display: block;
-          height: var(--pf-app-content-height, 100dvh);
+          height: 100%;
+          min-height: 0;
           width: 100%;
         }
         .pf-ns .ns-topbar {
@@ -287,7 +288,9 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
         }
         .pf-ns .ns-main {
           background: var(--ns-canvas2);
-          overflow: auto;
+          height: 100%;
+          overflow-x: hidden;
+          overflow-y: auto;
           display: flex;
           flex-direction: column;
           min-height: 0;
@@ -311,9 +314,10 @@ export function NextStepsShell({ initialGoals, initialBranches }: Props) {
         }
         .pf-ns .ns-filter-row {
           display: flex;
+          flex-wrap: wrap;
           gap: 6px;
           padding-bottom: 16px;
-          overflow-x: auto;
+          overflow-x: hidden;
         }
         .pf-ns .ns-filter-chip {
           height: 30px;

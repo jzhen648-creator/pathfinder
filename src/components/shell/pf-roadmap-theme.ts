@@ -51,8 +51,9 @@ export const PF_ROADMAP_THEME_CSS = `
   display: grid;
   grid-template-rows: 1fr;
   grid-template-columns: 1fr;
-  height: var(--pf-app-content-height, 100dvh);
-  min-height: var(--pf-app-content-height, 100dvh);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 .pf-roadmap .pf-roadmap-shell > header {
   grid-column: 1 / -1;

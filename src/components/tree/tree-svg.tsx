@@ -761,7 +761,16 @@ export function TreeSVG({
   ]);
 
   return (
-    <div style={{ width: "100%", height: "calc(100vh - 48px)", overflow: "hidden", display: "block", position: "relative", background: TREE_MAP_SURFACE_FILL }}>
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        display: "block",
+        position: "relative",
+        background: TREE_MAP_SURFACE_FILL,
+      }}
+    >
       {TREE_RENDER_STATS_ENABLED ? <TreeRenderStatsHud marksRef={renderMarksRef} /> : null}
       <div
         ref={exportRootRef}

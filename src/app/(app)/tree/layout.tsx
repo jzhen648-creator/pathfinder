@@ -3,5 +3,5 @@ export default function TreeLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <div style={{ minHeight: "var(--pf-app-content-height, 100vh)" }}>{children}</div>
+  return <div className="h-full min-h-0 overflow-hidden">{children}</div>
 }

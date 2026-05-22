@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   return (
     <div
-      className="flex min-h-dvh flex-col bg-[#07060a] text-white"
+      className="flex h-dvh flex-col overflow-hidden bg-[#07060a] text-white"
       style={
         {
           "--pf-app-topbar-height": "52px",
@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           email: session?.user?.email ?? null,
         }}
       />
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );
 }
