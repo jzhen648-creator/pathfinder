@@ -757,6 +757,7 @@ export function buildStreamThemeExtractUserMessage(
         doesNotBelongHere: h.doesNotBelongHere,
         why: "",
         examples: h.examples,
+        firstTimeQuestion: "",
       }),
       "",
       "#### Existing pursuits",

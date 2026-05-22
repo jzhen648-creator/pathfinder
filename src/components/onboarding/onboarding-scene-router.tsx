@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import type { AreaData } from "@/components/tree/tree-types";
+import type { LifeAreaId } from "@/lib/types";
 import type { OnboardingProgress, OnboardingScene } from "@/lib/onboarding-progress";
 import { SceneConfirm } from "./scenes/SceneConfirm";
 import { SceneHorizon } from "./scenes/SceneHorizon";
@@ -21,9 +23,23 @@ export type OnboardingHubOption = {
 type OnboardingSceneRouterProps = {
   initialProgress: OnboardingProgress;
   hubs: OnboardingHubOption[];
+  syntheticAreas: AreaData[];
+  activeAreas: AreaData[];
+  unlockedLimbIds: readonly LifeAreaId[];
 };
 
-export function OnboardingSceneRouter({ initialProgress, hubs }: OnboardingSceneRouterProps) {
+/** Scenes that escape the card layout and take over the viewport. */
+function isFullscreenScene(scene: OnboardingScene): boolean {
+  return scene === 2 || scene === 6;
+}
+
+export function OnboardingSceneRouter({
+  initialProgress,
+  hubs,
+  syntheticAreas,
+  activeAreas,
+  unlockedLimbIds,
+}: OnboardingSceneRouterProps) {
   const router = useRouter();
   const { update: refreshSession } = useSession();
   const [progress, setProgress] = useState<OnboardingProgress>(initialProgress);
@@ -100,32 +116,51 @@ export function OnboardingSceneRouter({ initialProgress, hubs }: OnboardingScene
     }
   }
 
+  // Fullscreen scenes (2, 6) render fixed-position content that escapes the card container.
+  // Card scenes (1, 3, 4, 5) render inside the centered max-w-2xl wrapper.
+  const fullscreen = isFullscreenScene(progress.scene);
+
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      {progress.scene === 1 ? <SceneThreshold onAdvance={onAdvance} pending={pending} /> : null}
-      {progress.scene === 2 ? <SceneThemePick onAdvance={onAdvance} pending={pending} /> : null}
-      {progress.scene === 3 ? (
-        <SceneHubPick
-          themeId={progress.themeId}
-          hubs={selectedThemeHubs}
-          onAdvance={onAdvance}
-          pending={pending}
-        />
+    <>
+      {/* Card container — visible for scenes 1, 3, 4, 5 */}
+      {!fullscreen ? (
+        <div className="mx-auto w-full max-w-2xl px-4 py-10">
+          {progress.scene === 1 ? <SceneThreshold onAdvance={onAdvance} pending={pending} /> : null}
+          {progress.scene === 3 ? (
+            <SceneHubPick
+              themeId={progress.themeId}
+              hubs={selectedThemeHubs}
+              onAdvance={onAdvance}
+              pending={pending}
+            />
+          ) : null}
+          {progress.scene === 4 ? (
+            <SceneStream
+              themeId={progress.themeId}
+              hubSlug={progress.hubSlug}
+              hubs={hubs}
+              onAdvance={onAdvance}
+              pending={pending}
+            />
+          ) : null}
+          {progress.scene === 5 ? <SceneConfirm onAdvance={onAdvance} pending={pending} /> : null}
+          {error ? <p className="mt-5 text-sm text-rose-400">{error}</p> : null}
+        </div>
       ) : null}
-      {progress.scene === 4 ? (
-        <SceneStream
-          themeId={progress.themeId}
-          hubSlug={progress.hubSlug}
-          hubs={hubs}
-          onAdvance={onAdvance}
-          pending={pending}
-        />
+
+      {/* Fullscreen scenes — escape the card container via fixed positioning */}
+      {progress.scene === 2 ? (
+        <SceneThemePick areas={syntheticAreas} onAdvance={onAdvance} pending={pending} />
       ) : null}
-      {progress.scene === 5 ? <SceneConfirm onAdvance={onAdvance} pending={pending} /> : null}
       {progress.scene === 6 ? (
-        <SceneHorizon onAdvance={onAdvance} onComplete={onComplete} pending={pending} />
+        <SceneHorizon
+          areas={activeAreas}
+          unlockedLimbIds={unlockedLimbIds}
+          onAdvance={onAdvance}
+          onComplete={onComplete}
+          pending={pending}
+        />
       ) : null}
-      {error ? <p className="mt-5 text-sm text-rose-400">{error}</p> : null}
-    </div>
+    </>
   );
 }
