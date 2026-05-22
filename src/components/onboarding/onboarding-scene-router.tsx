@@ -112,7 +112,15 @@ export function OnboardingSceneRouter({ initialProgress, hubs }: OnboardingScene
           pending={pending}
         />
       ) : null}
-      {progress.scene === 4 ? <SceneStream onAdvance={onAdvance} pending={pending} /> : null}
+      {progress.scene === 4 ? (
+        <SceneStream
+          themeId={progress.themeId}
+          hubSlug={progress.hubSlug}
+          hubs={hubs}
+          onAdvance={onAdvance}
+          pending={pending}
+        />
+      ) : null}
       {progress.scene === 5 ? <SceneConfirm onAdvance={onAdvance} pending={pending} /> : null}
       {progress.scene === 6 ? (
         <SceneHorizon onAdvance={onAdvance} onComplete={onComplete} pending={pending} />

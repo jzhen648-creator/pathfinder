@@ -16,6 +16,8 @@ export type HubCatalogEntry = {
   examples: string[];
   /** Conversational opening questions shown as clickable chips on empty hubs; each opens Stream pre-prompted. */
   openingQuestions?: [string, string, string];
+  /** First-time guided onboarding Stream Lite placeholder (Scene 4). */
+  firstTimeQuestion: string;
 };
 
 /** Locked default-hub copy — keyed by theme id + hub display name (`Branch.label` / `thread.type`). */
@@ -49,6 +51,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any conversation about pay or a new opportunity you've been putting off?",
         "If you could change one thing about how money comes in, what would it be?",
       ],
+      firstTimeQuestion:
+        "How's the money coming in — and is it where you want it to be?",
     },
     Assets: {
       about:
@@ -78,6 +82,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What does financial independence look like to you, and are you moving toward it?",
         "Any investment decision you've been overthinking?",
       ],
+      firstTimeQuestion:
+        "What are you doing to grow your money, or what would you love to start?",
     },
     "Safety net": {
       about:
@@ -107,6 +113,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What's the scenario that would stress you out most if it happened tomorrow?",
         "Any insurance or emergency fund you keep meaning to sort?",
       ],
+      firstTimeQuestion:
+        "What's the financial thing you don't want to think about — but probably should?",
     },
     Liabilities: {
       about:
@@ -136,6 +144,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any debt with a plan attached, or is it still just floating?",
         "What would it feel like to clear a specific debt — is there a clear target?",
       ],
+      firstTimeQuestion:
+        "Got any debt you'd love to clear, or anything financial weighing on you?",
     },
   },
   work: {
@@ -167,6 +177,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any move — promotion, pivot, new company — you've been circling but not making?",
         "Where do you want to be professionally in two to three years?",
       ],
+      firstTimeQuestion:
+        "What are you doing for work right now, and where do you want it to take you?",
     },
     Skills: {
       about:
@@ -196,6 +208,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any course, qualification, or skill you've been meaning to properly work on?",
         "Who in your field do you admire for their craft — and what do they have that you're still building?",
       ],
+      firstTimeQuestion:
+        "What's something you'd love to be great at — even if you're not there yet?",
     },
     "Builds & Launches": {
       about:
@@ -226,6 +240,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What's the last thing you finished and put out into the world?",
         "Any side project or portfolio piece you've promised yourself you'd start?",
       ],
+      firstTimeQuestion:
+        "What's something you'd love to put out into the world — built, launched, finished?",
     },
   },
   becoming: {
@@ -257,6 +273,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any values you've been living by — or failing to live by — that feel worth naming?",
         "Is there a version of your life you're aiming at that's hard to articulate?",
       ],
+      firstTimeQuestion:
+        "What feels meaningful to you right now — and is your life pointing toward it?",
     },
     "Inner life": {
       about:
@@ -286,6 +304,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any pattern — in yourself, in relationships — that keeps coming up and you haven't got to the bottom of?",
         "Are you doing any deliberate inner work right now — therapy, journalling, anything like that?",
       ],
+      firstTimeQuestion:
+        "What's something about yourself you've been figuring out lately?",
     },
     Joy: {
       about:
@@ -315,6 +335,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any trip, experience, or hobby that keeps getting pushed to next month?",
         "What does a really good week look like for you — is there enough play in it?",
       ],
+      firstTimeQuestion:
+        "What do you love doing for no other reason than the fact you love it?",
     },
   },
   people: {
@@ -346,6 +368,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Is there a relationship with a parent, sibling, or child you'd like to tend more carefully?",
         "Any family dynamic that's been sitting in the background unresolved?",
       ],
+      firstTimeQuestion: "Who in your family is on your mind — for better or worse?",
     },
     Romance: {
       about:
@@ -375,6 +398,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any conversation with your partner you've been putting off?",
         "What does a strong version of this relationship look like — and what's the gap right now?",
       ],
+      firstTimeQuestion:
+        "What's the story of your love life right now — and what would you change?",
     },
     Friendships: {
       about:
@@ -404,6 +429,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Is there a friendship that's drifted that you've been meaning to bring back — who is it with?",
         "What kind of community do you want around you, and is it actually there?",
       ],
+      firstTimeQuestion:
+        "Who do you wish you saw more of, and what's getting in the way?",
     },
   },
   health: {
@@ -435,6 +462,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any training goal — race, programme, physical milestone — you've been working toward or wanting to start?",
         "Is there a way your body feels that you're actively trying to change?",
       ],
+      firstTimeQuestion:
+        "Are you moving your body the way you want to — running, lifting, playing, anything?",
     },
     Nutrition: {
       about:
@@ -464,6 +493,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any eating habit you've been meaning to fix or build?",
         "What does eating well actually mean to you — do you have a clear picture of it?",
       ],
+      firstTimeQuestion: "How's your eating going — fuelling you, or fighting you?",
     },
     Appearance: {
       about:
@@ -493,6 +523,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any grooming, dental, or skin project that's been on the list for a while?",
         "Is there a version of how you present yourself that still feels out of reach?",
       ],
+      firstTimeQuestion:
+        "Is there anything about how you show up — face, hair, style, body — you'd love to upgrade?",
     },
     Rest: {
       about:
@@ -522,6 +554,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any wind-down ritual or recovery habit you keep meaning to build?",
         "When did you last have a proper stretch of rest — not just a night off, but real downtime?",
       ],
+      firstTimeQuestion:
+        "Are you sleeping well, or is rest something you keep meaning to sort out?",
     },
   },
 };
@@ -570,7 +604,13 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
       `Is there something in ${label} you've been meaning to work on?`,
       `What would progress look like for you in ${label}?`,
     ],
+    firstTimeQuestion: `What's on your mind about ${label} right now?`,
   };
+}
+
+/** First-time onboarding Stream placeholder for a hub. */
+export function hubFirstTimeQuestion(areaId: string, hubLabel: string): string {
+  return hubPanelCopy(areaId, hubLabel).firstTimeQuestion;
 }
 
 export function hubPanelCopy(areaId: string, hubLabel: string): HubCatalogEntry {

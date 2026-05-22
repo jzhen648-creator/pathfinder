@@ -97,6 +97,8 @@ export type StreamComposerProps = {
   accent?: string;
   proposalCount?: number;
   voiceOptions?: UseVoiceInputOptions;
+  showFooterHints?: boolean;
+  sendLabel?: string;
 };
 
 export function StreamComposer({
@@ -110,6 +112,8 @@ export function StreamComposer({
   accent,
   proposalCount = 0,
   voiceOptions,
+  showFooterHints = true,
+  sendLabel = "Send",
 }: StreamComposerProps) {
   const voice = useVoiceInput(voiceOptions ?? { enabled: true });
   const holdingRef = useRef(false);
@@ -193,20 +197,22 @@ export function StreamComposer({
           type="button"
           onClick={onSend}
           disabled={!canSend}
-          aria-label="Send"
-          title="Send"
+          aria-label={sendLabel}
+          title={sendLabel}
           style={sendButtonStyle(canSend, sendAccent)}
         >
           <StreamSendIcon />
         </button>
       </div>
-      <div className="pf-stream-composer-footer" aria-hidden>
-        <span>
-          <i className="pf-stream-composer-live-dot" />
-          Listening · {proposalCount} {proposalCount === 1 ? "proposal" : "proposals"} so far
-        </span>
-        <span>⌘↵ send · ⎋ exit</span>
-      </div>
+      {showFooterHints ? (
+        <div className="pf-stream-composer-footer" aria-hidden>
+          <span>
+            <i className="pf-stream-composer-live-dot" />
+            Listening · {proposalCount} {proposalCount === 1 ? "proposal" : "proposals"} so far
+          </span>
+          <span>⌘↵ {sendLabel.toLowerCase()} · ⎋ exit</span>
+        </div>
+      ) : null}
       {voice.transcribing || voice.listening ? (
         <p
           aria-live="polite"

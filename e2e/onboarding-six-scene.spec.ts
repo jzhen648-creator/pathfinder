@@ -46,10 +46,13 @@ test.describe("Six-scene guided onboarding", () => {
     await expect(page.getByText(/Inside Money & Finance there are/i)).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "Income" }).click();
 
-    await expect(page.getByText("[Stream Lite goes here — Phase 5]")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Take your time. Sentences are fine.")).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.locator('textarea[placeholder*="How\'s the money coming in"]'),
+    ).toBeVisible();
 
     await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("[Stream Lite goes here — Phase 5]")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Take your time. Sentences are fine.")).toBeVisible({ timeout: 15_000 });
 
     const advanceToConfirm = page.waitForResponse(
       (res) => res.url().includes("/api/onboarding/advance") && res.request().method() === "POST",

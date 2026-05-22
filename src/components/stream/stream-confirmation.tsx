@@ -39,15 +39,15 @@ import {
 type StreamConfirmationBaseProps = {
   extraction: StreamExtractResponse;
   busy?: boolean;
+  onboardingMode?: boolean;
   onStartOver: () => void;
   onClearPreview?: () => void;
   onDone: () => void;
   onCardFocusHub?: (areaId: string, branchId: string) => void;
-  /** After extract when ambiguous items were committed to the tree. */
   onExtracted?: () => void;
-  /** Theme commit only — raw brain dump from overlay. */
   inputText?: string;
   inputMode?: "text" | "voice";
+  onOnboardingFirstCardConfirmed?: () => void;
 };
 
 export type StreamConfirmationProps = StreamConfirmationBaseProps &
@@ -79,8 +79,17 @@ function decisionFromQueueItem(
 }
 
 export function StreamConfirmation(props: StreamConfirmationProps) {
-  const { extraction, busy = false, onStartOver, onClearPreview, onDone, onCardFocusHub, onExtracted } =
-    props;
+  const {
+    extraction,
+    busy = false,
+    onboardingMode = false,
+    onStartOver,
+    onClearPreview,
+    onDone,
+    onCardFocusHub,
+    onExtracted,
+    onOnboardingFirstCardConfirmed,
+  } = props;
   const isTheme = props.mode === "theme";
   const theme = isTheme ? props.theme : null;
   const hub = !isTheme ? props.hub : null;
@@ -124,6 +133,8 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
   const [skippedClientKeys, setSkippedClientKeys] = useState<Set<string>>(() => new Set());
   const [batchCommitInFlight, setBatchCommitInFlight] = useState(false);
   const [batchCommitError, setBatchCommitError] = useState<string | null>(null);
+  const [onboardingFirstSaved, setOnboardingFirstSaved] = useState(false);
+  const [onboardingCelebration, setOnboardingCelebration] = useState(false);
 
   useEffect(() => {
     setPhase(queue.length === 0 ? "summary" : "cards");
@@ -211,14 +222,43 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
     [addPreviewNode, resolvePreviewRouting],
   );
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = useCallback(async () => {
     if (!currentItem || currentItem.kind === "ambiguous") return;
     const working = mergeQueueItem(currentItem, edits);
     const decision = decisionFromQueueItem(working);
     if (!decision) return;
+
+    if (onboardingMode && !onboardingFirstSaved && hub) {
+      setBatchCommitInFlight(true);
+      setBatchCommitError(null);
+      const payload = buildSingleCommitPayload(decision, skippedClientKeys, new Map());
+      const result = await postStreamCommit(hub.branchId, payload);
+      setBatchCommitInFlight(false);
+      if (!result.ok) {
+        setBatchCommitError(result.error);
+        return;
+      }
+      setOnboardingFirstSaved(true);
+      setOnboardingCelebration(true);
+      onClearPreview?.();
+      onOnboardingFirstCardConfirmed?.();
+      return;
+    }
+
     recordPreviewForDecision(decision);
     advance(decision);
-  }, [advance, currentItem, edits, recordPreviewForDecision]);
+  }, [
+    advance,
+    currentItem,
+    edits,
+    hub,
+    onClearPreview,
+    onOnboardingFirstCardConfirmed,
+    onboardingFirstSaved,
+    onboardingMode,
+    recordPreviewForDecision,
+    skippedClientKeys,
+  ]);
 
   const handleSkip = useCallback(() => {
     if (!currentItem) return;
@@ -388,15 +428,48 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
           </div>
         ) : null}
 
-        {phase === "cards" && queue.length > 0 ? (
+        {onboardingMode && phase === "cards" && cardIndex === 0 ? (
+          <div style={{ margin: "0 22px 12px" }}>
+            <h3
+              style={{
+                margin: "0 0 6px",
+                fontSize: 17,
+                fontWeight: 600,
+                color: "var(--color-text-primary)",
+              }}
+            >
+              Here&apos;s what I heard.
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--color-text-secondary)" }}>
+              Pathfinder turns what you say into your map. Tell me if I got this right.
+            </p>
+          </div>
+        ) : null}
+
+        {onboardingCelebration ? (
+          <p
+            style={{
+              margin: "0 22px 12px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: accent,
+            }}
+          >
+            That&apos;s your first pursuit.
+          </p>
+        ) : null}
+
+        {!onboardingMode && phase === "cards" && queue.length > 0 ? (
           <StreamConfirmationProgress current={cardIndex + 1} total={queue.length} />
         ) : null}
 
-        <div style={{ display: "flex", justifyContent: "center", padding: "4px 22px 8px" }}>
-          <button type="button" onClick={onStartOver} disabled={busy || batchCommitInFlight} style={linkBtnStyle}>
-            Start over
-          </button>
-        </div>
+        {!onboardingMode ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "4px 22px 8px" }}>
+            <button type="button" onClick={onStartOver} disabled={busy || batchCommitInFlight} style={linkBtnStyle}>
+              Start over
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -418,18 +491,19 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
             accent={accent}
             pursuitTitleByRef={pursuitTitleByRef}
             sessionPursuits={extraction.pursuits}
-            theme={isTheme ? props.theme : undefined}
+            theme={isTheme && !onboardingMode ? props.theme : undefined}
             hubSlug={hubSlugForItem(currentItem)}
             onHubRouteChange={
-              isTheme ? (slug) => patchHubRoute(currentItem.id, slug) : undefined
+              isTheme && !onboardingMode ? (slug) => patchHubRoute(currentItem.id, slug) : undefined
             }
             onEdit={patchEdit}
-            onAdd={handleAdd}
+            onAdd={() => void handleAdd()}
             onSkip={handleSkip}
             onResolve={handleResolve}
-            commitInFlight={false}
-            commitError={null}
-            onRetry={handleAdd}
+            commitInFlight={batchCommitInFlight}
+            commitError={batchCommitError}
+            onRetry={() => void handleAdd()}
+            confirmLabel={onboardingMode ? "Yes, that's right" : "Confirm"}
           />
         ) : (
           <StreamConfirmationSummary

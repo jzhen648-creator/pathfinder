@@ -209,27 +209,65 @@ const STREAM_PANEL_SLIDE_CSS = `
   }
 }
 
+.pf-stream-onboarding-embed {
+  position: relative;
+  inset: auto;
+  min-height: 420px;
+  pointer-events: auto;
+  color: var(--rm-text1, var(--color-text-primary));
+}
+
+.pf-stream-onboarding-embed > * {
+  pointer-events: auto;
+}
+
+.pf-stream-onboarding-hint {
+  margin: 0 0 10px;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.pf-stream-composer-onboarding {
+  position: relative;
+  width: 100%;
+  transform: none;
+  left: auto;
+  bottom: auto;
+  animation: none;
+}
+
+.pf-stream-confirm-onboarding {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 100%;
+  height: auto;
+  min-height: 280px;
+  margin-top: 16px;
+  animation: none;
+}
+
+.pf-stream-confirm-onboarding > div {
+  height: auto;
+  min-height: 280px;
+}
+
 `;
 
 type StreamOverlayBaseProps = {
   initialDraft?: string;
-
   initialPlaceholder?: string;
-
+  onboardingMode?: boolean;
+  onboardingQuestion?: string;
   onClose: () => void;
-
   onCommitted: () => void;
-
   onClearPreview?: () => void;
-
-  /** Pan the tree camera to the hub for the active confirmation card. */
-
   onCardFocusHub?: (areaId: string, branchId: string) => void;
-
-  /** Reload tree after extract commits ambiguous items. */
-
   onExtracted?: () => void;
-
+  /** After the first confirmation card is saved during onboarding Stream Lite. */
+  onOnboardingFirstCardConfirmed?: () => void;
   embed?: boolean;
 };
 
@@ -248,41 +286,38 @@ function sessionKey(props: StreamOverlayProps): string {
 }
 
 function composerPlaceholder(props: StreamOverlayProps): string {
+  if (props.onboardingMode && props.onboardingQuestion?.trim()) {
+    return props.onboardingQuestion.trim();
+  }
+  if (props.initialPlaceholder?.trim()) {
+    return props.initialPlaceholder.trim();
+  }
   if (props.mode === "theme") {
     return `What's been happening in ${props.theme.themeName}?`;
   }
-
   return `What's been happening in ${props.hub.branchLabel}?`;
 }
 
 export function StreamOverlay(props: StreamOverlayProps) {
   const {
     initialDraft = "",
-
     initialPlaceholder,
-
+    onboardingMode = false,
+    onboardingQuestion,
     onClose,
-
     onCommitted,
-
     onClearPreview,
-
     onCardFocusHub,
-
     onExtracted,
-
+    onOnboardingFirstCardConfirmed,
     embed = false,
   } = props;
 
   const accent = accentColor(props);
-
   const isTheme = props.mode === "theme";
-
   const headerTitle = isTheme ? props.theme.themeName : props.hub.branchLabel;
-
   const headerSubtitle = isTheme ? "Stream" : props.hub.areaLabel;
-
-  const placeholder = initialPlaceholder?.trim() || composerPlaceholder(props);
+  const placeholder = composerPlaceholder(props);
 
   const [phase, setPhase] = useState<Phase>("input");
 
@@ -317,14 +352,13 @@ export function StreamOverlay(props: StreamOverlayProps) {
   }, [sessionKey(props), initialDraft]);
 
   useEffect(() => {
+    if (onboardingMode) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) onClose();
     };
-
     window.addEventListener("keydown", onKey);
-
     return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
+  }, [busy, onClose, onboardingMode]);
 
   const handleExtract = useCallback(async () => {
     const text = draft.trim();
@@ -418,8 +452,8 @@ export function StreamOverlay(props: StreamOverlayProps) {
   if (!embed && !portalMounted) return null;
 
   const extracting = phase === "extracting";
-
   const composerDisabled = busy || extracting;
+  const onboardingEmbed = Boolean(onboardingMode && embed);
 
   const shell = (
     <>
@@ -431,30 +465,34 @@ export function StreamOverlay(props: StreamOverlayProps) {
       <style dangerouslySetInnerHTML={{ __html: STREAM_COMPOSER_CSS }} />
 
       <div
-        className="pf-roadmap pf-stream-shell pf-stream-overlay-root"
+        className={`pf-roadmap pf-stream-shell ${onboardingEmbed ? "pf-stream-onboarding-embed" : "pf-stream-overlay-root"}`}
         role="dialog"
-        aria-modal="false"
+        aria-modal={onboardingEmbed ? "true" : "false"}
         aria-labelledby="stream-overlay-title"
         style={{ ["--stream-accent" as string]: accent }}
       >
-        <button
-          type="button"
-          className="pf-stream-click-away"
-          aria-label="Close Stream"
-          onClick={() => {
-            if (!busy) onClose();
-          }}
-          disabled={busy}
-        />
+        {!onboardingMode ? (
+          <button
+            type="button"
+            className="pf-stream-click-away"
+            aria-label="Close Stream"
+            onClick={() => {
+              if (!busy) onClose();
+            }}
+            disabled={busy}
+          />
+        ) : null}
 
-        <button type="button" className="pf-stream-back-btn" onClick={onClose} disabled={busy}>
-          ← Back to map
-        </button>
+        {!onboardingMode ? (
+          <button type="button" className="pf-stream-back-btn" onClick={onClose} disabled={busy}>
+            ← Back to map
+          </button>
+        ) : null}
 
-        <div className="pf-stream-state-badge">C · Stream active</div>
+        {!onboardingMode ? <div className="pf-stream-state-badge">C · Stream active</div> : null}
 
         <h2 id="stream-overlay-title" style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}>
-          {headerSubtitle} · {headerTitle}
+          {onboardingEmbed ? "Stream Lite" : `${headerSubtitle} · ${headerTitle}`}
         </h2>
 
         {extracting ? (
@@ -465,7 +503,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
         ) : null}
 
         {phase === "confirm" && extraction ? (
-          <div className="pf-stream-confirm-float">
+          <div className={onboardingEmbed ? "pf-stream-confirm-onboarding" : "pf-stream-confirm-float"}>
             {error ? (
               <p
                 style={{
@@ -487,11 +525,13 @@ export function StreamOverlay(props: StreamOverlayProps) {
                 busy={busy}
                 inputText={draft}
                 inputMode={inputMode}
+                onboardingMode={onboardingMode}
                 onStartOver={handleStartOver}
                 onClearPreview={onClearPreview}
                 onDone={handleDone}
                 onCardFocusHub={onCardFocusHub}
                 onExtracted={onExtracted}
+                onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
               />
             ) : (
               <StreamConfirmation
@@ -499,17 +539,22 @@ export function StreamOverlay(props: StreamOverlayProps) {
                 hub={props.hub}
                 extraction={extraction}
                 busy={busy}
+                onboardingMode={onboardingMode}
                 onStartOver={handleStartOver}
                 onClearPreview={onClearPreview}
                 onDone={handleDone}
                 onCardFocusHub={onCardFocusHub}
                 onExtracted={onExtracted}
+                onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
               />
             )}
           </div>
         ) : null}
 
-        <div className="pf-stream-composer-float">
+        <div className={onboardingEmbed ? "pf-stream-composer-onboarding" : "pf-stream-composer-float"}>
+          {onboardingMode ? (
+            <p className="pf-stream-onboarding-hint">Take your time. Sentences are fine.</p>
+          ) : null}
           <StreamComposer
             value={draft}
             onChange={setDraft}
@@ -520,7 +565,9 @@ export function StreamOverlay(props: StreamOverlayProps) {
             proposalCount={extraction ? extraction.pursuits.length + extraction.milestones.length + extraction.marks.length : 0}
             onSend={() => void handleExtract()}
             onVoiceUsed={() => setVoiceUsedInSession(true)}
-            voiceOptions={{ enabled: true }}
+            voiceOptions={{ enabled: !onboardingMode }}
+            showFooterHints={!onboardingMode}
+            sendLabel="Send"
           />
 
           {error && phase !== "confirm" ? (

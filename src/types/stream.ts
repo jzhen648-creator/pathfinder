@@ -297,6 +297,16 @@ export const streamCommitPayloadSchema = z.object({
 
 export type StreamCommitPayload = z.infer<typeof streamCommitPayloadSchema>;
 
+/** Shared UI session options for tree Stream overlay and onboarding Stream Lite. */
+export type StreamUiSessionOptions = {
+  initialDraft?: string;
+  initialPlaceholder?: string;
+  /** Guided onboarding Stream Lite — constrained copy and first-card gate. */
+  onboardingMode?: boolean;
+  /** Hub-specific first-time question shown as the composer placeholder. */
+  onboardingQuestion?: string;
+};
+
 export type StreamHubUiContext = {
   branchId: string;
   areaId: string;
@@ -308,6 +318,13 @@ export type StreamHubUiContext = {
   /** For milestone labels on confirmation (existing pursuits on hub). */
   existingGoals?: Array<{ id: string; title: string }>;
 };
+
+/** Discriminated Stream UI session (hub or theme) with optional onboarding fields. */
+export type StreamUiSession = StreamUiSessionOptions &
+  (
+    | { mode: "hub"; hub: StreamHubUiContext }
+    | { mode: "theme"; theme: StreamThemeUiContext }
+  );
 
 /** Theme-scoped Stream session passed to the overlay. */
 export type StreamThemeUiContext = {

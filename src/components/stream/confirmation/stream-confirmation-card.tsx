@@ -50,6 +50,7 @@ type Props = {
   commitInFlight?: boolean;
   commitError?: string | null;
   onRetry?: () => void;
+  confirmLabel?: string;
 };
 
 function StreamCardConnector({ strength }: { strength: "pursuit" | "milestone" }) {
@@ -85,6 +86,7 @@ export function StreamConfirmationCard({
   commitInFlight = false,
   commitError = null,
   onRetry,
+  confirmLabel = "Confirm",
 }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const working = mergeQueueItem(queueItem, edits);
@@ -137,6 +139,7 @@ export function StreamConfirmationCard({
           commitInFlight={commitInFlight}
           commitError={commitError}
           onRetry={onRetry}
+          confirmLabel={confirmLabel}
         />
       )}
     </article>
@@ -176,6 +179,7 @@ function StandardBody({
   commitInFlight,
   commitError,
   onRetry,
+  confirmLabel,
 }: {
   working: Exclude<ConfirmationQueueItem, { kind: "ambiguous" }>;
   variant: StreamCardVariant;
@@ -189,6 +193,7 @@ function StandardBody({
   commitInFlight: boolean;
   commitError: string | null;
   onRetry?: () => void;
+  confirmLabel: string;
 }) {
   return (
     <>
@@ -239,7 +244,7 @@ function StandardBody({
               cursor: commitInFlight ? "wait" : "pointer",
             }}
           >
-            {commitInFlight ? "Saving…" : "Confirm"}
+            {commitInFlight ? "Saving…" : confirmLabel}
           </button>
           <button type="button" onClick={onSkip} disabled={commitInFlight} style={ghostBtn()}>
             Skip
