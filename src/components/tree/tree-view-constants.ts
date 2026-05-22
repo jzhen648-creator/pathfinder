@@ -352,3 +352,26 @@ export const MOMENT_ARC_STATION_CACHE_MAX = 96;
 export function nodeRadius(sig: number): number {
   return sig === 3 ? 7 : sig === 2 ? 6 : 5;
 }
+
+// ─── Latent potential node visual states ─────────────────────────────────────
+
+/** Base opacity for dormant (locked) theme/hub nodes. */
+export const DORMANT_OPACITY = 0.25;
+/** Breathing animation lower bound for dormant nodes. */
+export const DORMANT_OPACITY_MIN = 0.20;
+/** Breathing animation upper bound for dormant nodes. */
+export const DORMANT_OPACITY_MAX = 0.30;
+/** Pulse cycle duration (ms) for dormant nodes — slow, calm. */
+export const DORMANT_PULSE_DURATION_MS = 3000;
+
+/** Base opacity for ghost (unlocked but inactive) hub nodes. */
+export const GHOST_OPACITY = 0.40;
+/** Breathing animation lower bound for ghost nodes. */
+export const GHOST_OPACITY_MIN = 0.35;
+/** Breathing animation upper bound for ghost nodes. */
+export const GHOST_OPACITY_MAX = 0.50;
+/** Pulse cycle duration (ms) for ghost nodes — slightly faster than dormant. */
+export const GHOST_PULSE_DURATION_MS = 2500;
+
+/** Full opacity for live (active) nodes — unchanged from existing behaviour. */
+export const LIVE_OPACITY = 1.0;

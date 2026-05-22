@@ -7,6 +7,7 @@ const TREE_TRUNK_LAYOUT_RAW = process.env.NEXT_PUBLIC_TREE_TRUNK_LAYOUT?.toLower
 const TREE_DEBUG_MOMENT_CHAIN_RAW = process.env.NEXT_PUBLIC_DEBUG_TREE_MOMENT_CHAIN;
 const TREE_THREAD_MARKER_VISUALS_RAW = process.env.NEXT_PUBLIC_TREE_THREAD_MARKER_VISUALS?.toLowerCase();
 const TREE_THEME_ACTIVATION_ANIM_RAW = process.env.NEXT_PUBLIC_TREE_THEME_ACTIVATION_ANIM?.toLowerCase();
+const TREE_LATENT_POTENTIAL_RAW = process.env.NEXT_PUBLIC_TREE_LATENT_POTENTIAL?.toLowerCase();
 
 export const FLAGS = {
   DEV_PANEL: true,
@@ -57,6 +58,14 @@ export const FLAGS = {
     TREE_THEME_ACTIVATION_ANIM_RAW === "0" || TREE_THEME_ACTIVATION_ANIM_RAW === "false"
       ? false
       : true,
+  /**
+   * Latent potential visual state system: dormant themes breathe at 20–30 % opacity with a
+   * desaturating filter; ghost hubs (unlocked theme, hub not yet opened) breathe at 35–50 %.
+   * Both use SMIL `<animate>` on SVG group opacity. Live nodes are unchanged.
+   * Set `NEXT_PUBLIC_TREE_LATENT_POTENTIAL=0` in `.env.local` to revert to current behaviour.
+   */
+  TREE_LATENT_POTENTIAL:
+    TREE_LATENT_POTENTIAL_RAW !== "0" && TREE_LATENT_POTENTIAL_RAW !== "false",
 } as const;
 
 export type FeatureFlag = keyof typeof FLAGS;

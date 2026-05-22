@@ -201,6 +201,12 @@ import {
   snapTreeSvgScalar,
 } from "./tree-view-constants";
 import { FLAGS } from "@/lib/flags";
+import { DormantPulse, GhostPulse } from "./tree-node-pulse";
+import {
+  deriveThemeVisualState,
+  ghostHubSlotsForArea,
+  type NodeVisualState,
+} from "./tree-node-visual-state";
 import { branchIconForHub, limbIconForLifeArea, normalizedLimbIconSize } from "@/components/icons";
 import { TreeIconMedallion, iconMedallionRadii } from "./tree-icon-medallion";
 import { TreeFocusPathPulse } from "./tree-focus-path-pulse";
@@ -1555,6 +1561,9 @@ function TreeSVGInner({
             const isActivating = activatingLimbId === areaLimbId;
             const isRevealing = limbRevealLimbId === areaLimbId;
             const revealActive = isRevealing && FLAGS.TREE_THEME_ACTIVATION_ANIM;
+            const themeVisualState: NodeVisualState = FLAGS.TREE_LATENT_POTENTIAL
+              ? deriveThemeVisualState(area, unlockedLimbIds)
+              : "live";
             const themeDisplayLabel = TREE_THEME_SHORT_LABEL[areaLimbId] ?? area.label;
 
             const hubMomentCount = area.branches.reduce((s, br) => s + br.moments.length, 0);
@@ -1620,21 +1629,22 @@ function TreeSVGInner({
             const limbTransformOrigin = `${TREE_TRUNK_MIRROR_X}px ${TRUNK_CROWN_Y + (TRUNK_BASE_Y - TRUNK_CROWN_Y) * 0.38}px`;
 
             return (
-              <g
-                key={area.id}
-                data-tree-limb-depth-plane={depthStage.plane}
-                style={{
-                  opacity: composedLimbOpacity,
-                  transition: FLAGS.FOCUS_MODE ? "opacity 350ms ease" : "opacity 300ms ease",
-                  filter: depthStage.limbVisualFilter,
-                  ...(floatTranslateCss || depthStage.limbComposeTransform
-                    ? {
-                        transform: `${floatTranslateCss}${depthStage.limbComposeTransform ?? ""}`.trim(),
-                        transformOrigin: limbTransformOrigin,
-                      }
-                    : {}),
-                }}
-              >
+              <DormantPulse key={area.id} active={themeVisualState === "dormant"}>
+                <GhostPulse active={themeVisualState === "ghost"}>
+                  <g
+                    data-tree-limb-depth-plane={depthStage.plane}
+                    style={{
+                      opacity: composedLimbOpacity,
+                      transition: FLAGS.FOCUS_MODE ? "opacity 350ms ease" : "opacity 300ms ease",
+                      filter: depthStage.limbVisualFilter,
+                      ...(floatTranslateCss || depthStage.limbComposeTransform
+                        ? {
+                            transform: `${floatTranslateCss}${depthStage.limbComposeTransform ?? ""}`.trim(),
+                            transformOrigin: limbTransformOrigin,
+                          }
+                        : {}),
+                    }}
+                  >
                 {limbBackdropHull ? (
                   <g
                     data-tree-limb-area-veil="1"
@@ -2915,6 +2925,48 @@ function TreeSVGInner({
                   );
                 })}
 
+                {isUnlockedEmpty && FLAGS.TREE_LATENT_POTENTIAL && hubGatewayLayout && forkSpec ? (() => {
+                  const gw = themeGatewayPointForArea(area.id, forkSpec, layoutOverrides[area.id]);
+                  const ghostSlots = ghostHubSlotsForArea(areaLimbId);
+                  if (!ghostSlots.length) return null;
+                  const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX_TRUNK;
+                  const discR = iconMedallionRadii(hubIconPx, "domainHub").discR;
+                  return (
+                    <g data-tree-ghost-hubs="1" pointerEvents="none" aria-hidden>
+                      {ghostSlots.map(({ tip, template, slotIndex }) => {
+                        const hx = snapTreeSvgScalar(tip.x);
+                        const hy = snapTreeSvgScalar(tip.y);
+                        const HubGlyph = branchIconForHub(areaLimbId, template.threadType, slotIndex);
+                        return (
+                          <g key={template.threadType} data-tree-ghost-hub="1">
+                            <line
+                              x1={snapTreeSvgScalar(gw.x)}
+                              y1={snapTreeSvgScalar(gw.y)}
+                              x2={hx}
+                              y2={hy}
+                              stroke={area.color}
+                              strokeWidth={TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX}
+                              strokeLinecap="round"
+                              opacity={TREE_DOMAIN_GATEWAY_SPOKE_OPACITY * 0.7}
+                            />
+                            <circle
+                              cx={hx}
+                              cy={hy}
+                              r={discR}
+                              fill="none"
+                              stroke={area.color}
+                              strokeWidth={1.5}
+                            />
+                            <g transform={`translate(${hx},${hy})`}>
+                              <HubGlyph size={hubIconPx} color={area.color} opacity={0.85} />
+                            </g>
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })() : null}
+
                 {limbFocusPulseActive ? (
                   <g data-tree-focus-path-pulse="1" pointerEvents="none" aria-hidden>
                     {forkSpec != null && isHubGatewayLayout(forkSpec) && !goalPanelPulseGoalId ? (
@@ -3255,7 +3307,9 @@ function TreeSVGInner({
                     />
                   </g>
                 ) : null}
-              </g>
+                  </g>
+                </GhostPulse>
+              </DormantPulse>
             );
           })}
           {/* eslint-enable react-hooks/refs */}
