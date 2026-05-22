@@ -297,16 +297,6 @@ function momentsAttachedToGoal(thread: DomainHubData | undefined, goal: TreeGoal
   return moments;
 }
 
-function goalCompletedDisplay(goal: TreeGoalNode): string {
-  const dates = goal.milestones
-    .map((m) => m.completedAt)
-    .filter((d): d is string => typeof d === "string" && d.length > 0)
-    .sort();
-  const latest = dates.at(-1);
-  if (latest) return formatGoalDateDisplay(latest.slice(0, 10)) ?? latest.slice(0, 10);
-  return "May 15";
-}
-
 /** Hub “Add moment”: insert before the first root goal on the branch line (nearest the hub). */
 function sequenceAnchorForAddMomentFromHub(thread: DomainHubData): SequenceAnchor | null {
   for (const n of thread.sequencedNodes) {
@@ -1444,7 +1434,6 @@ export function TreePanel({
       goalDateSummary ||
       `${userFirstName ? `${userFirstName} is` : "You are"} tracking this through ${area.label} › ${hubLabel}.`;
     const significance = goal.significanceTier ?? 4;
-    const completedDisplay = goalCompletedDisplay(goal);
     const addMilestone = () => {
       const title = formatUserInput(window.prompt("Add milestone") ?? "");
       if (!title || appendBusy) return;
@@ -1455,14 +1444,6 @@ export function TreePanel({
       setGoalEditTitle(goal.title);
       setGoalEditError(null);
       setGoalEditOpen(true);
-    };
-    const setGoalStatus = async (next: TreeGoalNode["bloomStatus"]) => {
-      if (next === goal.bloomStatus || goalStatusBusy) return;
-      setGoalStatusError(null);
-      setGoalStatusBusy(true);
-      const result = await onUpdateGoal(goal.id, { bloomStatus: next });
-      setGoalStatusBusy(false);
-      if (!result.ok) setGoalStatusError(result.error ?? "Could not update status.");
     };
     const footerBaseButtonStyle: CSSProperties = {
       display: "inline-flex",
@@ -1479,18 +1460,6 @@ export function TreePanel({
       padding: "7px 11px",
       whiteSpace: "nowrap",
       lineHeight: 1,
-    };
-    const footerPrimaryButtonStyle: CSSProperties = {
-      ...footerBaseButtonStyle,
-      borderColor: `${area.color}88`,
-      background: "rgba(255,255,255,0.045)",
-      color: "rgba(255,248,232,0.92)",
-      boxShadow: `inset 0 0 0 1px ${area.color}22`,
-      padding: "8px 13px",
-    };
-    const footerSecondaryButtonStyle: CSSProperties = {
-      ...footerBaseButtonStyle,
-      color: "rgba(245,235,214,0.72)",
     };
     const footerTertiaryButtonStyle: CSSProperties = {
       ...footerBaseButtonStyle,
@@ -1771,6 +1740,42 @@ export function TreePanel({
           >
             {goalSubtitle}
           </p>
+          {onOpenGoalStream ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginTop: 12,
+                padding: "10px 12px",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.02)",
+              }}
+            >
+              <span style={{ fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.52)" }}>
+                Add milestones, marks, or context via Stream
+              </span>
+              <button
+                type="button"
+                onClick={() => onOpenGoalStream(area, goal)}
+                style={{
+                  flexShrink: 0,
+                  border: "none",
+                  background: "transparent",
+                  color: area.color,
+                  cursor: "pointer",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  padding: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Open Stream →
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "18px 22px 16px" }}>
@@ -1918,9 +1923,10 @@ export function TreePanel({
                   lineHeight: 1.45,
                 }}
               >
-                No milestones yet. Add the next phase when it becomes clear.
+                No milestones yet — use Stream to plan the steps.
               </div>
             )}
+            {goal.milestones.length > 0 ? (
               <button
                 type="button"
                 disabled={appendBusy}
@@ -1941,6 +1947,7 @@ export function TreePanel({
               >
                 + Add milestone
               </button>
+            ) : null}
               {milestoneError || orbitalError ? (
                 <p style={{ color: "var(--color-text-danger, #f87171)", fontSize: 13, margin: "8px 0 0" }}>
                   {milestoneError ?? orbitalError}
@@ -2092,80 +2099,14 @@ export function TreePanel({
             borderTop: "1px solid rgba(255,255,255,0.05)",
             background: "rgba(7,6,10,0.4)",
             display: "flex",
+            justifyContent: "flex-end",
             gap: 8,
             alignItems: "center",
-            flexWrap: "wrap",
-            overflowX: "auto",
           }}
         >
-          {isComplete ? (
-            <>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flex: 1,
-                  color: area.color,
-                  fontFamily: "var(--font-pf-tree-mono, ui-monospace, monospace)",
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                }}
-              >
-                ✓ Completed {completedDisplay}
-              </span>
-              <button type="button" onClick={openGoalEdit} style={footerTertiaryButtonStyle}>
-                Edit
-              </button>
-            </>
-          ) : (
-            <>
-              {onOpenGoalStream ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenGoalStream(area, goal)}
-                  style={footerPrimaryButtonStyle}
-                >
-                  Open in Stream
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={goalStatusBusy}
-                onClick={() => void setGoalStatus(isOnHold ? "ACTIVE" : "ON_HOLD")}
-                style={{
-                  ...footerSecondaryButtonStyle,
-                  cursor: goalStatusBusy ? "wait" : "pointer",
-                  opacity: goalStatusBusy ? 0.72 : 1,
-                }}
-              >
-                {isOnHold ? "Reactivate" : "Pause"}
-              </button>
-              {!isOnHold ? (
-                <button
-                  type="button"
-                  disabled={goalStatusBusy}
-                  onClick={() => void setGoalStatus("COMPLETE")}
-                  style={{
-                    ...footerSecondaryButtonStyle,
-                    cursor: goalStatusBusy ? "wait" : "pointer",
-                    opacity: goalStatusBusy ? 0.72 : 1,
-                  }}
-                >
-                  Mark done
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={openGoalEdit}
-                style={{ ...footerTertiaryButtonStyle, marginLeft: "auto" }}
-              >
-                Edit
-              </button>
-            </>
-          )}
+          <button type="button" onClick={openGoalEdit} style={footerTertiaryButtonStyle}>
+            Edit
+          </button>
         </div>
       </section>
     );
