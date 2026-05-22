@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getOpacity } from "@/components/tree/tree-branch-geometry";
 import type { AreaData, MomentNode, TreeGoalNode } from "@/components/tree/tree-types";
@@ -12,6 +12,7 @@ const LANE_MIN_H = 48;
 const NODE_R = 5;
 const GOAL_BAR_H = 20;
 const MIN_GOAL_BAR_PX = 10;
+const POINT_GOAL_BAR_PX = 12;
 const MS_PER_DAY = 86400000;
 const MIN_TRACK_PX = 960;
 const PX_PER_DAY = 2.4;
@@ -58,30 +59,50 @@ function msForMoment(m: MomentNode): number | null {
   return utcMidnightFromParts(y, 0, 1);
 }
 
+function goalCalendarDateIso(g: TreeGoalNode): string | null {
+  return (g as TreeGoalNode & { calendarDateIso?: string | null }).calendarDateIso ?? null;
+}
+
+function validIsoMs(iso: string | null | undefined): number | null {
+  return msFromCalendarIso(iso ?? null);
+}
+
 function goalSpanMs(g: TreeGoalNode): { startMs: number; endMs: number } | null {
-  const startIso = g.timelineStartIso ?? g.createdAtIso ?? null;
-  const startMs = msFromCalendarIso(startIso);
-  if (startMs == null) {
-    if (g.year == null) return null;
-    return {
-      startMs: utcMidnightFromParts(g.year, 0, 1),
-      endMs: utcMidnightFromParts(g.year, 11, 31),
-    };
+  const timelineStartMs = validIsoMs(g.timelineStartIso);
+  const calendarMs = validIsoMs(goalCalendarDateIso(g));
+  const deadlineMs = validIsoMs(g.deadlineIso);
+  const createdMs = validIsoMs(g.createdAtIso);
+  const yearMs = g.year == null ? null : utcMidnightFromParts(g.year, 0, 1);
+
+  const semanticStartDates = [timelineStartMs, calendarMs].filter((ms): ms is number => ms != null);
+  const semanticEndDates = [deadlineMs, calendarMs].filter((ms): ms is number => ms != null);
+  const allSemanticDates = [timelineStartMs, calendarMs, deadlineMs].filter((ms): ms is number => ms != null);
+
+  if (allSemanticDates.length === 1) {
+    const onlyMs = allSemanticDates[0]!;
+    return { startMs: onlyMs, endMs: onlyMs };
   }
-  let endMs = msFromCalendarIso(g.deadlineIso ?? null);
-  if (endMs == null && g.year != null) {
-    endMs = utcMidnightFromParts(g.year, 11, 31);
+
+  if (allSemanticDates.length > 1) {
+    const startMs = semanticStartDates.length > 0 ? Math.min(...semanticStartDates) : Math.min(...allSemanticDates);
+    const endMs = semanticEndDates.length > 0 ? Math.max(...semanticEndDates) : Math.max(...allSemanticDates);
+    return endMs < startMs ? { startMs: endMs, endMs: startMs } : { startMs, endMs };
   }
-  if (endMs == null) {
-    endMs = Math.max(startMs, startOfTodayUtc());
-  }
-  if (endMs < startMs) endMs = startMs + MS_PER_DAY;
-  return { startMs, endMs };
+
+  const fallbackMs = createdMs ?? yearMs;
+  if (fallbackMs == null) return null;
+  return { startMs: fallbackMs, endMs: fallbackMs };
 }
 
 function addUtcMonths(base: Date, months: number): number {
   const d = new Date(base.getTime());
   d.setUTCMonth(d.getUTCMonth() + months);
+  return d.getTime();
+}
+
+function addUtcYears(base: Date, years: number): number {
+  const d = new Date(base.getTime());
+  d.setUTCFullYear(d.getUTCFullYear() + years);
   return d.getTime();
 }
 
@@ -259,7 +280,14 @@ export function SwimlaneTimeline({
     clientX: number;
     clientY: number;
   } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef({
+    active: false,
+    startClientX: 0,
+    startScrollLeft: 0,
+    moved: false,
+  });
 
   const allNodes = useMemo(() => collectAllSwimNodes(areas), [areas]);
 
@@ -427,7 +455,7 @@ export function SwimlaneTimeline({
   const showNow = nowMs >= minMs && nowMs <= maxMs;
   const nowX = showNow ? xForMs(nowMs) : null;
 
-  const scrollToNow = useCallback(() => {
+  const scrollToInitialContext = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el || datedCount === 0) return;
     const w = el.clientWidth;
@@ -435,18 +463,91 @@ export function SwimlaneTimeline({
     if (w <= 0) return;
     if (nowX != null) {
       const nowContentX = LANE_LABEL_W + nowX;
-      el.scrollLeft = Math.max(0, Math.min(nowContentX - w * 0.62, maxScroll));
+      const twoYearsAgoX = xForMs(addUtcYears(new Date(nowMs), -2));
+      const twoYearsPx = Math.max(0, nowX - twoYearsAgoX);
+      const todayOffsetPx = Math.min(w * 0.7, Math.max(w * 0.45, twoYearsPx));
+      el.scrollLeft = Math.max(0, Math.min(nowContentX - todayOffsetPx, maxScroll));
     } else {
       el.scrollLeft = maxScroll;
     }
-  }, [datedCount, nowX]);
+  }, [datedCount, nowMs, nowX, xForMs]);
 
   /** Default viewport: recent past + near future around today (not birth-year left edge). */
   useEffect(() => {
-    scrollToNow();
-    const raf = requestAnimationFrame(scrollToNow);
+    scrollToInitialContext();
+    const raf = requestAnimationFrame(scrollToInitialContext);
     return () => cancelAnimationFrame(raf);
-  }, [scrollToNow, innerWidth, trackWidthPx, birthYear]);
+  }, [scrollToInitialContext, innerWidth, trackWidthPx, birthYear]);
+
+  const beginPan = useCallback((clientX: number) => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    panRef.current = {
+      active: true,
+      startClientX: clientX,
+      startScrollLeft: el.scrollLeft,
+      moved: false,
+    };
+    setIsPanning(true);
+  }, []);
+
+  const updatePan = useCallback((clientX: number) => {
+    const el = scrollContainerRef.current;
+    const pan = panRef.current;
+    if (!el || !pan.active) return;
+    const dx = clientX - pan.startClientX;
+    if (Math.abs(dx) > 3) pan.moved = true;
+    el.scrollLeft = pan.startScrollLeft - dx;
+  }, []);
+
+  const endPan = useCallback(() => {
+    if (!panRef.current.active) return;
+    panRef.current.active = false;
+    setIsPanning(false);
+  }, []);
+
+  const handlePanMouseDown = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      beginPan(e.clientX);
+    },
+    [beginPan],
+  );
+
+  const handlePanMouseMove = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      if (!panRef.current.active) return;
+      e.preventDefault();
+      updatePan(e.clientX);
+    },
+    [updatePan],
+  );
+
+  const handlePanTouchStart = useCallback(
+    (e: ReactTouchEvent<HTMLDivElement>) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      beginPan(touch.clientX);
+    },
+    [beginPan],
+  );
+
+  const handlePanTouchMove = useCallback(
+    (e: ReactTouchEvent<HTMLDivElement>) => {
+      const touch = e.touches[0];
+      if (!touch || !panRef.current.active) return;
+      e.preventDefault();
+      updatePan(touch.clientX);
+    },
+    [updatePan],
+  );
+
+  const suppressClickAfterPan = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    if (!panRef.current.moved) return;
+    e.preventDefault();
+    e.stopPropagation();
+    panRef.current.moved = false;
+  }, []);
 
   if (datedCount === 0) {
     return <SwimlaneEmptyState undatedCount={undatedCount} birthYear={birthYear} />;
@@ -476,7 +577,7 @@ export function SwimlaneTimeline({
           lineHeight: 1.55,
         }}
       >
-        Scroll <strong style={{ color: "var(--color-text-secondary)" }}>sideways</strong> — the axis runs from your
+        Drag <strong style={{ color: "var(--color-text-secondary)" }}>sideways</strong> — the axis runs from your
         {birthMs != null ? (
           <>
             {" "}
@@ -497,17 +598,29 @@ export function SwimlaneTimeline({
 
       <div
         ref={scrollContainerRef}
+        onMouseDown={handlePanMouseDown}
+        onMouseMove={handlePanMouseMove}
+        onMouseUp={endPan}
+        onMouseLeave={endPan}
+        onTouchStart={handlePanTouchStart}
+        onTouchMove={handlePanTouchMove}
+        onTouchEnd={endPan}
+        onTouchCancel={endPan}
+        onClickCapture={suppressClickAfterPan}
         style={{
           width: "100%",
           minWidth: 0,
           flex: 1,
           minHeight: 0,
-          overflowX: "auto",
+          overflowX: "hidden",
           overflowY: "hidden",
           overscrollBehaviorX: "contain",
+          touchAction: "none",
           WebkitOverflowScrolling: "touch",
           border: "0.5px solid var(--color-border-tertiary)",
           borderRadius: 12,
+          cursor: isPanning ? "grabbing" : "grab",
+          userSelect: isPanning ? "none" : undefined,
         }}
       >
         <SwimlaneChart
@@ -528,7 +641,7 @@ export function SwimlaneTimeline({
           onMarkPointerLeave={onMarkPointerLeave}
           onMarkClick={onMarkClick}
           onSelectGoal={setSelectedGoal}
-          onJumpToToday={scrollToNow}
+          onJumpToToday={scrollToInitialContext}
           canJumpToToday={nowX != null}
         />
       </div>
@@ -701,7 +814,9 @@ function SwimlaneChart({
                   if (n.kind === "goal") {
                     const x0 = xForMs(n.startMs);
                     const x1 = xForMs(n.endMs);
-                    const w = Math.max(MIN_GOAL_BAR_PX, x1 - x0);
+                    const isPointGoal = n.startMs === n.endMs;
+                    const w = isPointGoal ? POINT_GOAL_BAR_PX : Math.max(MIN_GOAL_BAR_PX, x1 - x0);
+                    const left = isPointGoal ? x0 - POINT_GOAL_BAR_PX / 2 : x0;
                     const depth = goalDepthMap.get(staggerKey(n)) ?? 0;
                     const top = lanePad + depth * goalRowStride;
                     const desc = descriptionFor(n);
@@ -716,7 +831,7 @@ function SwimlaneChart({
                         }}
                         style={{
                           position: "absolute",
-                          left: x0,
+                          left,
                           top,
                           width: w,
                           height: GOAL_BAR_H,
