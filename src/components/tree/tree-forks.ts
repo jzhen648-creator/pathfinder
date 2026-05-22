@@ -554,7 +554,17 @@ export function buildAreaForkFromAnchors(
   const limbStrokeWidth = anchors.limbStrokeWidth;
   const maxSlots = defaultHubSlotCountForArea(straightId);
   const n = Math.min(maxSlots, area?.branches.length ?? 0);
-  const strokeW = 2.5 * CONDUIT_THREAD_STROKE_SCALE;
+  const TRUNK_BRANCH_STROKE_BASE_BY_AREA: Record<StraightLifeAreaId, number> = {
+    work: 2.72,
+    finance: 2.68,
+    people: 2.52,
+    health: 2.5,
+    becoming: 2.34,
+  };
+  const spokeStrokeBase = trunkLayoutEnabled()
+    ? TRUNK_BRANCH_STROKE_BASE_BY_AREA[straightId]
+    : 2.5;
+  const strokeW = spokeStrokeBase * CONDUIT_THREAD_STROKE_SCALE;
   const spokeLen = gatewaySpokeLengthPx(straightId);
   const bowOrigin = connectiveBowOriginForArea(straightId);
 

@@ -160,7 +160,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     side: "left",
     limbOffsetX: 530,
     limbRiseY: 380,
-    hubFanHalfSpanDeg: 92,
+    hubFanHalfSpanDeg: 96,
     hubFanCenterOffsetRad: -0.34,
     hubOrbitRadius: 236,
     hubSpokeLength: 680,
@@ -171,7 +171,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     side: "right",
     limbOffsetX: 510,
     limbRiseY: 420,
-    hubFanHalfSpanDeg: 88,
+    hubFanHalfSpanDeg: 92,
     hubFanCenterOffsetRad: 0.12,
     hubOrbitRadius: 232,
     hubSpokeLength: 640,
@@ -182,7 +182,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     side: "left",
     limbOffsetX: 450,
     limbRiseY: -100,
-    hubFanHalfSpanDeg: 80,
+    hubFanHalfSpanDeg: 78,
     hubOrbitRadius: 248,
     hubSpokeLength: 540,
   },
@@ -192,7 +192,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     side: "right",
     limbOffsetX: 510,
     limbRiseY: -60,
-    hubFanHalfSpanDeg: 72,
+    hubFanHalfSpanDeg: 76,
     hubOrbitRadius: 252,
     hubSpokeLength: 580,
   },
@@ -433,32 +433,44 @@ export type TrunkEmergentLimbProfile = {
 };
 
 export function trunkEmergentLimbProfileForArea(id: StraightLifeAreaId): TrunkEmergentLimbProfile {
-  const slot = TRUNK_THEME_SLOT_BY_ID[id];
-  if (slot.side === "center") {
-    return {
-      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 0.72,
-      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC * 0.8,
-      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX * 0.78,
-      droopBiasFrac: 0,
+  const profiles: Record<StraightLifeAreaId, TrunkEmergentLimbProfile> = {
+    becoming: {
+      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 0.62,
+      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC * 0.92,
+      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX * 0.82,
+      droopBiasFrac: -0.018,
       crown: true,
-    };
-  }
-  if (id === "finance" || id === "health") {
-    return {
-      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 0.92,
-      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC,
-      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX,
-      droopBiasFrac: TRUNK_LIMB_DROOP_BIAS_FRAC,
+    },
+    work: {
+      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 1.14,
+      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC * 0.96,
+      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX * 1.06,
+      droopBiasFrac: 0,
       crown: false,
-    };
-  }
-  return {
-    startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC,
-    endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC,
-    minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX,
-    droopBiasFrac: 0,
-    crown: false,
+    },
+    people: {
+      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 1.08,
+      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC * 1.02,
+      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX * 1.02,
+      droopBiasFrac: 0.012,
+      crown: false,
+    },
+    finance: {
+      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 0.9,
+      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC * 1.16,
+      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX * 1.08,
+      droopBiasFrac: TRUNK_LIMB_DROOP_BIAS_FRAC * 1.32,
+      crown: false,
+    },
+    health: {
+      startHandleFrac: TRUNK_LIMB_START_HANDLE_FRAC * 0.94,
+      endHandleFrac: TRUNK_LIMB_END_HANDLE_FRAC * 1.1,
+      minHandlePx: TRUNK_LIMB_MIN_HANDLE_PX * 1.04,
+      droopBiasFrac: TRUNK_LIMB_DROOP_BIAS_FRAC * 1.18,
+      crown: false,
+    },
   };
+  return profiles[id];
 }
 
 export function computeThemeGatewayFromTrunkSlot(id: StraightLifeAreaId): Point {
