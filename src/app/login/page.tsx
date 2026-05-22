@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -14,11 +14,24 @@ const DEV_LOGIN_EMAIL =
 
 const isDev = process.env.NODE_ENV === "development";
 
-function safePostLoginPath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/onboarding";
-  if (raw.includes("://")) return "/onboarding";
-  if (raw === "/login" || raw.startsWith("/login/")) return "/onboarding";
+function safeCallbackPath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  if (raw.includes("://")) return null;
+  if (raw === "/login" || raw.startsWith("/login/")) return null;
   return raw;
+}
+
+async function resolvePostLoginPath(): Promise<string> {
+  const callback = safeCallbackPath(
+    new URLSearchParams(window.location.search).get("callbackUrl"),
+  );
+  if (callback) return callback;
+
+  const session = await getSession();
+  if (session?.user?.onboardingCompleted) return "/tree";
+  if (session) return "/onboarding";
+  // Cookie may not be visible to getSession yet; app layout gates incomplete users.
+  return "/tree";
 }
 
 export default function LoginPage() {
@@ -47,10 +60,8 @@ export default function LoginPage() {
           return;
         }
 
-        const callback = safePostLoginPath(
-          new URLSearchParams(window.location.search).get("callbackUrl"),
-        );
-        router.push(callback);
+        const destination = await resolvePostLoginPath();
+        router.push(destination);
         router.refresh();
       } catch {
         setError("Something went wrong. Please try again.");

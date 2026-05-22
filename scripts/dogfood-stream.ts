@@ -37,7 +37,7 @@ import {
 
 const prisma = new PrismaClient();
 
-const DEV_EMAIL = process.env.E2E_EMAIL ?? process.env.DEV_PIN_USER_EMAIL ?? "jzhen648@gmail.com";
+const DEV_EMAIL = process.env.E2E_EMAIL ?? "jzhen648@gmail.com";
 const BASE_URL = getApiBaseUrl();
 const DEFAULT_EXTRACT_DELAY_MS = 7000;
 const SLOW_EXTRACT_DELAY_MS = 12000;
@@ -2151,7 +2151,7 @@ async function main(): Promise<void> {
   console.log(`Session OK (login as ${E2E_EMAIL}, session as ${session.email}, map as ${map.userEmail})`);
   if (session.email !== map.userEmail) {
     throw new Error(
-      `Dogfood session/map user mismatch: session is ${session.email}, map is ${map.userEmail}. Set DEV_PIN_USER_EMAIL or E2E_EMAIL so they match.`,
+      `Dogfood session/map user mismatch: session is ${session.email}, map is ${map.userEmail}. Set E2E_EMAIL so they match.`,
     );
   }
 

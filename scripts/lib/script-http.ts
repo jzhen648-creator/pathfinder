@@ -1,6 +1,5 @@
 /**
  * NextAuth credentials login for CLI scripts hitting local API routes.
- * In development the session may be pinned to DEV_PIN_USER_EMAIL (see auth.ts).
  */
 
 export function getApiBaseUrl(): string {

@@ -20,7 +20,7 @@ const prisma = new PrismaClient();
 
 /** Never modify the main dev account or canonical tree fixtures. */
 const PROTECTED_EMAILS = new Set([
-  process.env.DEV_PIN_USER_EMAIL ?? "jzhen648@gmail.com",
+  process.env.NEXT_PUBLIC_DEV_PIN_USER_EMAIL ?? "jzhen648@gmail.com",
   "fulltree@pathfinder.test",
   "mygoals@pathfinder.test",
   "jeremy@pathfinder.test",
