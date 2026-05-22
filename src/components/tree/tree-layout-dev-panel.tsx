@@ -10,6 +10,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { signIn } from "next-auth/react";
 import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { FLAGS } from "@/lib/flags";
 import type { DensityLevel } from "./tree-density";
@@ -63,6 +64,15 @@ const sectionBox: CSSProperties = {
   border: "1px solid rgba(255,255,255,0.08)",
 };
 
+const DEV_ACCOUNTS = [
+  "jeremy@pathfinder.test",
+  "alex.carter@pathfinder.test",
+  "nelson.mandela@pathfinder.test",
+  "fulltree@pathfinder.test",
+] as const;
+
+const DEV_ACCOUNT_PASSWORD = "password123";
+
 export type TreeLayoutDevPanelProps = {
   areas: AreaData[];
   allAreasForForkGeometry: AreaData[];
@@ -93,6 +103,7 @@ export function TreeLayoutDevPanel({
   const geometryFileInputRef = useRef<HTMLInputElement | null>(null);
   const [saveDefaultGeomStatus, setSaveDefaultGeomStatus] = useState<"idle" | "saving" | "ok" | "err">("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
   const [densityLevel, setDensityLevel] = useState<DensityLevel>(FLAGS.TREE_DENSITY);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const densityLevels: DensityLevel[] = ["MIN", "MED", "EXTENSIVE"];
@@ -118,6 +129,31 @@ export function TreeLayoutDevPanel({
       setDensityLevel(level);
       window.dispatchEvent(new CustomEvent(PATHFINDER_GOALS_CHANGED_EVENT));
       flashStatus(`Tree density: ${level}`);
+    },
+    [flashStatus],
+  );
+
+  const switchDevAccount = useCallback(
+    async (email: string) => {
+      setSwitchingAccount(email);
+      try {
+        const result = await signIn("credentials", {
+          email,
+          password: DEV_ACCOUNT_PASSWORD,
+          redirect: false,
+          callbackUrl: "/tree",
+        });
+        if (result?.error) {
+          flashStatus(`Sign-in failed for ${email}`);
+          return;
+        }
+        flashStatus(`Signed in as ${email}`);
+        window.location.assign("/tree");
+      } catch {
+        flashStatus(`Sign-in failed for ${email}`);
+      } finally {
+        setSwitchingAccount(null);
+      }
     },
     [flashStatus],
   );
@@ -241,6 +277,37 @@ export function TreeLayoutDevPanel({
             </div>
             <span style={{ fontSize: 12, color: "#A8A29E" }}>{`Active: ${densityLevel}`}</span>
           </div>
+
+          {process.env.NODE_ENV === "development" ? (
+            <div style={sectionBox}>
+              <span style={{ fontSize: 14, color: "#A8A29E", letterSpacing: "0.03em", textTransform: "uppercase" }}>
+                Dev accounts
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {DEV_ACCOUNTS.map((email) => {
+                  const switching = switchingAccount === email;
+                  return (
+                    <button
+                      key={email}
+                      type="button"
+                      disabled={switchingAccount != null}
+                      style={{
+                        ...btnNeutral,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        opacity: switchingAccount != null && !switching ? 0.55 : 1,
+                      }}
+                      onClick={() => void switchDevAccount(email)}
+                    >
+                      <span>{email}</span>
+                      {switching ? <span>Signing in...</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           <div style={sectionBox}>
             <span style={{ fontSize: 13, color: "#A8A29E", lineHeight: 1.45 }}>
