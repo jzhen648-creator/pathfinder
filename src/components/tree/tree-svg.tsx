@@ -1757,6 +1757,8 @@ function TreeSVGInner({
             const isDormant = dormantLimbIds.includes(areaLimbId);
             const isUnlockedEmpty =
               unlockedLimbIds.includes(areaLimbId) && area.branches.length === 0;
+            const isUnlockedTheme = unlockedLimbIds.includes(areaLimbId);
+            const isThemePanelSelected = panel.type === "area" && panel.area.id === area.id;
             const isActivating = activatingLimbId === areaLimbId;
             const isRevealing = limbRevealLimbId === areaLimbId;
             const obHubPickActive = onboardingHubPickMode != null;
@@ -1773,6 +1775,8 @@ function TreeSVGInner({
               ? deriveThemeVisualState(area, unlockedLimbIds)
               : "live";
             const themeDisplayLabel = TREE_THEME_SHORT_LABEL[areaLimbId] ?? area.label;
+            const shouldShowInactiveGhostHubs =
+              isUnlockedTheme && (isThemePanelSelected || obHubPickSelected);
 
             const hubMomentCount = area.branches.reduce((s, br) => s + br.moments.length, 0);
             const hubGoalCount = area.branches.reduce((s, br) => s + br.goals.length, 0);
@@ -3142,11 +3146,12 @@ function TreeSVGInner({
                   );
                 })}
 
-                {isUnlockedEmpty && FLAGS.TREE_LATENT_POTENTIAL && useGatewayLayout && renderForkSpec ? (() => {
+                {shouldShowInactiveGhostHubs && FLAGS.TREE_LATENT_POTENTIAL && useGatewayLayout && renderForkSpec ? (() => {
                   if (obHubPickActive && !obHubPickSelected) return null;
                   const gw = themeGatewayPointForArea(area.id, renderForkSpec, layoutOverrides[area.id]);
                   const ghostSlots = ghostHubSlotsForArea(areaLimbId, {
-                    forkSpec: renderForkSpec,
+                    activeBranches: area.branches,
+                    forkSpec: previewForks[area.id] ?? renderForkSpec,
                     layoutOv: layoutOverrides[area.id],
                     layoutAnchors: { trunkAttach: renderForkSpec.trunkAttach, gateway: renderForkSpec.limbTip },
                   });
@@ -3640,7 +3645,7 @@ function TreeSVGInner({
               {(isDormant ||
                 isActivating ||
                 obHubPickSelected ||
-                (isUnlockedEmpty && !obHubPickActive)) &&
+                (shouldShowInactiveGhostHubs && !obHubPickActive)) &&
               !(obHubPickPeer && !isActivating) ? (
                 <TreeSvgTextLabel
                   x={lifeAreaLabel.x}

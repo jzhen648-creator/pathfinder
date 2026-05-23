@@ -551,19 +551,28 @@ function emptyForkSpec(): AreaForkSpec {
 }
 
 /**
- * Build fork geometry from authored gateways: theme node at {@link AreaAnchors.gateway}, hub
- * branches at square-corner directions (four) or diamond-plus-vertical (six on health).
+ * Preview fork geometry for themes with no active hub rows — full gateway + hub fan layout.
+ * Render-only; does not reflect DB state.
  */
-export function buildAreaForkFromAnchors(
+export function buildPreviewAreaForkFromAnchors(
   areaId: string,
-  area: AreaData | undefined,
+  hubSlotCount?: number,
 ): AreaForkSpec {
   const straightId = areaId as StraightLifeAreaId;
   if (!STRAIGHT_LIFE_AREA_IDS.includes(straightId)) return emptyForkSpec();
+  const maxSlots = defaultHubSlotCountForArea(straightId);
+  const n = hubSlotCount ?? maxSlots;
+  return buildAreaForkFromAnchorsWithSpokeCount(straightId, n);
+}
+
+function buildAreaForkFromAnchorsWithSpokeCount(
+  straightId: StraightLifeAreaId,
+  spokeCount: number,
+): AreaForkSpec {
   const anchors = resolveAreaAnchors(straightId);
   const limbStrokeWidth = anchors.limbStrokeWidth;
   const maxSlots = defaultHubSlotCountForArea(straightId);
-  const n = Math.min(maxSlots, area?.branches.length ?? 0);
+  const n = Math.min(maxSlots, Math.max(0, spokeCount));
   const TRUNK_BRANCH_STROKE_BASE_BY_AREA: Record<StraightLifeAreaId, number> = {
     work: 2.72,
     finance: 2.68,
@@ -637,6 +646,27 @@ export function buildAreaForkFromAnchors(
     limbStrokeWidth,
     branches,
   };
+}
+
+/**
+ * Build fork geometry from authored gateways: theme node at {@link AreaAnchors.gateway}, hub
+ * branches at square-corner directions (four) or diamond-plus-vertical (six on health).
+ */
+export function buildAreaForkFromAnchors(
+  areaId: string,
+  area: AreaData | undefined,
+): AreaForkSpec {
+  const straightId = areaId as StraightLifeAreaId;
+  if (!STRAIGHT_LIFE_AREA_IDS.includes(straightId)) return emptyForkSpec();
+  const maxSlots = defaultHubSlotCountForArea(straightId);
+  const n = Math.min(maxSlots, area?.branches.length ?? 0);
+  return buildAreaForkFromAnchorsWithSpokeCount(straightId, n);
+}
+
+export function buildPreviewAreaForksRecord(): Record<string, AreaForkSpec> {
+  return Object.fromEntries(
+    STRAIGHT_LIFE_AREA_IDS.map((id) => [id, buildPreviewAreaForkFromAnchors(id)] as const),
+  );
 }
 
 export function buildAreaForksRecord(areas: AreaData[]): Record<string, AreaForkSpec> {

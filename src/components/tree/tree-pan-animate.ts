@@ -12,6 +12,7 @@ export function animateTreePan(
   to: TreePanTransform,
   setTransform: (t: TreePanTransform) => void,
   durationMs = STREAM_PAN_DURATION_MS,
+  onComplete?: () => void,
 ): () => void {
   const start = performance.now();
   let frame = 0;
@@ -24,7 +25,11 @@ export function animateTreePan(
       y: from.y + (to.y - from.y) * e,
       scale: from.scale + (to.scale - from.scale) * e,
     });
-    if (u < 1) frame = requestAnimationFrame(tick);
+    if (u < 1) {
+      frame = requestAnimationFrame(tick);
+    } else {
+      onComplete?.();
+    }
   };
 
   frame = requestAnimationFrame(tick);

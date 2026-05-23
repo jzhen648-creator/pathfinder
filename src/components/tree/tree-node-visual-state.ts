@@ -14,7 +14,7 @@ import {
 } from "./tree-branch-geometry";
 import type { AreaLayoutOverride } from "./tree-layout-edit";
 import type { TrunkLayoutAnchorPair } from "./tree-trunk-slots";
-import { hubsForTheme, type HubTemplate } from "@/lib/taxonomy";
+import { hubsForTheme, normalizeHubLabelKey, type HubTemplate } from "@/lib/taxonomy";
 import type { Point } from "./tree-types";
 export type NodeVisualState = "dormant" | "ghost" | "live";
 
@@ -56,16 +56,15 @@ export type GhostHubSlot = {
 };
 
 /**
- * Computes ghost hub positions for an unlocked-but-empty theme.
+ * Computes inactive ghost hub positions for a selected, unlocked theme.
  *
  * Uses the same hub-anchor calculation as live branch rendering, including the trunk fan
  * slot mapping, so activated hubs do not jump away from their ghost position.
- *
- * Only call when the theme is `isUnlockedEmpty` (unlocked, no active branches).
  */
 export function ghostHubSlotsForArea(
   areaId: LifeAreaId,
   opts: {
+    activeBranches?: readonly Pick<DomainHubData, "type">[];
     forkSpec?: AreaForkSpec;
     layoutOv?: AreaLayoutOverride;
     layoutAnchors?: TrunkLayoutAnchorPair;
@@ -74,6 +73,9 @@ export function ghostHubSlotsForArea(
   const templates = [...hubsForTheme(areaId)];
   const maxSlots = defaultHubSlotCountForArea(areaId);
   if (maxSlots === 0) return [];
+  const activeHubKeys = new Set(
+    (opts.activeBranches ?? []).map((branch) => normalizeHubLabelKey(branch.type)),
+  );
 
   // Synthetic full-slot area lets live fork geometry calculate where all taxonomy hubs will land.
   const syntheticArea: AreaData = {
@@ -96,19 +98,23 @@ export function ghostHubSlotsForArea(
     .sort((a, b) => compareBranchIndicesForStemOrder(forkSpec, a, b));
   const dcGatewaySpreadNormal = domainClusterGatewaySpreadNormalForForkSpec(forkSpec);
 
-  return templates.map((template, i) => ({
-    tip: forkSpec.branches[i]
-      ? domainClusterHubPointFromCatalog(
-          branchMainPathUntilGlobalT(forkSpec.branches[i], 1),
-          trunkHubFanSlotIndex(areaId, i, sortedBranchIdx),
-          sortedBranchIdx.length,
-          dcGatewaySpreadNormal,
-          areaId,
-          opts.layoutOv,
-          opts.layoutAnchors,
-        )
-      : forkSpec.limbTip,
-    template,
-    slotIndex: i,
-  }));
+  return templates.flatMap((template, i) => {
+    if (activeHubKeys.has(normalizeHubLabelKey(template.threadType))) return [];
+
+    return [{
+      tip: forkSpec.branches[i]
+        ? domainClusterHubPointFromCatalog(
+            branchMainPathUntilGlobalT(forkSpec.branches[i], 1),
+            trunkHubFanSlotIndex(areaId, i, sortedBranchIdx),
+            sortedBranchIdx.length,
+            dcGatewaySpreadNormal,
+            areaId,
+            opts.layoutOv,
+            opts.layoutAnchors,
+          )
+        : forkSpec.limbTip,
+      template,
+      slotIndex: i,
+    }];
+  });
 }

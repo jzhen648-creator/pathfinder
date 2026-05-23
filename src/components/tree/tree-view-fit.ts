@@ -74,8 +74,10 @@ export function collectTreeFitSamplePoints(opts: {
   layoutOverrides: Record<string, AreaLayoutOverride>;
   /** When set, only sample points for these life-area ids (limb focus / dev zoom). */
   areaIds?: readonly string[];
+  /** Include fork-spec branch tips even when the area has no live branches (onboarding ghost hub fan). */
+  includePreviewBranchTips?: boolean;
 }): Point[] {
-  const { areas, forks, floatNudges, layoutOverrides, areaIds } = opts;
+  const { areas, forks, floatNudges, layoutOverrides, areaIds, includePreviewBranchTips = false } = opts;
   const out: Point[] = [];
   const includeTrunk = areaIds == null || areaIds.length !== 1;
 
@@ -111,6 +113,12 @@ export function collectTreeFitSamplePoints(opts: {
     if (trunkLayoutEnabled() && isHubGatewayLayout(spec)) {
       /** Domain hubs orbit the gateway — pad modestly so fit stays theme-centric. */
       pushDisc(out, hubStored, gatewayPad + domainClusterHubRingPx() * 0.38);
+    }
+
+    if (includePreviewBranchTips && area.branches.length === 0 && isHubGatewayLayout(spec)) {
+      for (const branch of spec.branches) {
+        pushDisc(out, branch.tip, GOAL_NODE_HALO_PX * 0.75);
+      }
     }
 
     const label = lifeAreaTrunkForkLabelLayout(
@@ -334,14 +342,17 @@ export function computeTreeFitTransformFromLayout(opts: {
   layoutOverrides: Record<string, AreaLayoutOverride>;
   viewWidth: number;
   viewHeight: number;
+  paddingPx?: number;
   fallback?: TreePanTransform;
   areaIds?: readonly string[];
+  includePreviewBranchTips?: boolean;
 }): TreePanTransform {
   const samplePointsViewport = collectTreeFitSamplePoints(opts);
   return computeTreeFitTransform({
     samplePointsViewport,
     viewWidth: opts.viewWidth,
     viewHeight: opts.viewHeight,
+    paddingPx: opts.paddingPx,
     fallback: opts.fallback,
   });
 }

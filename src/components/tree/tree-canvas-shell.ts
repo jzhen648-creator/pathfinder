@@ -432,10 +432,52 @@ export const PF_TREE_CANVAS_CSS = `
   background: rgba(255, 255, 255, 0.03);
 }
 
+.pf-tree-rail-hub-card--open {
+  border-left: 2px solid var(--hub-accent, rgba(255,255,255,0.28));
+  background: rgba(255, 255, 255, 0.018);
+  padding-left: 12px;
+}
+
+.pf-tree-rail-hub-card--closed {
+  border: 1px dashed color-mix(in srgb, var(--hub-accent, #7B68C8) 34%, rgba(255,255,255,0.08));
+  background: color-mix(in srgb, var(--hub-accent, #7B68C8) 7%, transparent);
+  padding: 11px 10px;
+}
+
+.pf-tree-rail-hub-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .pf-tree-rail-hub-card-title {
   font-size: 13.5px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.94);
+}
+
+.pf-tree-rail-hub-state {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-family: var(--font-pf-tree-mono, ui-monospace, monospace);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pf-tree-rail-hub-state--open {
+  border: 1px solid color-mix(in srgb, var(--hub-accent, #7B68C8) 42%, rgba(255,255,255,0.08));
+  color: color-mix(in srgb, var(--hub-accent, #7B68C8) 72%, white);
+  background: color-mix(in srgb, var(--hub-accent, #7B68C8) 12%, transparent);
+}
+
+.pf-tree-rail-hub-state--closed {
+  border: 1px solid color-mix(in srgb, var(--hub-accent, #7B68C8) 32%, rgba(255,255,255,0.08));
+  color: rgba(255,255,255,0.54);
+  background: rgba(255,255,255,0.025);
 }
 
 .pf-tree-rail-hub-card-blurb {

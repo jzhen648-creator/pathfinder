@@ -24,6 +24,15 @@ import { pointyTopHexPathD } from "./tree-design-visual";
 const STREAM_ENTRY_SUBTITLE = "Talk freely — I'll find what belongs on your map";
 const PF_TREE_MARK_COLOR = "#c9a227";
 
+const panelStreamDockStyle: CSSProperties = {
+  flexShrink: 0,
+  padding: "10px 12px 12px",
+  borderTop: "1px solid rgba(255,255,255,0.06)",
+  background: "linear-gradient(180deg, rgba(7,6,10,0.72), rgba(7,6,10,0.96))",
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
+};
+
 function isCanvasDetailRail(
   surface: TreePanelSurface,
   presentation: TreePanelProps["panelPresentation"],
@@ -37,12 +46,14 @@ function StreamEntryButton({
   onClick,
   testId,
   variant = "default",
+  docked = false,
 }: {
   subjectName: string;
   accent: string;
   onClick: () => void;
   testId: string;
   variant?: "default" | "canvas";
+  docked?: boolean;
 }) {
   const label = "Open Stream";
   if (variant === "canvas") {
@@ -60,7 +71,7 @@ function StreamEntryButton({
     );
   }
   return (
-    <div style={{ marginTop: 14, display: "grid", gap: 6 }}>
+    <div style={{ marginTop: docked ? 0 : 14, display: "grid", gap: 6 }}>
       <button
         type="button"
         data-testid={testId}
@@ -818,30 +829,54 @@ export function TreePanel({
                   ? ` · ${themeMomentCount} ${themeMomentCount === 1 ? "mark" : "marks"}`
                   : ""}
               </p>
-              {activeThemeStream ? (
-                renderPanelStreamSection(activeThemeStream)
-              ) : onOpenThemeStream ? (
-                <div className="pf-tree-rail-actions">
-                  <StreamEntryButton
-                    subjectName={area.label}
-                    accent={area.color}
-                    onClick={() => onOpenThemeStream(area)}
-                    testId="tree-open-theme-stream"
-                    variant="canvas"
-                  />
-                </div>
-              ) : null}
             </div>
             <div className="pf-tree-rail-scroll">
-              <div className="pf-tree-rail-section-head">
-                <span>Hubs · {branchN}</span>
-              </div>
+              {branchN > 0 ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    marginBottom: inactiveHubsForTheme.length > 0 ? 12 : 0,
+                  }}
+                >
+                  <div className="pf-tree-rail-section-head">
+                    <span>Open hubs · {branchN}</span>
+                  </div>
+                  {area.branches.map((thread, idx) => {
+                    const threadGoalCount = countRoadmapGoalsOnThread(thread);
+                    const hubLabel = thread.type.trim() || "Hub";
+                    const hubBlurb = hubPanelCopy(area.id, hubLabel).about;
+                    return (
+                      <button
+                        key={thread.id}
+                        type="button"
+                        data-onboarding-coach={idx === 0 && inactiveHubsForTheme.length === 0 ? "first-hub" : undefined}
+                        className="pf-tree-rail-hub-card pf-tree-rail-hub-card--open"
+                        style={{ ["--hub-accent" as string]: area.color }}
+                        onClick={() => onOpenHub(area, thread)}
+                      >
+                        <span className="pf-tree-rail-hub-card-title-row">
+                          <span className="pf-tree-rail-hub-card-title">{hubLabel}</span>
+                          <span className="pf-tree-rail-hub-state pf-tree-rail-hub-state--open">Open</span>
+                        </span>
+                        <p className="pf-tree-rail-hub-card-blurb">{hubBlurb}</p>
+                        <p className="pf-tree-rail-meta" style={{ margin: 0 }}>
+                          {threadGoalCount} {threadGoalCount === 1 ? "pursuit" : "pursuits"}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               {inactiveHubsForTheme.length > 0 && onActivateHub ? (
-                <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div className="pf-tree-rail-section-head">
+                    <span>Available to open · {inactiveHubsForTheme.length}</span>
+                  </div>
                   <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.45 }}>
                     {branchN === 0
                       ? "Open a hub to start tracking on this theme."
-                      : "More hubs on this theme are still closed."}
+                      : "These hubs are closed. Choose one to add it to your map."}
                   </p>
                   {inactiveHubsForTheme.map((row, idx) => {
                     const hubLabel = canonicalHubDisplayLabel(area.id, row.label ?? row.name ?? "Hub");
@@ -851,36 +886,34 @@ export function TreePanel({
                         key={row.id}
                         type="button"
                         data-onboarding-coach={idx === 0 ? "first-hub" : undefined}
-                        className="pf-tree-rail-hub-card"
+                        className="pf-tree-rail-hub-card pf-tree-rail-hub-card--closed"
+                        style={{ ["--hub-accent" as string]: area.color }}
                         onClick={() => onActivateHub(row.id, area)}
                       >
-                        <span className="pf-tree-rail-hub-card-title">Open {hubLabel}</span>
+                        <span className="pf-tree-rail-hub-card-title-row">
+                          <span className="pf-tree-rail-hub-card-title">{hubLabel}</span>
+                          <span className="pf-tree-rail-hub-state pf-tree-rail-hub-state--closed">Closed</span>
+                        </span>
                         <p className="pf-tree-rail-hub-card-blurb">{blurb}</p>
                       </button>
                     );
                   })}
                 </div>
               ) : null}
-              {area.branches.map((thread, idx) => {
-                const threadGoalCount = countRoadmapGoalsOnThread(thread);
-                const hubLabel = thread.type.trim() || "Hub";
-                const hubBlurb = hubPanelCopy(area.id, hubLabel).about;
-                return (
-                  <button
-                    key={thread.id}
-                    type="button"
-                    data-onboarding-coach={idx === 0 ? "first-hub" : undefined}
-                    className="pf-tree-rail-hub-card"
-                    onClick={() => onOpenHub(area, thread)}
-                  >
-                    <span className="pf-tree-rail-hub-card-title">{hubLabel}</span>
-                    <p className="pf-tree-rail-hub-card-blurb">{hubBlurb}</p>
-                    <p className="pf-tree-rail-meta" style={{ margin: 0 }}>
-                      {threadGoalCount} {threadGoalCount === 1 ? "pursuit" : "pursuits"}
-                    </p>
-                  </button>
-                );
-              })}
+            </div>
+            <div style={panelStreamDockStyle}>
+              {activeThemeStream ? (
+                renderPanelStreamSection(activeThemeStream)
+              ) : onOpenThemeStream ? (
+                <StreamEntryButton
+                  subjectName={area.label}
+                  accent={area.color}
+                  onClick={() => onOpenThemeStream(area)}
+                  testId="tree-open-theme-stream"
+                  variant="canvas"
+                  docked
+                />
+              ) : null}
             </div>
           </>
         ) : (
@@ -963,16 +996,6 @@ export function TreePanel({
                   ? ` · ${themeMomentCount} ${themeMomentCount === 1 ? "mark" : "marks"}`
                   : ""}
               </p>
-              {activeThemeStream ? (
-                renderPanelStreamSection(activeThemeStream)
-              ) : onOpenThemeStream ? (
-                <StreamEntryButton
-                  subjectName={area.label}
-                  accent={area.color}
-                  onClick={() => onOpenThemeStream(area)}
-                  testId="tree-open-theme-stream"
-                />
-              ) : null}
             </div>
 
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 18px 20px" }}>
@@ -1072,6 +1095,19 @@ export function TreePanel({
                 </div>
               </div>
             </div>
+            <div style={panelStreamDockStyle}>
+              {activeThemeStream ? (
+                renderPanelStreamSection(activeThemeStream)
+              ) : onOpenThemeStream ? (
+                <StreamEntryButton
+                  subjectName={area.label}
+                  accent={area.color}
+                  onClick={() => onOpenThemeStream(area)}
+                  testId="tree-open-theme-stream"
+                  docked
+                />
+              ) : null}
+            </div>
           </>
         )}
       </section>
@@ -1108,7 +1144,9 @@ export function TreePanel({
     const pursuitCardVariant = hubCanvasRail ? "canvas" : "default";
     const hubMarks = thread.moments.filter((m) => m.synthetic !== true);
     const activeHubStream =
-      panelStreamSession?.mode === "hub" && panelStreamSession.hub.branchId === thread.id
+      panelStreamSession?.mode === "hub" &&
+      panelStreamSession.hub.branchId === thread.id &&
+      !panelStreamSession.sourceGoalId
         ? panelStreamSession
         : null;
 
@@ -1292,11 +1330,53 @@ export function TreePanel({
         </div>
       ) : null;
 
+    const questions = hubCopy.openingQuestions ?? [];
+    const hubOpeningQuestionChips =
+      onOpenHubStream && questions.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: hubCanvasRail ? "flex-start" : "center",
+            gap: 8,
+            marginTop: 14,
+          }}
+        >
+          {questions.map((question) => (
+            <button
+              key={question}
+              type="button"
+              aria-label={`Open Stream with prompt: ${question}`}
+              onClick={() => onOpenHubStream?.(area, thread, question)}
+              style={{
+                border: `1px solid ${area.color}44`,
+                borderRadius: 999,
+                background: `${area.color}10`,
+                color: "var(--color-text-secondary)",
+                cursor: "pointer",
+                fontFamily: "var(--font-pf-tree-sans, Inter, system-ui, sans-serif)",
+                fontSize: 12.5,
+                fontStyle: "normal",
+                fontWeight: 500,
+                lineHeight: 1.3,
+                padding: "7px 11px",
+                textAlign: "left",
+              }}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      ) : null;
+
     const hubEmptyStateBlock = hubCanvasRail ? (
-      <p className="pf-tree-rail-empty">
-        No pursuits on this hub yet. Use <strong>Open Stream</strong> above to talk about this part of your
-        life — Pathfinder will surface what belongs here.
-      </p>
+      <div className="pf-tree-rail-empty">
+        <p style={{ margin: 0 }}>
+          No pursuits on this hub yet. Use <strong>Open Stream</strong> to talk about this part of your life —
+          Pathfinder will surface what belongs here.
+        </p>
+        {hubOpeningQuestionChips}
+      </div>
     ) : (
       <div
         style={{
@@ -1318,8 +1398,9 @@ export function TreePanel({
           No pursuits yet
         </p>
         <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
-          Use Open Stream above, or add a pursuit to start tracking on this hub.
+          Use Open Stream, or add a pursuit to start tracking on this hub.
         </p>
+        {hubOpeningQuestionChips}
       </div>
     );
 
@@ -1398,19 +1479,6 @@ export function TreePanel({
                   the tree
                 </p>
               ) : null}
-              <div className="pf-tree-rail-actions">
-                {activeHubStream ? (
-                  renderPanelStreamSection(activeHubStream)
-                ) : onOpenHubStream ? (
-                  <StreamEntryButton
-                    subjectName={hubLabel}
-                    accent={area.color}
-                    onClick={() => onOpenHubStream(area, thread)}
-                    testId="tree-open-hub-stream"
-                    variant="canvas"
-                  />
-                ) : null}
-              </div>
             </div>
             <div className="pf-tree-rail-scroll">
               {hubMarksBlock}
@@ -1429,6 +1497,20 @@ export function TreePanel({
               </div>
               {hubPursuitsBlock}
               {hubArchiveBlock}
+            </div>
+            <div style={panelStreamDockStyle}>
+              {activeHubStream ? (
+                renderPanelStreamSection(activeHubStream)
+              ) : onOpenHubStream ? (
+                <StreamEntryButton
+                  subjectName={hubLabel}
+                  accent={area.color}
+                  onClick={() => onOpenHubStream(area, thread)}
+                  testId="tree-open-hub-stream"
+                  variant="canvas"
+                  docked
+                />
+              ) : null}
             </div>
           </>
         ) : (
@@ -1510,16 +1592,6 @@ export function TreePanel({
                   the tree
                 </p>
               ) : null}
-              {activeHubStream ? (
-                renderPanelStreamSection(activeHubStream)
-              ) : onOpenHubStream ? (
-                <StreamEntryButton
-                  subjectName={hubLabel}
-                  accent={area.color}
-                  onClick={() => onOpenHubStream(area, thread)}
-                  testId="tree-open-hub-stream"
-                />
-              ) : null}
               <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                 {hubGoals.length === 0 ? (
                   <button
@@ -1568,6 +1640,19 @@ export function TreePanel({
                 {hubArchiveBlock}
               </div>
             </div>
+            <div style={panelStreamDockStyle}>
+              {activeHubStream ? (
+                renderPanelStreamSection(activeHubStream)
+              ) : onOpenHubStream ? (
+                <StreamEntryButton
+                  subjectName={hubLabel}
+                  accent={area.color}
+                  onClick={() => onOpenHubStream(area, thread)}
+                  testId="tree-open-hub-stream"
+                  docked
+                />
+              ) : null}
+            </div>
           </>
         )}
       </section>
@@ -1598,6 +1683,10 @@ export function TreePanel({
     const isCompletedFor = (s: { isCompleted: boolean }) => s.isCompleted;
     const goalRail = panelPresentation === "rail";
     const goalCanvasRail = isCanvasDetailRail(panelSurface, panelPresentation);
+    const activeGoalStream =
+      panelStreamSession?.mode === "hub" && panelStreamSession.sourceGoalId === goal.id
+        ? panelStreamSession
+        : null;
     const parentContinuation = goal.parentGoalId
       ? findGoalInAreas(areas, goal.parentGoalId)
       : null;
@@ -1954,17 +2043,6 @@ export function TreePanel({
           >
             {goalSubtitle}
           </p>
-          {onOpenGoalStream ? (
-            <div style={{ marginTop: 12 }} className={goalCanvasRail ? "pf-tree-rail-actions" : undefined}>
-              <StreamEntryButton
-                subjectName={goal.title}
-                accent={area.color}
-                onClick={() => onOpenGoalStream(area, goal)}
-                testId="tree-open-goal-stream"
-                variant={goalCanvasRail ? "canvas" : "default"}
-              />
-            </div>
-          ) : null}
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "18px 22px 16px" }}>
@@ -2361,6 +2439,20 @@ export function TreePanel({
           <button type="button" onClick={openGoalEdit} style={footerTertiaryButtonStyle}>
             Edit
           </button>
+        </div>
+        <div style={panelStreamDockStyle}>
+          {activeGoalStream ? (
+            renderPanelStreamSection(activeGoalStream)
+          ) : onOpenGoalStream ? (
+            <StreamEntryButton
+              subjectName={goal.title}
+              accent={area.color}
+              onClick={() => onOpenGoalStream(area, goal)}
+              testId="tree-open-goal-stream"
+              variant={goalCanvasRail ? "canvas" : "default"}
+              docked
+            />
+          ) : null}
         </div>
       </section>
     );

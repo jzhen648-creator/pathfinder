@@ -297,9 +297,9 @@ function rootFlarePath(): string {
   ].join(" ");
 }
 
-/** Vertical extent below {@link TRUNK_BASE_Y} for root tendrils (fit-to-view sampling). */
+/** Vertical extent below {@link TRUNK_BASE_Y} for fit-to-view sampling (trunk ends at base; no root art). */
 export function trunkRootExtentBelowBasePx(): number {
-  return TRUNK_SPAN * 0.36;
+  return 20;
 }
 
 /** Hub-trunk layout: dramatic taper — ~1px half-width crown → ~4.5px at base, with lower knots. */

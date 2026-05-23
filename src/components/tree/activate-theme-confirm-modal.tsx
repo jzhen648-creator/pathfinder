@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   OB_FONT_SANS,
   OB_TEXT_MUTED,
@@ -61,12 +61,21 @@ export function ActivateThemeConfirmModal({
   busy = false,
 }: ActivateThemeConfirmModalProps) {
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
+  const [allowFallbackPosition, setAllowFallbackPosition] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !limbId) {
       setTargetRect(null);
+      setAllowFallbackPosition(false);
       return;
     }
+
+    setTargetRect(readGatewayRect(limbId));
+    setAllowFallbackPosition(false);
+  }, [open, limbId]);
+
+  useEffect(() => {
+    if (!open || !limbId) return;
 
     let raf = 0;
     const update = () => {
@@ -76,15 +85,18 @@ export function ActivateThemeConfirmModal({
       });
     };
 
-    const initialDelay = window.setTimeout(update, 80);
+    update();
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     const retry = window.setTimeout(update, 200);
+    const fallback = window.setTimeout(() => {
+      if (!readGatewayRect(limbId)) setAllowFallbackPosition(true);
+    }, 240);
 
     return () => {
       window.cancelAnimationFrame(raf);
-      window.clearTimeout(initialDelay);
       window.clearTimeout(retry);
+      window.clearTimeout(fallback);
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
@@ -130,7 +142,7 @@ export function ActivateThemeConfirmModal({
     <>
       <style dangerouslySetInnerHTML={{ __html: COACH_RING_CSS }} />
       <div
-        className="fixed inset-0 z-[250000] bg-black/55"
+        className="fixed inset-0 z-250000 bg-black/55"
         role="presentation"
         aria-hidden={busy}
         onClick={busy ? undefined : onCancel}
@@ -154,27 +166,28 @@ export function ActivateThemeConfirmModal({
           }}
         />
       ) : null}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="activate-theme-title"
-        style={{
-          position: "fixed",
-          zIndex: 250002,
-          ...obCardStyle,
-          padding: "16px 18px 14px",
-          boxShadow: `0 22px 56px rgba(0,0,0,0.48), 0 0 0 1px color-mix(in srgb, ${accent} 18%, transparent)`,
-          ...(layout
-            ? { top: layout.top, left: layout.left, width: layout.width }
-            : {
-                top: "50%",
-                left: "50%",
-                width: "min(300px, calc(100vw - 32px))",
-                transform: "translate(-50%, -50%)",
-              }),
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      {layout || allowFallbackPosition ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="activate-theme-title"
+          style={{
+            position: "fixed",
+            zIndex: 250002,
+            ...obCardStyle,
+            padding: "16px 18px 14px",
+            boxShadow: `0 22px 56px rgba(0,0,0,0.48), 0 0 0 1px color-mix(in srgb, ${accent} 18%, transparent)`,
+            ...(layout
+              ? { top: layout.top, left: layout.left, width: layout.width }
+              : {
+                  top: "50%",
+                  left: "50%",
+                  width: "min(300px, calc(100vw - 32px))",
+                  transform: "translate(-50%, -50%)",
+                }),
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         <h2
           id="activate-theme-title"
           style={{
@@ -230,7 +243,8 @@ export function ActivateThemeConfirmModal({
             {busy ? "Adding…" : `Add ${shortLabel}`}
           </button>
         </div>
-      </div>
+        </div>
+      ) : null}
     </>
   );
 }

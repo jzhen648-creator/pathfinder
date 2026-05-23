@@ -653,11 +653,12 @@ function TreeViewInner({
       return;
     }
     const hub = buildStreamHubUiFromThread(area, thread);
-    setPanel({ type: "hub", area, thread });
+    setPanel({ type: "goal", area, goal });
     setFocusedLimbId(area.id);
     setPanelStreamSession({
       mode: "hub",
       hub,
+      sourceGoalId: goal.id,
       initialPlaceholder: `Tell me more about "${goal.title}" — milestones, next steps, or context for this pursuit.`,
     });
   }, [showTreeToast]);
