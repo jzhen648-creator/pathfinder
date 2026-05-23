@@ -755,6 +755,25 @@ function TreeViewInner({
     showTreeToast("Tree updated from your stream.");
   }, [applyFirstRunFocus, loadData, refreshSession, showTreeToast]);
 
+  const handleOnboardingFirstCardConfirmed = useCallback(() => {
+    if (!isOnboardingGuideActive || streamSession?.mode !== "hub") return;
+
+    const { hub } = streamSession;
+    setOnboardingSprout({
+      areaId: hub.areaId,
+      branchId: hub.branchId,
+      key: Date.now(),
+    });
+
+    window.setTimeout(() => {
+      advanceOnboardingGuide(6, {
+        themeId: hub.areaId,
+        hubSlug: normalizeHubLabelKey(hub.branchLabel),
+      });
+      router.refresh();
+    }, 900);
+  }, [advanceOnboardingGuide, isOnboardingGuideActive, router, streamSession]);
+
   const showFirstRunWelcome =
     !onboardingLocked && !firstRunCompleted && !streamSession && !loading && areas.length > 0;
 
@@ -1544,6 +1563,7 @@ function TreeViewInner({
             : { mode: "hub" as const, hub: streamSession.hub })}
           initialDraft={streamSession.initialDraft}
           initialPlaceholder={streamSession.initialPlaceholder}
+          onboardingMode={isOnboardingGuideActive}
           onCardFocusHub={handleStreamCardFocusHub}
           onClose={() => {
             clearPreviewNodes();
@@ -1564,6 +1584,7 @@ function TreeViewInner({
             prefetchMapData();
             void loadData({ silent: true });
           }}
+          onOnboardingFirstCardConfirmed={handleOnboardingFirstCardConfirmed}
         />
       ) : null}
 
