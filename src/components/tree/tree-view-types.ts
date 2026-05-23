@@ -60,6 +60,8 @@ export type AddGoalHubContext = {
   sequenceAnchor?: SequenceAnchor | null;
 };
 
+export type AddMomentTreeContext = Omit<AddGoalHubContext, "areaId"> & { limbId: string };
+
 export type TreeSVGProps = {
   areas: AreaData[];
   /** Ghost preview nodes merged from Stream — rendered in a separate SVG layer. */

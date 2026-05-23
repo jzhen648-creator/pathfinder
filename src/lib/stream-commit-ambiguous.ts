@@ -176,7 +176,7 @@ export async function resolveAmbiguousMark(
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
-    const nodes = await loadBranchSequencedNodes(tx, targetBranch.id);
+    const nodes = await loadBranchSequencedNodes(tx, targetBranchId ?? mark.branchId);
     const seqRes = resolveSequenceAnchor(nodes, appendAnchor);
     await applySequenceResolution(tx, seqRes);
 

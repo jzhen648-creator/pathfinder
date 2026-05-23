@@ -61,7 +61,7 @@ export function formatCanvasLabelForDisplay(label: string, fullTitle?: string): 
   const s = label.trim();
   if (!s) return s;
 
-  const proper = fullTitle ? properNounsFromTitle(fullTitle) : new Set<string>();
+  const proper = fullTitle ? properNounsFromTitle(fullTitle) : new Map<string, string>();
   const words = s.split(/\s+/).filter(Boolean);
 
   return words
