@@ -172,6 +172,7 @@ function TreeViewInner({
   const [pendingThemeConfirm, setPendingThemeConfirm] = useState<LifeAreaId | null>(null);
   const [coachMarkStep, setCoachMarkStep] = useState<CoachMarkStep>(initialCoachMarkStep);
   const [onboardingSprout, setOnboardingSprout] = useState<OnboardingSproutState>(null);
+  const keepStreamPreviewOnCloseRef = useRef(false);
 
   useEffect(() => {
     if (!isOnboardingGuideActive) {
@@ -207,7 +208,10 @@ function TreeViewInner({
     }
   }, []);
 
-  const loadData = useCallback(async (options?: { silent?: boolean }): Promise<AreaData[] | undefined> => {
+  const loadData = useCallback(async (options?: {
+    silent?: boolean;
+    afterSetAreas?: () => void;
+  }): Promise<AreaData[] | undefined> => {
     const silent = options?.silent === true;
     if (!silent) setLoading(true);
     try {
@@ -283,6 +287,7 @@ function TreeViewInner({
         return undefined;
       }
       setAreas(nextAreas);
+      options?.afterSetAreas?.();
       if (isDev) {
         const hubSlots = nextAreas.reduce((n, a) => n + a.branches.length, 0);
         console.log("[tree-view] tree data loaded", {
@@ -725,36 +730,48 @@ function TreeViewInner({
     });
   }, [areas, showTreeToast]);
 
-  const handleStreamCommitted = useCallback(async () => {
+  const handleStreamCommitted = useCallback(() => {
     const wasFirstRun = !firstRunCompletedRef.current;
     if (wasFirstRun) {
       firstRunCompletedRef.current = true;
       setFirstRunCompleted(true);
     }
 
-    const loadedAreas = await loadData({ silent: true });
+    const updatingToast = "Saved to your map — updating...";
+    setTreeToast({ msg: updatingToast, color: "#7B68C8" });
+
+    void loadData({
+      silent: true,
+      afterSetAreas: () => {
+        clearPreviewNodes();
+        setTreeToast((current) => (current?.msg === updatingToast ? null : current));
+      },
+    }).then((loadedAreas) => {
+      if (wasFirstRun && loadedAreas?.length) {
+        applyFirstRunFocus(loadedAreas);
+      }
+    });
 
     if (wasFirstRun) {
-      try {
-        const res = await fetch("/api/first-run/complete", { method: "POST" });
-        if (res.ok) {
-          await refreshSession();
-          if (loadedAreas?.length) {
-            applyFirstRunFocus(loadedAreas);
+      void (async () => {
+        try {
+          const res = await fetch("/api/first-run/complete", { method: "POST" });
+          if (res.ok) {
+            await refreshSession();
+            showTreeToast("Your map has started.");
+            return;
           }
-          showTreeToast("Your map has started.");
-          return;
+          firstRunCompletedRef.current = false;
+          setFirstRunCompleted(false);
+        } catch {
+          firstRunCompletedRef.current = false;
+          setFirstRunCompleted(false);
         }
-        firstRunCompletedRef.current = false;
-        setFirstRunCompleted(false);
-      } catch {
-        firstRunCompletedRef.current = false;
-        setFirstRunCompleted(false);
-      }
-    }
+      })();
 
-    showTreeToast("Tree updated from your stream.");
-  }, [applyFirstRunFocus, loadData, refreshSession, showTreeToast]);
+      return;
+    }
+  }, [applyFirstRunFocus, clearPreviewNodes, loadData, refreshSession, showTreeToast]);
 
   const handleOnboardingFirstCardConfirmed = useCallback(() => {
     if (!isOnboardingGuideActive || streamSession?.mode !== "hub") return;
@@ -1639,23 +1656,29 @@ function TreeViewInner({
           onboardingMode={isOnboardingGuideActive}
           onCardFocusHub={handleStreamCardFocusHub}
           onClose={() => {
-            clearPreviewNodes();
+            if (keepStreamPreviewOnCloseRef.current) {
+              keepStreamPreviewOnCloseRef.current = false;
+            } else {
+              clearPreviewNodes();
+            }
             setStreamSession(null);
             setStreamPanFocus(null);
             streamPanHubRef.current = null;
           }}
           onClearPreview={clearPreviewNodes}
-          onCommitted={() => {}}
+          onCommitted={() => {
+            keepStreamPreviewOnCloseRef.current = true;
+          }}
           onCommitSuccess={() => {
             prefetchMapData();
-            void handleStreamCommitted();
+            handleStreamCommitted();
           }}
           onCommitFailed={(error) => {
+            clearPreviewNodes();
             showTreeToast(error ?? "Could not save to your map.", "#e85d5d");
           }}
           onExtracted={() => {
             prefetchMapData();
-            void loadData({ silent: true });
           }}
           onOnboardingFirstCardConfirmed={handleOnboardingFirstCardConfirmed}
         />

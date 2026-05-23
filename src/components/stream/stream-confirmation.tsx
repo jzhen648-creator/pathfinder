@@ -327,7 +327,6 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
       }
     }
 
-    onClearPreview?.();
     onDone();
 
     void (async () => {
@@ -348,7 +347,6 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
   }, [
     decisions,
     isTheme,
-    onClearPreview,
     onCommitFailed,
     onCommitSuccess,
     onDone,

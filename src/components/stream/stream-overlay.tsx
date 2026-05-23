@@ -185,6 +185,12 @@ const STREAM_PANEL_SLIDE_CSS = `
   text-transform: uppercase;
 }
 
+.pf-stream-slow-extract-hint {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 13px;
+}
+
 @media (max-width: 900px) {
   .pf-stream-confirm-float {
     right: 18px;
@@ -366,6 +372,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
   );
 
   const [narrative, setNarrative] = useState("");
+  const [showSlowExtractHint, setShowSlowExtractHint] = useState(false);
 
   const [portalMounted, setPortalMounted] = useState(
     () => typeof window !== "undefined",
@@ -424,6 +431,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
     setNarrative("");
 
     setExtraction(null);
+    setShowSlowExtractHint(false);
 
     setPhase("extracting");
 
@@ -550,9 +558,23 @@ export function StreamOverlay(props: StreamOverlayProps) {
     onClose();
   }, [onClose, onCommitted]);
 
+  const extracting = phase === "extracting";
+
+  useEffect(() => {
+    if (!extracting) {
+      setShowSlowExtractHint(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSlowExtractHint(true);
+    }, 2500);
+
+    return () => window.clearTimeout(timer);
+  }, [extracting]);
+
   if (!embed && !portalMounted) return null;
 
-  const extracting = phase === "extracting";
   const composerDisabled = busy || extracting;
   const onboardingEmbed = Boolean(onboardingMode && embed);
 
@@ -600,6 +622,11 @@ export function StreamOverlay(props: StreamOverlayProps) {
           <div className="pf-stream-narrative-pill" aria-live="polite" aria-busy="true">
             <strong>Listening</strong>
             {narrative || "Making sense of this…"}
+            {showSlowExtractHint ? (
+              <div className="pf-stream-slow-extract-hint">
+                Still working — complex inputs take a moment.
+              </div>
+            ) : null}
           </div>
         ) : null}
 
