@@ -24,10 +24,11 @@ import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { FLAGS } from "@/lib/flags";
 import type { ApiBranchRow } from "@/lib/api-branch-row";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel, hubFirstTimeQuestion } from "@/lib/hub-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { TREE_THEME_SHORT_LABEL } from "@/components/tree/tree-design-visual";
 import { LIFE_AREA_ORDER } from "./tree-data";
+import { normalizeHubLabelKey } from "@/lib/taxonomy";
 import { applyTreeDensity } from "./tree-density";
 import { AddAreaModal } from "./add-area-modal";
 import { useBackgroundMapPrefetch } from "@/hooks/use-background-map-prefetch";
@@ -82,23 +83,40 @@ async function readApiFailureMessage(res: Response, fallback: string, includeSta
 export function TreeView({
   firstRun,
   onboardingLocked = false,
+  isOnboardingGuideActive = false,
+  initialCoachMarkStep = null,
 }: {
   firstRun: TreeFirstRunConfig;
   onboardingLocked?: boolean;
+  isOnboardingGuideActive?: boolean;
+  initialCoachMarkStep?: CoachMarkStep;
 }) {
   return (
     <StreamPreviewProvider>
-      <TreeViewInner firstRun={firstRun} onboardingLocked={onboardingLocked} />
+      <TreeViewInner
+        firstRun={firstRun}
+        onboardingLocked={onboardingLocked}
+        isOnboardingGuideActive={isOnboardingGuideActive}
+        initialCoachMarkStep={initialCoachMarkStep}
+      />
     </StreamPreviewProvider>
   );
 }
 
+export type CoachMarkStep = null | "tap_theme" | "tap_hub" | "open_stream";
+
+type OnboardingSproutState = { areaId: string; branchId: string; key: number } | null;
+
 function TreeViewInner({
   firstRun,
   onboardingLocked,
+  isOnboardingGuideActive,
+  initialCoachMarkStep,
 }: {
   firstRun: TreeFirstRunConfig;
   onboardingLocked: boolean;
+  isOnboardingGuideActive: boolean;
+  initialCoachMarkStep: CoachMarkStep;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -153,6 +171,30 @@ function TreeViewInner({
   const [recentlyUnlockedLimbId, setRecentlyUnlockedLimbId] = useState<LifeAreaId | null>(null);
   const [unlockedLimbIds, setUnlockedLimbIds] = useState<LifeAreaId[]>([]);
   const [pendingThemeConfirm, setPendingThemeConfirm] = useState<LifeAreaId | null>(null);
+  const [coachMarkStep, setCoachMarkStep] = useState<CoachMarkStep>(initialCoachMarkStep);
+  const [onboardingSprout, setOnboardingSprout] = useState<OnboardingSproutState>(null);
+
+  useEffect(() => {
+    if (!isOnboardingGuideActive) {
+      setCoachMarkStep(null);
+      return;
+    }
+    setCoachMarkStep(initialCoachMarkStep);
+  }, [initialCoachMarkStep, isOnboardingGuideActive]);
+
+  const advanceOnboardingGuide = useCallback(
+    (scene: number, payload: { themeId?: string | null; hubSlug?: string | null } = {}) => {
+      if (!isOnboardingGuideActive) return;
+      void fetch("/api/onboarding/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene, ...payload }),
+      }).catch((err) => {
+        console.error("[onboarding-guide] advance failed", err);
+      });
+    },
+    [isOnboardingGuideActive],
+  );
 
   useEffect(() => {
     try {
@@ -369,7 +411,14 @@ function TreeViewInner({
   const handleHubClick = useCallback((area: AreaData, thread: AreaData["branches"][number]) => {
     setFocused(area.id);
     setPanel({ type: "hub", area, thread });
-  }, []);
+    if (isOnboardingGuideActive && coachMarkStep === "tap_hub") {
+      setCoachMarkStep("open_stream");
+      advanceOnboardingGuide(4, {
+        themeId: area.id,
+        hubSlug: normalizeHubLabelKey(thread.type.trim() || thread.id),
+      });
+    }
+  }, [advanceOnboardingGuide, coachMarkStep, isOnboardingGuideActive]);
 
   const showTreeToast = useCallback((msg: string, color = "#7B68C8") => {
     setTreeToast({ msg, color });
@@ -569,10 +618,28 @@ function TreeViewInner({
 
   const handleOpenHubStream = useCallback((area: AreaData, thread: AreaData["branches"][number], initialPlaceholder?: string) => {
     const hub = buildStreamHubUiFromThread(area, thread);
+    const hubLabel = thread.type.trim() || hub.branchLabel;
+    const onboardingPlaceholder =
+      isOnboardingGuideActive && coachMarkStep === "open_stream"
+        ? hubFirstTimeQuestion(area.id, hubLabel)
+        : undefined;
     setPanel({ type: "none" });
     setFocusedLimbId(area.id);
-    setStreamSession({ mode: "hub", hub, ...(initialPlaceholder ? { initialPlaceholder } : {}) });
-  }, []);
+    setStreamSession({
+      mode: "hub",
+      hub,
+      ...((onboardingPlaceholder ?? initialPlaceholder)
+        ? { initialPlaceholder: (onboardingPlaceholder ?? initialPlaceholder)! }
+        : {}),
+    });
+    if (isOnboardingGuideActive && coachMarkStep === "open_stream") {
+      setCoachMarkStep(null);
+      advanceOnboardingGuide(5, {
+        themeId: area.id,
+        hubSlug: normalizeHubLabelKey(hubLabel),
+      });
+    }
+  }, [advanceOnboardingGuide, coachMarkStep, isOnboardingGuideActive]);
 
   const handleOpenGoalStream = useCallback((area: AreaData, goal: TreeGoalNode) => {
     const thread = area.branches.find((branch) => branch.id === goal.branchId);
@@ -781,8 +848,20 @@ function TreeViewInner({
       }
       setFocused(area.id);
       setPanel({ type: "area", area });
+      if (isOnboardingGuideActive && coachMarkStep === "tap_theme") {
+        setCoachMarkStep("tap_hub");
+        advanceOnboardingGuide(3, { themeId: area.id, hubSlug: null });
+      }
     },
-    [activatingLimbId, dormantLimbIds, editMapMode, streamSession],
+    [
+      activatingLimbId,
+      advanceOnboardingGuide,
+      coachMarkStep,
+      dormantLimbIds,
+      editMapMode,
+      isOnboardingGuideActive,
+      streamSession,
+    ],
   );
 
   const handleConfirmThemeUnlock = useCallback(async () => {
@@ -849,13 +928,20 @@ function TreeViewInner({
         setFocused(area.id);
         setPanel({ type: "hub", area: fresh, thread });
         showTreeToast(`Opened ${thread.type.trim() || "hub"}.`);
+        if (isOnboardingGuideActive && coachMarkStep === "tap_hub") {
+          setCoachMarkStep("open_stream");
+          advanceOnboardingGuide(4, {
+            themeId: area.id,
+            hubSlug: normalizeHubLabelKey(thread.type.trim() || thread.id),
+          });
+        }
       } else {
         setFocused(area.id);
         setPanel({ type: "area", area: fresh });
         showTreeToast("Hub opened.");
       }
     },
-    [loadData, showTreeToast],
+    [advanceOnboardingGuide, coachMarkStep, isOnboardingGuideActive, loadData, showTreeToast],
   );
 
   const patchGoal = useCallback(
