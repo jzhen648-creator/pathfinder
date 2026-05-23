@@ -2,6 +2,14 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-05-23 — Global Stream / Bark deferred
+
+Global "say anything" Stream that routes across all themes and hubs is deferred until theme Stream is stable. Near-term fix: theme Stream should flag out-of-theme items as ambiguous rather than losing them silently. Architecture should support per-item `themeId` + `hubId` so global Stream can be added later without a rebuild.
+
+## 2026-05-23 — Profile Memory layer planned
+
+Stream dumps contain three layers: map actions (pursuits, marks), which are captured today; context for existing items, which is partially captured; and profile insight (patterns, stressors, values, preferences), which is not captured today. After Stream is stable, add a Profile Memory extraction lane to the `StreamSession.summaryJson` scaffold. Extract small reviewable insights like "work stress often comes from unclear expectations" or "financial planning is tied to feeling safe." These are private, editable, and used to improve future Stream routing and personalisation — not shown as tree nodes.
+
 ## 2026-05-22 — Stream extract context budget + session summary scaffold
 
 Stream extract prompts are bounded before model calls: active and archived hub rows use the same caps (`10` pursuits / `20` marks), previous theme session dumps are truncated to three 500-character snippets, and extract/commit input text shares an 8,000-character limit. Theme Stream still routes by catalog inference first; if inference finds no hub matches, context falls back to the two most recently updated theme hubs via `Branch.updatedAt` instead of sending every hub in the theme. V2 session summarisation is scaffolded only: `StreamSession.summaryJson` can later store a structured `StreamSessionSummary` (`intent`, `hubSlugs`, `pursuitTitlesReferenced`, `summary`) from a fail-soft post-commit summarisation step near `recordStreamThemeSession`.

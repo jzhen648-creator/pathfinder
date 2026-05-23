@@ -2,6 +2,11 @@
 
 Items logged for later; not in scope for the current ship window.
 
+## Product backlog
+
+- **Global Capture / Bark (post-Stream-stability):** Add global "say anything" capture after theme Stream is stable. Theme Stream should first preserve out-of-theme items as ambiguous so the later global route can build on per-item `themeId` + `hubId` assignment.
+- **Profile Memory layer (post-Stream-stability):** Add a private, editable Profile Memory extraction lane to `StreamSession.summaryJson` for small reviewable insights that improve Stream routing and personalisation without becoming tree nodes.
+
 ## Onboarding complete API payload
 
 - **File:** `src/app/api/onboarding/complete/route.ts`
