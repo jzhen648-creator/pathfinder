@@ -281,8 +281,11 @@ function TreeSVGInner({
   onGoalClick,
   exportRootRef,
   showElementGuide = false,
+  suppressDevUi = false,
   streamPanFocus = null,
   initialFitAreaIds,
+  initialFitPaddingPx,
+  initialFitIncludePreviewBranchTips = false,
   highlightGoalId = null,
   streamPanelWidthPx = 0,
   editMapMode = false,
@@ -811,6 +814,8 @@ function TreeSVGInner({
             viewWidth: VIEWBOX_WIDTH,
             viewHeight: VIEWBOX_HEIGHT,
             areaIds: initialFitAreaIds,
+            paddingPx: initialFitPaddingPx,
+            includePreviewBranchTips: initialFitIncludePreviewBranchTips,
             fallback: treeFitTransform,
           })
         : treeFitTransform,
@@ -821,6 +826,8 @@ function TreeSVGInner({
       layoutOverrides,
       treeFitTransform,
       initialFitAreaIds,
+      initialFitPaddingPx,
+      initialFitIncludePreviewBranchTips,
     ],
   );
 
@@ -965,7 +972,7 @@ function TreeSVGInner({
         background: TREE_MAP_SURFACE_FILL,
       }}
     >
-      {TREE_RENDER_STATS_ENABLED ? <TreeRenderStatsHud marksRef={renderMarksRef} /> : null}
+      {TREE_RENDER_STATS_ENABLED && !suppressDevUi ? <TreeRenderStatsHud marksRef={renderMarksRef} /> : null}
       <div
         ref={exportRootRef}
         style={{
@@ -1763,7 +1770,7 @@ function TreeSVGInner({
                   <g
                     data-tree-limb-depth-plane={depthStage.plane}
                     style={{
-                      opacity: composedLimbOpacity * (obHubPickPeer ? 0.36 : 1),
+                      opacity: composedLimbOpacity,
                       transition: FLAGS.FOCUS_MODE ? "opacity 350ms ease" : "opacity 300ms ease",
                       filter: depthStage.limbVisualFilter,
                       ...(floatTranslateCss || depthStage.limbComposeTransform
@@ -4016,7 +4023,7 @@ function TreeSVGInner({
         </g>
       </svg>
       </div>
-      {process.env.NODE_ENV === "development" && TREE_LAYOUT_EDIT_ENABLED ? (
+      {process.env.NODE_ENV === "development" && TREE_LAYOUT_EDIT_ENABLED && !suppressDevUi ? (
         <TreeLayoutDevPanel
           areas={areas}
           allAreasForForkGeometry={allAreasForForkGeometry}

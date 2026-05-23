@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hubUiForSlug } from "@/lib/stream-theme-ui";
+import { ONBOARDING_STREAM_TO_HORIZON_MS } from "@/components/onboarding/onboarding-scene-motion";
 import {
   PREVIEW_PENDING_NODE_ID,
   useStreamPreview,
@@ -47,6 +48,9 @@ type StreamConfirmationBaseProps = {
   onExtracted?: () => void;
   inputText?: string;
   inputMode?: "text" | "voice";
+  onOnboardingCommitSuccess?: () => void;
+  onCommitSuccess?: () => void;
+  onCommitFailed?: (error: string) => void;
   onOnboardingFirstCardConfirmed?: () => void;
 };
 
@@ -88,6 +92,9 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
     onDone,
     onCardFocusHub,
     onExtracted,
+    onOnboardingCommitSuccess,
+    onCommitSuccess,
+    onCommitFailed,
     onOnboardingFirstCardConfirmed,
   } = props;
   const isTheme = props.mode === "theme";
@@ -135,6 +142,15 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
   const [batchCommitError, setBatchCommitError] = useState<string | null>(null);
   const [onboardingFirstSaved, setOnboardingFirstSaved] = useState(false);
   const [onboardingCelebration, setOnboardingCelebration] = useState(false);
+  const onboardingAdvanceTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (onboardingAdvanceTimerRef.current != null) {
+        window.clearTimeout(onboardingAdvanceTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setPhase(queue.length === 0 ? "summary" : "cards");
@@ -241,7 +257,14 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
       setOnboardingFirstSaved(true);
       setOnboardingCelebration(true);
       onClearPreview?.();
-      onOnboardingFirstCardConfirmed?.();
+      onOnboardingCommitSuccess?.();
+      if (onboardingAdvanceTimerRef.current != null) {
+        window.clearTimeout(onboardingAdvanceTimerRef.current);
+      }
+      onboardingAdvanceTimerRef.current = window.setTimeout(() => {
+        onboardingAdvanceTimerRef.current = null;
+        onOnboardingFirstCardConfirmed?.();
+      }, ONBOARDING_STREAM_TO_HORIZON_MS);
       return;
     }
 
@@ -253,6 +276,7 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
     edits,
     hub,
     onClearPreview,
+    onOnboardingCommitSuccess,
     onOnboardingFirstCardConfirmed,
     onboardingFirstSaved,
     onboardingMode,
@@ -278,7 +302,6 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
   );
 
   const handleAddToTree = useCallback(async () => {
-    setBatchCommitInFlight(true);
     setBatchCommitError(null);
     const committedClientKeyToGoalId = new Map<string, string>();
     const payload = decisions.reduce<StreamSingleCommitPayload>(
@@ -299,27 +322,39 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
     if (isTheme) {
       const inputText = props.inputText?.trim().slice(0, 4000) ?? "";
       if (!inputText) {
-        setBatchCommitInFlight(false);
         setBatchCommitError("Session text missing — start over and extract again.");
         return;
       }
     }
-    const result = isTheme
-      ? await postStreamThemeCommit(props.theme.themeId, {
-          ...payload,
-          inputText: props.inputText!.trim().slice(0, 4000),
-          inputMode: props.inputMode ?? "text",
-          ...countStreamCommitItems(decisions),
-        })
-      : await postStreamCommit(props.hub.branchId, payload);
-    setBatchCommitInFlight(false);
-    if (!result.ok) {
-      setBatchCommitError(result.error);
-      return;
-    }
+
     onClearPreview?.();
     onDone();
-  }, [decisions, isTheme, onClearPreview, onDone, props, skippedClientKeys]);
+
+    void (async () => {
+      const result = isTheme
+        ? await postStreamThemeCommit(props.theme.themeId, {
+            ...payload,
+            inputText: props.inputText!.trim().slice(0, 4000),
+            inputMode: props.inputMode ?? "text",
+            ...countStreamCommitItems(decisions),
+          })
+        : await postStreamCommit(props.hub.branchId, payload);
+      if (!result.ok) {
+        onCommitFailed?.(result.error);
+        return;
+      }
+      onCommitSuccess?.();
+    })();
+  }, [
+    decisions,
+    isTheme,
+    onClearPreview,
+    onCommitFailed,
+    onCommitSuccess,
+    onDone,
+    props,
+    skippedClientKeys,
+  ]);
 
   const { added, skipped } = countDecisions(decisions);
 
@@ -503,7 +538,7 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
             commitInFlight={batchCommitInFlight}
             commitError={batchCommitError}
             onRetry={() => void handleAdd()}
-            confirmLabel={onboardingMode ? "Yes, that's right" : "Confirm"}
+            confirmLabel={onboardingMode && cardIndex === 0 ? "Yes, that's right" : "Confirm"}
           />
         ) : (
           <StreamConfirmationSummary

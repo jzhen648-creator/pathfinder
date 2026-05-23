@@ -1,9 +1,14 @@
 "use client";
 
 import { useCallback } from "react";
+
 import { TreeSVG } from "@/components/tree/tree-svg";
 import type { AreaData, MomentNode, TreeGoalNode } from "@/components/tree/tree-types";
 import { PF_TREE_CANVAS_CSS } from "@/components/tree/tree-canvas-shell";
+import type {
+  OnboardingHubPickMode,
+  TreeCameraFrame,
+} from "@/components/tree/tree-view-types";
 import type { LifeAreaId } from "@/lib/types";
 
 export type OnboardingTreeBackgroundProps = {
@@ -15,11 +20,26 @@ export type OnboardingTreeBackgroundProps = {
   previewAreas?: AreaData[];
   /** Disable all pointer events — use for a purely decorative backdrop. */
   nonInteractive?: boolean;
+  /** Focus one theme on first paint (Scene 6 reveal). */
+  focusedLimbId?: string | null;
+  initialFitAreaIds?: readonly string[];
+  initialFitPaddingPx?: number;
+  initialFitIncludePreviewBranchTips?: boolean;
+  highlightGoalId?: string | null;
+  streamPanFocus?: { areaId: string; branchId: string; key: number } | null;
+  /** Onboarding Scene 3 — enhanced ghost hubs on the tree. */
+  onboardingHubPick?: OnboardingHubPickMode;
+  /** Full gateway medallion layout for empty themes (default true in onboarding). */
+  previewGatewayLayout?: boolean;
+  /** Onboarding-only camera sync for HTML callout overlays. */
+  onCameraFrame?: (frame: TreeCameraFrame) => void;
 };
 
 function noop() {}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function noopMoment(_m: MomentNode, _a: AreaData, _x: number, _y: number) {}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function noopGoal(_g: TreeGoalNode, _a: AreaData) {}
 
@@ -36,6 +56,15 @@ export function OnboardingTreeBackground({
   onAreaClick,
   previewAreas,
   nonInteractive = false,
+  focusedLimbId = null,
+  initialFitAreaIds,
+  initialFitPaddingPx,
+  initialFitIncludePreviewBranchTips,
+  highlightGoalId = null,
+  streamPanFocus = null,
+  onboardingHubPick,
+  previewGatewayLayout = true,
+  onCameraFrame,
 }: OnboardingTreeBackgroundProps) {
   const handleAreaClick = useCallback(
     (area: AreaData) => {
@@ -44,13 +73,15 @@ export function OnboardingTreeBackground({
     [nonInteractive, onAreaClick],
   );
 
+  const treeInteractive = !nonInteractive || onboardingHubPick != null;
+
   return (
     <div
       style={{
         position: "absolute",
         inset: 0,
         overflow: "hidden",
-        pointerEvents: nonInteractive ? "none" : "auto",
+        pointerEvents: treeInteractive ? "auto" : "none",
         zIndex: 0,
       }}
     >
@@ -63,8 +94,8 @@ export function OnboardingTreeBackground({
                 areas={areas}
                 previewAreas={previewAreas}
                 allAreasForForkGeometry={areas}
-                focused={null}
-                focusedLimbId={null}
+                focused={focusedLimbId}
+                focusedLimbId={focusedLimbId}
                 onToggleLimbFocus={noop}
                 panel={{ type: "none" }}
                 onClear={noop}
@@ -75,6 +106,15 @@ export function OnboardingTreeBackground({
                 dormantLimbIds={dormantLimbIds}
                 unlockedLimbIds={unlockedLimbIds}
                 activatingLimbId={activatingLimbId ?? null}
+                initialFitAreaIds={initialFitAreaIds}
+                initialFitPaddingPx={initialFitPaddingPx}
+                initialFitIncludePreviewBranchTips={initialFitIncludePreviewBranchTips}
+                highlightGoalId={highlightGoalId}
+                suppressDevUi
+                streamPanFocus={streamPanFocus}
+                onboardingHubPickMode={onboardingHubPick}
+                previewGatewayLayout={previewGatewayLayout}
+                onCameraFrame={onCameraFrame}
               />
             </div>
           </div>

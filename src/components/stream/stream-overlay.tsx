@@ -212,7 +212,7 @@ const STREAM_PANEL_SLIDE_CSS = `
 .pf-stream-onboarding-embed {
   position: relative;
   inset: auto;
-  min-height: 420px;
+  min-height: 0;
   pointer-events: auto;
   color: var(--rm-text1, var(--color-text-primary));
 }
@@ -226,7 +226,18 @@ const STREAM_PANEL_SLIDE_CSS = `
   padding: 0 2px;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(245, 243, 250, 0.55);
+  font-family: var(--font-pf-roadmap-sans), "DM Sans", sans-serif;
+}
+
+.pf-stream-onboarding-hint-float {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: min(720px, calc(100vw - 96px));
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
 }
 
 .pf-stream-composer-onboarding {
@@ -266,7 +277,13 @@ type StreamOverlayBaseProps = {
   onClearPreview?: () => void;
   onCardFocusHub?: (areaId: string, branchId: string) => void;
   onExtracted?: () => void;
-  /** After the first confirmation card is saved during onboarding Stream Lite. */
+  /** Prefetch server tree data after the first onboarding card commits. */
+  onOnboardingCommitSuccess?: () => void;
+  /** After batch commit succeeds (main app). */
+  onCommitSuccess?: () => void;
+  /** When batch commit fails after Stream has closed. */
+  onCommitFailed?: (error: string) => void;
+  /** After the first confirmation card is saved during onboarding Stream. */
   onOnboardingFirstCardConfirmed?: () => void;
   embed?: boolean;
 };
@@ -309,6 +326,9 @@ export function StreamOverlay(props: StreamOverlayProps) {
     onClearPreview,
     onCardFocusHub,
     onExtracted,
+    onOnboardingCommitSuccess,
+    onCommitSuccess,
+    onCommitFailed,
     onOnboardingFirstCardConfirmed,
     embed = false,
   } = props;
@@ -492,7 +512,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
         {!onboardingMode ? <div className="pf-stream-state-badge">C · Stream active</div> : null}
 
         <h2 id="stream-overlay-title" style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}>
-          {onboardingEmbed ? "Stream Lite" : `${headerSubtitle} · ${headerTitle}`}
+          {onboardingEmbed ? "Onboarding Stream" : `${headerSubtitle} · ${headerTitle}`}
         </h2>
 
         {extracting ? (
@@ -531,6 +551,9 @@ export function StreamOverlay(props: StreamOverlayProps) {
                 onDone={handleDone}
                 onCardFocusHub={onCardFocusHub}
                 onExtracted={onExtracted}
+                onOnboardingCommitSuccess={onOnboardingCommitSuccess}
+                onCommitSuccess={onCommitSuccess}
+                onCommitFailed={onCommitFailed}
                 onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
               />
             ) : (
@@ -545,6 +568,9 @@ export function StreamOverlay(props: StreamOverlayProps) {
                 onDone={handleDone}
                 onCardFocusHub={onCardFocusHub}
                 onExtracted={onExtracted}
+                onOnboardingCommitSuccess={onOnboardingCommitSuccess}
+                onCommitSuccess={onCommitSuccess}
+                onCommitFailed={onCommitFailed}
                 onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
               />
             )}
@@ -553,7 +579,11 @@ export function StreamOverlay(props: StreamOverlayProps) {
 
         <div className={onboardingEmbed ? "pf-stream-composer-onboarding" : "pf-stream-composer-float"}>
           {onboardingMode ? (
-            <p className="pf-stream-onboarding-hint">Take your time. Sentences are fine.</p>
+            <p
+              className={onboardingEmbed ? "pf-stream-onboarding-hint" : "pf-stream-onboarding-hint pf-stream-onboarding-hint-float"}
+            >
+              Take your time. Sentences are fine.
+            </p>
           ) : null}
           <StreamComposer
             value={draft}

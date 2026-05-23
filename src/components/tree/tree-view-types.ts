@@ -2,7 +2,21 @@ import type { RefObject } from "react";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
 import type { LifeAreaId } from "@/lib/types";
 import type { MarkInteractionAnchor } from "./mark-hover-card";
+import type { TreePanTransform } from "./tree-view-fit";
 import type { AreaData, MomentNode, Point, TreeGoalNode, TreeOrbitalMilestone } from "./tree-types";
+
+export type TreeCameraFrame = {
+  svg: SVGSVGElement;
+  transform: TreePanTransform;
+  viewWidth: number;
+  viewHeight: number;
+};
+
+/** Onboarding Scene 3 — theme pick (themeId null) or track pick within a theme. */
+export type OnboardingHubPickMode = {
+  themeId: LifeAreaId | null;
+  onHubSelect: (slug: string) => void;
+};
 
 export type { MarkInteractionAnchor };
 
@@ -61,8 +75,18 @@ export type TreeSVGProps = {
   onGoalClick: (goal: TreeGoalNode, area: AreaData) => void;
   exportRootRef?: RefObject<HTMLDivElement | null>;
   showElementGuide?: boolean;
+  /** Hide development HUD / layout controls while onboarding overlays own the screen. */
+  suppressDevUi?: boolean;
   /** Stream confirmation: pan camera to this hub when `key` changes. */
   streamPanFocus?: { areaId: string; branchId: string; key: number } | null;
+  /** On first mount, fit camera to these theme ids instead of the full tree. */
+  initialFitAreaIds?: readonly string[];
+  /** Optional padding for initial area fit; larger values keep more surrounding map visible. */
+  initialFitPaddingPx?: number;
+  /** Include preview hub tips in the initial fit for empty onboarding themes. */
+  initialFitIncludePreviewBranchTips?: boolean;
+  /** Pulse paths to this pursuit without opening the goal panel (onboarding reveal). */
+  highlightGoalId?: string | null;
   /** Width of the fixed Stream panel (px) — offsets pan centre left. */
   streamPanelWidthPx?: number;
   /** User edit-map mode — drag pursuits to reorganise (disables pan). */
@@ -79,6 +103,12 @@ export type TreeSVGProps = {
   /** Theme that just activated — drives staged grow-in SMIL once. */
   limbRevealLimbId?: LifeAreaId | null;
   onLimbRevealComplete?: (limbId: LifeAreaId) => void;
+  /** Onboarding Scene 3 — enhanced ghost hubs; never set on main tree. */
+  onboardingHubPickMode?: OnboardingHubPickMode;
+  /** Render full gateway + ghost hub fan for empty themes (onboarding + main-tree ghost). */
+  previewGatewayLayout?: boolean;
+  /** Onboarding-only camera sync for HTML callout overlays. */
+  onCameraFrame?: (frame: TreeCameraFrame) => void;
 };
 
 export type TreePanelPresentation = "sheet" | "rail";

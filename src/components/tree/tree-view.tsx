@@ -30,6 +30,7 @@ import { TREE_THEME_SHORT_LABEL } from "@/components/tree/tree-design-visual";
 import { LIFE_AREA_ORDER } from "./tree-data";
 import { applyTreeDensity } from "./tree-density";
 import { AddAreaModal } from "./add-area-modal";
+import { useBackgroundMapPrefetch } from "@/hooks/use-background-map-prefetch";
 import { activateHubOnServer, unlockThemeOnServer } from "./tree-activate-limb";
 import { ActivateThemeConfirmModal } from "./activate-theme-confirm-modal";
 import { dormantLimbIdsFromUnlocked, mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
@@ -78,19 +79,32 @@ async function readApiFailureMessage(res: Response, fallback: string, includeSta
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-export function TreeView({ firstRun }: { firstRun: TreeFirstRunConfig }) {
+export function TreeView({
+  firstRun,
+  onboardingLocked = false,
+}: {
+  firstRun: TreeFirstRunConfig;
+  onboardingLocked?: boolean;
+}) {
   return (
     <StreamPreviewProvider>
-      <TreeViewInner firstRun={firstRun} />
+      <TreeViewInner firstRun={firstRun} onboardingLocked={onboardingLocked} />
     </StreamPreviewProvider>
   );
 }
 
-function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
+function TreeViewInner({
+  firstRun,
+  onboardingLocked,
+}: {
+  firstRun: TreeFirstRunConfig;
+  onboardingLocked: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, update: refreshSession } = useSession();
   const { snapshot: mapDataSnapshot, ensureLoaded: ensureMapDataLoaded, refetch: refetchMapData } = useMapData();
+  const prefetchMapData = useBackgroundMapPrefetch();
   const [firstRunCompleted, setFirstRunCompleted] = useState(firstRun.completed);
   const firstRunCompletedRef = useRef(firstRun.completed);
   const primaryLimbIdRef = useRef(firstRun.primaryLimbId);
@@ -675,7 +689,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   }, [applyFirstRunFocus, loadData, refreshSession, showTreeToast]);
 
   const showFirstRunWelcome =
-    !firstRunCompleted && !streamSession && !loading && areas.length > 0;
+    !onboardingLocked && !firstRunCompleted && !streamSession && !loading && areas.length > 0;
 
   const handleAddGoalOnHub = useCallback((hub: AddGoalHubContext) => {
     setAddGoalDefaultBranchId(hub.branchId);
@@ -777,35 +791,49 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
     const lifeArea = getLifeArea(limbId);
     const shortLabel = TREE_THEME_SHORT_LABEL[limbId] ?? lifeArea?.label ?? limbId;
     const accent = lifeArea?.color ?? "#7B68C8";
+    const previousUnlocked = unlockedLimbIds;
+    const optimisticArea = areas.find((a) => a.id === limbId);
+
     setPendingThemeConfirm(null);
-    setActivatingLimbId(limbId);
-    showTreeToast(`Adding ${shortLabel} to your map…`, accent);
-    const result = await unlockThemeOnServer(limbId);
-    setActivatingLimbId(null);
-    if (!result.ok) {
-      showTreeToast(result.error ?? "Could not add this area.", "#e85d5d");
-      return;
-    }
-    if (result.unlockedLimbIds) {
-      setUnlockedLimbIds(result.unlockedLimbIds);
-    }
-    const nextAreas = await loadData({ silent: true });
-    const fresh = nextAreas?.find((a) => a.id === limbId);
-    if (!fresh) {
-      showTreeToast("Theme added — refresh if the map looks out of date.", accent);
-      return;
-    }
+    setUnlockedLimbIds((prev) => (prev.includes(limbId) ? prev : [...prev, limbId]));
     setFocused(limbId);
     setLimbRevealLimbId(limbId);
     setRecentlyUnlockedLimbId(limbId);
-    setPanel({ type: "area", area: fresh });
+    if (optimisticArea) {
+      setPanel({ type: "area", area: optimisticArea });
+    }
+
+    const result = await unlockThemeOnServer(limbId);
+    if (!result.ok) {
+      setUnlockedLimbIds(previousUnlocked);
+      setFocused(null);
+      setLimbRevealLimbId(null);
+      setRecentlyUnlockedLimbId(null);
+      setPanel({ type: "none" });
+      showTreeToast(result.error ?? "Could not add this area.", "#e85d5d");
+      return;
+    }
+
+    if (result.unlockedLimbIds) {
+      setUnlockedLimbIds(result.unlockedLimbIds);
+    }
+
+    prefetchMapData();
+    void loadData({ silent: true }).then((nextAreas) => {
+      const fresh = nextAreas?.find((a) => a.id === limbId);
+      if (fresh) {
+        setFocused(limbId);
+        setPanel({ type: "area", area: fresh });
+      }
+    });
+
     showTreeToast(
       `${shortLabel} is on your map — choose a hub to open first in the panel.`,
       accent,
     );
     window.setTimeout(() => setLimbRevealLimbId(null), 950);
     window.setTimeout(() => setRecentlyUnlockedLimbId(null), 14_000);
-  }, [loadData, pendingThemeConfirm, showTreeToast]);
+  }, [areas, loadData, pendingThemeConfirm, prefetchMapData, showTreeToast, unlockedLimbIds]);
 
   const handleActivateHubFromPanel = useCallback(
     async (branchId: string, area: AreaData) => {
@@ -1009,6 +1037,7 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
           onGoalClick={handleGoalClick}
           exportRootRef={treeExportRootRef}
           showElementGuide={TREE_ELEMENT_GUIDE_ENABLED && showTreeElementGuide}
+          suppressDevUi={onboardingLocked}
           streamPanFocus={streamPanFocus}
           streamPanelWidthPx={streamSession ? STREAM_PANEL_WIDTH_PX : 0}
           editMapMode={editMapMode && !streamSession}
@@ -1257,7 +1286,13 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
   const detailRailWidthPx = panel?.type === "goal" ? 480 : TREE_DETAIL_RAIL_WIDTH_PX;
 
   return (
-    <div className="pf-tree-canvas h-full overflow-hidden">
+    <div
+      className="pf-tree-canvas h-full overflow-hidden"
+      style={{
+        pointerEvents: onboardingLocked ? "none" : undefined,
+        opacity: onboardingLocked ? 0 : 1,
+      }}
+    >
       <style>{PF_TREE_CANVAS_CSS}</style>
       <div className="pf-tree-canvas-shell">
         <div className="pf-tree-canvas-stage">
@@ -1431,10 +1466,16 @@ function TreeViewInner({ firstRun }: { firstRun: TreeFirstRunConfig }) {
             streamPanHubRef.current = null;
           }}
           onClearPreview={clearPreviewNodes}
-          onCommitted={() => {
+          onCommitted={() => {}}
+          onCommitSuccess={() => {
+            prefetchMapData();
             void handleStreamCommitted();
           }}
+          onCommitFailed={(error) => {
+            showTreeToast(error ?? "Could not save to your map.", "#e85d5d");
+          }}
           onExtracted={() => {
+            prefetchMapData();
             void loadData({ silent: true });
           }}
         />

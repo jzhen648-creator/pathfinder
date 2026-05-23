@@ -297,11 +297,11 @@ export const streamCommitPayloadSchema = z.object({
 
 export type StreamCommitPayload = z.infer<typeof streamCommitPayloadSchema>;
 
-/** Shared UI session options for tree Stream overlay and onboarding Stream Lite. */
+/** Shared UI session options for tree Stream overlay and onboarding Stream. */
 export type StreamUiSessionOptions = {
   initialDraft?: string;
   initialPlaceholder?: string;
-  /** Guided onboarding Stream Lite — constrained copy and first-card gate. */
+  /** Guided onboarding Stream — constrained copy and first-card gate. */
   onboardingMode?: boolean;
   /** Hub-specific first-time question shown as the composer placeholder. */
   onboardingQuestion?: string;

@@ -19,7 +19,7 @@ export type HubCatalogEntry = {
    * Not rendered as hub-panel chips — panel uses a single **Open Stream** entry.
    */
   openingQuestions?: [string, string, string];
-  /** First-time guided onboarding Stream Lite placeholder (Scene 4). */
+  /** First-time guided onboarding Stream placeholder (Scene 4). */
   firstTimeQuestion: string;
 };
 
