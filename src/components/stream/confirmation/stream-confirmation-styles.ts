@@ -55,22 +55,20 @@ export const STREAM_CARD_ANIMATION_CSS = `
 export const STREAM_CARD_VARIANT_CSS = `
 .pf-stream-shell .pf-stream-card {
   width: 100%;
-  max-width: 480px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 26px 26px 22px;
-  border-radius: 16px;
+  padding: 14px 16px 12px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(11, 10, 15, 0.84);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
   box-sizing: border-box;
 }
 
 .pf-stream-shell .pf-stream-card-wrap {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
@@ -99,9 +97,9 @@ export const STREAM_CARD_VARIANT_CSS = `
 }
 
 .pf-stream-shell .pf-stream-card-title {
-  margin: 6px 0 8px;
+  margin: 4px 0 5px;
   font-family: var(--font-pf-roadmap-sans), "Inter", system-ui, sans-serif;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.014em;
   line-height: 1.25;
@@ -110,14 +108,14 @@ export const STREAM_CARD_VARIANT_CSS = `
 
 .pf-stream-shell .pf-stream-card-detail {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.66);
-  line-height: 1.55;
+  line-height: 1.4;
   text-wrap: pretty;
 }
 
 .pf-stream-shell .pf-stream-card--mark {
-  background: rgba(11, 10, 15, 0.84);
+  background: rgba(255, 255, 255, 0.04);
   animation: streamCardInPeer 200ms ease-out;
 }
 
@@ -126,8 +124,8 @@ export const STREAM_CARD_VARIANT_CSS = `
 }
 
 .pf-stream-shell .pf-stream-card--mark .pf-stream-card-date {
-  margin: 10px 0 0;
-  font-size: 16px;
+  margin: 6px 0 0;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.35;
   color: var(--color-text-primary);
@@ -168,7 +166,7 @@ export const STREAM_CARD_VARIANT_CSS = `
 }
 
 .pf-stream-shell .pf-stream-card--milestone .pf-stream-card-title {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .pf-stream-shell .pf-stream-card--milestone .pf-stream-card-parent {
@@ -215,7 +213,7 @@ export function primaryBtn(accent: string): CSSProperties {
   return {
     fontSize: 13,
     fontWeight: 500,
-    padding: "9px 16px",
+    padding: "8px 14px",
     borderRadius: 10,
     border: "none",
     background: "rgba(255, 255, 255, 0.94)",
@@ -228,7 +226,7 @@ export function ghostBtn(): CSSProperties {
   return {
     fontSize: 13,
     fontWeight: 500,
-    padding: "9px 14px",
+    padding: "8px 12px",
     borderRadius: 10,
     border: "none",
     background: "transparent",
@@ -268,8 +266,8 @@ export const cardHeaderStyle: CSSProperties = {
 export const actionsColumnStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: 10,
-  marginTop: 20,
+  gap: 8,
+  marginTop: 12,
 };
 
 export const responsiveActionsCss = `

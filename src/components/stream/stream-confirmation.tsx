@@ -410,13 +410,13 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
   ]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      <div style={{ flexShrink: 0, padding: "16px 0 0" }}>
+    <div style={{ display: "flex", flexDirection: "column", maxHeight: "35vh", minHeight: 0, overflow: "hidden" }}>
+      <div style={{ flexShrink: 0, padding: "0" }}>
         {extraction.clarifyingQuestion ? (
           <div
             style={{
-              margin: "0 22px 12px",
-              padding: "12px 14px",
+              margin: "0 2px 8px",
+              padding: "9px 11px",
               borderRadius: 10,
               border: "1px solid rgba(123, 104, 200, 0.35)",
               background: "rgba(123, 104, 200, 0.08)",
@@ -445,8 +445,8 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
         {(extraction.committedAmbiguousCount ?? 0) > 0 || extraction.ambiguous.length > 0 ? (
           <div
             style={{
-              margin: "0 22px 12px",
-              padding: "12px 14px",
+              margin: "0 2px 8px",
+              padding: "9px 11px",
               borderRadius: 10,
               border: `1px solid ${accent}44`,
               background: `${accent}12`,
@@ -462,18 +462,18 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
         ) : null}
 
         {onboardingMode && phase === "cards" && cardIndex === 0 ? (
-          <div style={{ margin: "0 22px 12px" }}>
+          <div style={{ margin: "0 2px 8px" }}>
             <h3
               style={{
                 margin: "0 0 6px",
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: 600,
                 color: "var(--color-text-primary)",
               }}
             >
               Here&apos;s what I heard.
             </h3>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--color-text-secondary)" }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.4, color: "var(--color-text-secondary)" }}>
               Pathfinder turns what you say into your map. Tell me if I got this right.
             </p>
           </div>
@@ -482,8 +482,8 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
         {onboardingCelebration ? (
           <p
             style={{
-              margin: "0 22px 12px",
-              fontSize: 14,
+              margin: "0 2px 8px",
+              fontSize: 13,
               fontWeight: 600,
               color: accent,
             }}
@@ -497,7 +497,7 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
         ) : null}
 
         {!onboardingMode ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "4px 22px 8px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-start", padding: "0 2px 6px" }}>
             <button type="button" onClick={onStartOver} disabled={busy || batchCommitInFlight} style={linkBtnStyle}>
               Start over
             </button>
@@ -511,9 +511,9 @@ export function StreamConfirmation(props: StreamConfirmationProps) {
           minHeight: 0,
           overflowY: "auto",
           display: "flex",
-          alignItems: "center",
+          alignItems: "stretch",
           justifyContent: "center",
-          padding: "12px 22px 24px",
+          padding: "4px 2px 8px",
         }}
       >
         {phase === "cards" && currentItem ? (

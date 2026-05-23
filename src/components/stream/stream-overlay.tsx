@@ -57,68 +57,89 @@ const STREAM_PANEL_SLIDE_CSS = `
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+@keyframes streamDrawerSlideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pf-stream-overlay-root.pf-stream-overlay-closing {
+  animation: streamDrawerSlideUp 300ms ease-out reverse both;
+}
+
 .pf-stream-overlay-root {
   position: fixed;
-  inset: 0;
-  z-index: 200000;
-  pointer-events: none;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-height: 45vh;
+  height: auto;
+  overflow: hidden;
+  padding: 14px clamp(16px, 4vw, 32px) 16px;
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  background: rgba(7, 6, 10, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 -18px 54px rgba(0, 0, 0, 0.42);
+  pointer-events: auto;
   color: var(--rm-text1, var(--color-text-primary));
+  animation: streamDrawerSlideUp 300ms ease-out both;
 }
 
 .pf-stream-overlay-root > * {
   pointer-events: auto;
 }
 
-.pf-stream-click-away {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border: 0;
-  background: transparent;
-  cursor: default;
+.pf-stream-drawer-inner {
+  width: min(820px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(45vh - 30px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pf-stream-back-btn {
-  position: absolute;
-  top: 68px;
-  left: 22px;
-  z-index: 4;
+  position: static;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 12px 7px 9px;
-  border-radius: 8px;
+  padding: 5px 9px 5px 7px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(11, 10, 15, 0.6);
-  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.62);
   font-family: var(--font-pf-roadmap-sans), "Inter", system-ui, sans-serif;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .pf-stream-state-badge {
-  position: absolute;
-  top: 68px;
-  right: 22px;
-  z-index: 4;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  margin-left: auto;
+  padding: 4px 9px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(11, 10, 15, 0.55);
-  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.45);
   font-family: var(--font-pf-roadmap-mono), "JetBrains Mono", monospace;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+}
+
+.pf-stream-drawer-header {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
 }
 
 .pf-stream-state-badge::before {
@@ -131,47 +152,46 @@ const STREAM_PANEL_SLIDE_CSS = `
 }
 
 .pf-stream-confirm-float {
-  position: absolute;
-  top: 110px;
-  right: 36px;
-  z-index: 3;
-  width: min(480px, calc(100vw - 72px));
-  height: min(72vh, 640px);
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-height: 35vh;
+  overflow: hidden;
   animation: streamOverlayFloatIn 220ms ease-out both;
 }
 
 .pf-stream-confirm-float > div {
-  height: 100%;
+  max-height: 35vh;
+  height: auto;
 }
 
 .pf-stream-composer-float {
-  position: absolute;
-  left: 50%;
-  bottom: 28px;
-  z-index: 4;
-  width: min(720px, calc(100vw - 96px));
-  transform: translateX(-50%);
-  animation: streamOverlayCenteredFloatIn 220ms ease-out both;
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: 1;
+  width: 100%;
+  transform: none;
+  animation: none;
 }
 
 .pf-stream-narrative-pill {
-  position: absolute;
-  left: 50%;
-  bottom: 202px;
-  z-index: 4;
-  width: min(720px, calc(100vw - 96px));
-  transform: translateX(-50%);
-  padding: 12px 14px;
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: 1;
+  width: 100%;
+  transform: none;
+  padding: 9px 12px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(11, 10, 15, 0.78);
+  background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.68);
-  font-size: 14px;
-  line-height: 1.5;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-  animation: streamOverlayCenteredFloatIn 220ms ease-out both;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: none;
+  animation: streamOverlayFloatIn 220ms ease-out both;
 }
 
 .pf-stream-narrative-pill strong {
@@ -193,25 +213,22 @@ const STREAM_PANEL_SLIDE_CSS = `
 
 @media (max-width: 900px) {
   .pf-stream-confirm-float {
-    right: 18px;
-    left: 18px;
     width: auto;
   }
 
   .pf-stream-composer-float,
   .pf-stream-narrative-pill {
-    width: calc(100vw - 36px);
+    width: 100%;
   }
 }
 
 @media (max-height: 680px) {
   .pf-stream-confirm-float {
-    top: 88px;
-    height: 48vh;
+    max-height: 32vh;
   }
 
   .pf-stream-confirm-float > div {
-    height: 100%;
+    max-height: 32vh;
   }
 }
 
@@ -228,22 +245,20 @@ const STREAM_PANEL_SLIDE_CSS = `
 }
 
 .pf-stream-onboarding-hint {
-  margin: 0 0 10px;
+  margin: 8px 0 4px;
   padding: 0 2px;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(245, 243, 250, 0.55);
+  color: rgba(245, 243, 250, 0.5);
   font-family: var(--font-pf-roadmap-sans), "DM Sans", sans-serif;
 }
 
 .pf-stream-onboarding-hint-float {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  width: min(720px, calc(100vw - 96px));
-  transform: translateX(-50%);
-  text-align: center;
-  pointer-events: none;
+  position: static;
+  width: 100%;
+  transform: none;
+  text-align: left;
+  pointer-events: auto;
 }
 
 .pf-stream-composer-onboarding {
@@ -261,14 +276,17 @@ const STREAM_PANEL_SLIDE_CSS = `
   right: auto;
   width: 100%;
   height: auto;
-  min-height: 280px;
-  margin-top: 16px;
+  max-height: 35vh;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 4px;
   animation: none;
 }
 
 .pf-stream-confirm-onboarding > div {
   height: auto;
-  min-height: 280px;
+  max-height: 35vh;
+  min-height: 0;
 }
 
 `;
@@ -363,6 +381,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
   const [draft, setDraft] = useState(initialDraft);
 
   const [busy, setBusy] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [onboardingRetryReady, setOnboardingRetryReady] = useState(false);
@@ -380,6 +399,12 @@ export function StreamOverlay(props: StreamOverlayProps) {
 
   const inputMode = voiceUsedInSession ? "voice" : "text";
 
+  const handleRequestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    window.setTimeout(onClose, 300);
+  }, [closing, onClose]);
+
   useEffect(() => {
     setPortalMounted(true);
   }, []);
@@ -393,11 +418,11 @@ export function StreamOverlay(props: StreamOverlayProps) {
   useEffect(() => {
     if (onboardingMode) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busy) handleRequestClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onClose, onboardingMode]);
+  }, [busy, handleRequestClose, onboardingMode]);
 
   const handleExtract = useCallback(async () => {
     const text = draft.trim();
@@ -555,8 +580,8 @@ export function StreamOverlay(props: StreamOverlayProps) {
   const handleDone = useCallback(() => {
     onCommitted();
 
-    onClose();
-  }, [onClose, onCommitted]);
+    handleRequestClose();
+  }, [handleRequestClose, onCommitted]);
 
   const extracting = phase === "extracting";
 
@@ -588,158 +613,153 @@ export function StreamOverlay(props: StreamOverlayProps) {
       <style dangerouslySetInnerHTML={{ __html: STREAM_COMPOSER_CSS }} />
 
       <div
-        className={`pf-roadmap pf-stream-shell ${onboardingEmbed ? "pf-stream-onboarding-embed" : "pf-stream-overlay-root"}`}
+        className={`pf-roadmap pf-stream-shell ${
+          onboardingEmbed
+            ? "pf-stream-onboarding-embed"
+            : `pf-stream-overlay-root${closing ? " pf-stream-overlay-closing" : ""}`
+        }`}
         role="dialog"
         aria-modal={onboardingEmbed ? "true" : "false"}
         aria-labelledby="stream-overlay-title"
         style={{ ["--stream-accent" as string]: accent }}
       >
-        {!onboardingMode ? (
-          <button
-            type="button"
-            className="pf-stream-click-away"
-            aria-label="Close Stream"
-            onClick={() => {
-              if (!busy) onClose();
-            }}
-            disabled={busy}
-          />
-        ) : null}
-
-        {!onboardingMode ? (
-          <button type="button" className="pf-stream-back-btn" onClick={onClose} disabled={busy}>
-            ← Back to map
-          </button>
-        ) : null}
-
-        {!onboardingMode ? <div className="pf-stream-state-badge">C · Stream active</div> : null}
-
-        <h2 id="stream-overlay-title" style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}>
-          {onboardingEmbed ? "Onboarding Stream" : `${headerSubtitle} · ${headerTitle}`}
-        </h2>
-
-        {extracting ? (
-          <div className="pf-stream-narrative-pill" aria-live="polite" aria-busy="true">
-            <strong>Listening</strong>
-            {narrative || "Making sense of this…"}
-            {showSlowExtractHint ? (
-              <div className="pf-stream-slow-extract-hint">
-                Still working — complex inputs take a moment.
-              </div>
+        <div className={onboardingEmbed ? undefined : "pf-stream-drawer-inner"}>
+          <div className="pf-stream-drawer-header">
+            {!onboardingMode ? (
+              <button type="button" className="pf-stream-back-btn" onClick={handleRequestClose} disabled={busy}>
+                ← Back
+              </button>
             ) : null}
+            {!onboardingMode ? <div className="pf-stream-state-badge">C · Stream active</div> : null}
           </div>
-        ) : null}
 
-        {phase === "confirm" && extraction ? (
-          <div className={onboardingEmbed ? "pf-stream-confirm-onboarding" : "pf-stream-confirm-float"}>
-            {error ? (
-              <p
-                style={{
-                  ...STREAM_ASSISTANT_MESSAGE_STYLE,
-                  margin: "0 0 10px",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: "rgba(11, 10, 15, 0.78)",
-                }}
-              >
-                {error}
-              </p>
-            ) : null}
-            {props.mode === "theme" ? (
-              <StreamConfirmation
-                mode="theme"
-                theme={props.theme}
-                extraction={extraction}
-                busy={busy}
-                inputText={draft}
-                inputMode={inputMode}
-                onboardingMode={onboardingMode}
-                onStartOver={handleStartOver}
-                onClearPreview={onClearPreview}
-                onDone={handleDone}
-                onCardFocusHub={onCardFocusHub}
-                onExtracted={onExtracted}
-                onOnboardingCommitSuccess={onOnboardingCommitSuccess}
-                onCommitSuccess={onCommitSuccess}
-                onCommitFailed={onCommitFailed}
-                onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
-              />
-            ) : (
-              <StreamConfirmation
-                mode="hub"
-                hub={props.hub}
-                extraction={extraction}
-                busy={busy}
-                onboardingMode={onboardingMode}
-                onStartOver={handleStartOver}
-                onClearPreview={onClearPreview}
-                onDone={handleDone}
-                onCardFocusHub={onCardFocusHub}
-                onExtracted={onExtracted}
-                onOnboardingCommitSuccess={onOnboardingCommitSuccess}
-                onCommitSuccess={onCommitSuccess}
-                onCommitFailed={onCommitFailed}
-                onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
-              />
-            )}
-          </div>
-        ) : null}
+          <h2 id="stream-overlay-title" style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}>
+            {onboardingEmbed ? "Onboarding Stream" : `${headerSubtitle} · ${headerTitle}`}
+          </h2>
 
-        <div className={onboardingEmbed ? "pf-stream-composer-onboarding" : "pf-stream-composer-float"}>
-          {onboardingMode ? (
-            <p
-              className={onboardingEmbed ? "pf-stream-onboarding-hint" : "pf-stream-onboarding-hint pf-stream-onboarding-hint-float"}
-            >
-              Take your time. Sentences are fine.
-            </p>
-          ) : null}
-          <StreamComposer
-            value={draft}
-            onChange={setDraft}
-            placeholder={placeholder}
-            disabled={composerDisabled}
-            busy={busy}
-            accent={accent}
-            proposalCount={extraction ? extraction.pursuits.length + extraction.milestones.length + extraction.marks.length : 0}
-            onSend={() => void handleExtract()}
-            onVoiceUsed={() => setVoiceUsedInSession(true)}
-            voiceOptions={{ enabled: true }}
-            showFooterHints={!onboardingMode}
-            sendLabel="Send"
-          />
-
-          {error && phase !== "confirm" ? (
-            <div>
-              <p
-                style={{
-                  ...STREAM_ASSISTANT_MESSAGE_STYLE,
-                  margin: "10px 0 0",
-                  padding: "0 2px",
-                }}
-              >
-                {error}
-              </p>
-              {onboardingMode && onboardingRetryReady ? (
-                <button
-                  type="button"
-                  onClick={() => void handleExtract()}
-                  style={{
-                    marginTop: 8,
-                    border: `1px solid ${accent}66`,
-                    borderRadius: 999,
-                    background: `${accent}1f`,
-                    color: "rgba(245,243,250,0.9)",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    padding: "7px 12px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Try again
-                </button>
+          {extracting ? (
+            <div className="pf-stream-narrative-pill" aria-live="polite" aria-busy="true">
+              <strong>Listening</strong>
+              {narrative || "Making sense of this…"}
+              {showSlowExtractHint ? (
+                <div className="pf-stream-slow-extract-hint">
+                  Still working — complex inputs take a moment.
+                </div>
               ) : null}
             </div>
           ) : null}
+
+          {phase === "confirm" && extraction ? (
+            <div className={onboardingEmbed ? "pf-stream-confirm-onboarding" : "pf-stream-confirm-float"}>
+              {error ? (
+                <p
+                  style={{
+                    ...STREAM_ASSISTANT_MESSAGE_STYLE,
+                    margin: "0 0 10px",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: "rgba(11, 10, 15, 0.78)",
+                  }}
+                >
+                  {error}
+                </p>
+              ) : null}
+              {props.mode === "theme" ? (
+                <StreamConfirmation
+                  mode="theme"
+                  theme={props.theme}
+                  extraction={extraction}
+                  busy={busy}
+                  inputText={draft}
+                  inputMode={inputMode}
+                  onboardingMode={onboardingMode}
+                  onStartOver={handleStartOver}
+                  onClearPreview={onClearPreview}
+                  onDone={handleDone}
+                  onCardFocusHub={onCardFocusHub}
+                  onExtracted={onExtracted}
+                  onOnboardingCommitSuccess={onOnboardingCommitSuccess}
+                  onCommitSuccess={onCommitSuccess}
+                  onCommitFailed={onCommitFailed}
+                  onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
+                />
+              ) : (
+                <StreamConfirmation
+                  mode="hub"
+                  hub={props.hub}
+                  extraction={extraction}
+                  busy={busy}
+                  onboardingMode={onboardingMode}
+                  onStartOver={handleStartOver}
+                  onClearPreview={onClearPreview}
+                  onDone={handleDone}
+                  onCardFocusHub={onCardFocusHub}
+                  onExtracted={onExtracted}
+                  onOnboardingCommitSuccess={onOnboardingCommitSuccess}
+                  onCommitSuccess={onCommitSuccess}
+                  onCommitFailed={onCommitFailed}
+                  onOnboardingFirstCardConfirmed={onOnboardingFirstCardConfirmed}
+                />
+              )}
+            </div>
+          ) : null}
+
+          <div className={onboardingEmbed ? "pf-stream-composer-onboarding" : "pf-stream-composer-float"}>
+            {onboardingMode ? (
+              <p
+                className={onboardingEmbed ? "pf-stream-onboarding-hint" : "pf-stream-onboarding-hint pf-stream-onboarding-hint-float"}
+              >
+                Take your time. Sentences are fine.
+              </p>
+            ) : null}
+            <StreamComposer
+              value={draft}
+              onChange={setDraft}
+              placeholder={placeholder}
+              disabled={composerDisabled}
+              busy={busy}
+              accent={accent}
+              proposalCount={extraction ? extraction.pursuits.length + extraction.milestones.length + extraction.marks.length : 0}
+              onSend={() => void handleExtract()}
+              onVoiceUsed={() => setVoiceUsedInSession(true)}
+              voiceOptions={{ enabled: true }}
+              showFooterHints={false}
+              sendLabel="Send"
+            />
+
+            {error && phase !== "confirm" ? (
+              <div>
+                <p
+                  style={{
+                    ...STREAM_ASSISTANT_MESSAGE_STYLE,
+                    margin: "10px 0 0",
+                    padding: "0 2px",
+                  }}
+                >
+                  {error}
+                </p>
+                {onboardingMode && onboardingRetryReady ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleExtract()}
+                    style={{
+                      marginTop: 8,
+                      border: `1px solid ${accent}66`,
+                      borderRadius: 999,
+                      background: `${accent}1f`,
+                      color: "rgba(245,243,250,0.9)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      padding: "7px 12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Try again
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </>

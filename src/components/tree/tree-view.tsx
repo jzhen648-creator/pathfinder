@@ -1615,21 +1615,6 @@ function TreeViewInner({
         />
       ) : null}
 
-      {streamSession ? (
-        <div
-          aria-hidden
-          data-stream-tree-scrim="1"
-          style={{
-            position: "fixed",
-            inset: 0,
-            right: STREAM_PANEL_WIDTH_PX,
-            background: "rgba(0,0,0,0.4)",
-            pointerEvents: "none",
-            zIndex: 199990,
-          }}
-        />
-      ) : null}
-
       {showFirstRunWelcome ? (
         <FirstRunWelcomeOverlay userName={firstRun.userName} onStart={handleFirstRunStart} />
       ) : null}

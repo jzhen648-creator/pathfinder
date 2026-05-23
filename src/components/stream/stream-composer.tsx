@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useRef,
   type CSSProperties,
   type KeyboardEvent,
@@ -16,12 +17,10 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 export const STREAM_COMPOSER_CSS = `
 .pf-stream-composer {
   position: relative;
-  border-radius: 18px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(11, 10, 15, 0.86);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
   overflow: hidden;
 }
 .pf-stream-composer textarea {
@@ -29,13 +28,14 @@ export const STREAM_COMPOSER_CSS = `
   box-sizing: border-box;
   border: none;
   background: transparent;
-  resize: vertical;
-  min-height: 110px;
-  max-height: 40vh;
-  padding: 16px 58px 36px 18px;
+  resize: none;
+  min-height: 44px;
+  max-height: 86px;
+  overflow-y: auto;
+  padding: 10px 58px 10px 14px;
   font-family: "Lora", var(--font-pf-roadmap-serif), Georgia, serif;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.45;
   letter-spacing: 0.003em;
   color: rgba(255, 255, 255, 0.92);
   outline: none;
@@ -49,10 +49,10 @@ export const STREAM_COMPOSER_CSS = `
 }
 .pf-stream-composer-actions {
   position: absolute;
-  right: 10px;
-  top: 16px;
+  right: 8px;
+  top: 5px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 6px;
 }
 .pf-stream-composer-footer {
@@ -116,6 +116,7 @@ export function StreamComposer({
   sendLabel = "Send",
 }: StreamComposerProps) {
   const voice = useVoiceInput(voiceOptions ?? { enabled: true });
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const holdingRef = useRef(false);
 
   const canSend = Boolean(value.trim()) && !disabled && !busy;
@@ -162,15 +163,23 @@ export function StreamComposer({
 
   const sendAccent = accent ?? "var(--stream-accent, #7B68C8)";
 
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 86)}px`;
+  }, [value]);
+
   return (
     <div className="pf-stream-composer">
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder={placeholder}
-        rows={5}
+        rows={1}
         aria-keyshortcuts="Enter"
       />
       <div className="pf-stream-composer-actions">
