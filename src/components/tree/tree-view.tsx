@@ -51,7 +51,7 @@ import {
   normalizeArchivedGoalsFromBranches,
   normalizeMarks,
 } from "./tree-view-normalize";
-import { findGoalInAreas, findMarkInAreas } from "./tree-view-goal-queries";
+import { countRoadmapGoalsOnThread, findGoalInAreas, findMarkInAreas } from "./tree-view-goal-queries";
 import {
   TREE_ELEMENT_GUIDE_ENABLED,
   TREE_MAP_SURFACE_FILL,
@@ -1021,6 +1021,19 @@ function TreeViewInner({
       if (thread) {
         setFocused(area.id);
         setPanel({ type: "hub", area: fresh, thread });
+        const hubLabel = thread.type.trim() || thread.id;
+        const shouldAutoOpenStream =
+          (result.activated ?? 0) > 0 &&
+          countRoadmapGoalsOnThread(thread) === 0 &&
+          !isOnboardingGuideActive;
+
+        if (shouldAutoOpenStream) {
+          handleOpenHubStream(
+            fresh,
+            thread,
+            hubFirstTimeQuestion(fresh.id, hubLabel),
+          );
+        }
         showTreeToast(`Opened ${thread.type.trim() || "hub"}.`);
         if (isOnboardingGuideActive && coachMarkStep === "tap_hub") {
           setCoachMarkStep("open_stream");
@@ -1035,7 +1048,7 @@ function TreeViewInner({
         showTreeToast("Hub opened.");
       }
     },
-    [advanceOnboardingGuide, coachMarkStep, isOnboardingGuideActive, loadData, showTreeToast],
+    [advanceOnboardingGuide, coachMarkStep, handleOpenHubStream, isOnboardingGuideActive, loadData, showTreeToast],
   );
 
   const patchGoal = useCallback(
