@@ -18,6 +18,10 @@ export type OnboardingHubPickMode = {
   onHubSelect: (slug: string) => void;
 };
 
+export type CoachMarkStep = null | "tap_theme" | "tap_hub" | "open_stream";
+
+export type OnboardingSproutState = { areaId: string; branchId: string; key: number } | null;
+
 export type { MarkInteractionAnchor };
 
 export type { TreeOrbitalMilestone };
@@ -87,6 +91,9 @@ export type TreeSVGProps = {
   initialFitIncludePreviewBranchTips?: boolean;
   /** Pulse paths to this pursuit without opening the goal panel (onboarding reveal). */
   highlightGoalId?: string | null;
+  /** First onboarding pursuit confirmation burst. */
+  onboardingSprout?: OnboardingSproutState;
+  onOnboardingSproutComplete?: () => void;
   /** Width of the fixed Stream panel (px) — offsets pan centre left. */
   streamPanelWidthPx?: number;
   /** User edit-map mode — drag pursuits to reorganise (disables pan). */

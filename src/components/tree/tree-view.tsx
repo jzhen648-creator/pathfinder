@@ -59,6 +59,8 @@ import {
 import {
   type AddGoalHubContext,
   type ArchivedGoalRow,
+  type CoachMarkStep,
+  type OnboardingSproutState,
   type PanelState,
   type ViewMode,
 } from "./tree-view-types";
@@ -102,10 +104,6 @@ export function TreeView({
     </StreamPreviewProvider>
   );
 }
-
-export type CoachMarkStep = null | "tap_theme" | "tap_hub" | "open_stream";
-
-type OnboardingSproutState = { areaId: string; branchId: string; key: number } | null;
 
 function TreeViewInner({
   firstRun,
@@ -1143,6 +1141,8 @@ function TreeViewInner({
           exportRootRef={treeExportRootRef}
           showElementGuide={TREE_ELEMENT_GUIDE_ENABLED && showTreeElementGuide}
           suppressDevUi={onboardingLocked}
+          onboardingSprout={onboardingSprout}
+          onOnboardingSproutComplete={() => setOnboardingSprout(null)}
           streamPanFocus={streamPanFocus}
           streamPanelWidthPx={streamSession ? STREAM_PANEL_WIDTH_PX : 0}
           editMapMode={editMapMode && !streamSession}

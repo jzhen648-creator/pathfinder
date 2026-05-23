@@ -239,6 +239,60 @@ function onboardingHubSubtitle(areaId: string, hubName: string): string {
   return `${firstClause.slice(0, ONBOARDING_HUB_SUBTITLE_MAX_CHARS - 3).trimEnd()}...`;
 }
 
+function OnboardingSproutBurst({
+  color,
+  hubPoint,
+  threadPathD,
+}: {
+  color: string;
+  hubPoint: Point;
+  threadPathD: string;
+}) {
+  const pursuitPoint = threadPathD ? pathPointAtT(threadPathD, 0.2) : { x: hubPoint.x + 42, y: hubPoint.y - 24 };
+  const spokeLength = Math.max(1, Math.hypot(pursuitPoint.x - hubPoint.x, pursuitPoint.y - hubPoint.y));
+  return (
+    <g data-tree-onboarding-sprout="1" pointerEvents="none" aria-hidden>
+      <circle cx={hubPoint.x} cy={hubPoint.y} r={10} fill={color} opacity={0.18}>
+        <animate attributeName="r" values="10;32;46" dur="700ms" fill="freeze" />
+        <animate attributeName="opacity" values="0.32;0.2;0" dur="700ms" fill="freeze" />
+      </circle>
+      <circle cx={hubPoint.x} cy={hubPoint.y} r={18} fill={color} opacity={0.1}>
+        <animate attributeName="r" values="12;24;30" dur="300ms" fill="freeze" />
+        <animate attributeName="opacity" values="0;0.32;0.12" dur="300ms" fill="freeze" />
+      </circle>
+      <line
+        x1={hubPoint.x}
+        y1={hubPoint.y}
+        x2={pursuitPoint.x}
+        y2={pursuitPoint.y}
+        stroke={color}
+        strokeWidth={2.25}
+        strokeLinecap="round"
+        opacity={0.72}
+        strokeDasharray={spokeLength}
+        strokeDashoffset={spokeLength}
+      >
+        <animate attributeName="stroke-dashoffset" from={spokeLength} to={0} dur="500ms" fill="freeze" />
+        <animate attributeName="opacity" values="0;0.72;0.5" dur="700ms" fill="freeze" />
+      </line>
+      <g transform={`translate(${pursuitPoint.x} ${pursuitPoint.y}) scale(0.3)`} opacity={0}>
+        <animateTransform
+          attributeName="transform"
+          type="scale"
+          additive="sum"
+          from="0.3"
+          to="1"
+          dur="500ms"
+          fill="freeze"
+        />
+        <animate attributeName="opacity" values="0;1;0.92" dur="500ms" fill="freeze" />
+        <circle r={8.5} fill={color} opacity={0.3} />
+        <circle r={4.8} fill={color} opacity={0.92} />
+      </g>
+    </g>
+  );
+}
+
 function domainClusterMomentChainCtx(
   areaId: string,
   row: {
@@ -299,6 +353,8 @@ function TreeSVGInner({
   initialFitPaddingPx,
   initialFitIncludePreviewBranchTips = false,
   highlightGoalId = null,
+  onboardingSprout = null,
+  onOnboardingSproutComplete,
   streamPanelWidthPx = 0,
   editMapMode = false,
   editMapDraftAreas = null,
@@ -321,6 +377,11 @@ function TreeSVGInner({
     const t = window.setTimeout(() => onLimbRevealComplete?.(id), 950);
     return () => window.clearTimeout(t);
   }, [limbRevealLimbId, onLimbRevealComplete]);
+  useEffect(() => {
+    if (!onboardingSprout) return;
+    const t = window.setTimeout(() => onOnboardingSproutComplete?.(), 700);
+    return () => window.clearTimeout(t);
+  }, [onOnboardingSproutComplete, onboardingSprout]);
   const layoutDragRef = useRef<LayoutPointerDrag | null>(null);
   const renderMarksRef = useRef<number[]>([]);
   /** Per-limb toggles: SVG handles + limb ° input only where enabled. */
@@ -2714,6 +2775,14 @@ function TreeSVGInner({
                             );
                           })()}
                         </g>
+                      ) : null}
+                      {onboardingSprout?.areaId === area.id && onboardingSprout.branchId === thread.id ? (
+                        <OnboardingSproutBurst
+                          key={onboardingSprout.key}
+                          color={area.color}
+                          hubPoint={domainHubPt ?? pathPointAtT(threadMainDraw, 0.02)}
+                          threadPathD={threadMainDraw}
+                        />
                       ) : null}
                     </g>
                   );

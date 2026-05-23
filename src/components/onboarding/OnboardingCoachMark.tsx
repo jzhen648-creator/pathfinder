@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OB_PRIMARY, OB_TEXT_PRIMARY, obCardStyle } from "@/components/onboarding/onboarding-ui";
-import type { CoachMarkStep } from "@/components/tree/tree-view";
+import type { CoachMarkStep } from "@/components/tree/tree-view-types";
 
 type TargetRect = {
   top: number;
