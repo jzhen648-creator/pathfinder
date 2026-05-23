@@ -14,6 +14,37 @@ function isLoginPath(pathname: string): boolean {
 }
 
 /**
+ * Mobile clients send the NextAuth session JWT as `Authorization: Bearer <jwt>`.
+ * `getToken({ req })` already accepts it for the middleware-level auth check,
+ * but downstream route handlers that call `getServerSession(authOptions)` read
+ * from cookies only. We forward the request with the bearer token re-attached
+ * as the cookie NextAuth would have set itself — one place, every API route works.
+ */
+function withBearerCookieForwarded(req: NextRequest): NextResponse | null {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) return null;
+
+  const raw = authHeader.slice(7).trim();
+  if (!raw) return null;
+
+  const isHttps = req.nextUrl.protocol === "https:";
+  const cookieName = isHttps
+    ? "__Secure-next-auth.session-token"
+    : "next-auth.session-token";
+
+  const existingCookie = req.headers.get("cookie") ?? "";
+  if (existingCookie.includes(`${cookieName}=`)) return null;
+
+  const requestHeaders = new Headers(req.headers);
+  const merged = existingCookie
+    ? `${existingCookie}; ${cookieName}=${raw}`
+    : `${cookieName}=${raw}`;
+  requestHeaders.set("cookie", merged);
+
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
+/**
  * Require a session for all pages except `/login`, and for `/api/*` except `/api/auth/*`.
  * Incomplete onboarding → `/onboarding`; completed users cannot revisit onboarding.
  */
@@ -39,7 +70,7 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.next();
+    return withBearerCookieForwarded(req) ?? NextResponse.next();
   }
 
   if (isLoginPath(pathname)) {

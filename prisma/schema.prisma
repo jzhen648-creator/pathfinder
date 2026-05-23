@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -9,15 +10,15 @@ datasource db {
 }
 
 model User {
-  id                         String   @id @default(cuid())
+  id                         String                @id @default(cuid())
   name                       String?
   birthYear                  Int?
   birthPlace                 String?
-  email                      String   @unique
+  email                      String                @unique
   passwordHash               String
-  passwordResetToken         String?  @unique
+  passwordResetToken         String?               @unique
   passwordResetExpiry        DateTime?
-  onboardingCompleted        Boolean  @default(false)
+  onboardingCompleted        Boolean               @default(false)
   /// Six-scene guided onboarding progress; null = not started.
   onboardingScene            Int?
   /// Theme picked during guided onboarding Scene 2 (`LifeAreaId` / limb id).
@@ -27,7 +28,7 @@ model User {
   /// First theme picked during onboarding (selection order); drives first-run Stream prompt.
   onboardingPrimaryLimbId    String?
   /// Post-onboarding welcome + first Stream commit; one-time.
-  firstRunCompleted          Boolean  @default(false)
+  firstRunCompleted          Boolean               @default(false)
   onboardingProfileText      String?
   onboardingProfileData      Json?
   careerEducationContextText String?
@@ -39,8 +40,8 @@ model User {
   hubTaxonomySyncedAt        DateTime?
   /// Life-area ids unlocked on the tree (`finance` | `work` | …). Hubs under a theme stay dormant until opened individually.
   unlockedLimbIds            Json?
-  createdAt                  DateTime @default(now())
-  updatedAt                  DateTime @updatedAt
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
   goals                      Goal[]
   branches                   Branch[]
   marks                      Mark[]
@@ -129,37 +130,37 @@ model VerificationToken {
 }
 
 model Branch {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String       @id @default(cuid())
+  userId              String
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Legacy column name: stores the **life area** id (`finance` | `work` | `becoming` | `people` | `health`), not a "limb" entity. Prefer the term *life area* in docs and UI.
-  limbId         String
-  label          String?
-  parentBranchId String?
-  turningPointId String?
-  mapAngleOffset Float    @default(0)
-  marks          Mark[]
-  goals          Goal[]
-  name           String?
-  goal           String?
-  goalValue      Float?
-  currentValue   Float?
-  unit           String?
-  status         BranchStatus @default(active)
-  order          Int      @default(0)
+  limbId              String
+  label               String?
+  parentBranchId      String?
+  turningPointId      String?
+  mapAngleOffset      Float        @default(0)
+  marks               Mark[]
+  goals               Goal[]
+  name                String?
+  goal                String?
+  goalValue           Float?
+  currentValue        Float?
+  unit                String?
+  status              BranchStatus @default(active)
+  order               Int          @default(0)
   /// Progressive reveal: visible on tree/roadmap when true.
-  isActive       Boolean  @default(false)
+  isActive            Boolean      @default(false)
   /// Locked taxonomy hub (one of 17); protected from wipe scripts.
-  isSystemHub    Boolean  @default(false)
-  bloomStatus         BloomStatus @default(ACTIVE)
+  isSystemHub         Boolean      @default(false)
+  bloomStatus         BloomStatus  @default(ACTIVE)
   bloomedAt           DateTime?
   endedAt             DateTime?
   endReason           String?
   spawnedFromBranchId String?
-  spawnedFromBranch   Branch?   @relation("BranchSpawn", fields: [spawnedFromBranchId], references: [id], onDelete: SetNull)
-  branchesSpawnedHere Branch[]  @relation("BranchSpawn")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  spawnedFromBranch   Branch?      @relation("BranchSpawn", fields: [spawnedFromBranchId], references: [id], onDelete: SetNull)
+  branchesSpawnedHere Branch[]     @relation("BranchSpawn")
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([userId])
   @@index([userId, limbId])
@@ -167,43 +168,43 @@ model Branch {
 }
 
 model Mark {
-  id          String   @id @default(cuid())
-  branchId    String
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  id                String        @id @default(cuid())
+  branchId          String
+  branch            Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
   /// Legacy column name: stores the **life area** id. See `Branch.limbId`.
-  limbId      String
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  date        DateTime
-  value       Float?
-  sentiment   MarkSentiment @default(neutral)
-  archived    Boolean  @default(false)
-  significance    Int      @default(1)
-  future          Boolean  @default(false)
-  isTurningPoint  Boolean  @default(false)
-  parentMarkId    String?
-  parentMark      Mark?    @relation("MarkChildren", fields: [parentMarkId], references: [id], onDelete: SetNull)
-  children        Mark[]   @relation("MarkChildren")
-  location        String?
-  timelineNote    String?
-  subtype         String?
-  year            Int?
-  month           Int?
+  limbId            String
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?
+  date              DateTime
+  value             Float?
+  sentiment         MarkSentiment @default(neutral)
+  archived          Boolean       @default(false)
+  significance      Int           @default(1)
+  future            Boolean       @default(false)
+  isTurningPoint    Boolean       @default(false)
+  parentMarkId      String?
+  parentMark        Mark?         @relation("MarkChildren", fields: [parentMarkId], references: [id], onDelete: SetNull)
+  children          Mark[]        @relation("MarkChildren")
+  location          String?
+  timelineNote      String?
+  subtype           String?
+  year              Int?
+  month             Int?
   /// Explicit linear order along the parent hub's branch line. Co-sorted with `Goal.sequencePosition`
   /// (same branch) to form the `sequencedNodes` list. Fractional to support midpoint inserts;
   /// branches are reindexed when minimum sibling gap drops below the resolver epsilon.
-  sequencePosition Float?
+  sequencePosition  Float?
   /// Origin of this mark — `mark` (user/manual or legacy), `stream` (AI Stream-produced moment).
-  kind             String   @default("mark")
+  kind              String        @default("mark")
   /// Stream ambiguous item placed on tree before user picks Done / In progress / Not started.
-  needsResolution  Boolean  @default(false)
+  needsResolution   Boolean       @default(false)
   /// Stable id from Stream extract `ambiguous[].id` (dedup on re-extract).
   streamAmbiguousId String?
-  reframes    Reframe[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  reframes          Reframe[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([userId])
   @@index([branchId])
@@ -244,62 +245,66 @@ model StreamSession {
 }
 
 model Goal {
-  id          String      @id @default(cuid())
-  title       String
+  id               String      @id @default(cuid())
+  title            String
   /// AI-generated compact label for tree canvas SVG only (never panel/roadmap/timeline).
-  shortLabel  String?
-  description String
-  lifeArea    String      @default("Other")
-  goalType    String      @default("action")
-  targetAmount Float?
-  currentAmount Float?
-  /** Unit label when using measurable targets (e.g. "kg", "sessions"). */
-  unit        String?
-  /** Optional: timeline/event goals and ongoing commitments may have no deadline. */
-  deadline    DateTime?
+  shortLabel       String?
+  description      String
+  lifeArea         String      @default("Other")
+  goalType         String      @default("action")
+  targetAmount     Float?
+  currentAmount    Float?
+  /**
+   * Unit label when using measurable targets (e.g. "kg", "sessions").
+   */
+  unit             String?
+  /**
+   * Optional: timeline/event goals and ongoing commitments may have no deadline.
+   */
+  deadline         DateTime?
   /// Swimlane / timeline span start; when null the UI uses {@link createdAt}.
-  timelineStart DateTime?
+  timelineStart    DateTime?
   // Cached raw roadmap returned by the AI model at creation time. Kept for
   // provenance + to avoid any future re-generation calls for the same goal.
-  roadmapJson Json?
+  roadmapJson      Json?
   // False when the roadmap was produced by the deterministic fallback
   // because the AI provider failed or ran out of credits. UI can surface this.
-  aiGenerated Boolean     @default(true)
+  aiGenerated      Boolean     @default(true)
   /// Soft-removed from tree / timeline; hidden from map. Revive via PATCH `archived: false`.
-  archived       Boolean     @default(false)
+  archived         Boolean     @default(false)
   /// Lifecycle maturity only (**BUD** / **GROWING** **BLOOMED** / **ENDED**). Not driven by continuation count; **`BRANCHED`** is legacy on goals.
-  bloomStatus    BloomStatus @default(ACTIVE)
-  bloomedAt      DateTime?
-  endedAt        DateTime?
-  endReason      String?
+  bloomStatus      BloomStatus @default(ACTIVE)
+  bloomedAt        DateTime?
+  endedAt          DateTime?
+  endReason        String?
   /// Predecessor goal when this goal is a **continuation** (evolved from / next chapter). Not a subgoal hierarchy; multiple rows may share one parent.
-  parentGoalId   String?
-  parentGoal     Goal?       @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
+  parentGoalId     String?
+  parentGoal       Goal?       @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
   /// Successor goals (**continuations**). Relation name is legacy (`GoalFork`); semantics are longitudinal evolution, not nesting.
-  forkedGoals    Goal[]      @relation("GoalFork")
-  positionAngle  Float?
-  year            Int        @default(2026)
-  month           Int?
-  mapPosition     Float      @default(0)
+  forkedGoals      Goal[]      @relation("GoalFork")
+  positionAngle    Float?
+  year             Int         @default(2026)
+  month            Int?
+  mapPosition      Float       @default(0)
   /// Explicit linear order along the parent hub's branch line. Co-sorted with `Mark.sequencePosition`
   /// (same branch) to form the `sequencedNodes` list. Roadmap-root goals only; evolution children
   /// (`parentGoalId != null`) keep parent-anchored satellite layout and have no sequence position.
   sequencePosition Float?
-  significance    Int        @default(1)
-  future          Boolean    @default(false)
-  isTurningPoint  Boolean    @default(false)
-  location        String?
-  timelineNote    String?
-  subtype         String?
+  significance     Int         @default(1)
+  future           Boolean     @default(false)
+  isTurningPoint   Boolean     @default(false)
+  location         String?
+  timelineNote     String?
+  subtype          String?
   /// Legacy column name: stores the **life area** id when set. See `Branch.limbId`.
-  limbId          String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  branchId    String?
-  branch      Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  milestones  Milestone[]
+  limbId           String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId         String?
+  branch           Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  milestones       Milestone[]
 
   @@index([parentGoalId])
   @@index([branchId])
@@ -338,13 +343,13 @@ model Milestone {
 }
 
 model Subtask {
-  id          String    @id @default(cuid())
+  id          String       @id @default(cuid())
   title       String
   position    Int
-  isCompleted Boolean   @default(false)
+  isCompleted Boolean      @default(false)
   completedAt DateTime?
   milestoneId String
-  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestone   Milestone    @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   dailyTasks  DailyTask[]
   checkpoints Checkpoint[]
 
@@ -352,11 +357,11 @@ model Subtask {
 }
 
 model DailyTask {
-  id        String   @id @default(cuid())
-  title     String
-  position  Int
+  id         String  @id @default(cuid())
+  title      String
+  position   Int
   quickWinId String
-  quickWin  Subtask  @relation(fields: [quickWinId], references: [id], onDelete: Cascade)
+  quickWin   Subtask @relation(fields: [quickWinId], references: [id], onDelete: Cascade)
 
   @@unique([quickWinId, position])
 }
@@ -372,36 +377,35 @@ model Checkpoint {
 }
 
 model TrunkSegment {
-  id          String         @id @default(cuid())
+  id          String        @id @default(cuid())
   userId      String
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   category    TrunkCategory
   entries     TrunkEntry[]
-  richness    Int            @default(0)
-  heightScore Int            @default(0)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  richness    Int           @default(0)
+  heightScore Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@unique([userId, category])
   @@index([userId])
 }
 
 model TrunkEntry {
-  id             String            @id @default(cuid())
+  id             String           @id @default(cuid())
   userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   trunkSegmentId String
-  segment        TrunkSegment      @relation(fields: [trunkSegmentId], references: [id], onDelete: Cascade)
+  segment        TrunkSegment     @relation(fields: [trunkSegmentId], references: [id], onDelete: Cascade)
   content        String
   year           Int?
-  significance   Int               @default(3)
-  source         TrunkEntrySource  @default(MANUAL)
+  significance   Int              @default(3)
+  source         TrunkEntrySource @default(MANUAL)
   aiSummary      String?
   tags           Json?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([trunkSegmentId])
   @@index([userId])
 }
-

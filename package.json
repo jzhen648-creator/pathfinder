@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev --hostname 0.0.0.0 --port 3001",
     "dev:3000": "next dev --hostname 0.0.0.0 --port 3000",
     "dev:free": "npx --yes kill-port@2.0.1 3001 && next dev --hostname 0.0.0.0 --port 3001",
@@ -20,6 +21,7 @@
     "seed:tree": "npx tsx scripts/seed-tree-test.ts",
     "reset:all-accounts": "npx tsx scripts/reset-all-accounts-fresh.ts",
     "wipe:all-user-data": "npx tsx scripts/wipe-all-user-data.ts",
+    "fresh-start:dev": "npx tsx scripts/fresh-start-keep-dev.ts",
     "test:system-hubs": "npx tsx scripts/test-system-hubs-idempotent.ts",
     "clear-goals": "npx tsx scripts/clear-all-goals.ts",
     "backfill:tree-milestones": "npx tsx scripts/backfill-tree-milestones-to-relational.ts",
