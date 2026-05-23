@@ -8,7 +8,6 @@ import { jsPDF } from "jspdf";
 import { AddGoalModal } from "@/components/goals/add-goal-modal";
 import { TreeConversationalGoalCreate } from "@/components/tree/tree-conversational-goal-create";
 import { buildPreviewAreasFromNodes } from "@/components/stream/stream-hub-preview-data";
-import { StreamOverlay, STREAM_PANEL_WIDTH_PX } from "@/components/stream/stream-overlay";
 import { useMapData } from "@/contexts/map-data-context";
 import { StreamPreviewProvider, useStreamPreview } from "@/contexts/stream-preview-context";
 import { FirstRunWelcomeOverlay } from "@/components/onboarding/first-run-welcome-overlay";
@@ -18,7 +17,7 @@ import { getFirstRunStreamPrompt } from "@/lib/first-run-stream-prompts";
 import { buildStreamHubUiFromThread, buildStreamThemeUiFromArea } from "@/lib/stream-theme-ui";
 import type { LifeAreaId } from "@/lib/types";
 import type { TreeFirstRunConfig } from "@/types/first-run";
-import type { StreamHubUiContext, StreamThemeUiContext } from "@/types/stream";
+import type { StreamUiSession } from "@/types/stream";
 import { TreeCanvasHud } from "@/components/tree/tree-canvas-hud";
 import { PF_TREE_CANVAS_CSS, TREE_DETAIL_RAIL_WIDTH_PX } from "@/components/tree/tree-canvas-shell";
 import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
@@ -151,11 +150,7 @@ function TreeViewInner({
   const [addGoalDefaultBranchId, setAddGoalDefaultBranchId] = useState<string | null>(null);
   const [addGoalDefaultAnchor, setAddGoalDefaultAnchor] = useState<SequenceAnchor | null>(null);
   const [conversationalGoalCtx, setConversationalGoalCtx] = useState<AddGoalHubContext | null>(null);
-  const [streamSession, setStreamSession] = useState<
-    | { mode: "hub"; hub: StreamHubUiContext; initialDraft?: string; initialPlaceholder?: string }
-    | { mode: "theme"; theme: StreamThemeUiContext; initialDraft?: string; initialPlaceholder?: string }
-    | null
-  >(null);
+  const [panelStreamSession, setPanelStreamSession] = useState<StreamUiSession | null>(null);
   const [editMapMode, setEditMapMode] = useState(false);
   const [editMapDraftAreas, setEditMapDraftAreas] = useState<AreaData[] | null>(null);
   const [editMapPendingOps, setEditMapPendingOps] = useState<EditMapDraftOp[]>([]);
@@ -329,10 +324,12 @@ function TreeViewInner({
     setFocused(null);
     if (FLAGS.FOCUS_MODE) setFocusedLimbId(null);
     setPanel({ type: "none" });
+    setPanelStreamSession(null);
+    clearPreviewNodes();
     setConversationalGoalCtx(null);
     setMarkHover(null);
     setMarkPinned(null);
-  }, []);
+  }, [clearPreviewNodes]);
 
   const buildMarkAnchor = useCallback(
     (moment: MomentNode, area: AreaData, clientX: number, clientY: number): MarkInteractionAnchor => {
@@ -592,9 +589,9 @@ function TreeViewInner({
       showTreeToast("No hubs found for this theme — try refreshing the tree.");
       return;
     }
-    setPanel({ type: "none" });
+    setPanel({ type: "area", area });
     setFocusedLimbId(area.id);
-    setStreamSession({ mode: "theme", theme, initialDraft: streamDraft });
+    setPanelStreamSession({ mode: "theme", theme, initialDraft: streamDraft });
   }, [
     applyEditMapSession,
     areas,
@@ -605,11 +602,11 @@ function TreeViewInner({
   ]);
 
   useEffect(() => {
-    if (!streamSession) return;
+    if (!panelStreamSession) return;
     setEditMapMode(false);
     setEditMapExitOpen(false);
     clearEditMapDraft();
-  }, [clearEditMapDraft, streamSession]);
+  }, [clearEditMapDraft, panelStreamSession]);
 
   const handleOpenThemeStream = useCallback((area: AreaData) => {
     const theme = buildStreamThemeUiFromArea(area);
@@ -617,9 +614,9 @@ function TreeViewInner({
       showTreeToast("No hubs found for this theme — try refreshing the tree.");
       return;
     }
-    setPanel({ type: "none" });
+    setPanel({ type: "area", area });
     setFocusedLimbId(area.id);
-    setStreamSession({ mode: "theme", theme });
+    setPanelStreamSession({ mode: "theme", theme });
   }, [showTreeToast]);
 
   const handleOpenHubStream = useCallback((area: AreaData, thread: AreaData["branches"][number], initialPlaceholder?: string) => {
@@ -629,11 +626,13 @@ function TreeViewInner({
       isOnboardingGuideActive
         ? hubFirstTimeQuestion(area.id, hubLabel)
         : undefined;
-    setPanel({ type: "none" });
+    setPanel({ type: "hub", area, thread });
     setFocusedLimbId(area.id);
-    setStreamSession({
+    setPanelStreamSession({
       mode: "hub",
       hub,
+      onboardingMode: isOnboardingGuideActive,
+      ...(onboardingPlaceholder ? { onboardingQuestion: onboardingPlaceholder } : {}),
       ...((onboardingPlaceholder ?? initialPlaceholder)
         ? { initialPlaceholder: (onboardingPlaceholder ?? initialPlaceholder)! }
         : {}),
@@ -654,9 +653,9 @@ function TreeViewInner({
       return;
     }
     const hub = buildStreamHubUiFromThread(area, thread);
-    setPanel({ type: "none" });
+    setPanel({ type: "hub", area, thread });
     setFocusedLimbId(area.id);
-    setStreamSession({
+    setPanelStreamSession({
       mode: "hub",
       hub,
       initialPlaceholder: `Tell me more about "${goal.title}" — milestones, next steps, or context for this pursuit.`,
@@ -721,9 +720,9 @@ function TreeViewInner({
       showTreeToast("No hubs found for this theme — try refreshing the tree.");
       return;
     }
-    setPanel({ type: "none" });
+    setPanel({ type: "area", area });
     setFocusedLimbId(area.id);
-    setStreamSession({
+    setPanelStreamSession({
       mode: "theme",
       theme,
       initialPlaceholder: getFirstRunStreamPrompt(limbId as LifeAreaId),
@@ -774,9 +773,9 @@ function TreeViewInner({
   }, [applyFirstRunFocus, clearPreviewNodes, loadData, refreshSession, showTreeToast]);
 
   const handleOnboardingFirstCardConfirmed = useCallback(() => {
-    if (!isOnboardingGuideActive || streamSession?.mode !== "hub") return;
+    if (!isOnboardingGuideActive || panelStreamSession?.mode !== "hub") return;
 
-    const { hub } = streamSession;
+    const { hub } = panelStreamSession;
     setOnboardingSprout({
       areaId: hub.areaId,
       branchId: hub.branchId,
@@ -790,16 +789,16 @@ function TreeViewInner({
           hubSlug: normalizeHubLabelKey(hub.branchLabel),
         });
         clearPreviewNodes();
-        setStreamSession(null);
+        setPanelStreamSession(null);
         setStreamPanFocus(null);
         streamPanHubRef.current = null;
         router.refresh();
       })();
     }, 900);
-  }, [advanceOnboardingGuide, clearPreviewNodes, isOnboardingGuideActive, router, streamSession]);
+  }, [advanceOnboardingGuide, clearPreviewNodes, isOnboardingGuideActive, panelStreamSession, router]);
 
   const showFirstRunWelcome =
-    !onboardingLocked && !firstRunCompleted && !streamSession && !loading && areas.length > 0;
+    !onboardingLocked && !firstRunCompleted && !panelStreamSession && !loading && areas.length > 0;
 
   const handleAddGoalOnHub = useCallback((hub: AddGoalHubContext) => {
     setAddGoalDefaultBranchId(hub.branchId);
@@ -922,7 +921,7 @@ function TreeViewInner({
     (area: AreaData) => {
       const limbId = area.id as LifeAreaId;
       if (dormantLimbIds.includes(limbId)) {
-        if (activatingLimbId || streamSession || editMapMode) return;
+        if (activatingLimbId || panelStreamSession || editMapMode) return;
         setPendingThemeConfirm(limbId);
         return;
       }
@@ -940,7 +939,7 @@ function TreeViewInner({
       dormantLimbIds,
       editMapMode,
       isOnboardingGuideActive,
-      streamSession,
+      panelStreamSession,
     ],
   );
 
@@ -1222,8 +1221,8 @@ function TreeViewInner({
           onboardingSprout={onboardingSprout}
           onOnboardingSproutComplete={() => setOnboardingSprout(null)}
           streamPanFocus={streamPanFocus}
-          streamPanelWidthPx={streamSession ? STREAM_PANEL_WIDTH_PX : 0}
-          editMapMode={editMapMode && !streamSession}
+          streamPanelWidthPx={0}
+          editMapMode={editMapMode && !panelStreamSession}
           editMapDraftAreas={editMapDraftAreas}
           onEditMapDraftDrop={handleEditMapDraftDrop}
           dormantLimbIds={dormantLimbIds}
@@ -1411,6 +1410,31 @@ function TreeViewInner({
     [isDev, loadData],
   );
 
+  const handleClosePanelStream = useCallback(() => {
+    if (keepStreamPreviewOnCloseRef.current) {
+      keepStreamPreviewOnCloseRef.current = false;
+    } else {
+      clearPreviewNodes();
+    }
+    setPanelStreamSession(null);
+    setStreamPanFocus(null);
+    streamPanHubRef.current = null;
+  }, [clearPreviewNodes]);
+
+  const handlePanelStreamCommitSuccess = useCallback(() => {
+    keepStreamPreviewOnCloseRef.current = true;
+    prefetchMapData();
+    handleStreamCommitted();
+  }, [handleStreamCommitted, prefetchMapData]);
+
+  const handlePanelStreamCommitFailed = useCallback(
+    (error: string) => {
+      clearPreviewNodes();
+      showTreeToast(error ?? "Could not save to your map.", "#e85d5d");
+    },
+    [clearPreviewNodes, showTreeToast],
+  );
+
   if (loading) {
     return (
       <div className="pf-tree-canvas h-full overflow-hidden">
@@ -1446,6 +1470,14 @@ function TreeViewInner({
         onOpenThemeStream={handleOpenThemeStream}
         onOpenHubStream={handleOpenHubStream}
         onOpenGoalStream={handleOpenGoalStream}
+        panelStreamSession={panelStreamSession}
+        onCloseStream={handleClosePanelStream}
+        onStreamCommitSuccess={handlePanelStreamCommitSuccess}
+        onStreamCommitFailed={handlePanelStreamCommitFailed}
+        onStreamExtracted={prefetchMapData}
+        onStreamClearPreview={clearPreviewNodes}
+        onStreamCardFocusHub={handleStreamCardFocusHub}
+        onStreamOnboardingFirstCardConfirmed={handleOnboardingFirstCardConfirmed}
         editMapMode={editMapMode}
         onDeleteGoal={handlePanelDeleteGoal}
         archivedGoals={archivedGoals}
@@ -1505,7 +1537,7 @@ function TreeViewInner({
               clearEditMapDraft();
               setEditMapMode(true);
             }}
-            editMapDisabled={Boolean(streamSession)}
+            editMapDisabled={Boolean(panelStreamSession)}
           />
 
           {viewMode === "tree" && activatingLimbId ? (
@@ -1628,44 +1660,6 @@ function TreeViewInner({
           areaId={onboardingCoachMark.areaId}
           hubLabel={onboardingCoachMark.hubLabel}
           hubSlug={onboardingCoachMark.hubSlug}
-        />
-      ) : null}
-
-      {streamSession ? (
-        <StreamOverlay
-          {...(streamSession.mode === "theme"
-            ? { mode: "theme" as const, theme: streamSession.theme }
-            : { mode: "hub" as const, hub: streamSession.hub })}
-          initialDraft={streamSession.initialDraft}
-          initialPlaceholder={streamSession.initialPlaceholder}
-          onboardingMode={isOnboardingGuideActive}
-          onCardFocusHub={handleStreamCardFocusHub}
-          onClose={() => {
-            if (keepStreamPreviewOnCloseRef.current) {
-              keepStreamPreviewOnCloseRef.current = false;
-            } else {
-              clearPreviewNodes();
-            }
-            setStreamSession(null);
-            setStreamPanFocus(null);
-            streamPanHubRef.current = null;
-          }}
-          onClearPreview={clearPreviewNodes}
-          onCommitted={() => {
-            keepStreamPreviewOnCloseRef.current = true;
-          }}
-          onCommitSuccess={() => {
-            prefetchMapData();
-            handleStreamCommitted();
-          }}
-          onCommitFailed={(error) => {
-            clearPreviewNodes();
-            showTreeToast(error ?? "Could not save to your map.", "#e85d5d");
-          }}
-          onExtracted={() => {
-            prefetchMapData();
-          }}
-          onOnboardingFirstCardConfirmed={handleOnboardingFirstCardConfirmed}
         />
       ) : null}
 

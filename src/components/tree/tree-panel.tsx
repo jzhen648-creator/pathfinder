@@ -15,6 +15,7 @@ import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
 import { canonicalHubDisplayLabel, hubPanelCopy } from "@/lib/hub-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { HubCatalogPanelSections } from "./hub-catalog-panel-sections";
+import { PanelStreamSection } from "@/components/stream/panel-stream-section";
 import { themePanelCopy } from "@/lib/theme-catalog";
 import type { DomainHubData, MomentNode, TreeGoalNode, TreeMilestoneNode } from "./tree-types";
 import type { TreePanelProps, TreePanelSurface } from "./tree-view-types";
@@ -609,6 +610,14 @@ export function TreePanel({
   onOpenThemeStream,
   onOpenHubStream,
   onOpenGoalStream,
+  panelStreamSession,
+  onCloseStream,
+  onStreamCommitSuccess,
+  onStreamCommitFailed,
+  onStreamExtracted,
+  onStreamClearPreview,
+  onStreamCardFocusHub,
+  onStreamOnboardingFirstCardConfirmed,
   onAddGoal,
   archivedGoals,
   archivedMarks,
@@ -641,6 +650,30 @@ export function TreePanel({
   const hubPanelId = panel.type === "hub" ? panel.thread.id : null;
   const activeSuggestionGoal =
     panel.type === "goal" ? (findGoalInAreas(areas, panel.goal.id)?.goal ?? panel.goal) : null;
+  const renderPanelStreamSection = (session: NonNullable<TreePanelProps["panelStreamSession"]>) => {
+    if (
+      !onCloseStream ||
+      !onStreamCommitSuccess ||
+      !onStreamCommitFailed ||
+      !onStreamExtracted ||
+      !onStreamClearPreview
+    ) {
+      return null;
+    }
+
+    return (
+      <PanelStreamSection
+        session={session}
+        onClose={onCloseStream}
+        onCommitSuccess={onStreamCommitSuccess}
+        onCommitFailed={onStreamCommitFailed}
+        onExtracted={onStreamExtracted}
+        onClearPreview={onStreamClearPreview}
+        onCardFocusHub={onStreamCardFocusHub}
+        onOnboardingFirstCardConfirmed={onStreamOnboardingFirstCardConfirmed}
+      />
+    );
+  };
   useEffect(() => {
     setPendingMilestoneIds(new Set());
     setMilestoneError(null);
@@ -728,6 +761,10 @@ export function TreePanel({
     const inactiveHubsForTheme = apiBranchRows.filter(
       (b) => !b.parentBranchId && b.limbId === area.id && b.isActive !== true,
     );
+    const activeThemeStream =
+      panelStreamSession?.mode === "theme" && panelStreamSession.theme.themeId === area.id
+        ? panelStreamSession
+        : null;
     return (
       <section style={railSectionStyle(areaRail, area.color, panelSurface)}>
         {areaCanvasRail ? (
@@ -781,7 +818,9 @@ export function TreePanel({
                   ? ` · ${themeMomentCount} ${themeMomentCount === 1 ? "mark" : "marks"}`
                   : ""}
               </p>
-              {onOpenThemeStream ? (
+              {activeThemeStream ? (
+                renderPanelStreamSection(activeThemeStream)
+              ) : onOpenThemeStream ? (
                 <div className="pf-tree-rail-actions">
                   <StreamEntryButton
                     subjectName={area.label}
@@ -924,7 +963,9 @@ export function TreePanel({
                   ? ` · ${themeMomentCount} ${themeMomentCount === 1 ? "mark" : "marks"}`
                   : ""}
               </p>
-              {onOpenThemeStream ? (
+              {activeThemeStream ? (
+                renderPanelStreamSection(activeThemeStream)
+              ) : onOpenThemeStream ? (
                 <StreamEntryButton
                   subjectName={area.label}
                   accent={area.color}
@@ -1066,6 +1107,10 @@ export function TreePanel({
     const hubCanvasRail = isCanvasDetailRail(panelSurface, panelPresentation);
     const pursuitCardVariant = hubCanvasRail ? "canvas" : "default";
     const hubMarks = thread.moments.filter((m) => m.synthetic !== true);
+    const activeHubStream =
+      panelStreamSession?.mode === "hub" && panelStreamSession.hub.branchId === thread.id
+        ? panelStreamSession
+        : null;
 
     const hubArchiveBlock = hasArchiveSection ? (
       <div style={{ display: "grid", gap: 10, marginTop: hubCanvasRail ? 16 : 0 }}>
@@ -1354,7 +1399,9 @@ export function TreePanel({
                 </p>
               ) : null}
               <div className="pf-tree-rail-actions">
-                {onOpenHubStream ? (
+                {activeHubStream ? (
+                  renderPanelStreamSection(activeHubStream)
+                ) : onOpenHubStream ? (
                   <StreamEntryButton
                     subjectName={hubLabel}
                     accent={area.color}
@@ -1463,7 +1510,9 @@ export function TreePanel({
                   the tree
                 </p>
               ) : null}
-              {onOpenHubStream ? (
+              {activeHubStream ? (
+                renderPanelStreamSection(activeHubStream)
+              ) : onOpenHubStream ? (
                 <StreamEntryButton
                   subjectName={hubLabel}
                   accent={area.color}

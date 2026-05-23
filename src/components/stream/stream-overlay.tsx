@@ -318,6 +318,10 @@ export type StreamOverlayProps = StreamOverlayBaseProps &
     | { mode: "theme"; theme: StreamThemeUiContext }
   );
 
+// Reserved for future global Stream.
+// Hub and theme Stream renders inline
+// via PanelStreamSection in tree-panel.tsx.
+
 function accentColor(props: StreamOverlayProps): string {
   return props.mode === "theme" ? props.theme.themeColor : props.hub.areaColor;
 }

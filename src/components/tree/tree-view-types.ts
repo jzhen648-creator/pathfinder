@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
 import type { LifeAreaId } from "@/lib/types";
+import type { StreamUiSession } from "@/types/stream";
 import type { MarkInteractionAnchor } from "./mark-hover-card";
 import type { TreePanTransform } from "./tree-view-fit";
 import type { AreaData, MomentNode, Point, TreeGoalNode, TreeOrbitalMilestone } from "./tree-types";
@@ -139,6 +140,14 @@ export type TreePanelProps = {
   onOpenThemeStream?: (area: AreaData) => void;
   onOpenHubStream?: (area: AreaData, thread: AreaData["branches"][number], initialPlaceholder?: string) => void;
   onOpenGoalStream?: (area: AreaData, goal: TreeGoalNode) => void;
+  panelStreamSession?: StreamUiSession | null;
+  onCloseStream?: () => void;
+  onStreamCommitSuccess?: () => void;
+  onStreamCommitFailed?: (error: string) => void;
+  onStreamExtracted?: () => void;
+  onStreamClearPreview?: () => void;
+  onStreamCardFocusHub?: (areaId: string, branchId: string) => void;
+  onStreamOnboardingFirstCardConfirmed?: () => void;
   editMapMode?: boolean;
   onAddGoal: (hub: AddGoalHubContext) => void;
   /** @deprecated Hub Stream removed — use theme spoke affordance. */
