@@ -15,6 +15,8 @@ model User {
   birthPlace                 String?
   email                      String   @unique
   passwordHash               String
+  passwordResetToken         String?  @unique
+  passwordResetExpiry        DateTime?
   onboardingCompleted        Boolean  @default(false)
   /// Six-scene guided onboarding progress; null = not started.
   onboardingScene            Int?
