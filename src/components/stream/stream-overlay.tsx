@@ -426,6 +426,13 @@ export function StreamOverlay(props: StreamOverlayProps) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
 
       if (!res.ok) {
+        if (onboardingMode) {
+          console.error("[onboarding Stream] extract failed", {
+            status: res.status,
+            error: data?.error ?? null,
+            body,
+          });
+        }
         setError(streamExtractUserMessage(res.status, data?.error ?? null));
 
         setPhase("input");
@@ -439,13 +446,16 @@ export function StreamOverlay(props: StreamOverlayProps) {
 
       setPhase("confirm");
     } catch (err) {
+      if (onboardingMode) {
+        console.error("[onboarding Stream] extract threw", err);
+      }
       setError(streamExtractCatchMessage(err));
 
       setPhase("input");
     } finally {
       setBusy(false);
     }
-  }, [draft, inputMode, isTheme, props]);
+  }, [draft, inputMode, isTheme, onboardingMode, props]);
 
   const handleStartOver = useCallback(() => {
     onClearPreview?.();

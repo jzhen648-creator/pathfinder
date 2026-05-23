@@ -182,15 +182,17 @@ function TreeViewInner({
   }, [initialCoachMarkStep, isOnboardingGuideActive]);
 
   const advanceOnboardingGuide = useCallback(
-    (scene: number, payload: { themeId?: string | null; hubSlug?: string | null } = {}) => {
+    async (scene: number, payload: { themeId?: string | null; hubSlug?: string | null } = {}) => {
       if (!isOnboardingGuideActive) return;
-      void fetch("/api/onboarding/advance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scene, ...payload }),
-      }).catch((err) => {
+      try {
+        await fetch("/api/onboarding/advance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scene, ...payload }),
+        });
+      } catch (err) {
         console.error("[onboarding-guide] advance failed", err);
-      });
+      }
     },
     [isOnboardingGuideActive],
   );
@@ -619,7 +621,7 @@ function TreeViewInner({
     const hub = buildStreamHubUiFromThread(area, thread);
     const hubLabel = thread.type.trim() || hub.branchLabel;
     const onboardingPlaceholder =
-      isOnboardingGuideActive && coachMarkStep === "open_stream"
+      isOnboardingGuideActive
         ? hubFirstTimeQuestion(area.id, hubLabel)
         : undefined;
     setPanel({ type: "none" });
@@ -765,13 +767,19 @@ function TreeViewInner({
     });
 
     window.setTimeout(() => {
-      advanceOnboardingGuide(6, {
-        themeId: hub.areaId,
-        hubSlug: normalizeHubLabelKey(hub.branchLabel),
-      });
-      router.refresh();
+      void (async () => {
+        await advanceOnboardingGuide(6, {
+          themeId: hub.areaId,
+          hubSlug: normalizeHubLabelKey(hub.branchLabel),
+        });
+        clearPreviewNodes();
+        setStreamSession(null);
+        setStreamPanFocus(null);
+        streamPanHubRef.current = null;
+        router.refresh();
+      })();
     }, 900);
-  }, [advanceOnboardingGuide, isOnboardingGuideActive, router, streamSession]);
+  }, [advanceOnboardingGuide, clearPreviewNodes, isOnboardingGuideActive, router, streamSession]);
 
   const showFirstRunWelcome =
     !onboardingLocked && !firstRunCompleted && !streamSession && !loading && areas.length > 0;
@@ -858,28 +866,34 @@ function TreeViewInner({
 
   const onboardingCoachMark = useMemo(() => {
     if (!isOnboardingGuideActive || !coachMarkStep) return null;
-    if (coachMarkStep === "tap_theme") {
-      const preferredTheme = firstRun.primaryLimbId ?? "work";
-      return {
-        targetSelector: `[data-tree-gateway-node][data-area-id="${preferredTheme}"], [data-tree-gateway-node]`,
-        instruction: "Tap a theme to begin",
-        accentColor: getLifeArea(preferredTheme as LifeAreaId)?.color ?? "#EF9F27",
-      };
+    switch (coachMarkStep) {
+      case "tap_theme": {
+        const preferredTheme = firstRun.primaryLimbId ?? "work";
+        return {
+          targetSelector: `[data-tree-gateway-node][data-area-id="${preferredTheme}"], [data-tree-gateway-node]`,
+          instruction: "Tap a theme to begin",
+          accentColor: getLifeArea(preferredTheme as LifeAreaId)?.color ?? "#EF9F27",
+        };
+      }
+      case "tap_hub": {
+        const accentColor = panel.type === "area" ? panel.area.color : "#EF9F27";
+        return {
+          targetSelector: `[data-onboarding-coach="first-hub"]`,
+          instruction: "Tap a track to open it",
+          accentColor,
+        };
+      }
+      case "open_stream": {
+        const accentColor = panel.type === "hub" ? panel.area.color : "#EF9F27";
+        return {
+          targetSelector: `[data-onboarding-coach="open-stream"]`,
+          instruction: "Tell me what's on your mind here",
+          accentColor,
+        };
+      }
+      default:
+        return null;
     }
-    if (coachMarkStep === "tap_hub") {
-      const accentColor = panel.type === "area" ? panel.area.color : "#EF9F27";
-      return {
-        targetSelector: `[data-onboarding-coach="first-hub"]`,
-        instruction: "Tap a track to open it",
-        accentColor,
-      };
-    }
-    const accentColor = panel.type === "hub" ? panel.area.color : "#EF9F27";
-    return {
-      targetSelector: `[data-onboarding-coach="open-stream"]`,
-      instruction: "Tell me what's on your mind here",
-      accentColor,
-    };
   }, [coachMarkStep, firstRun.primaryLimbId, isOnboardingGuideActive, panel]);
 
   const handleAreaClick = useCallback(
@@ -949,6 +963,10 @@ function TreeViewInner({
         setPanel({ type: "area", area: fresh });
       }
     });
+    if (isOnboardingGuideActive && coachMarkStep === "tap_theme") {
+      setCoachMarkStep("tap_hub");
+      advanceOnboardingGuide(3, { themeId: limbId, hubSlug: null });
+    }
 
     showTreeToast(
       `${shortLabel} is on your map — choose a hub to open first in the panel.`,
@@ -956,7 +974,17 @@ function TreeViewInner({
     );
     window.setTimeout(() => setLimbRevealLimbId(null), 950);
     window.setTimeout(() => setRecentlyUnlockedLimbId(null), 14_000);
-  }, [areas, loadData, pendingThemeConfirm, prefetchMapData, showTreeToast, unlockedLimbIds]);
+  }, [
+    advanceOnboardingGuide,
+    areas,
+    coachMarkStep,
+    isOnboardingGuideActive,
+    loadData,
+    pendingThemeConfirm,
+    prefetchMapData,
+    showTreeToast,
+    unlockedLimbIds,
+  ]);
 
   const handleActivateHubFromPanel = useCallback(
     async (branchId: string, area: AreaData) => {
