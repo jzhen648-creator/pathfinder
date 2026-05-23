@@ -6,7 +6,6 @@ import type { LifeAreaId } from "@/lib/types";
 import type { OnboardingScene } from "@/lib/onboarding-progress";
 import type { OnboardingHubOption } from "../onboarding-scene-router";
 import type { AreaData } from "@/components/tree/tree-types";
-import { OnboardingHubCallouts } from "@/components/onboarding/onboarding-hub-callouts";
 import { OnboardingThemeChips } from "@/components/onboarding/onboarding-theme-chips";
 import { OnboardingTreeBackground } from "@/components/onboarding/onboarding-tree-background";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
@@ -74,8 +73,6 @@ export function SceneHubPick({ themeId, allHubs, syntheticAreas, onAdvance }: Sc
           areas={syntheticAreas}
           dormantLimbIds={[]}
           unlockedLimbIds={unlockedLimbIds}
-          focusedLimbId={themeId}
-          initialFitAreaIds={themeId ? [themeId] : undefined}
           onAreaClick={handleAreaClick}
           onboardingHubPick={{
             themeId: (themeId as LifeAreaId | null) ?? null,
@@ -83,15 +80,6 @@ export function SceneHubPick({ themeId, allHubs, syntheticAreas, onAdvance }: Sc
           }}
         />
       </div>
-
-      {themeId ? (
-        <OnboardingHubCallouts
-          themeId={themeId}
-          hubs={hubs}
-          accentColor={accentColor}
-          onSelect={handleHubSelect}
-        />
-      ) : null}
 
       <div
         style={{
@@ -137,7 +125,7 @@ export function SceneHubPick({ themeId, allHubs, syntheticAreas, onAdvance }: Sc
               textShadow: "0 2px 10px rgba(0,0,0,0.55)",
             }}
           >
-            Tap a track on the map or in the list on the left.
+            Tap a track on the map.
           </p>
         ) : null}
 

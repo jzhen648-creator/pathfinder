@@ -222,10 +222,22 @@ import {
 } from "./tree-limb-reveal-animation";
 import type { LifeAreaId } from "@/lib/types";
 import { normalizeHubLabelKey } from "@/lib/taxonomy";
+import { hubPanelCopy } from "@/lib/hub-catalog";
 import { StreamPreviewMarkersLayer } from "@/components/stream/stream-preview-tree-layer";
 import { TreeEditMapOverlay } from "./tree-edit-map-overlay";
 import type { EditDragGoalPayload } from "./tree-edit-drag";
 import type { LayoutPointerDrag, TreeSVGProps } from "./tree-view-types";
+
+const ONBOARDING_HUB_SUBTITLE_MAX_CHARS = 30;
+
+function onboardingHubSubtitle(areaId: string, hubName: string): string {
+  const about = hubPanelCopy(areaId, hubName).about.replace(/\s+/g, " ").trim();
+  const cutCandidates = [about.indexOf(" —"), about.indexOf(",")].filter((idx) => idx >= 0);
+  const cutIndex = cutCandidates.length > 0 ? Math.min(...cutCandidates) : -1;
+  const firstClause = (cutIndex >= 0 ? about.slice(0, cutIndex) : about).trim();
+  if (firstClause.length <= ONBOARDING_HUB_SUBTITLE_MAX_CHARS) return firstClause;
+  return `${firstClause.slice(0, ONBOARDING_HUB_SUBTITLE_MAX_CHARS - 3).trimEnd()}...`;
+}
 
 function domainClusterMomentChainCtx(
   areaId: string,
@@ -3094,6 +3106,9 @@ function TreeSVGInner({
                           ghostLabelFontPx,
                         );
                         const hubSlug = normalizeHubLabelKey(template.name);
+                        const hubSubtitle = obHubPick
+                          ? onboardingHubSubtitle(areaLimbId, template.name)
+                          : "";
                         const hubNode = (
                           <g data-tree-ghost-hub="1">
                             <line
@@ -3152,6 +3167,23 @@ function TreeSVGInner({
                               maxWidthPx={ghostLabelFontPx * 11}
                               letterSpacing="0.04em"
                             />
+                            {hubSubtitle ? (
+                              <TreeSvgTextLabel
+                                x={ghostLabelPos.x}
+                                y={ghostLabelPos.y + ghostLabelFontPx + 4}
+                                text={hubSubtitle}
+                                color={area.color}
+                                ink={treeMapLimbHueReadableInk(area.color)}
+                                fontSize={11}
+                                fontWeight={400}
+                                textAnchor={ghostLabelPos.textAnchor}
+                                dominantBaseline="hanging"
+                                opacity={0.6}
+                                maxLines={1}
+                                maxWidthPx={11 * 14}
+                                letterSpacing="0.02em"
+                              />
+                            ) : null}
                           </g>
                         );
                         return <g key={template.threadType}>{hubNode}</g>;

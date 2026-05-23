@@ -1,5 +1,6 @@
 "use client";
 
+// Not used in SceneHubPick — kept for reference
 import { hubPanelCopy } from "@/lib/hub-catalog";
 import type { OnboardingHubOption } from "./onboarding-scene-router";
 
