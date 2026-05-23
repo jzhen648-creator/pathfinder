@@ -33,11 +33,33 @@ export function AccountMenu({
   loading?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const initials = initialsForUser(user);
   const isLight = variant === "light";
   const displayName = user.name?.trim() || "Pathfinder account";
   const email = user.email?.trim() || "No email on file";
+
+  async function deleteAccount() {
+    const confirmed = window.confirm(
+      "This will permanently delete your map and all your data. This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/account", { method: "DELETE" });
+      if (!response.ok) {
+        window.alert("Could not delete your account right now. Please try again.");
+        setDeleting(false);
+        return;
+      }
+      await signOut({ callbackUrl: "/login" });
+    } catch {
+      window.alert("Could not delete your account right now. Please try again.");
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -134,6 +156,21 @@ export function AccountMenu({
             onClick={() => void signOut({ callbackUrl: "/login" })}
           >
             Sign out
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            disabled={deleting}
+            className={[
+              "w-full rounded-xl px-3 py-2 text-left text-[13px] font-medium transition disabled:opacity-60",
+              isLight
+                ? "text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40"
+                : "text-red-300 hover:bg-red-500/15",
+            ].join(" ")}
+            onClick={() => void deleteAccount()}
+          >
+            {deleting ? "Deleting account..." : "Delete account"}
           </button>
         </div>
       ) : null}
