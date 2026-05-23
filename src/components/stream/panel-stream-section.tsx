@@ -129,7 +129,7 @@ const ASSISTANT_MESSAGE_STYLE: CSSProperties = {
   color: "var(--color-text-secondary)",
 };
 
-const ONBOARDING_RATE_LIMIT_RETRY_MS = 3_000;
+const RATE_LIMIT_RETRY_MS = 3_000;
 
 function accentColor(session: StreamUiSession): string {
   return session.mode === "theme" ? session.theme.themeColor : session.hub.areaColor;
@@ -251,13 +251,13 @@ export function PanelStreamSection({
     try {
       let result = await extractOnce();
 
-      if (!result.ok && onboardingMode && isRateLimitFailure(result.status, result.error)) {
-        setError("Just a moment — almost ready.");
-        await delay(ONBOARDING_RATE_LIMIT_RETRY_MS);
+      if (!result.ok && isRateLimitFailure(result.status, result.error)) {
+        setError("Just a moment — almost ready...");
+        await delay(RATE_LIMIT_RETRY_MS);
         result = await extractOnce();
         if (!result.ok) {
-          setError("Something went wrong — tap to try again.");
-          setOnboardingRetryReady(true);
+          setError(onboardingMode ? "Something went wrong — tap to try again." : streamExtractUserMessage(result.status, result.error));
+          if (onboardingMode) setOnboardingRetryReady(true);
           setPhase("input");
           return;
         }
@@ -274,9 +274,9 @@ export function PanelStreamSection({
       setExtraction(result.data);
       setPhase("confirm");
     } catch (err) {
-      if (onboardingMode && isRateLimitFailure(null, err instanceof Error ? err.message : String(err))) {
-        setError("Just a moment — almost ready.");
-        await delay(ONBOARDING_RATE_LIMIT_RETRY_MS);
+      if (isRateLimitFailure(null, err instanceof Error ? err.message : String(err))) {
+        setError("Just a moment — almost ready...");
+        await delay(RATE_LIMIT_RETRY_MS);
         try {
           const retryResult = await extractOnce();
           if (retryResult.ok) {
@@ -285,13 +285,16 @@ export function PanelStreamSection({
             setPhase("confirm");
             return;
           }
-        } catch {
-          /* fall through */
+          setError(onboardingMode ? "Something went wrong — tap to try again." : streamExtractUserMessage(retryResult.status, retryResult.error));
+          if (onboardingMode) setOnboardingRetryReady(true);
+          setPhase("input");
+          return;
+        } catch (retryErr) {
+          setError(onboardingMode ? "Something went wrong — tap to try again." : streamExtractCatchMessage(retryErr));
+          if (onboardingMode) setOnboardingRetryReady(true);
+          setPhase("input");
+          return;
         }
-        setError("Something went wrong — tap to try again.");
-        setOnboardingRetryReady(true);
-        setPhase("input");
-        return;
       }
 
       setError(streamExtractCatchMessage(err));
