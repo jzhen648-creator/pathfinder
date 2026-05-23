@@ -1230,7 +1230,7 @@ function TreeViewInner({
           onGoalClick={handleGoalClick}
           exportRootRef={treeExportRootRef}
           showElementGuide={TREE_ELEMENT_GUIDE_ENABLED && showTreeElementGuide}
-          suppressDevUi={onboardingLocked}
+          suppressDevUi={onboardingLocked && process.env.NODE_ENV !== "development"}
           panDisabled={onboardingCoachMarkActive}
           onboardingSprout={onboardingSprout}
           onOnboardingSproutComplete={() => setOnboardingSprout(null)}
