@@ -415,7 +415,7 @@ export function PanelStreamSection({
       ) : null}
 
       {onboardingMode ? <p className="pf-panel-stream-hint">Take your time. Sentences are fine.</p> : null}
-      <div>
+      <div data-onboarding-coach="stream-composer">
         <StreamComposer
           value={draft}
           onChange={setDraft}
