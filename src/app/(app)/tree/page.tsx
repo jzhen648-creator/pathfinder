@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { TreeView } from "@/components/tree/tree-view";
+import { TreePageShell } from "@/components/tree/tree-page-shell";
 import { authOptions } from "@/lib/auth";
+import { loadOnboardingTreePayload } from "@/lib/onboarding-tree-data";
 import { prisma } from "@/lib/prisma";
 import type { TreeFirstRunConfig } from "@/types/first-run";
 
@@ -17,6 +18,7 @@ export default async function TreePage() {
     where: { id: userId },
     select: {
       firstRunCompleted: true,
+      onboardingCompleted: true,
       onboardingPrimaryLimbId: true,
       name: true,
     },
@@ -32,9 +34,17 @@ export default async function TreePage() {
     userName: user.name,
   };
 
+  const onboarding = user.onboardingCompleted
+    ? undefined
+    : await loadOnboardingTreePayload(userId);
+
   return (
     <Suspense fallback={null}>
-      <TreeView firstRun={firstRun} />
+      <TreePageShell
+        onboardingCompleted={user.onboardingCompleted}
+        firstRun={firstRun}
+        onboarding={onboarding}
+      />
     </Suspense>
   );
 }

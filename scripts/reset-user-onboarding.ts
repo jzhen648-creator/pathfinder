@@ -32,7 +32,11 @@ async function main() {
     data: {
       onboardingCompleted: false,
       firstRunCompleted: false,
+      onboardingScene: 1,
+      onboardingThemeId: null,
+      onboardingHubSlug: null,
       onboardingPrimaryLimbId: null,
+      unlockedLimbIds: Prisma.JsonNull,
       onboardingProfileText: null,
       onboardingProfileData: Prisma.JsonNull,
       careerEducationContextText: null,
@@ -49,8 +53,9 @@ async function main() {
 
   console.log(`Reset complete for ${email}`);
   console.log(`  onboardingCompleted: false`);
+  console.log(`  onboardingScene: 1`);
   console.log(`  system hubs dormant: ${dormant} (created ${created} this run)`);
-  console.log(`\nLog out and back in, or hard-refresh, then visit /onboarding`);
+  console.log(`\nLog out and back in, or hard-refresh, then visit /tree`);
 }
 
 main()

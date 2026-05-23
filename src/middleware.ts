@@ -5,7 +5,9 @@ import type { NextRequest } from "next/server";
 const PUBLIC_FILE = /\.(?:ico|png|jpg|jpeg|svg|gif|webp|woff2?|ttf|eot|txt|webmanifest)$/i;
 
 const LOGIN_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/reset-password"];
 const ONBOARDING_PATH = "/onboarding";
+const TREE_PATH = "/tree";
 
 function isLoginPath(pathname: string): boolean {
   return LOGIN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -44,6 +46,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return NextResponse.next();
+  }
+
   if (process.env.NODE_ENV === "development" && pathname.startsWith("/dev/")) {
     return NextResponse.next();
   }
@@ -62,16 +68,16 @@ export async function middleware(req: NextRequest) {
   if (!skipOnboardingRedirects) {
     const onboardingCompleted = token.onboardingCompleted === true;
 
-    if (!onboardingCompleted && pathname !== ONBOARDING_PATH) {
+    if (!onboardingCompleted && pathname !== TREE_PATH && pathname !== ONBOARDING_PATH) {
       const url = req.nextUrl.clone();
-      url.pathname = ONBOARDING_PATH;
+      url.pathname = TREE_PATH;
       url.search = "";
       return NextResponse.redirect(url);
     }
 
     if (onboardingCompleted && pathname === ONBOARDING_PATH) {
       const url = req.nextUrl.clone();
-      url.pathname = "/tree";
+      url.pathname = TREE_PATH;
       url.search = "";
       return NextResponse.redirect(url);
     }

@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   }
 
   if (!user.onboardingCompleted) {
-    redirect("/onboarding");
+    redirect("/tree");
   }
 
   return (

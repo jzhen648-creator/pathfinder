@@ -29,16 +29,17 @@ async function resolvePostLoginPath(): Promise<string> {
 
   const session = await getSession();
   if (session?.user?.onboardingCompleted) return "/tree";
-  if (session) return "/onboarding";
+  if (session) return "/tree";
   // Cookie may not be visible to getSession yet; app layout gates incomplete users.
   return "/tree";
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -84,12 +85,14 @@ export default function LoginPage() {
           Pathfinder
         </p>
         <h1 className="text-2xl font-semibold text-white">
-          {mode === "signin" ? "Welcome back" : "Set up your account"}
+          {mode === "signin" ? "Welcome back" : mode === "signup" ? "Set up your account" : "Reset your password"}
         </h1>
         <p className="mt-2 text-sm text-zinc-400">
           {mode === "signin"
             ? "Sign in to continue."
-            : "Set up an account to start tracking pursuits."}
+            : mode === "signup"
+              ? "Set up an account to start tracking pursuits."
+              : "Enter your email and we'll send you a reset link."}
         </p>
 
         <div className="mt-5 grid grid-cols-2 rounded-xl border border-white/10 bg-zinc-950/60 p-1">
@@ -98,6 +101,7 @@ export default function LoginPage() {
             onClick={() => {
               setMode("signin");
               setError(null);
+              setNotice(null);
             }}
             className={`rounded-lg px-3 py-2 text-sm transition ${
               mode === "signin"
@@ -112,6 +116,7 @@ export default function LoginPage() {
             onClick={() => {
               setMode("signup");
               setError(null);
+              setNotice(null);
             }}
             className={`rounded-lg px-3 py-2 text-sm transition ${
               mode === "signup"
@@ -136,6 +141,22 @@ export default function LoginPage() {
             const name = String(formData.get("name") ?? "");
 
             try {
+              if (mode === "forgot") {
+                const response = await fetch("/api/auth/forgot-password", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email }),
+                });
+                if (!response.ok) {
+                  setError("Could not send reset link right now.");
+                  setIsSubmitting(false);
+                  return;
+                }
+                setNotice("If that email exists, we'll send a password reset link.");
+                setIsSubmitting(false);
+                return;
+              }
+
               if (mode === "signup") {
                 const response = await fetch("/api/auth/register", {
                   method: "POST",
@@ -194,22 +215,25 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm text-zinc-300">
-              Password
-            </label>
-            <input
-              ref={passwordRef}
-              id="password"
-              name="password"
-              type="password"
-              placeholder="********"
-              required
-              className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
-            />
-          </div>
+          {mode !== "forgot" ? (
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm text-zinc-300">
+                Password
+              </label>
+              <input
+                ref={passwordRef}
+                id="password"
+                name="password"
+                type="password"
+                placeholder="********"
+                required
+                className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
+              />
+            </div>
+          ) : null}
 
           {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+          {notice ? <p className="text-sm text-emerald-400">{notice}</p> : null}
 
           <button
             type="submit"
@@ -220,8 +244,38 @@ export default function LoginPage() {
               ? "Please wait..."
               : mode === "signin"
                 ? "Sign in"
-                : "Set up account"}
+                : mode === "signup"
+                  ? "Set up account"
+                  : "Send reset link"}
           </button>
+
+          {mode === "signin" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setError(null);
+                setNotice(null);
+              }}
+              className="w-full text-sm text-zinc-400 transition hover:text-white"
+            >
+              Forgot password?
+            </button>
+          ) : null}
+
+          {mode === "forgot" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setError(null);
+                setNotice(null);
+              }}
+              className="w-full text-sm text-zinc-400 transition hover:text-white"
+            >
+              Back to sign in
+            </button>
+          ) : null}
 
           {isDev && mode === "signin" ? (
             <button
