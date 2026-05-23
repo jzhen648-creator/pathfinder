@@ -22,7 +22,6 @@ import {
   VIEWBOX_WIDTH,
 } from "./tree-geometry";
 import {
-  deriveRootTendrilSpecs,
   deriveSimplifiedTrunkCenterVeinD,
   deriveSimplifiedTrunkSilhouetteD,
   deriveTrunkCenterlineX,
@@ -39,6 +38,7 @@ import {
   branchMainPathUntilGlobalT,
   branchPointAtUniformFraction,
   buildAreaForksRecord,
+  buildPreviewAreaForksRecord,
   closestGlobalTOnLimb,
   compareBranchIndicesForStemOrder,
   connectiveBowPathD,
@@ -61,7 +61,6 @@ import { TreeLayoutDevPanel } from "./tree-layout-dev-panel";
 import { TreeElementGuideTag } from "./tree-element-guide-tag";
 import { TreeRenderStatsHud } from "./tree-render-stats-hud";
 import { TreeMarkNode } from "./tree-mark-node";
-import { TreePentagonAnchor } from "./tree-pentagon-anchor";
 import { TREE_THEME_CANVAS_SERIF, TREE_THEME_SHORT_LABEL } from "./tree-design-visual";
 import { renderGoalsSubtree } from "./tree-render-goals-subtree";
 import { getTreeRenderQualityFactors } from "./tree-render-quality";
@@ -204,6 +203,10 @@ import {
 import { FLAGS } from "@/lib/flags";
 import { DormantPulse, GhostPulse } from "./tree-node-pulse";
 import {
+  resolveThemeLayoutMode,
+  useGatewayThemeLayout,
+} from "./tree-theme-layout-mode";
+import {
   deriveThemeVisualState,
   ghostHubSlotsForArea,
   type NodeVisualState,
@@ -218,6 +221,7 @@ import {
   LimbRevealStem,
 } from "./tree-limb-reveal-animation";
 import type { LifeAreaId } from "@/lib/types";
+import { normalizeHubLabelKey } from "@/lib/taxonomy";
 import { StreamPreviewMarkersLayer } from "@/components/stream/stream-preview-tree-layer";
 import { TreeEditMapOverlay } from "./tree-edit-map-overlay";
 import type { EditDragGoalPayload } from "./tree-edit-drag";
@@ -278,6 +282,8 @@ function TreeSVGInner({
   exportRootRef,
   showElementGuide = false,
   streamPanFocus = null,
+  initialFitAreaIds,
+  highlightGoalId = null,
   streamPanelWidthPx = 0,
   editMapMode = false,
   editMapDraftAreas = null,
@@ -287,6 +293,9 @@ function TreeSVGInner({
   activatingLimbId = null,
   limbRevealLimbId = null,
   onLimbRevealComplete,
+  onboardingHubPickMode,
+  previewGatewayLayout = false,
+  onCameraFrame,
 }: TreeSVGProps) {
   const selectedMomentId = activeMarkId;
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -332,6 +341,25 @@ function TreeSVGInner({
     () => applyLayoutOverrides(forkBases, layoutOverrides),
     [layoutOverrides, forkBases],
   );
+  const previewForkBases = useMemo(() => buildPreviewAreaForksRecord(), []);
+  const previewForks = useMemo(
+    () => applyLayoutOverrides(previewForkBases, layoutOverrides),
+    [previewForkBases, layoutOverrides],
+  );
+  const gatewayPreviewOpts = useMemo(
+    () => ({ forceGatewayPreview: previewGatewayLayout || onboardingHubPickMode != null }),
+    [previewGatewayLayout, onboardingHubPickMode],
+  );
+  const renderForks = useMemo(() => {
+    const merged = { ...resolvedForks };
+    for (const area of allAreasForForkGeometry) {
+      const mode = resolveThemeLayoutMode(area, unlockedLimbIds, gatewayPreviewOpts);
+      if (mode === "gateway-preview" && previewForks[area.id]) {
+        merged[area.id] = previewForks[area.id];
+      }
+    }
+    return merged;
+  }, [allAreasForForkGeometry, gatewayPreviewOpts, previewForks, resolvedForks, unlockedLimbIds]);
   useEffect(() => {
     saveLayoutOverrides(layoutOverrides);
   }, [layoutOverrides]);
@@ -372,7 +400,13 @@ function TreeSVGInner({
     transformRef.current = transform;
   }, [transform]);
   const streamPanAnimCancelRef = useRef<(() => void) | null>(null);
+  const fitPanAnimCancelRef = useRef<(() => void) | null>(null);
   const didInitialFitRef = useRef(false);
+  const lastFitTargetKeyRef = useRef<string | null>(null);
+  const onCameraFrameRef = useRef(onCameraFrame);
+  useEffect(() => {
+    onCameraFrameRef.current = onCameraFrame;
+  }, [onCameraFrame]);
   const zoomRatio = transform.scale / baselineZoomScale;
   const treeRenderQuality = getTreeRenderQualityFactors();
   /** Limb backdrop & goals always account for hex orbitals when milestones exist (no zoom gate). */
@@ -696,8 +730,6 @@ function TreeSVGInner({
     return {
       silhouetteD: deriveSimplifiedTrunkSilhouetteD(),
       veinD: deriveSimplifiedTrunkCenterVeinD(),
-      rootFlareD: TREE_TRUNK_PRESSURE_LAYERS.rootFlareD,
-      tendrils: deriveRootTendrilSpecs(),
       crownForks: deriveTrunkCrownForkPaths(),
       junctions: areasRenderOrder
         .map((area) => {
@@ -720,18 +752,18 @@ function TreeSVGInner({
     return computeLifeAreaLimbFloatNudgesPx(
       areasRenderOrder.map((a) => a.id),
       (id) => {
-        const spec = resolvedForks[id];
+        const spec = renderForks[id];
         if (!spec) return null;
         return isHubGatewayLayout(spec) ? spec.limbTip : spec.trunkAttach;
       },
     );
-  }, [areasRenderOrder, resolvedForks]);
+  }, [areasRenderOrder, renderForks]);
 
   const treeFitTransform = useMemo(
     () =>
       computeTreeFitTransformFromLayout({
         areas,
-        forks: resolvedForks,
+        forks: renderForks,
         floatNudges: lifeAreaFloatNudgePx,
         layoutOverrides,
         viewWidth: VIEWBOX_WIDTH,
@@ -742,7 +774,7 @@ function TreeSVGInner({
           scale: baselineZoomScale,
         },
       }),
-    [areas, resolvedForks, lifeAreaFloatNudgePx, layoutOverrides, baselineZoomScale],
+    [areas, renderForks, lifeAreaFloatNudgePx, layoutOverrides, baselineZoomScale],
   );
 
   const focusLimbInView = useCallback(
@@ -750,7 +782,7 @@ function TreeSVGInner({
       setTransform(
         computeTreeFitTransformFromLayout({
           areas,
-          forks: resolvedForks,
+          forks: renderForks,
           floatNudges: lifeAreaFloatNudgePx,
           layoutOverrides,
           viewWidth: VIEWBOX_WIDTH,
@@ -762,19 +794,121 @@ function TreeSVGInner({
       toggleAreaLayoutEdit(areaId, true);
       setLayoutDevPanelCollapsed(false);
     },
-    [areas, resolvedForks, lifeAreaFloatNudgePx, layoutOverrides, toggleAreaLayoutEdit, setTransform, setLayoutDevPanelCollapsed],
+    [areas, renderForks, lifeAreaFloatNudgePx, layoutOverrides, toggleAreaLayoutEdit, setTransform, setLayoutDevPanelCollapsed],
   );
 
-  useEffect(() => {
-    if (didInitialFitRef.current || areas.length === 0) return;
+  const fitAreaIdsKey =
+    initialFitAreaIds && initialFitAreaIds.length > 0 ? initialFitAreaIds.join(",") : "__full__";
+
+  const targetFitTransform = useMemo(
+    () =>
+      initialFitAreaIds && initialFitAreaIds.length > 0
+        ? computeTreeFitTransformFromLayout({
+            areas,
+            forks: renderForks,
+            floatNudges: lifeAreaFloatNudgePx,
+            layoutOverrides,
+            viewWidth: VIEWBOX_WIDTH,
+            viewHeight: VIEWBOX_HEIGHT,
+            areaIds: initialFitAreaIds,
+            fallback: treeFitTransform,
+          })
+        : treeFitTransform,
+    [
+      areas,
+      renderForks,
+      lifeAreaFloatNudgePx,
+      layoutOverrides,
+      treeFitTransform,
+      initialFitAreaIds,
+    ],
+  );
+
+  const targetFitKey = useMemo(() => {
+    const t = targetFitTransform;
+    return `${fitAreaIdsKey}|${t.x.toFixed(1)}|${t.y.toFixed(1)}|${t.scale.toFixed(4)}`;
+  }, [targetFitTransform, fitAreaIdsKey]);
+
+  const reportCameraFrame = useCallback(() => {
+    const cb = onCameraFrameRef.current;
+    if (!cb) return;
     const svg = svgRef.current;
     if (!svg) return;
     const cw = svg.clientWidth;
     const ch = svg.clientHeight;
     if (cw < 40 || ch < 40) return;
-    setTransform(treeFitTransform);
-    didInitialFitRef.current = true;
-  }, [areas, treeFitTransform]);
+    cb({
+      svg,
+      transform: transformRef.current,
+      viewWidth,
+      viewHeight,
+    });
+  }, [viewWidth, viewHeight]);
+
+  useEffect(() => {
+    if (areas.length === 0) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const applyFit = () => {
+      const cw = svg.clientWidth;
+      const ch = svg.clientHeight;
+      if (cw < 40 || ch < 40) return;
+
+      if (lastFitTargetKeyRef.current === targetFitKey) return;
+
+      const t = targetFitTransform;
+      const cur = transformRef.current;
+      const alreadyThere =
+        didInitialFitRef.current &&
+        Math.abs(cur.x - t.x) < 2 &&
+        Math.abs(cur.y - t.y) < 2 &&
+        Math.abs(cur.scale - t.scale) < 0.002;
+
+      if (!didInitialFitRef.current) {
+        setTransform(targetFitTransform);
+        didInitialFitRef.current = true;
+        lastFitTargetKeyRef.current = targetFitKey;
+        reportCameraFrame();
+        return;
+      }
+
+      if (alreadyThere) {
+        lastFitTargetKeyRef.current = targetFitKey;
+        reportCameraFrame();
+        return;
+      }
+
+      const from = transformRef.current;
+      fitPanAnimCancelRef.current?.();
+      fitPanAnimCancelRef.current = animateTreePan(
+        from,
+        targetFitTransform,
+        setTransform,
+        420,
+        () => {
+          lastFitTargetKeyRef.current = targetFitKey;
+          reportCameraFrame();
+        },
+      );
+    };
+
+    applyFit();
+    const ro = new ResizeObserver(() => applyFit());
+    ro.observe(svg);
+    return () => {
+      ro.disconnect();
+      fitPanAnimCancelRef.current?.();
+      fitPanAnimCancelRef.current = null;
+    };
+  }, [targetFitKey, targetFitTransform, areas.length, setTransform, reportCameraFrame]);
+
+  useEffect(() => {
+    if (!onCameraFrame) return;
+    reportCameraFrame();
+    window.addEventListener("resize", reportCameraFrame);
+    return () => window.removeEventListener("resize", reportCameraFrame);
+  }, [onCameraFrame, reportCameraFrame]);
 
   useEffect(() => {
     if (!streamPanFocus) return;
@@ -849,8 +983,9 @@ function TreeSVGInner({
         height="100%"
         style={{
           background: TREE_MAP_SURFACE_FILL,
-          cursor:
-            editMapMode
+          cursor: onboardingHubPickMode
+            ? "default"
+            : editMapMode
               ? "grab"
               : anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED
                 ? "default"
@@ -862,6 +997,7 @@ function TreeSVGInner({
           WebkitUserSelect: "none",
         }}
         onWheel={(e) => {
+          if (onboardingHubPickMode) return;
           e.preventDefault();
           const rect = e.currentTarget.getBoundingClientRect();
           const delta = e.deltaY > 0 ? 0.86 : 1.163;
@@ -875,6 +1011,7 @@ function TreeSVGInner({
           }));
         }}
         onMouseDown={(e) => {
+          if (onboardingHubPickMode) return;
           if (editMapMode) return;
           if (anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED && isLayoutEditHandleTarget(e.target)) return;
           if (e.button !== 0) return;
@@ -888,6 +1025,7 @@ function TreeSVGInner({
         onMouseUp={endPan}
         onMouseLeave={endPan}
         onTouchStart={(e) => {
+          if (onboardingHubPickMode) return;
           if (editMapMode) return;
           const touch = e.touches[0];
           if (!touch) return;
@@ -902,6 +1040,7 @@ function TreeSVGInner({
         }}
         onTouchEnd={endPan}
         onClick={() => {
+          if (onboardingHubPickMode) return;
           if (shouldSuppressMapClick()) return;
           onClear();
         }}
@@ -1000,18 +1139,6 @@ function TreeSVGInner({
                 <stop offset="0%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.08} />
                 <stop offset="48%" stopColor={TRUNK_WARM_VEIN_HEX} stopOpacity={0.55} />
                 <stop offset="100%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.08} />
-              </linearGradient>
-              <linearGradient
-                id="trunkSimplifiedRootFlareGrad"
-                x1="50%"
-                y1="0%"
-                x2="50%"
-                y2="100%"
-                gradientUnits="objectBoundingBox"
-              >
-                <stop offset="0%" stopColor={TRUNK_WARM_MID_HEX} stopOpacity={0.5} />
-                <stop offset="55%" stopColor={TRUNK_WARM_BASE_HEX} stopOpacity={0.36} />
-                <stop offset="100%" stopColor={TRUNK_WARM_ROOT_HEX} stopOpacity={0.18} />
               </linearGradient>
               {areasRenderOrder.map((area) => {
                 const jId = svgDefSafeId(`trunkJunction-${area.id}`);
@@ -1258,23 +1385,6 @@ function TreeSVGInner({
           {trunkLayoutEnabled() && simplifiedTrunkArt ? (
             <g pointerEvents="none" aria-hidden data-tree-trunk-simplified="1">
               <path
-                d={simplifiedTrunkArt.rootFlareD}
-                fill="url(#trunkSimplifiedRootFlareGrad)"
-                opacity={0.68}
-              />
-              {simplifiedTrunkArt.tendrils.map((tendril, ti) => (
-                <path
-                  key={`trunk-tendril-${ti}`}
-                  d={tendril.d}
-                  fill="none"
-                  stroke={TRUNK_WARM_BASE_HEX}
-                  strokeWidth={tendril.strokeWidth}
-                  strokeOpacity={tendril.strokeOpacity}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-              <path
                 d={simplifiedTrunkArt.silhouetteD}
                 fill="url(#trunkSimplifiedBodyGrad)"
                 opacity={0.9}
@@ -1428,15 +1538,18 @@ function TreeSVGInner({
             aria-hidden
             data-tree-compose-south="1"
           />
-          <TreePentagonAnchor />
           {/* Vein + luminous veil render after limb/branch strokes (see emergence blend group) so overlap reads as embedded emergence, not hard under-stack clipping. */}
 
           {/* Refs (pan, layout drag, svg) are read only inside pointer handlers in this subtree. */}
           {/* eslint-disable react-hooks/refs -- large composed SVG layer */}
           {areasRenderOrder.map((area) => {
-            const slots = getAreaSlotRender(area.id, resolvedForks);
+            const dataForkSpec = resolvedForks[area.id];
+            const layoutMode = resolveThemeLayoutMode(area, unlockedLimbIds, gatewayPreviewOpts);
+            const renderForkSpec = renderForks[area.id] ?? dataForkSpec;
+            const useGatewayLayout = useGatewayThemeLayout(layoutMode);
+            const slots = getAreaSlotRender(area.id, renderForks);
             if (!slots) return null;
-            const forkSpec = resolvedForks[area.id];
+            const forkSpec = dataForkSpec;
             const branchForkTs =
               forkSpec != null
                 ? area.branches.map((_, bi) => {
@@ -1451,14 +1564,19 @@ function TreeSVGInner({
               );
             const dcGatewaySpreadNormal = domainClusterGatewaySpreadNormalForForkSpec(forkSpec);
             const hubLayoutAnchors =
-              forkSpec != null
-                ? { trunkAttach: forkSpec.trunkAttach, gateway: forkSpec.limbTip }
+              renderForkSpec != null
+                ? { trunkAttach: renderForkSpec.trunkAttach, gateway: renderForkSpec.limbTip }
                 : undefined;
 
             const goalPanelPulseGoalId =
               FLAGS.FOCUS_MODE && panel.type === "goal" && panel.area.id === area.id
                 ? panel.goal.id
-                : null;
+                : FLAGS.FOCUS_MODE &&
+                    highlightGoalId &&
+                    focusedLimbId === area.id &&
+                    area.branches.some((thread) => threadContainsGoal(thread.goals, highlightGoalId))
+                  ? highlightGoalId
+                  : null;
             const limbFocusPulseActive =
               FLAGS.FOCUS_MODE && (focusedLimbId === area.id || goalPanelPulseGoalId != null);
             const limbGroupOpacity = getOpacity(focused, area.id);
@@ -1535,17 +1653,17 @@ function TreeSVGInner({
             }
 
             /** Life-area title: trunk fork for dendrites; hub limbs anchor at the gateway (conduit node). */
-            const areaLabelAnchor: Point = forkSpec
-              ? isHubGatewayLayout(forkSpec)
-                ? forkSpec.limbTip
-                : forkSpec.trunkAttach
+            const areaLabelAnchor: Point = renderForkSpec
+              ? useGatewayLayout
+                ? renderForkSpec.limbTip
+                : renderForkSpec.trunkAttach
               : pathPointAtT(slots.limb, 0);
 
             const lifeAreaLabel = lifeAreaTrunkForkLabelLayout(
               area.id,
-              forkSpec?.trunkAttach ?? pathPointAtT(slots.limb, 0),
-              forkSpec != null && isHubGatewayLayout(forkSpec)
-                ? { hubGatewayNode: forkSpec.limbTip }
+              renderForkSpec?.trunkAttach ?? pathPointAtT(slots.limb, 0),
+              useGatewayLayout && renderForkSpec
+                ? { hubGatewayNode: renderForkSpec.limbTip }
                 : undefined,
             );
             const limbLabelDecorHull = limbLabelDecorHullCorners(
@@ -1554,13 +1672,22 @@ function TreeSVGInner({
               TREE_LIMB_ICON_SIZE_PX,
             );
 
-            const hubGatewayLayout = forkSpec != null && isHubGatewayLayout(forkSpec);
+            const hubGatewayLayout = useGatewayLayout && renderForkSpec != null;
             const areaLimbId = area.id as LifeAreaId;
             const isDormant = dormantLimbIds.includes(areaLimbId);
             const isUnlockedEmpty =
               unlockedLimbIds.includes(areaLimbId) && area.branches.length === 0;
             const isActivating = activatingLimbId === areaLimbId;
             const isRevealing = limbRevealLimbId === areaLimbId;
+            const obHubPickActive = onboardingHubPickMode != null;
+            const obHubPickTrackPhase =
+              obHubPickActive && onboardingHubPickMode!.themeId != null;
+            const obHubPickSelected =
+              obHubPickTrackPhase && onboardingHubPickMode!.themeId === areaLimbId;
+            const obHubPickPeer =
+              obHubPickTrackPhase &&
+              onboardingHubPickMode!.themeId !== areaLimbId &&
+              isUnlockedEmpty;
             const revealActive = isRevealing && FLAGS.TREE_THEME_ACTIVATION_ANIM;
             const themeVisualState: NodeVisualState = FLAGS.TREE_LATENT_POTENTIAL
               ? deriveThemeVisualState(area, unlockedLimbIds)
@@ -1578,8 +1705,8 @@ function TreeSVGInner({
               ? computeHubGatewayBackdropHull({
                   areaId: area.id,
                   limbPath: slots.limb,
-                  themeGateway: themeGatewayPointForArea(area.id, forkSpec, layoutOverrides[area.id]),
-                  trunkAttach: forkSpec!.trunkAttach,
+                  themeGateway: themeGatewayPointForArea(area.id, renderForkSpec, layoutOverrides[area.id]),
+                  trunkAttach: renderForkSpec!.trunkAttach,
                   branchCount: sortedBranchIdx.length,
                   branches: branchLayoutRows.map((row) => ({
                     thread: row.thread,
@@ -1632,11 +1759,11 @@ function TreeSVGInner({
             return (
               <Fragment key={area.id}>
               <DormantPulse active={themeVisualState === "dormant" && !isActivating}>
-                <GhostPulse active={themeVisualState === "ghost" && !isActivating}>
+                <GhostPulse active={themeVisualState === "ghost" && !isActivating && !obHubPickActive}>
                   <g
                     data-tree-limb-depth-plane={depthStage.plane}
                     style={{
-                      opacity: composedLimbOpacity,
+                      opacity: composedLimbOpacity * (obHubPickPeer ? 0.36 : 1),
                       transition: FLAGS.FOCUS_MODE ? "opacity 350ms ease" : "opacity 300ms ease",
                       filter: depthStage.limbVisualFilter,
                       ...(floatTranslateCss || depthStage.limbComposeTransform
@@ -2030,7 +2157,7 @@ function TreeSVGInner({
                   pointerEvents="none"
                 />
 
-                {forkSpec != null && isHubGatewayLayout(forkSpec) && trunkLayoutEnabled() ? (
+                {renderForkSpec != null && useGatewayLayout && trunkLayoutEnabled() ? (
                   <g pointerEvents="none" aria-hidden data-tree-major-limb="1">
                     <path
                       d={slots.limb}
@@ -2065,7 +2192,7 @@ function TreeSVGInner({
                   </g>
                 ) : null}
 
-                {FLAGS.TREE_TRUNK_VISIBLE && forkSpec != null && isHubGatewayLayout(forkSpec) ? (
+                {FLAGS.TREE_TRUNK_VISIBLE && renderForkSpec != null && useGatewayLayout ? (
                   <g pointerEvents="none" aria-hidden data-tree-hub-trunk-filaments="1">
                     {hubTrunkFilamentSpecs(slots.limb, area.id).map((f) => (
                       <path
@@ -2118,7 +2245,7 @@ function TreeSVGInner({
                       : "";
 
                   /** Hub transport stroke (trunk→gateway) — quieter than branch conduits + gateway node. */
-                  const isHubLimbStem = forkSpec != null && isHubGatewayLayout(forkSpec);
+                  const isHubLimbStem = renderForkSpec != null && useGatewayLayout;
                   const stemStrokeW = isHubLimbStem ? 0.62 : 1;
                   const stemStrokeOp = isHubLimbStem ? 0.48 : 1;
 
@@ -2927,14 +3054,25 @@ function TreeSVGInner({
                   );
                 })}
 
-                {isUnlockedEmpty && FLAGS.TREE_LATENT_POTENTIAL && hubGatewayLayout && forkSpec ? (() => {
-                  const gw = themeGatewayPointForArea(area.id, forkSpec, layoutOverrides[area.id]);
+                {isUnlockedEmpty && FLAGS.TREE_LATENT_POTENTIAL && useGatewayLayout && renderForkSpec ? (() => {
+                  if (obHubPickActive && !obHubPickSelected) return null;
+                  const gw = themeGatewayPointForArea(area.id, renderForkSpec, layoutOverrides[area.id]);
                   const ghostSlots = ghostHubSlotsForArea(areaLimbId);
                   if (!ghostSlots.length) return null;
                   const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX_TRUNK;
                   const discR = iconMedallionRadii(hubIconPx, "domainHub").discR;
-                  return (
-                    <g data-tree-ghost-hubs="1" pointerEvents="none" aria-hidden>
+                  const obHubPick =
+                    onboardingHubPickMode != null &&
+                    onboardingHubPickMode.themeId === areaLimbId;
+                  const spokeOpacityMul = obHubPick ? 1.15 : 0.7;
+                  const hubStrokeOpacity = obHubPick ? 0.88 : 0.85;
+                  const labelOpacity = obHubPick ? 0.9 : 0.5;
+                  const ghostGroup = (
+                    <g
+                      data-tree-ghost-hubs="1"
+                      pointerEvents={obHubPick ? "auto" : "none"}
+                      aria-hidden={obHubPick ? undefined : true}
+                    >
                       {ghostSlots.map(({ tip, template, slotIndex }) => {
                         const hx = snapTreeSvgScalar(tip.x);
                         const hy = snapTreeSvgScalar(tip.y);
@@ -2948,8 +3086,9 @@ function TreeSVGInner({
                           TREE_DOMAIN_HUB_LABEL_GAP_PX,
                           ghostLabelFontPx,
                         );
-                        return (
-                          <g key={template.threadType} data-tree-ghost-hub="1">
+                        const hubSlug = normalizeHubLabelKey(template.name);
+                        const hubNode = (
+                          <g data-tree-ghost-hub="1">
                             <line
                               x1={snapTreeSvgScalar(gw.x)}
                               y1={snapTreeSvgScalar(gw.y)}
@@ -2958,18 +3097,38 @@ function TreeSVGInner({
                               stroke={area.color}
                               strokeWidth={TREE_DOMAIN_GATEWAY_SPOKE_STROKE_PX}
                               strokeLinecap="round"
-                              opacity={TREE_DOMAIN_GATEWAY_SPOKE_OPACITY * 0.7}
+                              opacity={TREE_DOMAIN_GATEWAY_SPOKE_OPACITY * spokeOpacityMul}
                             />
+                            {obHubPick ? (
+                              <circle
+                                cx={hx}
+                                cy={hy}
+                                r={discR + 14}
+                                fill={area.color}
+                                opacity={0.22}
+                                pointerEvents="none"
+                              />
+                            ) : null}
                             <circle
                               cx={hx}
                               cy={hy}
                               r={discR}
-                              fill="none"
+                              fill={obHubPick ? `${area.color}22` : "none"}
                               stroke={area.color}
-                              strokeWidth={1.5}
+                              strokeWidth={obHubPick ? 2 : 1.5}
+                              opacity={hubStrokeOpacity}
+                              style={obHubPick ? { cursor: "pointer" } : undefined}
+                              onClick={
+                                obHubPick
+                                  ? (e) => {
+                                      e.stopPropagation();
+                                      onboardingHubPickMode?.onHubSelect(hubSlug);
+                                    }
+                                  : undefined
+                              }
                             />
-                            <g transform={`translate(${hx},${hy})`}>
-                              <HubGlyph size={hubIconPx} color={area.color} opacity={0.85} />
+                            <g transform={`translate(${hx},${hy})`} pointerEvents="none">
+                              <HubGlyph size={hubIconPx} color={area.color} opacity={hubStrokeOpacity} />
                             </g>
                             <TreeSvgTextLabel
                               x={ghostLabelPos.x}
@@ -2981,21 +3140,23 @@ function TreeSVGInner({
                               fontWeight={700}
                               textAnchor={ghostLabelPos.textAnchor}
                               dominantBaseline={ghostLabelPos.dominantBaseline}
-                              opacity={0.5}
+                              opacity={labelOpacity}
                               maxLines={2}
                               maxWidthPx={ghostLabelFontPx * 11}
                               letterSpacing="0.04em"
                             />
                           </g>
                         );
+                        return <g key={template.threadType}>{hubNode}</g>;
                       })}
                     </g>
                   );
+                  return ghostGroup;
                 })() : null}
 
                 {limbFocusPulseActive ? (
                   <g data-tree-focus-path-pulse="1" pointerEvents="none" aria-hidden>
-                    {forkSpec != null && isHubGatewayLayout(forkSpec) && !goalPanelPulseGoalId ? (
+                    {renderForkSpec != null && useGatewayLayout && !goalPanelPulseGoalId ? (
                       <TreeFocusPathPulse
                         d={polylinePathApproxBetweenT(slots.limb, 0.52, 1, 14)}
                         color={area.color}
@@ -3111,13 +3272,13 @@ function TreeSVGInner({
                 ) : null}
 
                 {(() => {
-                  const isHubGw = forkSpec != null && isHubGatewayLayout(forkSpec);
+                  const isHubGw = renderForkSpec != null && useGatewayLayout;
                   const LimbIc = limbIconForLifeArea(area.id as LifeAreaId);
                   const ic = limbIconCenterNearLifeAreaLabel(lifeAreaLabel, area.label, TREE_LIMB_ICON_SIZE_PX);
                   const icx = snapTreeSvgScalar(ic.x);
                   const icy = snapTreeSvgScalar(ic.y);
                   const dh = limbLabelDecorHull;
-                  const gatewayPt = isHubGw ? forkSpec!.limbTip : null;
+                  const gatewayPt = isHubGw ? renderForkSpec!.limbTip : null;
                   const themeMedallion =
                     gatewayPt != null ? iconMedallionRadii(TREE_THEME_GATEWAY_ICON_PX, "theme") : null;
                   const clusterHit =
@@ -3143,6 +3304,10 @@ function TreeSVGInner({
                     e.stopPropagation();
                     if (shouldSuppressMapClick()) return;
                     if (isActivating) return;
+                    if (obHubPickActive && !obHubPickSelected) {
+                      onAreaClick(area);
+                      return;
+                    }
                     // Theme gateway / icon opens the theme panel; dormant themes activate on click.
                     if (isDormant || (clusterHit && gatewayPt)) {
                       onAreaClick(area);
@@ -3209,6 +3374,29 @@ function TreeSVGInner({
                                 repeatCount="indefinite"
                               />
                             </circle>
+                          ) : obHubPickSelected ? (
+                            <>
+                              <circle
+                                cx={snapTreeSvgScalar(gatewayPt.x)}
+                                cy={snapTreeSvgScalar(gatewayPt.y)}
+                                r={themeMedallion!.discR + 18}
+                                fill="none"
+                                stroke={area.color}
+                                strokeWidth={2}
+                                pointerEvents="none"
+                                opacity={0.45}
+                              />
+                              <circle
+                                cx={snapTreeSvgScalar(gatewayPt.x)}
+                                cy={snapTreeSvgScalar(gatewayPt.y)}
+                                r={themeMedallion!.discR + 11}
+                                fill="none"
+                                stroke={area.color}
+                                strokeWidth={2.5}
+                                pointerEvents="none"
+                                opacity={0.92}
+                              />
+                            </>
                           ) : null}
                           <LimbRevealGateway
                             active={revealActive}
@@ -3257,6 +3445,29 @@ function TreeSVGInner({
                                 repeatCount="indefinite"
                               />
                             </circle>
+                          ) : obHubPickSelected ? (
+                            <>
+                              <circle
+                                cx={icx}
+                                cy={icy}
+                                r={limbIconHitR * 1.22}
+                                fill="none"
+                                stroke={area.color}
+                                strokeWidth={2}
+                                pointerEvents="none"
+                                opacity={0.45}
+                              />
+                              <circle
+                                cx={icx}
+                                cy={icy}
+                                r={limbIconHitR * 1.06}
+                                fill="none"
+                                stroke={area.color}
+                                strokeWidth={2.5}
+                                pointerEvents="none"
+                                opacity={0.92}
+                              />
+                            </>
                           ) : null}
                           <circle
                             cx={icx}
@@ -3314,7 +3525,11 @@ function TreeSVGInner({
                   </g>
                 </GhostPulse>
               </DormantPulse>
-              {(isDormant || isActivating || isUnlockedEmpty) ? (
+              {(isDormant ||
+                isActivating ||
+                obHubPickSelected ||
+                (isUnlockedEmpty && !obHubPickActive)) &&
+              !(obHubPickPeer && !isActivating) ? (
                 <TreeSvgTextLabel
                   x={lifeAreaLabel.x}
                   y={lifeAreaLabel.y + (TREE_LIFE_AREA_TITLE_FONT_PX + 6) * 0.55}
@@ -3323,7 +3538,9 @@ function TreeSVGInner({
                       ? "Adding to your map…"
                       : isDormant
                         ? "Tap to add"
-                        : "Open a hub in the panel"
+                        : obHubPickSelected
+                          ? "Pick a track"
+                          : "Open a hub in the panel"
                   }
                   color={area.color}
                   ink={treeMapLimbHueReadableInk(area.color)}
@@ -3331,7 +3548,7 @@ function TreeSVGInner({
                   fontWeight={600}
                   fontFamily={TREE_THEME_CANVAS_SERIF}
                   textAnchor={lifeAreaLabel.textAnchor}
-                  opacity={(isActivating ? 0.95 : 0.62) * composedLimbOpacity}
+                  opacity={(isActivating ? 0.95 : obHubPickSelected ? 0.9 : 0.62) * composedLimbOpacity}
                   letterSpacing="0.06em"
                   pointerEvents="none"
                 />
@@ -3358,7 +3575,13 @@ function TreeSVGInner({
             width={viewWidth}
             height={viewHeight}
             fill="url(#treeStageEdgeVignette)"
-            opacity={TREE_CINEMATIC_VFX_ENABLED ? TREE_CINEMATIC_VFX.stageEdgeVignette : 0.38}
+            opacity={
+              onboardingHubPickMode
+                ? 0.1
+                : TREE_CINEMATIC_VFX_ENABLED
+                  ? TREE_CINEMATIC_VFX.stageEdgeVignette
+                  : 0.38
+            }
             pointerEvents="none"
             aria-hidden
             data-tree-compose-vignette="1"
