@@ -49,6 +49,7 @@ function StreamEntryButton({
       <button
         type="button"
         data-testid={testId}
+        data-onboarding-coach={testId === "tree-open-hub-stream" ? "open-stream" : undefined}
         onClick={onClick}
         className="pf-tree-rail-btn-primary"
         aria-label={`${label} — ${subjectName}`}
@@ -62,6 +63,7 @@ function StreamEntryButton({
       <button
         type="button"
         data-testid={testId}
+        data-onboarding-coach={testId === "tree-open-hub-stream" ? "open-stream" : undefined}
         onClick={onClick}
         aria-label={`${label} — ${subjectName}`}
         style={{
@@ -802,13 +804,14 @@ export function TreePanel({
                       ? "Open a hub to start tracking on this theme."
                       : "More hubs on this theme are still closed."}
                   </p>
-                  {inactiveHubsForTheme.map((row) => {
+                  {inactiveHubsForTheme.map((row, idx) => {
                     const hubLabel = canonicalHubDisplayLabel(area.id, row.label ?? row.name ?? "Hub");
                     const blurb = hubPanelCopy(area.id, hubLabel).about;
                     return (
                       <button
                         key={row.id}
                         type="button"
+                        data-onboarding-coach={idx === 0 ? "first-hub" : undefined}
                         className="pf-tree-rail-hub-card"
                         onClick={() => onActivateHub(row.id, area)}
                       >
@@ -819,7 +822,7 @@ export function TreePanel({
                   })}
                 </div>
               ) : null}
-              {area.branches.map((thread) => {
+              {area.branches.map((thread, idx) => {
                 const threadGoalCount = countRoadmapGoalsOnThread(thread);
                 const hubLabel = thread.type.trim() || "Hub";
                 const hubBlurb = hubPanelCopy(area.id, hubLabel).about;
@@ -827,6 +830,7 @@ export function TreePanel({
                   <button
                     key={thread.id}
                     type="button"
+                    data-onboarding-coach={idx === 0 ? "first-hub" : undefined}
                     className="pf-tree-rail-hub-card"
                     onClick={() => onOpenHub(area, thread)}
                   >
@@ -944,7 +948,7 @@ export function TreePanel({
                   >
                     Hubs in this theme
                   </div>
-                  {area.branches.map((thread) => {
+                  {area.branches.map((thread, idx) => {
                     const statuses = thread.goals.map((g) => badgeStatusFromGoalBloom(g.bloomStatus));
                     const hasOnHold = statuses.includes("on_hold");
                     const hasActive = statuses.includes("active");
@@ -957,6 +961,7 @@ export function TreePanel({
                       <button
                         key={thread.id}
                         type="button"
+                        data-onboarding-coach={idx === 0 ? "first-hub" : undefined}
                         onClick={() => onOpenHub(area, thread)}
                         style={{
                           display: "grid",
