@@ -25,10 +25,9 @@ const THRESHOLD_CSS = `
 type SceneThresholdProps = {
   syntheticAreas: AreaData[];
   onAdvance: (nextScene: OnboardingScene) => void;
-  pending: boolean;
 };
 
-export function SceneThreshold({ syntheticAreas, onAdvance, pending }: SceneThresholdProps) {
+export function SceneThreshold({ syntheticAreas, onAdvance }: SceneThresholdProps) {
   return (
     <div
       style={{
@@ -90,7 +89,6 @@ export function SceneThreshold({ syntheticAreas, onAdvance, pending }: SceneThre
           <div className="ob-threshold-btn" style={{ marginTop: 40 }}>
             <button
               type="button"
-              disabled={pending}
               onClick={() => onAdvance(2)}
               style={{
                 display: "inline-block",
@@ -101,12 +99,11 @@ export function SceneThreshold({ syntheticAreas, onAdvance, pending }: SceneThre
                 padding: "13px 40px",
                 fontSize: 15,
                 fontWeight: 600,
-                cursor: pending ? "wait" : "pointer",
-                opacity: pending ? 0.6 : 1,
+                cursor: "pointer",
                 letterSpacing: "0.02em",
               }}
             >
-              {pending ? "…" : "I'm ready"}
+              I&apos;m ready
             </button>
           </div>
         </div>

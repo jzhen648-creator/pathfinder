@@ -64,3 +64,38 @@ export function findFirstRunFocusTarget(
 
   return null;
 }
+
+export type OnboardingRevealFocus = {
+  areaId: string;
+  branchId: string;
+  goalId: string | null;
+};
+
+/** Camera target for Scene 6 — first live tree after Stream commit. */
+export function resolveOnboardingRevealFocus(
+  areas: AreaData[],
+  themeId: string | null,
+  hubBranchId: string | null,
+): OnboardingRevealFocus | null {
+  if (!themeId) return null;
+
+  const target = findFirstRunFocusTarget(areas, themeId);
+  if (target) {
+    return {
+      areaId: target.area.id,
+      branchId: target.kind === "goal" ? target.goal.branchId : target.branchId,
+      goalId: target.kind === "goal" ? target.goal.id : null,
+    };
+  }
+
+  const area = areas.find((a) => a.id === themeId);
+  if (!area) return null;
+
+  const branch =
+    (hubBranchId ? area.branches.find((b) => b.id === hubBranchId) : null) ??
+    area.branches[0] ??
+    null;
+  if (!branch) return null;
+
+  return { areaId: area.id, branchId: branch.id, goalId: null };
+}
