@@ -315,6 +315,17 @@ function composerPlaceholder(props: StreamOverlayProps): string {
   return `What's been happening in ${props.hub.branchLabel}?`;
 }
 
+const ONBOARDING_RATE_LIMIT_RETRY_MS = 3_000;
+
+function isRateLimitFailure(status: number | null, message?: string | null): boolean {
+  const m = message?.toLowerCase() ?? "";
+  return status === 429 || m.includes("429") || m.includes("rate limit") || m.includes("quota");
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function StreamOverlay(props: StreamOverlayProps) {
   const {
     initialDraft = "",
@@ -348,6 +359,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
   const [busy, setBusy] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [onboardingRetryReady, setOnboardingRetryReady] = useState(false);
 
   const [extraction, setExtraction] = useState<StreamExtractResponse | null>(
     null,
@@ -407,6 +419,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
     setBusy(true);
 
     setError(null);
+    setOnboardingRetryReady(false);
 
     setNarrative("");
 
@@ -414,7 +427,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
 
     setPhase("extracting");
 
-    try {
+    const extractOnce = async () => {
       const res = await fetch("/api/stream/extract", {
         method: "POST",
 
@@ -426,21 +439,59 @@ export function StreamOverlay(props: StreamOverlayProps) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
 
       if (!res.ok) {
+        return {
+          ok: false as const,
+          status: res.status,
+          error: data?.error ?? null,
+        };
+      }
+
+      return { ok: true as const, data: data as StreamExtractResponse };
+    };
+
+    try {
+      let result = await extractOnce();
+
+      if (!result.ok && onboardingMode && isRateLimitFailure(result.status, result.error)) {
+        console.error("[onboarding Stream] extract rate limited; retrying once", {
+          status: result.status,
+          error: result.error,
+          body,
+        });
+        setError("Just a moment — almost ready.");
+        await delay(ONBOARDING_RATE_LIMIT_RETRY_MS);
+        result = await extractOnce();
+        if (!result.ok) {
+          console.error("[onboarding Stream] extract retry failed", {
+            status: result.status,
+            error: result.error,
+            body,
+          });
+          setError("Something went wrong — tap to try again.");
+          setOnboardingRetryReady(true);
+          setPhase("input");
+          return;
+        }
+      }
+
+      if (!result.ok) {
+        const { status, error } = result;
         if (onboardingMode) {
           console.error("[onboarding Stream] extract failed", {
-            status: res.status,
-            error: data?.error ?? null,
+            status,
+            error,
             body,
           });
         }
-        setError(streamExtractUserMessage(res.status, data?.error ?? null));
+        setError(onboardingMode ? "Something went wrong — tap to try again." : streamExtractUserMessage(status, error));
+        if (onboardingMode) setOnboardingRetryReady(true);
 
         setPhase("input");
 
         return;
       }
 
-      const extractionData = data as StreamExtractResponse;
+      const extractionData = result.data;
       setNarrative(extractionData.narrativeSentence ?? "");
       setExtraction(extractionData);
 
@@ -448,6 +499,25 @@ export function StreamOverlay(props: StreamOverlayProps) {
     } catch (err) {
       if (onboardingMode) {
         console.error("[onboarding Stream] extract threw", err);
+        if (isRateLimitFailure(null, err instanceof Error ? err.message : String(err))) {
+          setError("Just a moment — almost ready.");
+          await delay(ONBOARDING_RATE_LIMIT_RETRY_MS);
+          try {
+            const retryResult = await extractOnce();
+            if (retryResult.ok) {
+              setNarrative(retryResult.data.narrativeSentence ?? "");
+              setExtraction(retryResult.data);
+              setPhase("confirm");
+              return;
+            }
+          } catch (retryErr) {
+            console.error("[onboarding Stream] extract retry threw", retryErr);
+          }
+        }
+        setError("Something went wrong — tap to try again.");
+        setOnboardingRetryReady(true);
+        setPhase("input");
+        return;
       }
       setError(streamExtractCatchMessage(err));
 
@@ -467,6 +537,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
     setNarrative("");
 
     setError(null);
+    setOnboardingRetryReady(false);
 
     setDraft(initialDraft);
 
@@ -611,15 +682,36 @@ export function StreamOverlay(props: StreamOverlayProps) {
           />
 
           {error && phase !== "confirm" ? (
-            <p
-              style={{
-                ...STREAM_ASSISTANT_MESSAGE_STYLE,
-                margin: "10px 0 0",
-                padding: "0 2px",
-              }}
-            >
-              {error}
-            </p>
+            <div>
+              <p
+                style={{
+                  ...STREAM_ASSISTANT_MESSAGE_STYLE,
+                  margin: "10px 0 0",
+                  padding: "0 2px",
+                }}
+              >
+                {error}
+              </p>
+              {onboardingMode && onboardingRetryReady ? (
+                <button
+                  type="button"
+                  onClick={() => void handleExtract()}
+                  style={{
+                    marginTop: 8,
+                    border: `1px solid ${accent}66`,
+                    borderRadius: 999,
+                    background: `${accent}1f`,
+                    color: "rgba(245,243,250,0.9)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: "7px 12px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Try again
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>

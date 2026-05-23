@@ -21,6 +21,8 @@ export type HubCatalogEntry = {
   openingQuestions?: [string, string, string];
   /** First-time guided onboarding Stream placeholder (Scene 4). */
   firstTimeQuestion: string;
+  /** Hub-specific open-Stream coach mark instruction during onboarding. */
+  coachMarkHubInstruction: string;
 };
 
 /** Locked default-hub copy — keyed by theme id + hub display name (`Branch.label` / `thread.type`). */
@@ -56,6 +58,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "How's the money coming in — and is it where you want it to be?",
+      coachMarkHubInstruction: "Any income goals you're working toward?",
     },
     Assets: {
       about:
@@ -87,6 +90,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What are you doing to grow your money, or what would you love to start?",
+      coachMarkHubInstruction: "Building wealth anywhere — savings, investments?",
     },
     "Safety net": {
       about:
@@ -118,6 +122,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What's the financial thing you don't want to think about — but probably should?",
+      coachMarkHubInstruction: "Any financial protection you want to put in place?",
     },
     Liabilities: {
       about:
@@ -149,6 +154,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "Got any debt you'd love to clear, or anything financial weighing on you?",
+      coachMarkHubInstruction: "Any debt you want to plan around or clear?",
     },
   },
   work: {
@@ -182,6 +188,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What are you doing for work right now, and where do you want it to take you?",
+      coachMarkHubInstruction: "Where do you want your career to go from here?",
     },
     Skills: {
       about:
@@ -213,6 +220,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What's something you'd love to be great at — even if you're not there yet?",
+      coachMarkHubInstruction: "Any skills or qualifications you're working toward?",
     },
     "Builds & Launches": {
       about:
@@ -245,6 +253,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What's something you'd love to put out into the world — built, launched, finished?",
+      coachMarkHubInstruction: "Got a project or idea you want to ship?",
     },
   },
   becoming: {
@@ -278,6 +287,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What feels meaningful to you right now — and is your life pointing toward it?",
+      coachMarkHubInstruction: "Any direction or values you want to build toward?",
     },
     "Inner life": {
       about:
@@ -309,6 +319,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What's something about yourself you've been figuring out lately?",
+      coachMarkHubInstruction: "Any personal growth you're actively working on?",
     },
     Joy: {
       about:
@@ -340,6 +351,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What do you love doing for no other reason than the fact you love it?",
+      coachMarkHubInstruction: "Any experiences or hobbies you want to make room for?",
     },
   },
   people: {
@@ -372,6 +384,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Any family dynamic that's been sitting in the background unresolved?",
       ],
       firstTimeQuestion: "Who in your family is on your mind — for better or worse?",
+      coachMarkHubInstruction: "Any family relationships you want to invest in?",
     },
     Romance: {
       about:
@@ -403,6 +416,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "What's the story of your love life right now — and what would you change?",
+      coachMarkHubInstruction: "Any relationship goals you're building toward?",
     },
     Friendships: {
       about:
@@ -434,6 +448,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "Who do you wish you saw more of, and what's getting in the way?",
+      coachMarkHubInstruction: "Any friendships you want to invest in or reconnect with?",
     },
   },
   health: {
@@ -467,6 +482,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "Are you moving your body the way you want to — running, lifting, playing, anything?",
+      coachMarkHubInstruction: "Training goals? Fitness you want to build or track?",
     },
     Nutrition: {
       about:
@@ -497,6 +513,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What does eating well actually mean to you — do you have a clear picture of it?",
       ],
       firstTimeQuestion: "How's your eating going — fuelling you, or fighting you?",
+      coachMarkHubInstruction: "Any eating habits you want to build or change?",
     },
     Appearance: {
       about:
@@ -528,6 +545,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "Is there anything about how you show up — face, hair, style, body — you'd love to upgrade?",
+      coachMarkHubInstruction: "Any body or grooming goals you want to track?",
     },
     Rest: {
       about:
@@ -559,6 +577,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       firstTimeQuestion:
         "Are you sleeping well, or is rest something you keep meaning to sort out?",
+      coachMarkHubInstruction: "Sleep or recovery something you want to improve?",
     },
   },
 };
@@ -608,6 +627,7 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
       `What would progress look like for you in ${label}?`,
     ],
     firstTimeQuestion: `What's on your mind about ${label} right now?`,
+    coachMarkHubInstruction: `Anything in ${label} you want to build or track?`,
   };
 }
 

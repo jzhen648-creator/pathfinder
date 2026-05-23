@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { OB_PRIMARY, OB_TEXT_PRIMARY, obCardStyle } from "@/components/onboarding/onboarding-ui";
+import { OB_FONT_SANS, OB_PRIMARY, obCardStyle } from "@/components/onboarding/onboarding-ui";
+import { hubPanelCopy } from "@/lib/hub-catalog";
 import type { CoachMarkStep } from "@/components/tree/tree-view-types";
 
 type TargetRect = {
@@ -18,6 +19,9 @@ export type OnboardingCoachMarkProps = {
   instruction: string;
   onDismiss?: () => void;
   accentColor?: string;
+  areaId?: string;
+  hubLabel?: string;
+  hubSlug?: string;
 };
 
 const COACH_MARK_CSS = `
@@ -50,8 +54,14 @@ export function OnboardingCoachMark({
   instruction,
   onDismiss,
   accentColor = OB_PRIMARY,
+  areaId,
+  hubLabel,
 }: OnboardingCoachMarkProps) {
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
+  const effectiveInstruction =
+    step === "open_stream" && areaId && hubLabel
+      ? hubPanelCopy(areaId, hubLabel).coachMarkHubInstruction
+      : instruction;
 
   useEffect(() => {
     if (!step || !targetSelector) {
@@ -60,7 +70,8 @@ export function OnboardingCoachMark({
     }
 
     let raf = 0;
-    let observer: ResizeObserver | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
 
     const update = () => {
       window.cancelAnimationFrame(raf);
@@ -69,21 +80,31 @@ export function OnboardingCoachMark({
       });
     };
 
-    update();
+    const initialDelay = window.setTimeout(update, 100);
     const el = document.querySelector(targetSelector);
     if (el instanceof Element && typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(update);
-      observer.observe(el);
+      resizeObserver = new ResizeObserver(update);
+      resizeObserver.observe(el);
+    }
+    if (typeof MutationObserver !== "undefined") {
+      mutationObserver = new MutationObserver(update);
+      mutationObserver.observe(document.body, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
     }
 
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
-    const retry = window.setTimeout(update, 120);
+    const retry = window.setTimeout(update, 240);
 
     return () => {
       window.cancelAnimationFrame(raf);
+      window.clearTimeout(initialDelay);
       window.clearTimeout(retry);
-      observer?.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
@@ -91,15 +112,13 @@ export function OnboardingCoachMark({
 
   const cardPosition = useMemo(() => {
     if (!targetRect) return null;
-    const gap = 14;
-    const cardWidth = Math.min(360, Math.max(220, targetRect.width + 80));
+    const gap = 12;
+    const cardWidth = Math.min(280, Math.max(220, targetRect.width + 64));
     const left = Math.min(
       Math.max(16, targetRect.left + targetRect.width / 2 - cardWidth / 2),
       Math.max(16, window.innerWidth - cardWidth - 16),
     );
-    const belowTop = targetRect.top + targetRect.height + gap;
-    const aboveTop = targetRect.top - 86 - gap;
-    const top = belowTop < window.innerHeight - 96 ? belowTop : Math.max(16, aboveTop);
+    const top = Math.min(targetRect.top + targetRect.height + gap, window.innerHeight - 76);
     return { top, left, width: cardWidth };
   }, [targetRect]);
 
@@ -118,7 +137,8 @@ export function OnboardingCoachMark({
           height: targetRect.height + 16,
           borderRadius: targetRect.radius + 8,
           border: `2px solid ${accentColor}`,
-          boxShadow: `0 0 0 4px ${accentColor}22, 0 0 34px ${accentColor}88`,
+          color: accentColor,
+          boxShadow: `0 0 12px color-mix(in srgb, currentColor 40%, transparent)`,
           pointerEvents: "none",
           zIndex: 250000,
           animation: "obCoachPulse 1.25s ease-in-out infinite",
@@ -134,13 +154,17 @@ export function OnboardingCoachMark({
           left: cardPosition.left,
           width: cardPosition.width,
           zIndex: 250001,
-          padding: "12px 14px",
-          color: OB_TEXT_PRIMARY,
+          maxWidth: 280,
+          padding: "12px 16px",
+          color: "rgba(245, 243, 250, 0.90)",
+          fontFamily: OB_FONT_SANS,
           boxShadow: "0 18px 52px rgba(0,0,0,0.42)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
           pointerEvents: onDismiss ? "auto" : "none",
         }}
       >
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{instruction}</p>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 500, lineHeight: 1.4 }}>{effectiveInstruction}</p>
         {onDismiss ? (
           <button
             type="button"

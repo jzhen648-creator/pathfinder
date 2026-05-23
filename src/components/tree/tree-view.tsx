@@ -884,17 +884,22 @@ function TreeViewInner({
         };
       }
       case "open_stream": {
-        const accentColor = panel.type === "hub" ? panel.area.color : "#EF9F27";
+        if (panel.type !== "hub") return null;
+        const hubLabel = panel.thread.type.trim() || "Hub";
         return {
           targetSelector: `[data-onboarding-coach="open-stream"]`,
           instruction: "Tell me what's on your mind here",
-          accentColor,
+          accentColor: panel.area.color,
+          areaId: panel.area.id,
+          hubLabel,
+          hubSlug: normalizeHubLabelKey(hubLabel),
         };
       }
       default:
         return null;
     }
   }, [coachMarkStep, firstRun.primaryLimbId, isOnboardingGuideActive, panel]);
+  const onboardingCoachMarkActive = isOnboardingGuideActive && coachMarkStep != null;
 
   const handleAreaClick = useCallback(
     (area: AreaData) => {
@@ -1196,6 +1201,7 @@ function TreeViewInner({
           exportRootRef={treeExportRootRef}
           showElementGuide={TREE_ELEMENT_GUIDE_ENABLED && showTreeElementGuide}
           suppressDevUi={onboardingLocked}
+          panDisabled={onboardingCoachMarkActive}
           onboardingSprout={onboardingSprout}
           onOnboardingSproutComplete={() => setOnboardingSprout(null)}
           streamPanFocus={streamPanFocus}
@@ -1617,6 +1623,9 @@ function TreeViewInner({
           targetSelector={onboardingCoachMark.targetSelector}
           instruction={onboardingCoachMark.instruction}
           accentColor={onboardingCoachMark.accentColor}
+          areaId={onboardingCoachMark.areaId}
+          hubLabel={onboardingCoachMark.hubLabel}
+          hubSlug={onboardingCoachMark.hubSlug}
         />
       ) : null}
 

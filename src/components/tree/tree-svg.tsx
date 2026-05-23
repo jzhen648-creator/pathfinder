@@ -348,6 +348,7 @@ function TreeSVGInner({
   exportRootRef,
   showElementGuide = false,
   suppressDevUi = false,
+  panDisabled = false,
   streamPanFocus = null,
   initialFitAreaIds,
   initialFitPaddingPx,
@@ -607,6 +608,7 @@ function TreeSVGInner({
   useEffect(() => () => cancelPanFrame(false), [cancelPanFrame]);
 
   const beginPan = (x: number, y: number) => {
+    if (panDisabled) return;
     if (editMapMode) return;
     cancelPanFrame(false);
     window.getSelection()?.removeAllRanges();
@@ -1065,6 +1067,8 @@ function TreeSVGInner({
           background: TREE_MAP_SURFACE_FILL,
           cursor: onboardingHubPickMode
             ? "default"
+            : panDisabled
+              ? "default"
             : editMapMode
               ? "grab"
               : anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED
@@ -1077,7 +1081,10 @@ function TreeSVGInner({
           WebkitUserSelect: "none",
         }}
         onWheel={(e) => {
-          if (onboardingHubPickMode) return;
+          if (onboardingHubPickMode || panDisabled) {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           const rect = e.currentTarget.getBoundingClientRect();
           const delta = e.deltaY > 0 ? 0.86 : 1.163;
@@ -1092,6 +1099,7 @@ function TreeSVGInner({
         }}
         onMouseDown={(e) => {
           if (onboardingHubPickMode) return;
+          if (panDisabled) return;
           if (editMapMode) return;
           if (anyLayoutEditActive && TREE_LAYOUT_EDIT_ENABLED && isLayoutEditHandleTarget(e.target)) return;
           if (e.button !== 0) return;
@@ -1106,6 +1114,7 @@ function TreeSVGInner({
         onMouseLeave={endPan}
         onTouchStart={(e) => {
           if (onboardingHubPickMode) return;
+          if (panDisabled) return;
           if (editMapMode) return;
           const touch = e.touches[0];
           if (!touch) return;

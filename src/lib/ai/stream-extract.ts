@@ -758,6 +758,7 @@ export function buildStreamThemeExtractUserMessage(
         why: "",
         examples: h.examples,
         firstTimeQuestion: "",
+        coachMarkHubInstruction: "",
       }),
       "",
       "#### Existing pursuits",

@@ -81,6 +81,8 @@ export type TreeSVGProps = {
   showElementGuide?: boolean;
   /** Hide development HUD / layout controls while onboarding overlays own the screen. */
   suppressDevUi?: boolean;
+  /** Disable map pan/zoom while an overlay needs stable target positioning. */
+  panDisabled?: boolean;
   /** Stream confirmation: pan camera to this hub when `key` changes. */
   streamPanFocus?: { areaId: string; branchId: string; key: number } | null;
   /** On first mount, fit camera to these theme ids instead of the full tree. */
