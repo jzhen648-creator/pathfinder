@@ -1634,7 +1634,7 @@ function TreeViewInner({
         <FirstRunWelcomeOverlay userName={firstRun.userName} onStart={handleFirstRunStart} />
       ) : null}
 
-      {onboardingCoachMark ? (
+      {onboardingCoachMark && pendingThemeConfirm == null ? (
         <OnboardingCoachMark
           step={coachMarkStep}
           targetSelector={onboardingCoachMark.targetSelector}
