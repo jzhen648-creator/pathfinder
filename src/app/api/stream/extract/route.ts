@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStreamThemeContextInput } from "@/lib/stream-theme-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
+import { streamExtractFailureStatus } from "@/lib/stream-extract-errors";
 import {
   streamExtractRequestSchema,
   streamHubExtractRequestSchema,
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
         console.error("[POST /api/stream/extract theme] failed", details, err);
         return NextResponse.json(
           { error: details.message || "Extract unavailable" },
-          { status: 502 },
+          { status: streamExtractFailureStatus(err) },
         );
       }
     }
@@ -256,7 +257,7 @@ export async function POST(request: Request) {
       console.error("[POST /api/stream/extract hub] failed", details, err);
       return NextResponse.json(
         { error: details.message || "Extract unavailable" },
-        { status: 502 },
+        { status: streamExtractFailureStatus(err) },
       );
     }
   } catch (err) {

@@ -305,6 +305,8 @@ export type StreamUiSessionOptions = {
   onboardingMode?: boolean;
   /** Hub-specific first-time question shown as the composer placeholder. */
   onboardingQuestion?: string;
+  /** Pursuit panel that opened this hub-scoped Stream, when Stream is docked on a pursuit tab. */
+  sourceGoalId?: string;
 };
 
 export type StreamHubUiContext = {

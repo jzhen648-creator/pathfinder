@@ -47,6 +47,13 @@ export const STREAM_COMPOSER_CSS = `
   opacity: 0.85;
   cursor: not-allowed;
 }
+.pf-stream-composer textarea.pf-stream-composer-live {
+  color: rgba(255, 255, 255, 0.92);
+}
+.pf-stream-composer-live-hint {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.58);
+}
 .pf-stream-composer-actions {
   position: absolute;
   right: 8px;
@@ -118,22 +125,35 @@ export function StreamComposer({
   const voice = useVoiceInput(voiceOptions ?? { enabled: true });
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const holdingRef = useRef(false);
+  const baseAtListenRef = useRef("");
 
   const canSend = Boolean(value.trim()) && !disabled && !busy;
   const showMic = voice.isBrowserSupported && voiceOptions?.enabled !== false;
   const voiceDisabledReason = voice.unavailableReason ?? "Hold to speak";
 
-  const appendTranscript = (spoken: string) => {
+  const voiceSessionActive = voice.listening || voice.transcribing;
+  const liveSuffix = voice.liveTranscriptText;
+  const displayValue =
+    voiceSessionActive && liveSuffix
+      ? baseAtListenRef.current.trim()
+        ? `${baseAtListenRef.current.trim()} ${liveSuffix}`
+        : liveSuffix
+      : voiceSessionActive
+        ? baseAtListenRef.current
+        : value;
+
+  const mergeTranscript = (base: string, spoken: string) => {
     const chunk = spoken.trim();
-    if (!chunk) return;
+    if (!chunk) return base;
     onVoiceUsed?.();
-    onChange(value.trim() ? `${value.trim()} ${chunk}` : chunk);
+    return base.trim() ? `${base.trim()} ${chunk}` : chunk;
   };
 
   const handlePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
     if (disabled || busy || !voice.isActive || voice.transcribing) return;
     e.preventDefault();
     holdingRef.current = true;
+    baseAtListenRef.current = value;
     voice.clearError();
     void voice.startListening();
     try {
@@ -152,7 +172,7 @@ export function StreamComposer({
       /* ignore */
     }
     const spoken = await voice.stopListening();
-    appendTranscript(spoken);
+    onChange(mergeTranscript(baseAtListenRef.current, spoken));
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -168,19 +188,22 @@ export function StreamComposer({
     if (!textarea) return;
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 86)}px`;
-  }, [value]);
+  }, [displayValue]);
 
   return (
     <div className="pf-stream-composer">
       <textarea
         ref={textareaRef}
-        value={value}
+        value={displayValue}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={disabled}
+        disabled={disabled || voiceSessionActive}
+        readOnly={voiceSessionActive}
         placeholder={placeholder}
         rows={1}
         aria-keyshortcuts="Enter"
+        aria-live={voice.listening ? "polite" : undefined}
+        className={voice.listening ? "pf-stream-composer-live" : undefined}
       />
       <div className="pf-stream-composer-actions">
         {showMic ? (
@@ -233,10 +256,14 @@ export function StreamComposer({
           }}
         >
           {voice.transcribing
-            ? "Transcribing…"
-            : voice.listening
-              ? "Recording… release when done"
-              : null}
+            ? "Polishing transcript…"
+            : voice.captureMode === "live"
+              ? voice.liveTranscriptText
+                ? "Listening…"
+                : "Listening… speak now"
+              : voice.listening
+                ? "Recording… release when done"
+                : null}
         </p>
       ) : null}
       {voice.error ? (

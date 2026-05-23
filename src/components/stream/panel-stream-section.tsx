@@ -42,7 +42,7 @@ const PANEL_STREAM_SECTION_CSS = `
 .pf-panel-stream-section {
   display: grid;
   gap: 10px;
-  margin-top: 12px;
+  margin: 0;
   padding: 12px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
