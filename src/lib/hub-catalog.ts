@@ -16,7 +16,7 @@ export type HubCatalogEntry = {
   examples: string[];
   /**
    * Optional hub-scoped conversation starters (catalog / future Stream prompts).
-   * Not rendered as hub-panel chips — panel uses a single **Open Stream** entry.
+   * Rendered as guided starter chips in the empty hub panel when hub has zero pursuits.
    */
   openingQuestions?: [string, string, string];
   /** First-time guided onboarding Stream placeholder (Scene 4). */
