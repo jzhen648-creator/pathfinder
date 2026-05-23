@@ -47,6 +47,7 @@ import {
   limbPathBetweenGlobalT,
   limbPointAtUniformFraction,
   limbStrokeEndPoint,
+  trunkHubFanSlotIndex,
 } from "./tree-forks";
 import {
   applyLayoutOverrides,
@@ -317,16 +318,6 @@ function domainClusterMomentChainCtx(
     layoutAnchors,
     branchId: row.thread.id,
   };
-}
-
-/** Trunk fan arc slot: taxonomy order for Becoming; stem sort order (`kFork`) for other themes. */
-function trunkHubFanSlotIndex(
-  areaId: string,
-  branchIdx: number,
-  sortedBranchIdx: number[],
-): number {
-  if (areaId === "becoming") return branchIdx;
-  return sortedBranchIdx.indexOf(branchIdx);
 }
 
 function TreeSVGInner({
@@ -3154,7 +3145,11 @@ function TreeSVGInner({
                 {isUnlockedEmpty && FLAGS.TREE_LATENT_POTENTIAL && useGatewayLayout && renderForkSpec ? (() => {
                   if (obHubPickActive && !obHubPickSelected) return null;
                   const gw = themeGatewayPointForArea(area.id, renderForkSpec, layoutOverrides[area.id]);
-                  const ghostSlots = ghostHubSlotsForArea(areaLimbId);
+                  const ghostSlots = ghostHubSlotsForArea(areaLimbId, {
+                    forkSpec: renderForkSpec,
+                    layoutOv: layoutOverrides[area.id],
+                    layoutAnchors: { trunkAttach: renderForkSpec.trunkAttach, gateway: renderForkSpec.limbTip },
+                  });
                   if (!ghostSlots.length) return null;
                   const hubIconPx = TREE_DOMAIN_HUB_GLYPH_PX_TRUNK;
                   const discR = iconMedallionRadii(hubIconPx, "domainHub").discR;

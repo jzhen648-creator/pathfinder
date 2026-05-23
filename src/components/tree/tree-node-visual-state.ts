@@ -1,9 +1,21 @@
 import type { AreaData, DomainHubData } from "./tree-types";
 import type { LifeAreaId } from "@/lib/types";
-import { buildAreaForkFromAnchors, defaultHubSlotCountForArea } from "./tree-forks";
+import {
+  branchMainPathUntilGlobalT,
+  buildAreaForkFromAnchors,
+  compareBranchIndicesForStemOrder,
+  defaultHubSlotCountForArea,
+  trunkHubFanSlotIndex,
+  type AreaForkSpec,
+} from "./tree-forks";
+import {
+  domainClusterGatewaySpreadNormalForForkSpec,
+  domainClusterHubPointFromCatalog,
+} from "./tree-branch-geometry";
+import type { AreaLayoutOverride } from "./tree-layout-edit";
+import type { TrunkLayoutAnchorPair } from "./tree-trunk-slots";
 import { hubsForTheme, type HubTemplate } from "@/lib/taxonomy";
 import type { Point } from "./tree-types";
-
 export type NodeVisualState = "dormant" | "ghost" | "live";
 
 /**
@@ -44,19 +56,26 @@ export type GhostHubSlot = {
 };
 
 /**
- * Computes ghost hub tip positions for an unlocked-but-empty theme.
+ * Computes ghost hub positions for an unlocked-but-empty theme.
  *
- * Uses `buildAreaForkFromAnchors` with a synthetic full-slot area so positions exactly match
- * where hubs would appear when individually activated — same geometry as the live layout.
+ * Uses the same hub-anchor calculation as live branch rendering, including the trunk fan
+ * slot mapping, so activated hubs do not jump away from their ghost position.
  *
  * Only call when the theme is `isUnlockedEmpty` (unlocked, no active branches).
  */
-export function ghostHubSlotsForArea(areaId: LifeAreaId): GhostHubSlot[] {
+export function ghostHubSlotsForArea(
+  areaId: LifeAreaId,
+  opts: {
+    forkSpec?: AreaForkSpec;
+    layoutOv?: AreaLayoutOverride;
+    layoutAnchors?: TrunkLayoutAnchorPair;
+  } = {},
+): GhostHubSlot[] {
   const templates = [...hubsForTheme(areaId)];
   const maxSlots = defaultHubSlotCountForArea(areaId);
   if (maxSlots === 0) return [];
 
-  // Synthetic area with maxSlots empty branch stubs → buildAreaForkFromAnchors computes all N spokes.
+  // Synthetic full-slot area lets live fork geometry calculate where all taxonomy hubs will land.
   const syntheticArea: AreaData = {
     id: areaId,
     label: "",
@@ -71,10 +90,24 @@ export function ghostHubSlotsForArea(areaId: LifeAreaId): GhostHubSlot[] {
     })),
   };
 
-  const forkSpec = buildAreaForkFromAnchors(areaId, syntheticArea);
+  const forkSpec = opts.forkSpec ?? buildAreaForkFromAnchors(areaId, syntheticArea);
+  const sortedBranchIdx = forkSpec.branches
+    .map((_, i) => i)
+    .sort((a, b) => compareBranchIndicesForStemOrder(forkSpec, a, b));
+  const dcGatewaySpreadNormal = domainClusterGatewaySpreadNormalForForkSpec(forkSpec);
 
   return templates.map((template, i) => ({
-    tip: forkSpec.branches[i]?.tip ?? forkSpec.limbTip,
+    tip: forkSpec.branches[i]
+      ? domainClusterHubPointFromCatalog(
+          branchMainPathUntilGlobalT(forkSpec.branches[i], 1),
+          trunkHubFanSlotIndex(areaId, i, sortedBranchIdx),
+          sortedBranchIdx.length,
+          dcGatewaySpreadNormal,
+          areaId,
+          opts.layoutOv,
+          opts.layoutAnchors,
+        )
+      : forkSpec.limbTip,
     template,
     slotIndex: i,
   }));

@@ -293,6 +293,16 @@ export function compareBranchIndicesForStemOrder(
   return idxA - idxB;
 }
 
+/** Trunk fan arc slot: taxonomy order for Becoming; stem sort order for other themes. */
+export function trunkHubFanSlotIndex(
+  areaId: string,
+  branchIdx: number,
+  sortedBranchIdx: number[],
+): number {
+  if (areaId === "becoming") return branchIdx;
+  return sortedBranchIdx.indexOf(branchIdx);
+}
+
 /** Largest uniform-global `t` among branch fork projections onto the stem — stem stroke ends here so it doesn't pass beyond branches. */
 export function maxForkGlobalT(spec: AreaForkSpec): number {
   if (spec.branches.length === 0) return 1;
