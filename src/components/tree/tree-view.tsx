@@ -12,6 +12,7 @@ import { StreamOverlay, STREAM_PANEL_WIDTH_PX } from "@/components/stream/stream
 import { useMapData } from "@/contexts/map-data-context";
 import { StreamPreviewProvider, useStreamPreview } from "@/contexts/stream-preview-context";
 import { FirstRunWelcomeOverlay } from "@/components/onboarding/first-run-welcome-overlay";
+import { OnboardingCoachMark } from "@/components/onboarding/OnboardingCoachMark";
 import { findFirstRunFocusTarget, resolveFirstRunPrimaryLimbId } from "@/lib/first-run-focus";
 import { getFirstRunStreamPrompt } from "@/lib/first-run-stream-prompts";
 import { buildStreamHubUiFromThread, buildStreamThemeUiFromArea } from "@/lib/stream-theme-ui";
@@ -855,6 +856,32 @@ function TreeViewInner({
     [unlockedLimbIds],
   );
 
+  const onboardingCoachMark = useMemo(() => {
+    if (!isOnboardingGuideActive || !coachMarkStep) return null;
+    if (coachMarkStep === "tap_theme") {
+      const preferredTheme = firstRun.primaryLimbId ?? "work";
+      return {
+        targetSelector: `[data-tree-gateway-node][data-area-id="${preferredTheme}"], [data-tree-gateway-node]`,
+        instruction: "Tap a theme to begin",
+        accentColor: getLifeArea(preferredTheme as LifeAreaId)?.color ?? "#EF9F27",
+      };
+    }
+    if (coachMarkStep === "tap_hub") {
+      const accentColor = panel.type === "area" ? panel.area.color : "#EF9F27";
+      return {
+        targetSelector: `[data-onboarding-coach="first-hub"]`,
+        instruction: "Tap a track to open it",
+        accentColor,
+      };
+    }
+    const accentColor = panel.type === "hub" ? panel.area.color : "#EF9F27";
+    return {
+      targetSelector: `[data-onboarding-coach="open-stream"]`,
+      instruction: "Tell me what's on your mind here",
+      accentColor,
+    };
+  }, [coachMarkStep, firstRun.primaryLimbId, isOnboardingGuideActive, panel]);
+
   const handleAreaClick = useCallback(
     (area: AreaData) => {
       const limbId = area.id as LifeAreaId;
@@ -1394,8 +1421,8 @@ function TreeViewInner({
     <div
       className="pf-tree-canvas h-full overflow-hidden"
       style={{
-        pointerEvents: onboardingLocked ? "none" : undefined,
-        opacity: onboardingLocked ? 0 : 1,
+        pointerEvents: onboardingLocked && !isOnboardingGuideActive ? "none" : undefined,
+        opacity: onboardingLocked && !isOnboardingGuideActive ? 0 : 1,
       }}
     >
       <style>{PF_TREE_CANVAS_CSS}</style>
@@ -1554,6 +1581,15 @@ function TreeViewInner({
 
       {showFirstRunWelcome ? (
         <FirstRunWelcomeOverlay userName={firstRun.userName} onStart={handleFirstRunStart} />
+      ) : null}
+
+      {onboardingCoachMark ? (
+        <OnboardingCoachMark
+          step={coachMarkStep}
+          targetSelector={onboardingCoachMark.targetSelector}
+          instruction={onboardingCoachMark.instruction}
+          accentColor={onboardingCoachMark.accentColor}
+        />
       ) : null}
 
       {streamSession ? (

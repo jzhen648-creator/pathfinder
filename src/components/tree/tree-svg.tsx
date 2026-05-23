@@ -3447,7 +3447,7 @@ function TreeSVGInner({
                         aria-hidden
                       />
                       {clusterHit && gatewayPt ? (
-                        <g data-tree-gateway-node="1">
+                        <g data-tree-gateway-node="1" data-area-id={area.id}>
                           <circle
                             cx={snapTreeSvgScalar(gatewayPt.x)}
                             cy={snapTreeSvgScalar(gatewayPt.y)}

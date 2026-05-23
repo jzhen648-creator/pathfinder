@@ -10,9 +10,6 @@ import { useBackgroundMapPrefetch } from "@/hooks/use-background-map-prefetch";
 import { ONBOARDING_SCENE_ENTER_CSS } from "./onboarding-scene-motion";
 import { ONBOARDING_UI_CSS } from "./onboarding-ui";
 import { SceneHorizon } from "./scenes/SceneHorizon";
-import { SceneHubPick } from "./scenes/SceneHubPick";
-import { SceneStream } from "./scenes/SceneStream";
-import { SceneThemePick } from "./scenes/SceneThemePick";
 import { SceneThreshold } from "./scenes/SceneThreshold";
 
 export type OnboardingHubOption = {
@@ -30,6 +27,8 @@ type OnboardingSceneRouterProps = {
   unlockedLimbIds: readonly LifeAreaId[];
   /** Called when onboarding completes — dismiss overlay in-place (no navigation). */
   onDismiss?: () => void;
+  /** Lets the tree shell hide fullscreen scenes immediately when guide scenes begin. */
+  onProgressChange?: (progress: OnboardingProgress) => void;
 };
 
 
@@ -40,6 +39,7 @@ export function OnboardingSceneRouter({
   activeAreas,
   unlockedLimbIds,
   onDismiss,
+  onProgressChange,
 }: OnboardingSceneRouterProps) {
   const router = useRouter();
   const { update: refreshSession } = useSession();
@@ -71,6 +71,7 @@ export function OnboardingSceneRouter({
     };
 
     setProgress(nextProgress);
+    onProgressChange?.(nextProgress);
 
     if (nextScene === 6) {
       prefetchOnboardingData();
@@ -140,43 +141,9 @@ export function OnboardingSceneRouter({
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: ONBOARDING_SCENE_ENTER_CSS + ONBOARDING_UI_CSS }} />
-      {/* Fullscreen scenes — all scenes escape card layout */}
-      {progress.scene === 4 ? (
-        <div key="scene-4" className="ob-scene-enter">
-          <SceneStream
-            themeId={progress.themeId}
-            hubSlug={progress.hubSlug}
-            hubs={hubs}
-            syntheticAreas={syntheticAreas}
-            unlockedLimbIds={unlockedLimbIds}
-            onAdvance={onAdvance}
-            prefetchOnboardingData={prefetchOnboardingData}
-          />
-        </div>
-      ) : null}
-
       {progress.scene === 1 ? (
         <div key="scene-1" className="ob-scene-enter">
           <SceneThreshold
-            syntheticAreas={syntheticAreas}
-            onAdvance={onAdvance}
-          />
-        </div>
-      ) : null}
-      {progress.scene === 2 ? (
-        <div key="scene-2" className="ob-scene-enter">
-          <SceneThemePick
-            areas={syntheticAreas}
-            hubs={hubs}
-            onAdvance={onAdvance}
-          />
-        </div>
-      ) : null}
-      {progress.scene === 3 ? (
-        <div key="scene-3" className="ob-scene-enter">
-          <SceneHubPick
-            themeId={progress.themeId}
-            allHubs={hubs}
             syntheticAreas={syntheticAreas}
             onAdvance={onAdvance}
           />

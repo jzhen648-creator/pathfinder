@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TreeView } from "@/components/tree/tree-view";
 import {
@@ -10,6 +10,7 @@ import {
 import { ONBOARDING_SCENE_EXIT_CSS } from "@/components/onboarding/onboarding-scene-motion";
 import type { OnboardingProgress } from "@/lib/onboarding-progress";
 import type { AreaData } from "@/components/tree/tree-types";
+import type { CoachMarkStep } from "@/components/tree/tree-view-types";
 import type { LifeAreaId } from "@/lib/types";
 import type { TreeFirstRunConfig } from "@/types/first-run";
 
@@ -25,6 +26,13 @@ export type TreePageShellProps = {
   };
 };
 
+function coachMarkStepForScene(scene: number): CoachMarkStep {
+  if (scene === 2) return "tap_theme";
+  if (scene === 3) return "tap_hub";
+  if (scene === 4) return "open_stream";
+  return null;
+}
+
 export function TreePageShell({
   onboardingCompleted,
   firstRun,
@@ -35,9 +43,16 @@ export function TreePageShell({
     !onboardingCompleted && onboarding != null,
   );
   const [exiting, setExiting] = useState(false);
-  const onboardingScene = onboarding?.initialProgress.scene ?? 1;
+  const [currentScene, setCurrentScene] = useState(onboarding?.initialProgress.scene ?? 1);
+  const onboardingScene = currentScene;
   const isOnboardingGuideActive =
-    !onboardingCompleted && overlayVisible && onboardingScene >= 2;
+    !onboardingCompleted && overlayVisible && onboardingScene >= 2 && onboardingScene <= 5;
+  const showOnboardingSceneOverlay =
+    overlayVisible && onboarding != null && !isOnboardingGuideActive;
+
+  useEffect(() => {
+    setCurrentScene(onboarding?.initialProgress.scene ?? 1);
+  }, [onboarding?.initialProgress.scene]);
 
   const handleDismiss = () => {
     setExiting(true);
@@ -55,8 +70,9 @@ export function TreePageShell({
         firstRun={firstRun}
         onboardingLocked={overlayVisible}
         isOnboardingGuideActive={isOnboardingGuideActive}
+        initialCoachMarkStep={coachMarkStepForScene(onboardingScene)}
       />
-      {overlayVisible && onboarding ? (
+      {showOnboardingSceneOverlay ? (
         <div
           className={exiting ? "ob-scene-exit" : undefined}
           style={{ position: "fixed", inset: 0, zIndex: 200, pointerEvents: "auto" }}
@@ -68,6 +84,7 @@ export function TreePageShell({
             activeAreas={onboarding.activeAreas}
             unlockedLimbIds={onboarding.unlockedLimbIds}
             onDismiss={handleDismiss}
+            onProgressChange={(nextProgress) => setCurrentScene(nextProgress.scene)}
           />
         </div>
       ) : null}
