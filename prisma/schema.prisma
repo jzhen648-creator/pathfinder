@@ -51,6 +51,7 @@ model User {
   trunkSegments              TrunkSegment[]
   trunkEntries               TrunkEntry[]
   streamSessions             StreamSession[]
+  profileFacts               ProfileFact[]
 }
 
 /// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation.
@@ -93,6 +94,21 @@ enum TrunkEntrySource {
 enum StreamInputMode {
   text
   voice
+}
+
+enum ProfileFactCategory {
+  personal
+  career
+  financial
+  health
+  relationships
+  preferences
+  strengths
+}
+
+enum ProfileFactSource {
+  stream_extracted
+  user_manual
 }
 
 model Account {
@@ -229,19 +245,38 @@ model Reframe {
 
 /// Theme-level Stream session — raw brain dump after commit for cross-session dedup.
 model StreamSession {
-  id           String          @id @default(cuid())
-  userId       String
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String          @id @default(cuid())
+  userId                String
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Life area id (`finance` | `work` | …) — same as limbId / themeId.
-  limbId       String
-  inputText    String
-  inputMode    StreamInputMode
-  itemsAdded   Int
-  itemsSkipped Int
-  summaryJson  Json?
-  createdAt    DateTime        @default(now())
+  limbId                String
+  inputText             String
+  inputMode             StreamInputMode
+  itemsAdded            Int
+  itemsSkipped          Int
+  summaryJson           Json?
+  processedForProfile   Boolean         @default(false)
+  processedForProfileAt DateTime?
+  createdAt             DateTime        @default(now())
 
   @@index([userId, limbId, createdAt])
+  @@index([userId, processedForProfile, createdAt])
+}
+
+model ProfileFact {
+  id         String              @id @default(cuid())
+  userId     String
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   ProfileFactCategory
+  key        String
+  value      String
+  confidence Float?
+  source     ProfileFactSource   @default(stream_extracted)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([userId, category, key])
+  @@index([userId, category])
 }
 
 model Goal {

@@ -2,6 +2,20 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## Backlog / Future Ideas
+
+### Future: Cinematic Intro Video
+
+**What:** A 30–60 second AI-generated video for use as App Store preview, onboarding splash, and marketing asset (website hero, social).
+
+**Purpose:** Emotional priming before the user touches the product. Not a feature walkthrough — a feeling. The problem (insights disappearing, life unrecorded) → the turn (a path appears) → the map comes alive → "Start talking."
+
+**Visual language:** Dark background, thin strokes, warm cream nodes. Pathfinder aesthetic translated into cinematic style.
+
+**Tools to explore:** Sora, Kling, Runway.
+
+**Status:** Not started. Do not build until core product is stable and in users' hands.
+
 ## 2026-05-23 — Global Stream / Bark deferred
 
 Global "say anything" Stream that routes across all themes and hubs is deferred until theme Stream is stable. Near-term fix: theme Stream should flag out-of-theme items as ambiguous rather than losing them silently. Architecture should support per-item `themeId` + `hubId` so global Stream can be added later without a rebuild.
@@ -9,6 +23,12 @@ Global "say anything" Stream that routes across all themes and hubs is deferred 
 ## 2026-05-23 — Profile Memory layer planned
 
 Stream dumps contain three layers: map actions (pursuits, marks), which are captured today; context for existing items, which is partially captured; and profile insight (patterns, stressors, values, preferences), which is not captured today. After Stream is stable, add a Profile Memory extraction lane to the `StreamSession.summaryJson` scaffold. Extract small reviewable insights like "work stress often comes from unclear expectations" or "financial planning is tied to feeling safe." These are private, editable, and used to improve future Stream routing and personalisation — not shown as tree nodes.
+
+## 2026-05-24 — Session 10 onboarding redesign
+
+Session 10 onboarding is **one single Stream-style voice moment**, not a multi-screen interview or goal-setting flow. Screen 1: "Welcome to Pathfinder" with subtitle "One quick question before we build your map." and a single "Let's go" action. Screen 2: one calm prompt only — "How old are you, where are you based, and what do you do?" — with the microphone as the primary centered action, live transcription below, a secondary keyboard fallback, and Continue available after speaking. Screen 3: brief "Setting up your map..." processing. AI extracts only Profile Memory facts from the answer: age and location as `personal`, current role/work as `career`. It creates **no pursuits, marks, milestones, branches, or map nodes**. Screen 4: map ready state: "Your map is ready. Tap + to start." with the Stream FAB gently pulsing.
+
+Onboarding must not ask about goals, pursuits, health, relationships, personal growth, future self, or anything that needs more than roughly ten seconds of thought. Those emerge naturally through Stream over time. Voice is primary; skipping is allowed and still stores onboarding as completed. The answer feeds the same Session 9 `ProfileFact` system and extraction pipeline — no separate onboarding profile store.
 
 ## 2026-05-22 — Stream extract context budget + session summary scaffold
 

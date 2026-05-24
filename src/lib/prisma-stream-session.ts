@@ -1,13 +1,21 @@
 import type { PrismaClient } from "@prisma/client";
 
 type StreamSessionDelegate = PrismaClient["streamSession"];
+type ProfileFactDelegate = PrismaClient["profileFact"];
 
-/** True when the generated client includes StreamSession (post-migration). */
+/** True when the generated client includes delegates added by recent migrations. */
 export function hasStreamSessionDelegate(prisma: PrismaClient): prisma is PrismaClient & {
   streamSession: StreamSessionDelegate;
+  profileFact: ProfileFactDelegate;
 } {
-  const delegate = (prisma as PrismaClient & { streamSession?: StreamSessionDelegate }).streamSession;
-  return typeof delegate?.findMany === "function";
+  const client = prisma as PrismaClient & {
+    streamSession?: StreamSessionDelegate;
+    profileFact?: ProfileFactDelegate;
+  };
+  return (
+    typeof client.streamSession?.findMany === "function" &&
+    typeof client.profileFact?.findMany === "function"
+  );
 }
 
 export function getStreamSessionDelegate(prisma: PrismaClient): StreamSessionDelegate | null {
