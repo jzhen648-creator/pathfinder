@@ -16,6 +16,7 @@ const patchBodySchema = z.union([
     ]),
   }),
   z.object({ position: z.number().int().nonnegative() }),
+  z.object({ title: z.string().trim().min(1, "title is required") }),
 ]);
 
 function resolveCompletedAt(body: z.infer<typeof patchBodySchema>): Date | null | undefined {
@@ -91,6 +92,7 @@ export async function PATCH(request: Request, props: RouteProps) {
     const bodyData = parsed.data;
     const completedAt = resolveCompletedAt(bodyData);
     const position = "position" in bodyData ? bodyData.position : undefined;
+    const title = "title" in bodyData ? bodyData.title : undefined;
 
     const milestone = await prisma.milestone.findFirst({
       where: { id: milestoneId, goalId },
@@ -112,9 +114,10 @@ export async function PATCH(request: Request, props: RouteProps) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updateInput: { completedAt?: Date | null; position?: number } = {};
+    const updateInput: { completedAt?: Date | null; position?: number; title?: string } = {};
     if (completedAt !== undefined) updateInput.completedAt = completedAt;
     if (position !== undefined) updateInput.position = position;
+    if (title !== undefined) updateInput.title = title;
 
     if (Object.keys(updateInput).length === 0) {
       return NextResponse.json({ error: "No updatable fields in payload" }, { status: 400 });
@@ -185,6 +188,63 @@ export async function PATCH(request: Request, props: RouteProps) {
     const bodyOut: Record<string, unknown> = {
       error: err.message || "Internal server error",
       phase,
+    };
+    if (isDevLike()) {
+      bodyOut.stack = err.stack;
+      bodyOut.name = err.name;
+    }
+
+    return NextResponse.json(bodyOut, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, props: RouteProps) {
+  let goalId = "";
+  let milestoneId = "";
+
+  try {
+    const auth = await requireApiSessionUserId();
+    if (!auth.ok) {
+      console.info(logPrefix, "early exit 401 unauthorized");
+      return auth.response;
+    }
+    const userId = auth.userId;
+
+    const params = await props.params;
+    goalId = params.goalId;
+    milestoneId = params.milestoneId;
+
+    const milestone = await prisma.milestone.findFirst({
+      where: { id: milestoneId, goalId },
+      include: {
+        goal: { select: { id: true, userId: true, goalType: true } },
+      },
+    });
+
+    if (!milestone || milestone.goal.userId !== userId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (milestone.goal.goalType === "moment" || milestone.goal.goalType === "event") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    await prisma.milestone.delete({ where: { id: milestoneId } });
+    await recomputeGoalBloomStatus(goalId);
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error(logPrefix, "DELETE failed", {
+      goalId,
+      milestoneId,
+      message: err.message,
+      stack: err.stack,
+      cause: err.cause,
+    });
+
+    const bodyOut: Record<string, unknown> = {
+      error: err.message || "Internal server error",
+      phase: "delete",
     };
     if (isDevLike()) {
       bodyOut.stack = err.stack;
