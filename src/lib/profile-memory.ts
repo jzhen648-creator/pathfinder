@@ -32,6 +32,12 @@ const extractionResponseSchema = z.object({
   facts: z.array(extractedFactSchema).max(40),
 });
 
+export type ClassifiedProfileFact = z.infer<typeof extractedFactSchema>;
+
+export const classifyProfileTextSchema = z.object({
+  text: z.string().trim().min(1).max(2_000),
+});
+
 type ProfileFactRow = {
   id: string;
   category: ProfileFactCategory;
@@ -68,6 +74,16 @@ const SYSTEM_PROMPT = [
   "Deduplicate against existing facts. If new input updates or contradicts an existing fact, return the same category/key with the newer value.",
   "Use concise values. Prefer human-readable phrases over full sentences.",
   "Use low confidence when uncertain. If there are no useful facts, return an empty facts array.",
+].join("\n");
+
+const MANUAL_CLASSIFY_PROMPT = [
+  SYSTEM_PROMPT,
+  "",
+  "The user is intentionally adding profile memory in their own words (typed or spoken).",
+  "Split one message into multiple facts when appropriate (e.g. location, languages, role).",
+  "Assign the best category and a stable snake_case key for each fact automatically.",
+  "If the message is too vague, empty, or contains no durable profile signal, return {\"facts\":[]}.",
+  "Never invent facts that are not supported by the text.",
 ].join("\n");
 
 export function normalizeProfileFactKey(value: string) {
@@ -116,6 +132,45 @@ function stripJsonFence(raw: string): string {
   return match?.[1]?.trim() ?? trimmed;
 }
 
+async function parseFactsFromModelJson(raw: string): Promise<ClassifiedProfileFact[]> {
+  let json: unknown;
+  try {
+    json = JSON.parse(stripJsonFence(raw));
+  } catch {
+    throw new Error("Profile extraction returned invalid JSON.");
+  }
+
+  const parsed = extractionResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new Error(issue?.message ?? "Profile extraction response did not match expected shape.");
+  }
+
+  return parsed.data.facts.map((fact) => ({
+    ...fact,
+    key: normalizeProfileFactKey(fact.key),
+  }));
+}
+
+function buildManualClassifyUserMessage(input: {
+  text: string;
+  existingFacts: ProfileFactRow[];
+}) {
+  const existing = input.existingFacts.length
+    ? input.existingFacts
+        .map((fact) => `- ${fact.category}.${fact.key}: ${fact.value}`)
+        .join("\n")
+    : "(none)";
+
+  return [
+    "Existing profile facts:",
+    existing,
+    "",
+    "User message to classify:",
+    input.text.slice(0, 2_000),
+  ].join("\n");
+}
+
 function buildExtractionUserMessage(input: {
   entries: Array<{ createdAt: Date; limbId: string; inputText: string }>;
   existingFacts: ProfileFactRow[];
@@ -147,6 +202,85 @@ function buildExtractionUserMessage(input: {
     "",
     "Extract only stable profile-memory facts. Include useful peripheral mentions.",
   ].join("\n");
+}
+
+export async function classifyProfileFactsFromText(
+  userId: string,
+  text: string,
+): Promise<ClassifiedProfileFact[]> {
+  if (!hasGeminiKey()) {
+    throw new GeminiNotConfiguredError("GEMINI_API_KEY not configured.");
+  }
+
+  const existingFacts = await prisma.profileFact.findMany({
+    where: { userId },
+    orderBy: [{ category: "asc" }, { updatedAt: "desc" }],
+  });
+
+  const raw = await generateJsonCompletion({
+    system: MANUAL_CLASSIFY_PROMPT,
+    user: buildManualClassifyUserMessage({ text, existingFacts }),
+    maxTokens: 1024,
+    temperature: 0.15,
+  });
+
+  return parseFactsFromModelJson(raw);
+}
+
+export async function upsertProfileFactsForUser(
+  userId: string,
+  facts: ClassifiedProfileFact[],
+  source: "stream_extracted" | "user_manual",
+) {
+  let createdFacts = 0;
+  let updatedFacts = 0;
+  let skippedManualFacts = 0;
+
+  await prisma.$transaction(async (tx) => {
+    for (const fact of facts) {
+      const key = normalizeProfileFactKey(fact.key);
+      const existing = await tx.profileFact.findUnique({
+        where: {
+          userId_category_key: {
+            userId,
+            category: fact.category,
+            key,
+          },
+        },
+      });
+
+      if (existing?.source === "user_manual" && source === "stream_extracted") {
+        skippedManualFacts += 1;
+        continue;
+      }
+
+      if (existing) {
+        await tx.profileFact.update({
+          where: { id: existing.id },
+          data: {
+            value: fact.value,
+            confidence: fact.confidence ?? null,
+            ...(source === "user_manual" ? { source: "user_manual", confidence: null } : {}),
+          },
+        });
+        updatedFacts += 1;
+      } else {
+        await tx.profileFact.create({
+          data: {
+            userId,
+            category: fact.category,
+            key,
+            value: fact.value,
+            confidence: source === "user_manual" ? null : (fact.confidence ?? null),
+            source,
+          },
+        });
+        createdFacts += 1;
+      }
+    }
+  });
+
+  return { createdFacts, updatedFacts, skippedManualFacts };
 }
 
 export async function getGroupedProfileFacts(userId: string): Promise<GroupedProfileFacts> {
@@ -185,73 +319,20 @@ export async function extractProfileFactsForUser(userId: string) {
     temperature: 0.15,
   });
 
-  let json: unknown;
-  try {
-    json = JSON.parse(stripJsonFence(raw));
-  } catch {
-    throw new Error("Profile extraction returned invalid JSON.");
-  }
+  const classified = await parseFactsFromModelJson(raw);
+  const { createdFacts, updatedFacts, skippedManualFacts } = await upsertProfileFactsForUser(
+    userId,
+    classified,
+    "stream_extracted",
+  );
 
-  const parsed = extractionResponseSchema.safeParse(json);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    throw new Error(issue?.message ?? "Profile extraction response did not match expected shape.");
-  }
-
-  let createdFacts = 0;
-  let updatedFacts = 0;
-  let skippedManualFacts = 0;
   const processedAt = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    for (const fact of parsed.data.facts) {
-      const key = normalizeProfileFactKey(fact.key);
-      const existing = await tx.profileFact.findUnique({
-        where: {
-          userId_category_key: {
-            userId,
-            category: fact.category,
-            key,
-          },
-        },
-      });
-
-      if (existing?.source === "user_manual") {
-        skippedManualFacts += 1;
-        continue;
-      }
-
-      if (existing) {
-        await tx.profileFact.update({
-          where: { id: existing.id },
-          data: {
-            value: fact.value,
-            confidence: fact.confidence ?? null,
-          },
-        });
-        updatedFacts += 1;
-      } else {
-        await tx.profileFact.create({
-          data: {
-            userId,
-            category: fact.category,
-            key,
-            value: fact.value,
-            confidence: fact.confidence ?? null,
-            source: "stream_extracted",
-          },
-        });
-        createdFacts += 1;
-      }
-    }
-
-    await tx.streamSession.updateMany({
-      where: { id: { in: entries.map((entry) => entry.id) }, userId },
-      data: {
-        processedForProfile: true,
-        processedForProfileAt: processedAt,
-      },
-    });
+  await prisma.streamSession.updateMany({
+    where: { id: { in: entries.map((entry) => entry.id) }, userId },
+    data: {
+      processedForProfile: true,
+      processedForProfileAt: processedAt,
+    },
   });
 
   return {
