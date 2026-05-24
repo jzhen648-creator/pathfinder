@@ -4,9 +4,25 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { prisma } from "@/lib/prisma";
 
-const patchBodySchema = z.object({
-  completed: z.boolean(),
-});
+const patchBodySchema = z.union([
+  z.object({ completed: z.boolean() }),
+  z.object({
+    completedAt: z.union([
+      z
+        .string()
+        .min(1)
+        .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid completedAt"),
+      z.null(),
+    ]),
+  }),
+  z.object({ position: z.number().int().nonnegative() }),
+]);
+
+function resolveCompletedAt(body: z.infer<typeof patchBodySchema>): Date | null | undefined {
+  if ("completed" in body) return body.completed ? new Date() : null;
+  if ("completedAt" in body) return body.completedAt ? new Date(body.completedAt) : null;
+  return undefined;
+}
 
 type RouteProps = { params: Promise<{ goalId: string; milestoneId: string }> };
 
@@ -72,7 +88,9 @@ export async function PATCH(request: Request, props: RouteProps) {
       return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
     }
 
-    const { completed } = parsed.data;
+    const bodyData = parsed.data;
+    const completedAt = resolveCompletedAt(bodyData);
+    const position = "position" in bodyData ? bodyData.position : undefined;
 
     const milestone = await prisma.milestone.findFirst({
       where: { id: milestoneId, goalId },
@@ -94,7 +112,14 @@ export async function PATCH(request: Request, props: RouteProps) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updateInput = { completedAt: completed ? new Date() : null };
+    const updateInput: { completedAt?: Date | null; position?: number } = {};
+    if (completedAt !== undefined) updateInput.completedAt = completedAt;
+    if (position !== undefined) updateInput.position = position;
+
+    if (Object.keys(updateInput).length === 0) {
+      return NextResponse.json({ error: "No updatable fields in payload" }, { status: 400 });
+    }
+
     console.info(logPrefix, "prisma.milestone.update input", {
       where: { id: milestoneId },
       data: updateInput,
