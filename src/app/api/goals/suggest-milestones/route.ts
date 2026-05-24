@@ -7,6 +7,9 @@ import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "
 const requestSchema = z.object({
   goalTitle: z.string().trim().min(1, "goalTitle is required"),
   existing: z.array(z.string()),
+  goalDescription: z.string().trim().optional(),
+  themeName: z.string().trim().optional(),
+  hubName: z.string().trim().optional(),
 });
 
 const responseSchema = z.object({
@@ -14,14 +17,43 @@ const responseSchema = z.object({
 });
 
 const SYSTEM_PROMPT = [
-  "You suggest concrete, actionable milestones for a personal goal.",
-  "Return ONLY a JSON object with shape {\"suggestions\": string[]}.",
-  "Each string in suggestions is a milestone title.",
-  "Maximum 5 suggestions in the array.",
-  "Do not repeat any titles in the existing list (case-insensitive match).",
-  "Keep titles short (under 8 words), specific, and actionable.",
-  "No numbering, no explanation, just the JSON object.",
-].join(" ");
+  "You suggest milestone titles for a personal pursuit (goal).",
+  'Return ONLY a JSON object: {"suggestions": string[]}.',
+  "Maximum 5 suggestions. Do not repeat existing titles (case-insensitive).",
+  "",
+  "Every title must be:",
+  "- ACTIONABLE: starts with a strong verb (Complete, Log, Run, Draft, Schedule, Submit, Register, etc.). The user knows the first physical step.",
+  "- MEASURABLE or OBSERVABLE: include a number, frequency, duration, date window, named deliverable, or unambiguous done-state (e.g. \"3 sessions\", \"7 days\", \"first draft\", \"5K\", \"without stopping\", \"by end of month\").",
+  "- SPECIFIC to the pursuit and life theme — not generic self-help.",
+  "- ONE completable outcome per title — not an ongoing vague habit or a multi-step project in one line.",
+  "",
+  "Avoid vague planning phrases unless the deliverable is named: Improve, Work on, Learn about, Research, Explore, Think about, Get better at.",
+  "Avoid appointments with professionals unless legally required.",
+  "Avoid placeholders (Milestone 1, Step 2).",
+  "Title length: 4–12 words. No numbering, no explanation outside the JSON object.",
+].join("\n");
+
+function buildUserMessage(input: {
+  goalTitle: string;
+  existing: string[];
+  goalDescription?: string;
+  themeName?: string;
+  hubName?: string;
+}): string {
+  const lines = [`Pursuit title: ${input.goalTitle}`];
+  if (input.goalDescription) lines.push(`Description: ${input.goalDescription}`);
+  if (input.themeName) lines.push(`Life theme: ${input.themeName}`);
+  if (input.hubName) lines.push(`Hub: ${input.hubName}`);
+  lines.push(
+    "",
+    "Existing milestones (do not repeat):",
+    input.existing.length ? input.existing.map((t) => `- ${t}`).join("\n") : "(none)",
+    "",
+    "Suggest 3–5 NEW milestones that are the next logical steps toward this pursuit.",
+    "Each title must be actionable and include a clear measure or deliverable.",
+  );
+  return lines.join("\n");
+}
 
 function getErrorDetails(err: unknown) {
   if (err instanceof Error) {
@@ -80,22 +112,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
   }
 
-  const { goalTitle, existing } = reqParsed.data;
+  const { goalTitle, existing, goalDescription, themeName, hubName } = reqParsed.data;
   const existingLower = new Set(existing.map((t) => t.trim().toLowerCase()).filter(Boolean));
 
-  const userMessage = [
-    `Goal title: ${goalTitle}`,
-    "",
-    "Existing milestone titles (do not repeat):",
-    existing.length ? existing.map((t) => `- ${t}`).join("\n") : "(none)",
-  ].join("\n");
+  const userMessage = buildUserMessage({
+    goalTitle,
+    existing,
+    goalDescription,
+    themeName,
+    hubName,
+  });
 
   try {
     const raw = await generateJsonCompletion({
       system: SYSTEM_PROMPT,
       user: userMessage,
       maxTokens: 512,
-      temperature: 0.4,
+      temperature: 0.35,
     });
 
     if (!raw) {
