@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
-import { generateInsights } from "@/lib/insights/generate-insights";
+import {
+  generateInsights,
+  InsightGenerationResponseError,
+} from "@/lib/insights/generate-insights";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
@@ -134,6 +137,10 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof GeminiNotConfiguredError) {
       return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 503 });
+    }
+    if (err instanceof InsightGenerationResponseError) {
+      console.error("[insights] generation response rejected", err);
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     console.error("[insights] refresh failed", err);
     const message = err instanceof Error ? err.message : "Insight generation failed";

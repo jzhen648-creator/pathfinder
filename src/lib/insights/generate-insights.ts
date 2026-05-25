@@ -7,17 +7,30 @@ import {
   type InsightGenerationResult,
 } from "./insight-types";
 
+export class InsightGenerationResponseError extends Error {
+  status = 503;
+
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "InsightGenerationResponseError";
+  }
+}
+
 const SYSTEM_PROMPT = [
   "You generate personal life-map insights for Pathfinder.",
   "Return ONLY valid JSON matching the requested schema.",
+  "Be concise: quality over quantity. Total response must fit in 3000 output tokens.",
   "",
   "Surfaces:",
-  "- global: Now tab — a daily compass (greeting + 2–4 short sections + optional streamCta). No checklists, no tasks, no obligation.",
+  "- global: Now tab — a daily compass (greeting + 2–3 short sections + optional streamCta). No checklists, no tasks, no obligation.",
   "- themes: one entry per theme id in the map context (finance, work, becoming, people, health).",
   "- hubs: one entry per hub id in the map context.",
   "- pursuits: one entry per pursuit id in the map context.",
   "",
   "Each theme/hub/pursuit entry has: reflective (map data only), contextual (real-world benchmarks), combined (what it means for this person), tone (encouraging|nudge|celebratory), oneLiner.",
+  "Each insight level must be 2-3 sentences maximum across reflective/contextual/combined combined.",
+  "Global insight must be 4 sentences maximum across greeting, sections, and streamCta.",
+  "Use compact strings. Do not write paragraphs. Do not include markdown.",
   "",
   "ACCURACY RULES — never violate:",
   "1. Never fabricate statistics or percentages.",
@@ -43,7 +56,8 @@ function buildUserMessage(mapJson: string, userContext: string): string {
     "",
     `Include theme keys only for ids present in the map (${themeIds}).`,
     "Include every hub id and every pursuit id from the map in hubs and pursuits objects.",
-    "global.sections: use short ALL-CAPS titles like MOMENTUM, WORTH YOUR ATTENTION, SOMETHING INTERESTING.",
+    "global.sections: use short ALL-CAPS titles like MOMENTUM, ATTENTION, INTERESTING.",
+    "Keep every string short enough that the whole JSON response stays under 3000 output tokens.",
   ].join("\n");
 }
 
@@ -66,14 +80,30 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
   const raw = await generateJsonCompletion({
     system: SYSTEM_PROMPT,
     user: buildUserMessage(JSON.stringify(mapContext, null, 2), userContext),
+    maxTokens: 4096,
   });
 
-  const parsed = insightGenerationSchema.safeParse(
-    JSON.parse(stripMarkdownFence(raw)) as unknown,
-  );
+  let json: unknown;
+  try {
+    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+  } catch (err) {
+    console.error("[insights] Gemini returned invalid/truncated JSON", { raw });
+    throw new InsightGenerationResponseError(
+      "Insight generation returned incomplete JSON. Please try refreshing again.",
+      { cause: err },
+    );
+  }
+
+  const parsed = insightGenerationSchema.safeParse(json);
   if (!parsed.success) {
-    throw new Error(
-      `Insight generation returned invalid JSON: ${parsed.error.issues[0]?.message ?? "unknown"}`,
+    console.error("[insights] Gemini returned JSON with invalid insight shape", {
+      issues: parsed.error.issues,
+      raw,
+    });
+    throw new InsightGenerationResponseError(
+      `Insight generation returned an invalid response shape: ${
+        parsed.error.issues[0]?.message ?? "unknown"
+      }`,
     );
   }
 
