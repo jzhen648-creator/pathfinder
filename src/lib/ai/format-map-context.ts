@@ -1,0 +1,108 @@
+import { getLifeArea } from "@/lib/life-areas";
+import { prisma } from "@/lib/prisma";
+
+type MapContextFilter = {
+  themeId?: string;
+  hubId?: string;
+  pursuitId?: string;
+};
+
+export type FormattedMapContext = {
+  themes: Array<{
+    id: string;
+    label: string;
+    hubs: Array<{
+      id: string;
+      label: string;
+      pursuits: Array<{
+        id: string;
+        title: string;
+        status: string;
+        milestones: Array<{
+          id: string;
+          title: string;
+          completed: boolean;
+        }>;
+        markCount: number;
+      }>;
+    }>;
+  }>;
+};
+
+export async function formatMapContext(
+  userId: string,
+  filter: MapContextFilter = {},
+): Promise<FormattedMapContext> {
+  const branches = await prisma.branch.findMany({
+    where: {
+      userId,
+      ...(filter.themeId ? { limbId: filter.themeId } : {}),
+      ...(filter.hubId ? { id: filter.hubId } : {}),
+      isActive: true,
+    },
+    select: {
+      id: true,
+      limbId: true,
+      label: true,
+      name: true,
+      goals: {
+        where: {
+          archived: false,
+          goalType: { notIn: ["moment", "event"] },
+          ...(filter.pursuitId ? { id: filter.pursuitId } : {}),
+        },
+        select: {
+          id: true,
+          title: true,
+          bloomStatus: true,
+          milestones: {
+            select: {
+              id: true,
+              title: true,
+              completedAt: true,
+            },
+            orderBy: { position: "asc" },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+      marks: {
+        where: { archived: false },
+        select: { id: true },
+      },
+    },
+    orderBy: [{ limbId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
+  });
+
+  const themeMap = new Map<string, FormattedMapContext["themes"][number]>();
+
+  for (const branch of branches) {
+    const theme =
+      themeMap.get(branch.limbId) ??
+      {
+        id: branch.limbId,
+        label: getLifeArea(branch.limbId)?.label ?? branch.limbId,
+        hubs: [],
+      };
+
+    theme.hubs.push({
+      id: branch.id,
+      label: branch.label ?? branch.name ?? branch.id,
+      pursuits: branch.goals.map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        status: goal.bloomStatus,
+        milestones: goal.milestones.map((milestone) => ({
+          id: milestone.id,
+          title: milestone.title,
+          completed: Boolean(milestone.completedAt),
+        })),
+        markCount: branch.marks.length,
+      })),
+    });
+
+    themeMap.set(branch.limbId, theme);
+  }
+
+  return { themes: [...themeMap.values()] };
+}

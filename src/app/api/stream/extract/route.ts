@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { formatMapContext } from "@/lib/ai/format-map-context";
+import { formatUserContext } from "@/lib/ai/format-user-context";
 import {
   buildStreamHubContextInput,
   formatPreviousStreamSessionSummary,
@@ -8,7 +10,7 @@ import {
   runStreamThemeExtract,
 } from "@/lib/ai/stream-extract";
 import { commitAmbiguousItemsToBranch } from "@/lib/stream-commit-ambiguous";
-import { resolveBranchForHub } from "@/lib/resolve-hub-branch";
+import { isValidHubSlugForTheme, resolveBranchForHub } from "@/lib/resolve-hub-branch";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
 import { prisma } from "@/lib/prisma";
@@ -38,6 +40,14 @@ function isThemeExtractBody(body: unknown): body is { themeId: string } {
     typeof (body as { themeId: unknown }).themeId === "string" &&
     !("hubId" in body)
   );
+}
+
+function resolveThemeForHubSlug(preferredThemeId: LifeAreaId, slug: string): LifeAreaId | null {
+  if (isValidHubSlugForTheme(preferredThemeId, slug)) return preferredThemeId;
+  for (const candidate of LIFE_AREA_IDS) {
+    if (isValidHubSlugForTheme(candidate, slug)) return candidate;
+  }
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -103,28 +113,40 @@ export async function POST(request: Request) {
       }
 
       try {
-        const result = await runStreamThemeExtract(themeContext, input);
+        const [userContext, mapContext] = await Promise.all([
+          formatUserContext(userId),
+          formatMapContext(userId),
+        ]);
+        const result = await runStreamThemeExtract(themeContext, input, {
+          userContext,
+          mapContext,
+        });
         let committedAmbiguousCount = 0;
-        const byBranch = new Map<string, typeof result.ambiguous>();
+        const byBranch = new Map<
+          string,
+          { limbId: LifeAreaId; items: typeof result.ambiguous }
+        >();
         for (const amb of result.ambiguous) {
           if (!amb.hubId) continue;
+          const targetThemeId = resolveThemeForHubSlug(themeId as LifeAreaId, amb.hubId);
+          if (!targetThemeId) continue;
           const resolved = await resolveBranchForHub(
             prisma,
             userId,
-            themeId as LifeAreaId,
+            targetThemeId,
             amb.hubId,
           );
           if (!resolved) continue;
-          const list = byBranch.get(resolved.branchId) ?? [];
-          list.push(amb);
-          byBranch.set(resolved.branchId, list);
+          const entry = byBranch.get(resolved.branchId) ?? { limbId: targetThemeId, items: [] };
+          entry.items.push(amb);
+          byBranch.set(resolved.branchId, entry);
         }
-        for (const [branchId, items] of byBranch) {
+        for (const [branchId, entry] of byBranch) {
           const { committed } = await commitAmbiguousItemsToBranch(
             userId,
             branchId,
-            themeId as LifeAreaId,
-            items,
+            entry.limbId,
+            entry.items,
           );
           committedAmbiguousCount += committed;
         }
@@ -237,7 +259,14 @@ export async function POST(request: Request) {
     });
 
     try {
-      const result = await runStreamExtract(hubContext, input);
+      const [userContext, mapContext] = await Promise.all([
+        formatUserContext(userId),
+        formatMapContext(userId, { themeId: branch.limbId, hubId: branch.id }),
+      ]);
+      const result = await runStreamExtract(hubContext, input, {
+        userContext,
+        mapContext,
+      });
       let committedAmbiguousCount = 0;
       if (result.ambiguous.length > 0) {
         const { committed } = await commitAmbiguousItemsToBranch(

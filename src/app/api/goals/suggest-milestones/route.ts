@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
+import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
 const requestSchema = z.object({
@@ -39,11 +40,22 @@ function buildUserMessage(input: {
   goalDescription?: string;
   themeName?: string;
   hubName?: string;
+  userContext?: string;
 }): string {
   const lines = [`Pursuit title: ${input.goalTitle}`];
   if (input.goalDescription) lines.push(`Description: ${input.goalDescription}`);
   if (input.themeName) lines.push(`Life theme: ${input.themeName}`);
   if (input.hubName) lines.push(`Hub: ${input.hubName}`);
+  if (input.userContext) {
+    lines.push(
+      "",
+      "User context (use for personalisation only):",
+      input.userContext,
+      "",
+      "Use this context to make milestone suggestions more relevant to this specific person's situation.",
+      "Do not invent milestones not relevant to the pursuit.",
+    );
+  }
   lines.push(
     "",
     "Existing milestones (do not repeat):",
@@ -114,6 +126,7 @@ export async function POST(request: Request) {
 
   const { goalTitle, existing, goalDescription, themeName, hubName } = reqParsed.data;
   const existingLower = new Set(existing.map((t) => t.trim().toLowerCase()).filter(Boolean));
+  const userContext = await formatUserContext(session.user.id);
 
   const userMessage = buildUserMessage({
     goalTitle,
@@ -121,6 +134,7 @@ export async function POST(request: Request) {
     goalDescription,
     themeName,
     hubName,
+    userContext,
   });
 
   try {

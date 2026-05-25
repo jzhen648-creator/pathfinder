@@ -1,5 +1,6 @@
 import { generateJsonCompletion } from "@/lib/gemini";
 import { truncateStreamNarrative } from "@/lib/ai/stream-extract-narrative";
+import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 import { hubPanelCopy, type HubCatalogEntry } from "@/lib/hub-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { normalizeStreamHubSlug } from "@/lib/resolve-hub-branch";
@@ -13,6 +14,11 @@ import {
 
 export const STREAM_THEME_EXTRACT_MAX_TOKENS = 4000;
 export const STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD = 0.65;
+
+type StreamExtractContextOptions = {
+  userContext?: string;
+  mapContext?: FormattedMapContext;
+};
 
 const STREAM_EXTRACT_BOUNDARY_PAIRS = [
   ["Skills", "Career"],
@@ -523,11 +529,34 @@ function formatHubCatalogForPrompt(copy: HubCatalogEntry): string {
 export function buildStreamExtractUserMessage(
   hub: StreamHubContextInput,
   input: string,
+  options: StreamExtractContextOptions = {},
 ): string {
   const catalog = formatHubCatalogForPrompt(hubPanelCopy(hub.limbId, hub.hubLabel));
   const includePriorContext = shouldIncludePriorContext(input);
   return [
     `Today's date: ${todayYmdUtc()}`,
+    "",
+    "## PRIMARY INPUT — extract only from this",
+    input.trim(),
+    "This is the source of truth. Only extract items the user explicitly mentioned.",
+    "",
+    ...(options.mapContext
+      ? [
+          "## MAP CONTEXT — use for structure and deduplication",
+          JSON.stringify(options.mapContext),
+          "Use to place items in the correct hub. Complete existing pursuits before creating new ones. Avoid creating duplicate pursuits.",
+          "",
+        ]
+      : []),
+    ...(options.userContext
+      ? [
+          "## BACKGROUND CONTEXT — subtle calibration only",
+          options.userContext,
+          "Use ONLY to better infer hub placement for ambiguous items, understand life stage for appropriate framing, and recognise shorthand references.",
+          "STRICT RULES: Do NOT extract items not mentioned in Stream text. Do NOT create pursuits the user did not describe. Do NOT let profile override what user actually said. Profile context helps placement, never justifies creating additional unmentioned items. One casual mention = one mark at most.",
+          "",
+        ]
+      : []),
     "",
     "## Hub",
     `- hubId (branchId): ${hub.branchId}`,
@@ -561,8 +590,6 @@ export function buildStreamExtractUserMessage(
           "",
         ]
       : []),
-    "## User brain dump",
-    input.trim(),
   ].join("\n");
 }
 
@@ -615,10 +642,11 @@ function withTruncatedNarrative(data: StreamExtractResponse): StreamExtractRespo
 export async function runStreamExtract(
   hub: StreamHubContextInput,
   input: string,
+  options: StreamExtractContextOptions = {},
 ): Promise<StreamExtractResponse> {
   const raw = await generateJsonCompletion({
     system: STREAM_EXTRACT_SYSTEM_PROMPT,
-    user: buildStreamExtractUserMessage(hub, input),
+    user: buildStreamExtractUserMessage(hub, input, options),
     maxTokens: 4000,
     temperature: 0.2,
   });
@@ -648,6 +676,8 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "You receive:",
   "- Theme metadata (themeId, themeName)",
   "- For each provided hub in this theme: hubId (normalized slug — use exactly as given), hubLabel (display only), catalog description, existing pursuits (goalId, title, goalType, bloomStatus, parentGoalId — parentGoalId: null means it is currently a root pursuit), existing marks",
+  "- Optional full-map context for cross-theme placement and deduplication",
+  "- Optional user background context for subtle calibration only",
   "- Previous theme-level Stream sessions (truncated text of up to 3 prior brain dumps on this theme)",
   "- The user's brain dump (typed or transcribed)",
   "",
@@ -657,6 +687,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "Messy/contradictory input is normal. Process the whole dump; do not stop after the first obvious cards.",
   "Extract every distinct concrete mark, pursuit, milestone/step, continuation, pause, resume, and status change.",
+  "Cross-theme extraction rule: extract ALL concrete items from the input even when they belong outside the theme/hub where Stream was opened. Use map context to route them to the correct hubId. Hub/pursuit context is a placement hint only; do not drop items because they are cross-theme.",
   "Uncertainty about one item must not suppress other confident items: put only that item in ambiguous[] and keep extracting.",
   "If an existing map goal evolves, resumes, stretches, pauses, or pivots, emit the pursuit update instead of dropping it.",
   "Before writing the JSON response, scan the input once more. For each hub topic mentioned, confirm you have emitted at least one structured item (mark, pursuit, or milestone). If a topic has no structured item and you are confident about it, add it now.",
@@ -741,6 +772,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
 export function buildStreamThemeExtractUserMessage(
   theme: StreamThemeContextInput,
   input: string,
+  options: StreamExtractContextOptions = {},
 ): string {
   const includePriorContext = shouldIncludePriorContext(input);
   const hubBlocks = theme.hubs.map((h) =>
@@ -782,6 +814,28 @@ export function buildStreamThemeExtractUserMessage(
   return [
     `Today's date: ${todayYmdUtc()}`,
     "",
+    "## PRIMARY INPUT — extract only from this",
+    input.trim(),
+    "This is the source of truth. Only extract items the user explicitly mentioned.",
+    "",
+    ...(options.mapContext
+      ? [
+          "## MAP CONTEXT — use for structure and deduplication",
+          JSON.stringify(options.mapContext),
+          "Use to place items in correct hub. Complete existing pursuits before creating new ones. Avoid creating duplicate pursuits. Cross-theme items should still be extracted and routed to their correct hubId.",
+          "",
+        ]
+      : []),
+    ...(options.userContext
+      ? [
+          "## BACKGROUND CONTEXT — subtle calibration only",
+          options.userContext,
+          "Use ONLY to better infer hub placement for ambiguous items, understand life stage for appropriate framing, and recognise shorthand references the user makes.",
+          "STRICT RULES: Do NOT extract items not mentioned in Stream text. Do NOT create pursuits the user did not describe. Do NOT let profile override what user actually said. Profile context helps placement, never justifies creating additional unmentioned items. One casual mention = one mark at most.",
+          "",
+        ]
+      : []),
+    "",
     "## Theme",
     `- themeId: ${theme.themeId}`,
     `- themeName: ${theme.themeName}`,
@@ -796,8 +850,6 @@ export function buildStreamThemeExtractUserMessage(
           "",
         ]
       : []),
-    "## User brain dump",
-    input.trim(),
   ].join("\n");
 }
 
@@ -832,7 +884,7 @@ function fillThemeExtractHubIds(
   const resolveRawHub = (raw: string | undefined): string | null => {
     if (!raw?.trim()) return null;
     const slug = normalizeStreamHubSlug(raw);
-    return validHubSlugs.has(slug) ? slug : null;
+    return validHubSlugs.has(slug) ? slug : slug;
   };
 
   const inferHub = (title: string, hint?: string | null): string => {
@@ -894,10 +946,11 @@ function fillThemeExtractHubIds(
 export async function runStreamThemeExtract(
   theme: StreamThemeContextInput,
   input: string,
+  options: StreamExtractContextOptions = {},
 ): Promise<StreamExtractResponse> {
   const raw = await generateJsonCompletion({
     system: STREAM_EXTRACT_THEME_SYSTEM_PROMPT,
-    user: buildStreamThemeExtractUserMessage(theme, input),
+    user: buildStreamThemeExtractUserMessage(theme, input, options),
     maxTokens: STREAM_THEME_EXTRACT_MAX_TOKENS,
     temperature: 0.2,
   });

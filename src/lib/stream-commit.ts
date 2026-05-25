@@ -16,6 +16,7 @@ import {
 } from "@/lib/resolve-hub-branch";
 import { activateHubForUser } from "@/lib/system-hubs";
 import { recordStreamThemeSession } from "@/lib/stream-theme-context";
+import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import {
   displayMarkTitleFromInput,
@@ -526,6 +527,14 @@ function groupByHubSlug<T extends { hubId?: string }>(items: T[]): Map<string, T
   return map;
 }
 
+function resolveThemeForHubSlug(preferredThemeId: LifeAreaId, slug: string): LifeAreaId | null {
+  if (isValidHubSlugForTheme(preferredThemeId, slug)) return preferredThemeId;
+  for (const candidate of LIFE_AREA_IDS) {
+    if (isValidHubSlugForTheme(candidate, slug)) return candidate;
+  }
+  return null;
+}
+
 async function alignThemeMilestoneHubIds(
   userId: string,
   themeId: LifeAreaId,
@@ -577,15 +586,13 @@ export async function commitStreamToTheme(
     ...milestonesByHub.keys(),
   ]);
 
-  for (const slug of allSlugs) {
-    if (!isValidHubSlugForTheme(themeId, slug)) {
-      return { ok: false, error: `Unknown hub "${slug}" for this theme`, status: 400 };
-    }
-  }
-
   const branchBySlug = new Map<string, BranchRow>();
   for (const slug of allSlugs) {
-    const resolved = await resolveBranchForHub(prisma, userId, themeId, slug);
+    const targetThemeId = resolveThemeForHubSlug(themeId, slug);
+    if (!targetThemeId) {
+      return { ok: false, error: `Unknown hub "${slug}"`, status: 400 };
+    }
+    const resolved = await resolveBranchForHub(prisma, userId, targetThemeId, slug);
     if (!resolved) {
       return { ok: false, error: `Hub branch not found for "${slug}"`, status: 404 };
     }
