@@ -18,20 +18,35 @@ const responseSchema = z.object({
 });
 
 const SYSTEM_PROMPT = [
-  "You suggest milestone titles for a personal pursuit (goal).",
+  "You suggest milestone titles for a personal pursuit.",
   'Return ONLY a JSON object: {"suggestions": string[]}.',
   "Maximum 5 suggestions. Do not repeat existing titles (case-insensitive).",
   "",
-  "Every title must be:",
-  "- ACTIONABLE: starts with a strong verb (Complete, Log, Run, Draft, Schedule, Submit, Register, etc.). The user knows the first physical step.",
-  "- MEASURABLE or OBSERVABLE: include a number, frequency, duration, date window, named deliverable, or unambiguous done-state (e.g. \"3 sessions\", \"7 days\", \"first draft\", \"5K\", \"without stopping\", \"by end of month\").",
-  "- SPECIFIC to the pursuit and life theme — not generic self-help.",
-  "- ONE completable outcome per title — not an ongoing vague habit or a multi-step project in one line.",
+  "Milestones are meaningful waypoints on a journey, not tasks to do.",
+  "They mark moments when reality has changed and progress is real.",
+  "Think chapters of a story arc, not bullet points on a to-do list.",
   "",
-  "Avoid vague planning phrases unless the deliverable is named: Improve, Work on, Learn about, Research, Explore, Think about, Get better at.",
-  "Avoid appointments with professionals unless legally required.",
-  "Avoid placeholders (Milestone 1, Step 2).",
-  "Title length: 4–12 words. No numbering, no explanation outside the JSON object.",
+  "Every milestone title must be:",
+  "- An ACHIEVEMENT or OUTCOME, phrased so reality has to confirm it.",
+  "- A real change in status — something is now true that wasn't before.",
+  "- Specific to this pursuit, not generic self-help.",
+  "- One completable outcome per title.",
+  "",
+  "GOOD framing (achievements that mark real change):",
+  '- "CV updated and ready"',
+  '- "First application submitted"',
+  '- "Interview secured"',
+  '- "Offer received"',
+  '- "First day completed"',
+  'Phrasings like "X achieved", "X secured", "X completed", "X done", "X ready" all work.',
+  "",
+  "BAD framing (tasks the user controls — do not use):",
+  '- "Do X", "Complete X task", "Research X", "Apply to N things"',
+  '- "Write targeted cover letters", "Research 5 mortgage broker firms"',
+  "- Anything starting with an instruction verb aimed at the user (Submit, Schedule, Draft, Log, Run).",
+  "",
+  "Return 3–5 milestones, ordered as a story arc from earliest to final.",
+  "Title length: 3–8 words. No numbering, no explanation outside the JSON object.",
 ].join("\n");
 
 function buildUserMessage(input: {
@@ -49,11 +64,12 @@ function buildUserMessage(input: {
   if (input.userContext) {
     lines.push(
       "",
-      "User context (use for personalisation only):",
+      "User context (subtle calibration only):",
       input.userContext,
       "",
-      "Use this context to make milestone suggestions more relevant to this specific person's situation.",
-      "Do not invent milestones not relevant to the pursuit.",
+      "Use this only to remove milestones that would be irrelevant for this person.",
+      "Do NOT add location, age, or demographic assumptions into milestone titles.",
+      "Profile context never drives milestone content; the pursuit itself does.",
     );
   }
   lines.push(
@@ -61,8 +77,8 @@ function buildUserMessage(input: {
     "Existing milestones (do not repeat):",
     input.existing.length ? input.existing.map((t) => `- ${t}`).join("\n") : "(none)",
     "",
-    "Suggest 3–5 NEW milestones that are the next logical steps toward this pursuit.",
-    "Each title must be actionable and include a clear measure or deliverable.",
+    "Suggest 3–5 NEW milestones as a story arc of meaningful waypoints toward this pursuit.",
+    "Each title must be an achievement reality can confirm, not a task to do.",
   );
   return lines.join("\n");
 }

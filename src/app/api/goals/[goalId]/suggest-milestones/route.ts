@@ -99,12 +99,31 @@ export async function POST(request: Request, props: RouteProps) {
   const userContext = await formatUserContext(userId);
 
   const system = [
-    "You suggest realistic, actionable milestones for a personal pursuit.",
-    "Return only a JSON array of 3 to 5 title strings.",
+    "You suggest milestone titles for a personal pursuit.",
+    "Return ONLY a JSON array of 3 to 5 title strings.",
     "No markdown, no object wrapper, no numbering, no explanation.",
-    "Keep each title short, concrete, and action-oriented.",
-    "Do not repeat existing milestone titles.",
-  ].join(" ");
+    "Do not repeat existing milestone titles (case-insensitive).",
+    "",
+    "Milestones are meaningful waypoints on a journey, not tasks to do.",
+    "They mark moments when reality has changed and progress is real.",
+    "Think chapters of a story arc, not bullet points on a to-do list.",
+    "",
+    "Every title must be:",
+    "- An ACHIEVEMENT or OUTCOME, phrased so reality has to confirm it.",
+    "- A real change in status — something is now true that wasn't before.",
+    "- Specific to this pursuit, not generic self-help.",
+    "- One completable outcome per title.",
+    "",
+    'GOOD framing: "CV updated and ready", "First application submitted",',
+    '"Interview secured", "Offer received", "First day completed".',
+    'Phrasings like "X achieved", "X secured", "X completed", "X done", "X ready" all work.',
+    "",
+    'BAD framing (do not use): "Do X", "Complete X task", "Research X",',
+    '"Apply to N things", or anything starting with an instruction verb (Submit, Schedule, Draft, Log, Run).',
+    "",
+    "Order the 3–5 titles as a story arc from earliest to final.",
+    "Title length: 3–8 words.",
+  ].join("\n");
 
   const user = [
     `Given this pursuit: ${title}`,
@@ -114,18 +133,19 @@ export async function POST(request: Request, props: RouteProps) {
     userContext
       ? [
           "",
-          "User context (use for personalisation only):",
+          "User context (subtle calibration only):",
           userContext,
           "",
-          "Use this context to make milestone suggestions more relevant to this specific person's situation.",
-          "Do not invent milestones not relevant to the pursuit.",
+          "Use this only to remove milestones that would be irrelevant for this person.",
+          "Do NOT add location, age, or demographic assumptions into milestone titles.",
+          "Profile context never drives milestone content; the pursuit itself does.",
         ].join("\n")
       : null,
     "",
     "Existing milestone titles:",
     goal.milestones.length ? goal.milestones.map((m) => `- ${m.title}`).join("\n") : "(none)",
     "",
-    "Suggest 3-5 realistic actionable milestones. Return only a JSON array of title strings.",
+    "Suggest 3-5 milestones as a story arc of meaningful waypoints. Return only a JSON array of title strings.",
   ]
     .filter(Boolean)
     .join("\n");
