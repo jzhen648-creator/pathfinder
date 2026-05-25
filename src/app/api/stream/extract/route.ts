@@ -7,6 +7,7 @@ import {
   buildStreamHubContextInput,
   formatPreviousStreamSessionSummary,
   runStreamExtract,
+  runStreamGlobalExtract,
   runStreamThemeExtract,
 } from "@/lib/ai/stream-extract";
 import { commitAmbiguousItemsToBranch } from "@/lib/stream-commit-ambiguous";
@@ -20,6 +21,7 @@ import type { LifeAreaId } from "@/lib/types";
 import { streamExtractFailureStatus } from "@/lib/stream-extract-errors";
 import {
   streamExtractRequestSchema,
+  streamGlobalExtractRequestSchema,
   streamHubExtractRequestSchema,
   streamThemeExtractRequestSchema,
 } from "@/types/stream";
@@ -157,6 +159,34 @@ export async function POST(request: Request) {
         }
         const details = getErrorDetails(err);
         console.error("[POST /api/stream/extract theme] failed", details, err);
+        return NextResponse.json(
+          { error: details.message || "Extract unavailable" },
+          { status: streamExtractFailureStatus(err) },
+        );
+      }
+    }
+
+    if (!("hubId" in body)) {
+      const reqParsed = streamGlobalExtractRequestSchema.safeParse(body);
+      if (!reqParsed.success) {
+        const issue = reqParsed.error.issues[0];
+        return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
+      }
+
+      const { input } = reqParsed.data;
+      try {
+        const [userContext, mapContext] = await Promise.all([
+          formatUserContext(userId),
+          formatMapContext(userId),
+        ]);
+        const result = await runStreamGlobalExtract(input, { userContext, mapContext });
+        return NextResponse.json({ ...result, committedAmbiguousCount: 0 });
+      } catch (err) {
+        if (err instanceof GeminiNotConfiguredError) {
+          return NextResponse.json({ error: err.message }, { status: 503 });
+        }
+        const details = getErrorDetails(err);
+        console.error("[POST /api/stream/extract global] failed", details, err);
         return NextResponse.json(
           { error: details.message || "Extract unavailable" },
           { status: streamExtractFailureStatus(err) },

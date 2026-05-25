@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { commitStreamToHub, commitStreamToTheme } from "@/lib/stream-commit";
+import { commitStreamGlobal, commitStreamToHub, commitStreamToTheme } from "@/lib/stream-commit";
 import {
   streamCommitPayloadSchema,
+  streamGlobalCommitPayloadSchema,
   streamThemeCommitPayloadSchema,
 } from "@/types/stream";
 
@@ -51,6 +52,25 @@ export async function POST(request: Request) {
       bloomedPursuits: result.bloomedPursuits,
       createdMilestones: result.createdMilestones,
     });
+  }
+
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    !("hubId" in body)
+  ) {
+    const parsed = streamGlobalCommitPayloadSchema.safeParse(body);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
+    }
+
+    const result = await commitStreamGlobal(session.user.id, parsed.data);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    return NextResponse.json(result);
   }
 
   const parsed = streamCommitPayloadSchema.safeParse(body);

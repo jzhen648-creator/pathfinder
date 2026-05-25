@@ -140,6 +140,10 @@ export function preprocessStreamExtractJson(json: unknown): unknown {
       marks: [],
       pursuits: [],
       milestones: [],
+      pursuitUpdates: [],
+      milestoneUpdates: [],
+      milestoneCompletions: [],
+      milestoneDeletes: [],
       ambiguous: [],
       clarifyingQuestion: null,
       itemOrder: [],
@@ -154,6 +158,12 @@ export function preprocessStreamExtractJson(json: unknown): unknown {
   const milestones = (Array.isArray(row.milestones) ? row.milestones : [])
     .map(sanitizeExtractedMilestone)
     .filter((m): m is Record<string, unknown> => m !== null);
+  const pursuitUpdates = Array.isArray(row.pursuitUpdates) ? row.pursuitUpdates : [];
+  const milestoneUpdates = Array.isArray(row.milestoneUpdates) ? row.milestoneUpdates : [];
+  const milestoneCompletions = Array.isArray(row.milestoneCompletions)
+    ? row.milestoneCompletions
+    : [];
+  const milestoneDeletes = Array.isArray(row.milestoneDeletes) ? row.milestoneDeletes : [];
   return {
     ...row,
     narrativeSentence:
@@ -161,12 +171,20 @@ export function preprocessStreamExtractJson(json: unknown): unknown {
     marks,
     pursuits,
     milestones,
+    pursuitUpdates,
+    milestoneUpdates,
+    milestoneCompletions,
+    milestoneDeletes,
     ambiguous: Array.isArray(row.ambiguous) ? row.ambiguous.map(sanitizeAmbiguousItem) : [],
     clarifyingQuestion: row.clarifyingQuestion ?? null,
     itemOrder: parseStreamItemOrder(row.itemOrder, {
       markCount: marks.length,
       pursuitCount: pursuits.length,
       milestoneCount: milestones.length,
+      pursuitUpdateCount: pursuitUpdates.length,
+      milestoneUpdateCount: milestoneUpdates.length,
+      milestoneCompleteCount: milestoneCompletions.length,
+      milestoneDeleteCount: milestoneDeletes.length,
     }),
   };
 }
@@ -973,6 +991,105 @@ export async function runStreamThemeExtract(
 
   const withKeys = assignMissingClientKeys(withTruncatedNarrative(parsed.data));
   return fillThemeExtractHubIds(withKeys, theme);
+}
+
+export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
+  "You are Pathfinder Stream V3: a map-wide extractor that turns free-form user text into confirmed life-map operations.",
+  "",
+  "You receive the user's full active map. Hubs use branch ids in map context. For every NEW mark, pursuit, or milestone, set hubId to the exact hub id from map context.",
+  "For every UPDATE/COMPLETE/HOLD/DELETE operation, reference exact goalId and milestoneId values from map context.",
+  "",
+  "Core Phase 1 capabilities:",
+  "- Create marks, pursuits, and milestones.",
+  "- Update a pursuit title when the user clearly renames or clarifies it.",
+  "- Complete or put on hold an existing pursuit.",
+  "- Rename, complete, or delete an existing milestone.",
+  "",
+  "Ambiguity rule (critical safety):",
+  "- Never guess among multiple plausible existing items.",
+  "- If more than one existing pursuit or milestone matches the user's description, return NO operation for that intent.",
+  "- If the target item is not clearly present in map context, return NO operation for that intent.",
+  "- Example: if two milestones contain \"CV\" and the user says \"complete the CV milestone\", do not pick one; omit milestoneCompletions for that phrase.",
+  "- Continue extracting other confident items from the same input.",
+  "",
+  "Creation rules:",
+  "- Do not create duplicates of existing pursuits or milestones.",
+  "- If the user describes a status change for an existing pursuit, use pursuitUpdates, not a new pursuit.",
+  "- If the user describes a change to an existing milestone, use milestoneUpdates, milestoneCompletions, or milestoneDeletes, not a new milestone.",
+  "- Marks are standalone timeline moments on a hub; milestones belong to pursuits.",
+  "",
+  "Output schema (exact keys, all arrays required):",
+  "{",
+  '  "narrativeSentence": "one warm second-person sentence, 20 words max",',
+  '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "hubId": "hub branch id" }],',
+  '  "pursuits": [{ "title": "string", "goalType": "project|practice|identity", "bloomStatus": "ACTIVE|ON_HOLD|COMPLETE", "hubId": "hub branch id", "clientKey": "optional for new pursuit refs" }],',
+  '  "milestones": [{ "title": "string", "hubId": "hub branch id", "pursuitExistingGoalId": "goal id or null", "pursuitClientKey": "clientKey or null" }],',
+  '  "pursuitUpdates": [{ "goalId": "existing goal id", "title": "optional new title", "bloomStatus": "optional ACTIVE|ON_HOLD|COMPLETE" }],',
+  '  "milestoneUpdates": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id", "title": "new milestone title" }],',
+  '  "milestoneCompletions": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id", "completedAt": "YYYY-MM-DD or null/omit" }],',
+  '  "milestoneDeletes": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id" }],',
+  '  "ambiguous": [],',
+  '  "itemOrder": [{ "kind": "mark|pursuit|milestone|pursuit_update|milestone_update|milestone_complete|milestone_delete", "index": 0 }],',
+  '  "clarifyingQuestion": "string or null"',
+  "}",
+  "",
+  "Return empty arrays when nothing applies; do not omit keys. No markdown or commentary outside JSON.",
+].join("\n");
+
+export function buildStreamGlobalExtractUserMessage(
+  input: string,
+  options: StreamExtractContextOptions,
+): string {
+  return [
+    `Today's date: ${todayYmdUtc()}`,
+    "",
+    "## PRIMARY INPUT — extract only from this",
+    input.trim(),
+    "This is the source of truth. Only extract items the user explicitly mentioned.",
+    "",
+    "## FULL MAP CONTEXT",
+    JSON.stringify(options.mapContext ?? { themes: [] }),
+    "Use exact ids from this context. Hub ids here are branch ids and must be echoed as hubId for new items.",
+    "",
+    ...(options.userContext
+      ? [
+          "## BACKGROUND CONTEXT — subtle calibration only",
+          options.userContext,
+          "Use only to interpret shorthand; never create items not mentioned in the primary input.",
+          "",
+        ]
+      : []),
+  ].join("\n");
+}
+
+export async function runStreamGlobalExtract(
+  input: string,
+  options: StreamExtractContextOptions,
+): Promise<StreamExtractResponse> {
+  const raw = await generateJsonCompletion({
+    system: STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT,
+    user: buildStreamGlobalExtractUserMessage(input, options),
+    maxTokens: STREAM_THEME_EXTRACT_MAX_TOKENS,
+    temperature: 0.2,
+  });
+
+  if (!raw) {
+    throw new Error("Empty extract response.");
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(stripStreamJsonFence(raw));
+  } catch {
+    throw new Error("Model returned invalid JSON.");
+  }
+
+  const parsed = streamExtractResponseSchema.safeParse(preprocessStreamExtractJson(json));
+  if (!parsed.success) {
+    throw new Error(formatStreamExtractParseError(parsed.error));
+  }
+
+  return assignMissingClientKeys(withTruncatedNarrative(parsed.data));
 }
 
 export function buildStreamHubContextInput(args: {

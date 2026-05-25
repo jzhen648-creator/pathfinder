@@ -28,6 +28,11 @@ import type {
   ExtractedMilestone,
   ExtractedPursuit,
   StreamCommitPayload,
+  StreamGlobalCommitPayload,
+  StreamMilestoneComplete,
+  StreamMilestoneDelete,
+  StreamMilestoneUpdate,
+  StreamPursuitUpdate,
   StreamThemeCommitPayload,
 } from "@/types/stream";
 
@@ -131,6 +136,15 @@ type HubCommitCounts = {
   goalsNeedingShortLabel: Set<string>;
 };
 
+type OperationCommitCounts = {
+  updatedPursuits: number;
+  updatedMilestones: number;
+  completedMilestones: number;
+  deletedMilestones: number;
+  goalsNeedingRecompute: Set<string>;
+  goalsNeedingShortLabel: Set<string>;
+};
+
 async function persistShortLabelsForGoals(goalIds: Iterable<string>): Promise<void> {
   for (const goalId of goalIds) {
     try {
@@ -161,6 +175,21 @@ type ThemeCommitResult =
       createdPursuits: number;
       bloomedPursuits: number;
       createdMilestones: number;
+    }
+  | { ok: false; error: string; status: number };
+
+type GlobalCommitResult =
+  | {
+      ok: true;
+      branchIds: string[];
+      createdMarks: number;
+      createdPursuits: number;
+      bloomedPursuits: number;
+      createdMilestones: number;
+      updatedPursuits: number;
+      updatedMilestones: number;
+      completedMilestones: number;
+      deletedMilestones: number;
     }
   | { ok: false; error: string; status: number };
 
@@ -426,6 +455,123 @@ async function commitItemsToBranchInTx(
   };
 }
 
+function parseOperationDate(raw: string | null | undefined): Date {
+  const ymd = parseMarkDateYmd(raw ?? null);
+  return new Date(`${ymd}T00:00:00.000Z`);
+}
+
+async function assertMilestoneTarget(
+  tx: TxClient,
+  userId: string,
+  op: StreamMilestoneUpdate | StreamMilestoneComplete | StreamMilestoneDelete,
+): Promise<{ goalId: string; milestoneId: string }> {
+  const row = await tx.milestone.findFirst({
+    where: {
+      id: op.milestoneId,
+      goalId: op.goalId,
+      goal: {
+        userId,
+        archived: false,
+        goalType: { notIn: ["moment", "event"] },
+      },
+    },
+    select: { id: true, goalId: true },
+  });
+  if (!row) {
+    throw new Error("Invalid milestone operation target");
+  }
+  return { goalId: row.goalId, milestoneId: row.id };
+}
+
+async function applyStreamOperationsInTx(
+  tx: TxClient,
+  userId: string,
+  operations: {
+    pursuitUpdates: StreamPursuitUpdate[];
+    milestoneUpdates: StreamMilestoneUpdate[];
+    milestoneCompletions: StreamMilestoneComplete[];
+    milestoneDeletes: StreamMilestoneDelete[];
+  },
+): Promise<OperationCommitCounts> {
+  const goalsNeedingRecompute = new Set<string>();
+  const goalsNeedingShortLabel = new Set<string>();
+  let updatedPursuits = 0;
+  let updatedMilestones = 0;
+  let completedMilestones = 0;
+  let deletedMilestones = 0;
+
+  for (const op of operations.pursuitUpdates) {
+    const goal = await tx.goal.findFirst({
+      where: {
+        id: op.goalId,
+        userId,
+        archived: false,
+        goalType: { notIn: ["moment", "event"] },
+      },
+      select: { id: true },
+    });
+    if (!goal) {
+      throw new Error("Invalid pursuit operation target");
+    }
+
+    const data: {
+      title?: string;
+      bloomStatus?: BloomStatus;
+      bloomedAt?: Date | null;
+    } = {};
+    if (op.title?.trim()) {
+      data.title = op.title.trim();
+      goalsNeedingShortLabel.add(op.goalId);
+    }
+    if (op.bloomStatus) {
+      data.bloomStatus = op.bloomStatus as BloomStatus;
+      data.bloomedAt = op.bloomStatus === "COMPLETE" ? new Date() : null;
+    }
+    if (Object.keys(data).length === 0) continue;
+
+    await tx.goal.update({ where: { id: op.goalId }, data });
+    updatedPursuits += 1;
+    if (op.bloomStatus === "ACTIVE") {
+      goalsNeedingRecompute.add(op.goalId);
+    }
+  }
+
+  for (const op of operations.milestoneUpdates) {
+    const target = await assertMilestoneTarget(tx, userId, op);
+    await tx.milestone.update({
+      where: { id: target.milestoneId },
+      data: { title: op.title.trim() },
+    });
+    updatedMilestones += 1;
+  }
+
+  for (const op of operations.milestoneCompletions) {
+    const target = await assertMilestoneTarget(tx, userId, op);
+    await tx.milestone.update({
+      where: { id: target.milestoneId },
+      data: { completedAt: parseOperationDate(op.completedAt) },
+    });
+    completedMilestones += 1;
+    goalsNeedingRecompute.add(target.goalId);
+  }
+
+  for (const op of operations.milestoneDeletes) {
+    const target = await assertMilestoneTarget(tx, userId, op);
+    await tx.milestone.delete({ where: { id: target.milestoneId } });
+    deletedMilestones += 1;
+    goalsNeedingRecompute.add(target.goalId);
+  }
+
+  return {
+    updatedPursuits,
+    updatedMilestones,
+    completedMilestones,
+    deletedMilestones,
+    goalsNeedingRecompute,
+    goalsNeedingShortLabel,
+  };
+}
+
 export async function commitStreamToHub(
   userId: string,
   payload: StreamCommitPayload,
@@ -523,6 +669,18 @@ function groupByHubSlug<T extends { hubId?: string }>(items: T[]): Map<string, T
     const list = map.get(slug) ?? [];
     list.push(item);
     map.set(slug, list);
+  }
+  return map;
+}
+
+function groupByBranchId<T extends { hubId?: string }>(items: T[]): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const branchId = item.hubId?.trim();
+    if (!branchId) continue;
+    const list = map.get(branchId) ?? [];
+    list.push(item);
+    map.set(branchId, list);
   }
   return map;
 }
@@ -677,6 +835,122 @@ export async function commitStreamToTheme(
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not save stream to tree";
     console.error("[commitStreamToTheme]", e);
+    const status = msg.includes("Invalid") || msg.includes("unknown") ? 400 : 500;
+    return { ok: false, error: msg, status };
+  }
+}
+
+export async function commitStreamGlobal(
+  userId: string,
+  payload: StreamGlobalCommitPayload,
+): Promise<GlobalCommitResult> {
+  const marksByBranch = groupByBranchId(payload.marks);
+  const pursuitsByBranch = groupByBranchId(payload.pursuits);
+  const milestonesByBranch = groupByBranchId(payload.milestones);
+  const allBranchIds = new Set([
+    ...marksByBranch.keys(),
+    ...pursuitsByBranch.keys(),
+    ...milestonesByBranch.keys(),
+  ]);
+
+  const branches = await prisma.branch.findMany({
+    where: { id: { in: [...allBranchIds] }, userId },
+    select: { id: true, limbId: true, isActive: true },
+  });
+  const branchById = new Map(branches.map((b) => [b.id, b]));
+  for (const branchId of allBranchIds) {
+    if (!branchById.has(branchId)) {
+      return { ok: false, error: `Hub branch not found for "${branchId}"`, status: 404 };
+    }
+  }
+
+  for (const branch of branchById.values()) {
+    if (!branch.isActive) {
+      await activateHubForUser(prisma, userId, branch.id);
+    }
+  }
+
+  const clientKeyToGoalId = new Map<string, string>();
+  const goalsNeedingRecompute = new Set<string>();
+  const goalsNeedingShortLabel = new Set<string>();
+
+  let createdMarks = 0;
+  let createdPursuits = 0;
+  let bloomedPursuits = 0;
+  let createdMilestones = 0;
+  let updatedPursuits = 0;
+  let updatedMilestones = 0;
+  let completedMilestones = 0;
+  let deletedMilestones = 0;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const branchId of allBranchIds) {
+        const branch = branchById.get(branchId)!;
+        const counts = await commitItemsToBranchInTx(
+          tx,
+          userId,
+          branch,
+          marksByBranch.get(branchId) ?? [],
+          pursuitsByBranch.get(branchId) ?? [],
+          milestonesByBranch.get(branchId) ?? [],
+          clientKeyToGoalId,
+        );
+        createdMarks += counts.createdMarks;
+        createdPursuits += counts.createdPursuits;
+        bloomedPursuits += counts.bloomedPursuits;
+        createdMilestones += counts.createdMilestones;
+        for (const id of counts.goalsNeedingRecompute) {
+          goalsNeedingRecompute.add(id);
+        }
+        for (const id of counts.goalsNeedingShortLabel) {
+          goalsNeedingShortLabel.add(id);
+        }
+      }
+
+      const opCounts = await applyStreamOperationsInTx(tx, userId, {
+        pursuitUpdates: payload.pursuitUpdates,
+        milestoneUpdates: payload.milestoneUpdates,
+        milestoneCompletions: payload.milestoneCompletions,
+        milestoneDeletes: payload.milestoneDeletes,
+      });
+      updatedPursuits = opCounts.updatedPursuits;
+      updatedMilestones = opCounts.updatedMilestones;
+      completedMilestones = opCounts.completedMilestones;
+      deletedMilestones = opCounts.deletedMilestones;
+      for (const id of opCounts.goalsNeedingRecompute) {
+        goalsNeedingRecompute.add(id);
+      }
+      for (const id of opCounts.goalsNeedingShortLabel) {
+        goalsNeedingShortLabel.add(id);
+      }
+    });
+
+    for (const goalId of goalsNeedingRecompute) {
+      try {
+        await recomputeGoalBloomStatus(goalId);
+      } catch (e) {
+        console.error("[commitStreamGlobal] recomputeGoalBloomStatus failed", goalId, e);
+      }
+    }
+
+    await persistShortLabelsForGoals(goalsNeedingShortLabel);
+
+    return {
+      ok: true,
+      branchIds: [...allBranchIds],
+      createdMarks,
+      createdPursuits,
+      bloomedPursuits,
+      createdMilestones,
+      updatedPursuits,
+      updatedMilestones,
+      completedMilestones,
+      deletedMilestones,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not save stream to tree";
+    console.error("[commitStreamGlobal]", e);
     const status = msg.includes("Invalid") || msg.includes("unknown") ? 400 : 500;
     return { ok: false, error: msg, status };
   }
