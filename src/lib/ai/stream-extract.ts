@@ -15,6 +15,34 @@ import {
 export const STREAM_THEME_EXTRACT_MAX_TOKENS = 4000;
 export const STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD = 0.65;
 
+/** Pursuit review metadata — confirmation UI only; never invent live event dates. */
+const STREAM_PURUIT_REVIEW_RULES = [
+  "## Pursuit review (typo correction and event context)",
+  "",
+  "Help the user catch mistakes before they confirm. On each pursuit object, optionally set:",
+  "- description: 1–2 plain sentences explaining what the pursuit is about and what success means; this should reassure the user you understood it",
+  "- sourcePhrase: verbatim user wording for this pursuit",
+  "- titleConfidence: 0–1 confidence in title/match",
+  "- suggestedTitle: clearer corrected title when the phrase looks like a typo, spacing error, or near-match to an existing pursuit/profile term (e.g. user \"Dip FPS\" → suggestedTitle \"DipPFS\" when map/profile suggests DipPFS)",
+  "- reviewNote: one short second-person sentence when the phrase is unclear or likely wrong (e.g. \"I think you may mean DipPFS — Dip FPS doesn't match anything on your map.\")",
+  "- eventContext: cautious context for well-known public events (e.g. London Marathon) — say it is typically an annual spring event; do NOT claim a verified exact date for a future year without it in user/map text; invite the user to confirm when entries open",
+  "",
+  "Rules:",
+  "- If a phrase is meaningless as written but strongly matches an existing pursuit title or profile shorthand, prefer suggestedTitle + reviewNote over silently creating a nonsense title.",
+  "- Do not auto-replace title in JSON — keep title as your best parse; put the correction in suggestedTitle for the user to accept on the confirmation card.",
+  "- Omit review fields when the pursuit is clear and unambiguous.",
+  "- Never fabricate live calendar dates for future events; eventContext is informational only.",
+].join("\n");
+
+const STREAM_PURUIT_REVIEW_SCHEMA_FIELDS = [
+  '      "description": "string or null — 1–2 sentence summary of the pursuit and success criteria",',
+  '      "sourcePhrase": "string or omit — verbatim user phrase",',
+  '      "titleConfidence": "number 0–1 or omit",',
+  '      "suggestedTitle": "string or null — corrected title if typo/near-match",',
+  '      "reviewNote": "string or null — short verify/correct note",',
+  '      "eventContext": "string or null — cautious public-event context, no live lookup",',
+].join("\n");
+
 type StreamExtractContextOptions = {
   userContext?: string;
   mapContext?: FormattedMapContext;
@@ -110,7 +138,16 @@ function sanitizeExtractedPursuit(raw: unknown): Record<string, unknown> | null 
     sanitizeFlatPursuitRef(row, "parentExistingGoalId", "parentClientKey");
   if (parentRef) row.parentRef = parentRef;
   else delete row.parentRef;
-  stripNullObjectFields(row, ["clientKey", "hubId"]);
+  stripNullObjectFields(row, [
+    "clientKey",
+    "hubId",
+    "description",
+    "sourcePhrase",
+    "titleConfidence",
+    "suggestedTitle",
+    "reviewNote",
+    "eventContext",
+  ]);
   return row;
 }
 
@@ -325,7 +362,11 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "## Dates",
   "",
   "- marks[].date: ISO YYYY-MM-DD when inferable from the dump; null if unknown (client defaults to today).",
+  "- pursuits[].deadline: ISO YYYY-MM-DD when the user states a target, by, end, or deadline; null if none.",
+  "- Resolve fuzzy pursuit deadlines using Today's date from the user message: month+year (e.g. May 2027) → last day of that month; year only or \"end of YEAR\" → Dec 31; quarters → last day of quarter; explicit day → that day.",
   "- Resolve relative dates (\"last March\", \"three months ago\") against today's date provided in the user message.",
+  "",
+  STREAM_PURUIT_REVIEW_RULES,
   "",
   "## Linking milestones to pursuits",
   "",
@@ -420,10 +461,12 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   '      "title": "string",',
   '      "goalType": "project|practice|identity",',
   '      "bloomStatus": "ACTIVE|ON_HOLD|COMPLETE",',
+  '      "deadline": "YYYY-MM-DD or null — target end date when the user states one; null if none",',
   '      "existingGoalId": "string or omit/null — when updating, completing, pausing, or resuming an existing pursuit; use with unchanged bloomStatus for embellishment (distilled title only if clearer/shorter), or ACTIVE|ON_HOLD|COMPLETE for status changes; do not create a new row",',
   '      "clientKey": "string or omit — required when this is a new pursuit referenced by milestones or as a parent via flat parent fields",',
   '      "parentExistingGoalId": "string or null — existing parent goalId for continuation/child pursuits; null otherwise",',
-  '      "parentClientKey": "string or null — parent clientKey when parent is created in this extraction; null otherwise"',
+  '      "parentClientKey": "string or null — parent clientKey when parent is created in this extraction; null otherwise",',
+  STREAM_PURUIT_REVIEW_SCHEMA_FIELDS,
   "    }",
   "  ],",
   '  "milestones": [',
@@ -768,14 +811,16 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "## Pursuit types, mark types, dates, flat milestone refs, itemOrder",
   "",
-  "Same rules as hub-scoped Stream: distilled pursuit titles; existing-pursuit-first checklist; 4A user-named steps → milestones; 4B no invented structure; goalType project|practice|identity; mark types checkpoint|setback|realisation|decision|achievement; ISO dates; clientKey for new pursuits referenced by milestones; itemOrder follows first mention in the brain dump.",
+  "Same rules as hub-scoped Stream: distilled pursuit titles; existing-pursuit-first checklist; 4A user-named steps → milestones; 4B no invented structure; goalType project|practice|identity; mark types checkpoint|setback|realisation|decision|achievement; ISO mark dates and pursuit deadlines (fuzzy targets → last day of month/year/quarter); clientKey for new pursuits referenced by milestones; itemOrder follows first mention in the brain dump.",
+  "",
+  STREAM_PURUIT_REVIEW_RULES,
   "",
   "## Output schema (exact keys)",
   "",
   "{",
   '  "narrativeSentence": "one warm second-person sentence, 20 words max",',
   '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "type": "...", "hubId": "slug" }],',
-  '  "pursuits": [{ "title": "string", "goalType": "...", "bloomStatus": "...", "hubId": "slug", "existingGoalId": "optional/null", "clientKey": "optional/null", "parentExistingGoalId": "optional/null", "parentClientKey": "optional/null" }],',
+  '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "...", "bloomStatus": "...", "hubId": "slug", "deadline": "YYYY-MM-DD or null", "existingGoalId": "optional/null", "clientKey": "optional/null", "parentExistingGoalId": "optional/null", "parentClientKey": "optional/null", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
   '  "milestones": [{ "title": "string", "hubId": "slug", "pursuitExistingGoalId": "string or null", "pursuitClientKey": "string or null" }],',
   `  "ambiguous": [{ "id": "string", "label": "2-8 words, max 40 characters when possible", "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; below 0.6 when hub, intent, or pursuit-vs-mark is unclear", "reason": "string or null", "hubId": "required slug for theme-scoped ambiguous items" }],`,
   '  "itemOrder": [{ "kind": "mark"|"pursuit"|"milestone", "index": 0 }],',
@@ -1019,12 +1064,15 @@ export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
   "- If the user describes a status change for an existing pursuit, use pursuitUpdates, not a new pursuit.",
   "- If the user describes a change to an existing milestone, use milestoneUpdates, milestoneCompletions, or milestoneDeletes, not a new milestone.",
   "- Marks are standalone timeline moments on a hub; milestones belong to pursuits.",
+  "- For new pursuits, set deadline when the user states a target/by/end date (ISO YYYY-MM-DD); null if none. Fuzzy: month+year → last day of month; year only or end of year → Dec 31; quarters → last day of quarter.",
+  "",
+  STREAM_PURUIT_REVIEW_RULES,
   "",
   "Output schema (exact keys, all arrays required):",
   "{",
   '  "narrativeSentence": "one warm second-person sentence, 20 words max",',
   '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "hubId": "hub branch id" }],',
-  '  "pursuits": [{ "title": "string", "goalType": "project|practice|identity", "bloomStatus": "ACTIVE|ON_HOLD|COMPLETE", "hubId": "hub branch id", "clientKey": "optional for new pursuit refs" }],',
+  '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "project|practice|identity", "bloomStatus": "ACTIVE|ON_HOLD|COMPLETE", "hubId": "hub branch id", "deadline": "YYYY-MM-DD or null", "clientKey": "optional", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
   '  "milestones": [],',
   '  "pursuitUpdates": [{ "goalId": "existing goal id", "title": "optional new title", "bloomStatus": "optional ACTIVE|ON_HOLD|COMPLETE" }],',
   '  "milestoneUpdates": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id", "title": "new milestone title" }],',

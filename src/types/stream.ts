@@ -13,6 +13,16 @@ export type StreamAmbiguousResolution = (typeof STREAM_AMBIGUOUS_RESOLUTION_VALU
  */
 export const streamHubSlugSchema = z.string().min(1).max(64);
 
+/** Calendar day for pursuit deadlines (YYYY-MM-DD). */
+export const streamCalendarDaySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
+const streamDeadlineFieldSchema = z.preprocess((value) => {
+  if (value === "" || value === undefined) return null;
+  return value;
+}, streamCalendarDaySchema.nullable().optional());
+
 const pursuitRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("existing"), goalId: z.string().min(1) }),
   z.object({ kind: z.literal("new"), clientKey: z.string().min(1) }),
@@ -27,10 +37,24 @@ export const extractedMarkSchema = z.object({
 
 export const extractedPursuitSchema = z.object({
   title: z.string().min(1).max(100),
+  /** Short summary shown on confirmation and saved as Goal.description. */
+  description: z.string().max(500).nullable().optional(),
   goalType: z.enum(GOAL_TYPE_VALUES),
   bloomStatus: z.enum(STREAM_BLOOM_VALUES),
   existingGoalId: z.string().min(1).nullable().optional(),
   clientKey: z.string().min(1).optional(),
+  /** Target end date; null when none mentioned or user clears on confirm. */
+  deadline: streamDeadlineFieldSchema,
+  /** Verbatim phrase from user input for this pursuit (confirmation UI only). */
+  sourcePhrase: z.string().max(200).optional(),
+  /** Model confidence in title / match (0–1); confirmation UI only. */
+  titleConfidence: z.coerce.number().min(0).max(1).optional(),
+  /** Corrected or clearer title when user phrase looks like a typo; confirmation UI only. */
+  suggestedTitle: z.string().min(1).max(100).nullable().optional(),
+  /** Short note asking user to verify (typo, unclear term); confirmation UI only. */
+  reviewNote: z.string().max(280).nullable().optional(),
+  /** Cautious public-event context without live lookup; confirmation UI only. */
+  eventContext: z.string().max(280).nullable().optional(),
   /** Parent pursuit on this hub (existing) or created this session (new clientKey). */
   parentRef: pursuitRefSchema.optional(),
   hubId: streamHubSlugSchema.optional(),

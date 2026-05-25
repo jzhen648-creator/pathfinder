@@ -44,6 +44,14 @@ function parseMarkDateYmd(raw: string | null): string {
   return m?.[1] ?? new Date().toISOString().slice(0, 10);
 }
 
+function parsePursuitDeadline(raw: string | null | undefined): Date | null {
+  if (raw == null || !String(raw).trim()) return null;
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(raw).trim());
+  if (!m) return null;
+  const resolved = resolveMarkInputDate({ date: m[1] });
+  return resolved.ok ? resolved.d : null;
+}
+
 function maxMilestonePosition(milestones: { position: number }[]): number {
   return milestones.reduce((acc, m) => Math.max(acc, m.position), -1);
 }
@@ -254,6 +262,7 @@ async function commitItemsToBranchInTx(
   const createNewPursuit = async (p: ExtractedPursuit, parentGoalId: string | null) => {
     const title = p.title.trim();
     if (!title) return;
+    const description = p.description?.trim() ?? "";
 
     const bloomStatus = p.bloomStatus as BloomStatus;
     const isChild = parentGoalId != null;
@@ -263,12 +272,12 @@ async function commitItemsToBranchInTx(
       data: {
         userId,
         title,
-        description: "",
+        description,
         lifeArea,
         goalType: p.goalType,
         branchId: branch.id,
         limbId: branch.limbId,
-        deadline: null,
+        deadline: parsePursuitDeadline(p.deadline),
         significance: 3,
         bloomStatus: bloomStatus === "COMPLETE" ? "COMPLETE" : "ACTIVE",
         aiGenerated: false,

@@ -2,6 +2,36 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## Product Positioning
+
+Pathfinder + AI companion positioning:
+
+- Pathfinder is the end-to-end checkpoint tracker — start to finish of any pursuit
+- Claude/ChatGPT is the thinking and planning layer
+- Stream is the bridge between AI conversation and the life map
+- This positioning should be visible in the app:
+
+  Onboarding: one sentence explaining AI companion role
+  "Pathfinder works best alongside Claude or ChatGPT.
+  Use AI to think and plan — bring what matters here to track your journey."
+
+  Stream empty state copy:
+  "Had a conversation with Claude or ChatGPT?
+  Paste it here — Pathfinder will extract what matters and add it to your map."
+
+  Now tab when map is sparse:
+  "Talk through your goals with Claude or ChatGPT,
+  then bring the outcomes here via Stream."
+
+  App Store description must include:
+  "Works alongside Claude, ChatGPT, and other AI.
+  Use AI to plan. Use Pathfinder to remember."
+
+  Tagline candidate:
+  "AI conversations end. Your map doesn't."
+
+Do not build any of this copy into the app yet. Document only. Implementation happens in Session 14 (Onboarding) and as part of Stream empty state polish.
+
 ## Backlog / Future Ideas
 
 ### Future: Cinematic Intro Video
@@ -16,6 +46,226 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Status:** Not started. Do not build until core product is stable and in users' hands.
 
+## 2026-05-25 — Revised session roadmap (Sessions 9–16)
+
+This supersedes prior session numbering and placement in older dated entries below (notably the 2026-05-24 Session 10 onboarding entry and the original 2026-05-25 Stream V3 / Profile Memory Phase B entries). When numbering conflicts, this section wins.
+
+### Session 9 — Profile Memory Phase A — COMPLETE
+
+Manual profile fields (name, DOB, location, languages, occupation) added to the schema as `UserManualProfile`. Shared AI context utilities `formatUserContext` and `formatMapContext` extract and weight profile data for prompts. Stream extraction and milestone suggestion endpoints now receive profile context with correct weighting. Mobile profile screen exists and works on iPhone.
+
+### Session 10 — Milestone Suggestion Fixes — DONE (confirmed on device)
+
+Short, prompt-only session. Targeted fixes to both endpoints:
+
+- [`src/app/api/goals/suggest-milestones/route.ts`](src/app/api/goals/suggest-milestones/route.ts)
+- [`src/app/api/goals/[goalId]/suggest-milestones/route.ts`](src/app/api/goals/[goalId]/suggest-milestones/route.ts)
+
+**Problem:** current suggestions feel like tasks (things to do), not milestones (waypoints that mark meaningful progress).
+
+- Tasks = inputs (things you do, you control). They create stress and mean nothing when checked off. Examples: "Write targeted cover letters", "Research 5 mortgage broker firms", "Apply to 10 job openings".
+- Milestones = outcomes (things that change, reality confirms them). They tell a story and mark real progress. Examples: "CV updated and ready", "First application submitted", "Interview secured", "Offer received", "First day completed".
+
+**Updated prompt rules:**
+
+- Milestones are meaningful waypoints on a journey.
+- Phrased as achievements, not actions. Each one marks a real change in status.
+- 3–5 maximum, ordered as a story arc — chapters of the journey, not sentences.
+- Profile context is subtle calibration only; never drives milestone content.
+- Profile should remove irrelevant suggestions, not add location/demographic assumptions to every milestone.
+- GOOD framing: "X achieved", "X secured", "X completed", "X done", "X ready".
+- BAD framing: "Do X", "Complete X task", "Research X", "Apply to X number of things".
+
+### Session 11 — Now Tab + Insights Architecture — DONE (confirmed on device)
+
+Significant build. Replaces the Tasks tab entirely.
+
+**Core concept:** Tasks tab becomes "Now" — a guidance surface, not a checklist. Three app surfaces after this session:
+
+- **Map** → where am I (spatial, exploratory).
+- **Stream** → what happened (capture, input).
+- **Now** → what matters (guidance, reflection).
+
+**Now tab design:** Not a to-do list. A daily compass reading. Shows momentum, neglect signals, one focus, encouraging context. Feels like a wise friend who knows your situation. Never creates stress or obligation. No checkboxes on this surface.
+
+Example Now tab content:
+
+> Good morning Jeremy.
+>
+> MOMENTUM
+> Active across 4 themes this month. That puts you in rare company.
+>
+> WORTH YOUR ATTENTION
+> Your mortgage broking transition has been quiet for 2 weeks. Waiting phases are the hardest part of career transitions.
+>
+> SOMETHING INTERESTING
+> Your ISA target puts you in the top 5% of contributors for your age group.
+>
+> Open Stream to capture anything from today.
+
+**Insight levels — all from one API call:**
+
+- Global → Now tab content.
+- Theme → sparkle button on theme detail sheet.
+- Hub → sparkle button on hub detail sheet.
+- Pursuit → sparkle button on pursuit detail sheet.
+
+**Single generation architecture:** One Gemini call generates ALL levels at once. Returns structured JSON:
+
+```json
+{
+  "global": "full life guidance text",
+  "themes": {
+    "finance": "money & finance insight",
+    "work": "work & career insight",
+    "becoming": "who im becoming insight",
+    "people": "people & relationships insight",
+    "health": "health & body insight"
+  },
+  "hubs": { "[hubId]": "hub specific insight" },
+  "pursuits": { "[pursuitId]": "pursuit specific insight" }
+}
+```
+
+All 17 hubs and all active pursuits are included.
+
+**Cache strategy:** stored in `InsightCache` (see the dated "InsightCache table design" entry below). Regenerate only when the user explicitly taps Refresh on the Now tab, on first open with no cache, or once per day automatically. Never auto-regenerate on every page load.
+
+**Insight structure per level:**
+
+```json
+{
+  "reflective": "what your map data shows",
+  "contextual": "what the world knows about this",
+  "combined": "what both mean for you specifically",
+  "tone": "encouraging | nudge | celebratory",
+  "oneLiner": "single most useful thing to know"
+}
+```
+
+- **Reflective layer (your data):** purely map data and profile — what pursuits exist, milestone progress, activity patterns, theme balance, time since last activity per hub.
+- **Contextual layer (world knowledge):** real statistics and benchmarks. Population data, research, averages. Age-appropriate comparisons. Geographic context from profile location.
+- **Combined layer (the magic):** what your specific data means in world context. E.g. "You're at the hardest point statistically. Most people drop off here. You haven't." — only possible with both layers together.
+
+**ACCURACY RULES — critical, never violate:**
+
+1. Never fabricate statistics or percentages.
+2. Use the nearest meaningful real benchmark. E.g. £18k ISA target → compare to the £20k allowance and UK average contributions, NOT "78% of people contribute £18k".
+3. Always use approximate language: "around", "roughly", "approximately", "about". NEVER: "exactly 73.4% of people".
+4. Geographic context from profile location: UK benchmarks for UK-specific pursuits (ISA), Singapore context for Singapore pursuits (CPF), universal context for health/personal pursuits.
+5. Age context always applied: "At 29…" or "For someone in their late 20s…".
+6. When uncertain → omit entirely, never guess. "This is ambitious for your age group" is better than an invented percentage.
+7. Ultimate accuracy test before including any statistic: "Would this survive a Google search?" If no → remove it.
+8. Cite general source when appropriate: "Based on HMRC ISA statistics…", "UK median salary data suggests…". Builds trust for financial insights.
+
+**Encouraging tone through honest context:** real benchmarks are more powerful than fake ones. "Only 7% of ISA holders max their allowance. You're targeting 90% of the maximum at 29. That's genuinely uncommon." — honest, accurate, and more encouraging than any invented statistic.
+
+### Session 12 — Stream V3 — PLANNED
+
+Major build. Natural-language interface for the entire life map. **Built before Marks on Mobile (Session 13)** because Sessions 7–8 inline contextual composers become wasted effort if V3 replaces them; building V3 now simplifies the codebase and fulfils the core product philosophy completely.
+
+**Core concept:** Stream becomes a complete natural-language interface for the entire life map. Not just create — everything. "Just talk" becomes literally true.
+
+- **Current Stream (V1):** creates pursuits, marks, milestones only. Requires theme picker. Multiple entry points (FAB, hub, pursuit).
+- **Stream V3:** handles CREATE, UPDATE, DELETE, COMPLETE, MOVE, REORDER, HOLD, CONTINUE. One entry point — FAB only. No theme picker — AI infers everything. Inline contextual composers deprecated.
+
+**Card types.** Existing (keep): `PURSUIT`, `MARK`, `MILESTONE`, `EMBELLISHMENT`. New (add): `UPDATE_PURSUIT` (rename or redescribe), `UPDATE_MILESTONE` (rename existing milestone), `COMPLETE_MILESTONE` (mark done with date), `COMPLETE_PURSUIT` (mark pursuit as complete), `HOLD_PURSUIT` (put pursuit on hold), `MOVE_PURSUIT` (change hub placement), `DELETE_MILESTONE` (remove milestone), `REORDER_MILESTONES` (change order), `CONTINUATION` (pursuit evolves from another).
+
+**Intent detection in extraction prompt:**
+
+> Determine if user intent is: CREATE (new item), UPDATE (change existing), DELETE (remove), COMPLETE (mark done), MOVE (change placement), HOLD (pause).
+>
+> Match UPDATE/DELETE/COMPLETE to existing map items by title similarity and context. If ambiguous → return CLARIFY card: "Did you mean [pursuit name]? [Yes] [No, pick one]". Confirmation step protects against all mistakes. Nothing executes without user confirmation.
+
+**Removed after V3:** theme picker screen, hub inline composer, pursuit inline composer, multiple Stream entry points, pre-targeting logic.
+
+**Stays:** confirmation card flow (same pattern), one card at a time, nothing saves until confirmed, map updates after commit, FAB button (now the only entry point).
+
+**Works as a Claude/ChatGPT companion:** user has a deep conversation with Claude, copies key insights and action items, pastes into Pathfinder Stream V3, and the map updates automatically — new pursuits created, existing ones updated, milestones added from advice, status changes applied. One paste, map fully synchronised.
+
+### Session 13 — Marks on Mobile — PLANNED
+
+Show marks as checkpoints on the map path. Mark detail as a bottom sheet. Marks visible in hub and pursuit detail. Mark creation via Stream already works — this session makes them visible on the map. Marks are permanent and immutable; reframe adds perspective without editing the original.
+
+### Session 14 — Onboarding — PLANNED
+
+Simplified significantly by Stream V3 — Stream V3 IS the onboarding mechanism.
+
+**Flow:**
+
+- **Screen 1:** "Welcome to Pathfinder".
+- **Screen 2:** single voice/text prompt — "Tell me a little about yourself and what you're working on right now." User speaks naturally for 30–60 seconds. Stream V3 extracts profile facts → `UserManualProfile`, pursuits → map, milestones → pursuits.
+- **Screen 3:** "Your map is ready" → land on map with real data already populated.
+
+No guided multi-step flow needed; Stream V3 handles everything naturally. Store `onboardingCompleted` flag after first commit.
+
+### Session 15 — Profile Memory Phase B — PLANNED
+
+`UserMemory` blob (AI-observed context). Strict separation: blob = WHO, map = WHAT. Never reference pursuits or marks in the blob. Evolution mechanism with session calibration. `UserMemoryHistory` retains the last 5 versions. Extraction runs after Stream commit (background). User can read and edit the blob directly. Displayed as flowing text on the profile screen, below the manual profile fields.
+
+**Sequenced after Onboarding** because onboarding seeds initial Stream data, blob extraction needs Stream sessions to work from, and Phase B is most valuable with rich data.
+
+### Session 16 — Map Visual Polish — PLANNED
+
+Only after Marks are on the map (Session 13) so the full visual vocabulary exists before polishing.
+
+**Polish targets:**
+
+- Path character and texture.
+- Theme nodes as landmarks (larger, glowing).
+- Hub nodes with depth.
+- Mark checkpoints as distinct diamonds.
+- Pursuit dots with personality.
+- Background atmosphere (not pure black).
+- Smooth camera animation between nodes.
+- Node pulse for active/recent pursuits.
+- Path draws itself on first load.
+
+Reference: desktop tree visual language translated into the mobile winding path.
+
+## 2026-05-25 — Monetisation model
+
+**Model:** Freemium + 14-day free trial. No credit card required to start the trial. Day 10: gentle in-app reminder. Day 14: trial ends.
+
+**Pricing after trial:**
+
+- £6.99 / month
+- £49.99 / year (~£4.17/mo, save 40%)
+- Push annual — better for revenue predictability.
+
+**Free tier (after trial):** map browsing read-only, Stream disabled, "Your map is here when you're ready to continue". Soft gate — not hard lock. User can still see what they built.
+
+**Pro tier (subscribed):** full Stream access, AI milestone suggestions, Profile Memory, Now tab + Insights, voice input, unlimited everything.
+
+**Payment:** Apple In-App Purchase only via RevenueCat. Apple takes 30% year 1, 15% after. RevenueCat is free up to $2,500/month revenue.
+
+**Privacy positioning:** "We charge for the app so we never need to sell your data." Front and centre in the App Store description.
+
+## 2026-05-25 — Stream cross-theme extraction rule
+
+Stream extracts ALL items from any input regardless of which level it was opened from. Hub/pursuit pre-targeting is a placement hint only; cross-theme items are still extracted and placed correctly. Nothing is lost because Stream was opened from a specific context.
+
+**After Stream V3 (Session 12):** the FAB becomes the only Stream entry point, inline contextual composers are deprecated, pre-targeting is removed entirely, and AI infers placement from content + map context.
+
+## 2026-05-25 — InsightCache table design
+
+Supports the Session 11 Now tab + Insights architecture.
+
+**Schema (`InsightCache`):**
+
+- `userId` (unique)
+- `globalInsight` (text)
+- `themeInsights` (JSON)
+- `hubInsights` (JSON)
+- `pursuitInsights` (JSON)
+- `generatedAt` (DateTime)
+- `mapVersion` (hash of pursuit/milestone/mark counts + latest `updatedAt`)
+- `memoryVersion` (Int — from `UserMemory.version`)
+
+**Cache is invalid when:** `mapVersion` changes (new data added to map) or `memoryVersion` changes (profile blob updated).
+
+**User never manages cache manually.** Refresh button on the Now tab triggers regeneration. Auto-regeneration is capped at once per day.
+
 ## 2026-05-23 — Global Stream / Bark deferred
 
 Global "say anything" Stream that routes across all themes and hubs is deferred until theme Stream is stable. Near-term fix: theme Stream should flag out-of-theme items as ambiguous rather than losing them silently. Architecture should support per-item `themeId` + `hubId` so global Stream can be added later without a rebuild.
@@ -26,11 +276,15 @@ Stream dumps contain three layers: map actions (pursuits, marks), which are capt
 
 ## 2026-05-24 — Session 10 onboarding redesign
 
+_Superseded by the 2026-05-25 revised session roadmap above: onboarding is now **Session 14**, and is further simplified because Stream V3 (Session 12) becomes the extraction mechanism._
+
 Session 10 onboarding is **one single Stream-style voice moment**, not a multi-screen interview or goal-setting flow. Screen 1: "Welcome to Pathfinder" with subtitle "One quick question before we build your map." and a single "Let's go" action. Screen 2: one calm prompt only — "How old are you, where are you based, and what do you do?" — with the microphone as the primary centered action, live transcription below, a secondary keyboard fallback, and Continue available after speaking. Screen 3: brief "Setting up your map..." processing. AI extracts only Profile Memory facts from the answer: age and location as `personal`, current role/work as `career`. It creates **no pursuits, marks, milestones, branches, or map nodes**. Screen 4: map ready state: "Your map is ready. Tap + to start." with the Stream FAB gently pulsing.
 
 Onboarding must not ask about goals, pursuits, health, relationships, personal growth, future self, or anything that needs more than roughly ten seconds of thought. Those emerge naturally through Stream over time. Voice is primary; skipping is allowed and still stores onboarding as completed. The answer feeds the same Session 9 `ProfileFact` system and extraction pipeline — no separate onboarding profile store.
 
 ## 2026-05-25 — Profile Memory Phase B planned
+
+_Superseded by the 2026-05-25 revised session roadmap above: Phase B is now **Session 15**, scheduled after Onboarding (Session 14) so the blob has Stream history to extract from._
 
 Future Profile Memory Phase B adds a `UserMemory` model with `coreBlob`, `extendedBlob`, `isDirty`, `streamSessionCount`, and `version`, plus `UserMemoryHistory` retaining the last five versions. Extraction runs after Stream commits in the background and evolves the blob with session calibration. Strict separation remains: the blob is **WHO** context, while pursuits, milestones, and marks are **WHAT** map data. The blob must never reference pursuits or marks, and users can read and edit the blob directly as flowing text on the profile screen.
 
@@ -39,6 +293,8 @@ Future Profile Memory Phase B adds a `UserMemory` model with `coreBlob`, `extend
 Remove `ProfileFact` model, `StreamSession.processedForProfile` column, and old `/api/profile/classify` and `/api/profile/facts` routes. These were superseded by `UserManualProfile` in Session 9 Phase A.
 
 ## 2026-05-25 — Stream V3 planned
+
+_Superseded by the 2026-05-25 revised session roadmap above: Stream V3 is now **Session 12**, scheduled **before** Marks (Session 13), with the full expanded card-type list and intent-detection rules in the roadmap entry._
 
 Future Stream V3 is the complete natural-language interface for map changes: create, update, delete, complete, pause, move, and continue existing items. New confirmation card types include `UPDATE_PURSUIT`, `UPDATE_MILESTONE`, `COMPLETE_MILESTONE`, `HOLD_PURSUIT`, `MOVE_PURSUIT`, `DELETE_MILESTONE`, and `CONTINUATION`. V3 replaces inline contextual composers with one FAB entry point, resolves references to existing map items, uses clarifying cards for ambiguous references, and keeps confirmation as the safety layer. It should work as a companion to Claude/ChatGPT, where a user can paste an AI conversation and have the map update. Build after Marks (Session 11), when the map has enough rich data to need editing.
 

@@ -53,7 +53,12 @@ export type StreamDecision =
     };
 
 export type MarkEdit = Partial<Pick<ExtractedMark, "title" | "date" | "hubId">>;
-export type PursuitEdit = Partial<Pick<ExtractedPursuit, "title" | "goalType" | "bloomStatus" | "hubId">>;
+export type PursuitEdit = Partial<
+  Pick<
+    ExtractedPursuit,
+    "title" | "description" | "goalType" | "bloomStatus" | "hubId" | "deadline"
+  >
+>;
 export type MilestoneEdit = Partial<Pick<ExtractedMilestone, "title" | "hubId">>;
 
 export type QueueEdits = Record<string, MarkEdit | PursuitEdit | MilestoneEdit>;
@@ -66,10 +71,49 @@ export function todayYmd(): string {
   return `${y}-${m}-${day}`;
 }
 
+export function defaultPursuitDeadlineYmd(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function normalizeDateYmd(raw: string | null): string {
   if (!raw?.trim()) return todayYmd();
   const m = /^(\d{4}-\d{2}-\d{2})/.exec(raw.trim());
   return m?.[1] ?? todayYmd();
+}
+
+/** Returns YYYY-MM-DD when valid, otherwise null (deadlines are optional). */
+export function normalizeDeadlineYmd(raw: string | null | undefined): string | null {
+  if (raw == null || !String(raw).trim()) return null;
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(raw).trim());
+  return m?.[1] ?? null;
+}
+
+export function hasPursuitReview(pursuit: ExtractedPursuit): boolean {
+  const suggested = pursuit.suggestedTitle?.trim();
+  const note = pursuit.reviewNote?.trim();
+  const event = pursuit.eventContext?.trim();
+  const titleNorm = pursuit.title.trim().toLowerCase();
+  const suggestedDiffers =
+    Boolean(suggested) && suggested!.trim().toLowerCase() !== titleNorm;
+  return Boolean(suggestedDiffers || note || event);
+}
+
+export function formatPursuitDeadlineDisplay(deadline: string | null | undefined): string {
+  const ymd = normalizeDeadlineYmd(deadline ?? null);
+  if (!ymd) return "No deadline";
+  const [, y, mo, d] = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd) ?? [];
+  if (!y || !mo || !d) return "No deadline";
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+  return dt.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function kindLabel(kind: ConfirmationKind): string {
@@ -210,7 +254,11 @@ function resolveOrderEntry(
   if (entry.kind === "pursuit") {
     const item = extraction.pursuits[entry.index];
     if (!item) return null;
-    return { id: `pursuit-${entry.index}`, kind: "pursuit", item: { ...item } };
+    return {
+      id: `pursuit-${entry.index}`,
+      kind: "pursuit",
+      item: { ...item, deadline: normalizeDeadlineYmd(item.deadline) ?? defaultPursuitDeadlineYmd() },
+    };
   }
   const item = extraction.milestones[entry.index];
   if (!item) return null;
@@ -235,7 +283,11 @@ function fallbackOrderedItems(
     });
   });
   extraction.pursuits.forEach((p, index) => {
-    items.push({ id: `pursuit-${index}`, kind: "pursuit", item: { ...p } });
+    items.push({
+      id: `pursuit-${index}`,
+      kind: "pursuit",
+      item: { ...p, deadline: normalizeDeadlineYmd(p.deadline) ?? defaultPursuitDeadlineYmd() },
+    });
   });
   extraction.milestones.forEach((ms, index) => {
     items.push({
@@ -292,7 +344,18 @@ export function mergeQueueItem(
     };
   }
   if (queueItem.kind === "pursuit") {
-    return { ...queueItem, item: { ...queueItem.item, ...(patch as PursuitEdit) } };
+    const p = patch as PursuitEdit;
+    return {
+      ...queueItem,
+      item: {
+        ...queueItem.item,
+        ...p,
+        deadline:
+          p.deadline !== undefined
+            ? normalizeDeadlineYmd(p.deadline)
+            : queueItem.item.deadline,
+      },
+    };
   }
   if (queueItem.kind === "milestone") {
     return { ...queueItem, item: { ...queueItem.item, ...(patch as MilestoneEdit) } };

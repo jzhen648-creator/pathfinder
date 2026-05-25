@@ -19,7 +19,10 @@ import {
   formatPursuitPeerDetail,
   kindLabel,
   mergeQueueItem,
+  formatPursuitDeadlineDisplay,
+  hasPursuitReview,
   normalizeDateYmd,
+  normalizeDeadlineYmd,
   pursuitParentLabel,
 } from "./stream-confirmation-types";
 import {
@@ -208,6 +211,23 @@ function StandardBody({
         <EditPanel working={working} onEdit={onEdit} />
       )}
 
+      {working.kind === "pursuit" ? (
+        <PursuitDeadlineEditor
+          queueId={working.id}
+          deadline={working.item.deadline}
+          onEdit={onEdit}
+        />
+      ) : null}
+
+      {working.kind === "pursuit" && hasPursuitReview(working.item) ? (
+        <PursuitReviewPanel
+          queueId={working.id}
+          pursuit={working.item}
+          accent={accent}
+          onEdit={onEdit}
+        />
+      ) : null}
+
       {commitError ? (
         <div style={{ marginTop: 14 }}>
           <p style={{ margin: "0 0 10px", fontSize: 14, color: "#b91c1c" }}>{commitError}</p>
@@ -304,8 +324,118 @@ function CardReadOnlyBody({
     <>
       <h3 className="pf-stream-card-title">{working.item.title}</h3>
       {parentTitle ? <p className="pf-stream-card-parent">↳ {parentTitle}</p> : null}
+      {working.item.description?.trim() ? (
+        <p className="pf-stream-card-detail" style={{ lineHeight: 1.45 }}>
+          {working.item.description.trim()}
+        </p>
+      ) : null}
       <p className="pf-stream-card-detail">{formatPursuitPeerDetail(working.item)}</p>
     </>
+  );
+}
+
+function PursuitReviewPanel({
+  queueId,
+  pursuit,
+  accent,
+  onEdit,
+}: {
+  queueId: string;
+  pursuit: ExtractedPursuit;
+  accent: string;
+  onEdit: Props["onEdit"];
+}) {
+  const suggested = pursuit.suggestedTitle?.trim();
+  const showSuggestion =
+    Boolean(suggested) && suggested!.toLowerCase() !== pursuit.title.trim().toLowerCase();
+
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 10,
+        border: `1px solid ${accent}33`,
+        backgroundColor: `${accent}0d`,
+        display: "grid",
+        gap: 8,
+      }}
+    >
+      {pursuit.sourcePhrase?.trim() ? (
+        <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+          You wrote: “{pursuit.sourcePhrase.trim()}”
+        </p>
+      ) : null}
+      {pursuit.reviewNote?.trim() ? (
+        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.88)", lineHeight: 1.45 }}>
+          {pursuit.reviewNote.trim()}
+        </p>
+      ) : null}
+      {pursuit.eventContext?.trim() ? (
+        <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.45 }}>
+          {pursuit.eventContext.trim()}
+        </p>
+      ) : null}
+      {showSuggestion ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
+            Suggested: <strong style={{ color: "#fff" }}>{suggested}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => onEdit(queueId, { title: suggested! })}
+            style={{
+              ...primaryBtn(accent),
+              padding: "6px 12px",
+              fontSize: 13,
+            }}
+          >
+            Use suggestion
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PursuitDeadlineEditor({
+  queueId,
+  deadline,
+  onEdit,
+}: {
+  queueId: string;
+  deadline: string | null | undefined;
+  onEdit: Props["onEdit"];
+}) {
+  const ymd = normalizeDeadlineYmd(deadline ?? null);
+  return (
+    <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+      <label
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.45)",
+        }}
+      >
+        Deadline
+      </label>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          type="date"
+          value={ymd ?? ""}
+          onChange={(e) =>
+            onEdit(queueId, {
+              deadline: e.target.value ? e.target.value : ymd,
+            })
+          }
+          style={{ ...inputStyle, flex: 1, minWidth: 160 }}
+        />
+      </div>
+      <p className="pf-stream-card-date" style={{ margin: 0 }}>
+        {formatPursuitDeadlineDisplay(deadline)}
+      </p>
+    </div>
   );
 }
 
@@ -380,6 +510,12 @@ function EditPanel({
         {disabled ? (
           <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Bloom existing pursuit</span>
         ) : null}
+        <textarea
+          value={working.item.description ?? ""}
+          onChange={(e) => onEdit(id, { description: e.target.value })}
+          placeholder="What is this pursuit about?"
+          style={{ ...inputStyle, minHeight: 86, resize: "vertical", lineHeight: 1.45 }}
+        />
       </div>
     );
   }
