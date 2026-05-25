@@ -30,6 +30,18 @@ Session 10 onboarding is **one single Stream-style voice moment**, not a multi-s
 
 Onboarding must not ask about goals, pursuits, health, relationships, personal growth, future self, or anything that needs more than roughly ten seconds of thought. Those emerge naturally through Stream over time. Voice is primary; skipping is allowed and still stores onboarding as completed. The answer feeds the same Session 9 `ProfileFact` system and extraction pipeline — no separate onboarding profile store.
 
+## 2026-05-25 — Profile Memory Phase B planned
+
+Future Profile Memory Phase B adds a `UserMemory` model with `coreBlob`, `extendedBlob`, `isDirty`, `streamSessionCount`, and `version`, plus `UserMemoryHistory` retaining the last five versions. Extraction runs after Stream commits in the background and evolves the blob with session calibration. Strict separation remains: the blob is **WHO** context, while pursuits, milestones, and marks are **WHAT** map data. The blob must never reference pursuits or marks, and users can read and edit the blob directly as flowing text on the profile screen.
+
+## Cleanup needed (future migration)
+
+Remove `ProfileFact` model, `StreamSession.processedForProfile` column, and old `/api/profile/classify` and `/api/profile/facts` routes. These were superseded by `UserManualProfile` in Session 9 Phase A.
+
+## 2026-05-25 — Stream V3 planned
+
+Future Stream V3 is the complete natural-language interface for map changes: create, update, delete, complete, pause, move, and continue existing items. New confirmation card types include `UPDATE_PURSUIT`, `UPDATE_MILESTONE`, `COMPLETE_MILESTONE`, `HOLD_PURSUIT`, `MOVE_PURSUIT`, `DELETE_MILESTONE`, and `CONTINUATION`. V3 replaces inline contextual composers with one FAB entry point, resolves references to existing map items, uses clarifying cards for ambiguous references, and keeps confirmation as the safety layer. It should work as a companion to Claude/ChatGPT, where a user can paste an AI conversation and have the map update. Build after Marks (Session 11), when the map has enough rich data to need editing.
+
 ## 2026-05-22 — Stream extract context budget + session summary scaffold
 
 Stream extract prompts are bounded before model calls: active and archived hub rows use the same caps (`10` pursuits / `20` marks), previous theme session dumps are truncated to three 500-character snippets, and extract/commit input text shares an 8,000-character limit. Theme Stream still routes by catalog inference first; if inference finds no hub matches, context falls back to the two most recently updated theme hubs via `Branch.updatedAt` instead of sending every hub in the theme. V2 session summarisation is scaffolded only: `StreamSession.summaryJson` can later store a structured `StreamSessionSummary` (`intent`, `hubSlugs`, `pursuitTitlesReferenced`, `summary`) from a fail-soft post-commit summarisation step near `recordStreamThemeSession`.
