@@ -53,6 +53,7 @@ model User {
   streamSessions             StreamSession[]
   profileFacts               ProfileFact[]
   manualProfile              UserManualProfile?
+  insightCache               InsightCache?
 }
 
 /// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation.
@@ -291,6 +292,23 @@ model UserManualProfile {
   occupation  String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+/// Cached AI insights for Now tab + theme/hub/pursuit sparkle buttons (Session 11).
+model InsightCache {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  globalInsight   String   @db.Text
+  themeInsights   Json
+  hubInsights     Json
+  pursuitInsights Json
+  generatedAt     DateTime @default(now())
+  /// Hash of pursuit/milestone/mark counts + latest updatedAt; invalidates cache when map changes.
+  mapVersion      String
+  /// From UserMemory.version when Phase B exists; 0 until then.
+  memoryVersion   Int      @default(0)
+  updatedAt       DateTime @updatedAt
 }
 
 model Goal {
