@@ -45,6 +45,34 @@ type Phase = "input" | "extracting" | "confirm";
 /** Stream is a map overlay now; keep exported width at 0 so the tree no longer pans for a side rail. */
 export const STREAM_PANEL_WIDTH_PX = 0;
 
+const EMPTY_STREAM_MESSAGE =
+  "Got it — I'll remember that about you.";
+
+function streamConfirmationCardCount(extraction: StreamExtractResponse): number {
+  return (
+    extraction.marks.length +
+    extraction.pursuits.length +
+    extraction.milestones.length +
+    extraction.pursuitUpdates.length +
+    extraction.milestoneUpdates.length +
+    extraction.milestoneCompletions.length +
+    extraction.milestoneDeletes.length +
+    extraction.ambiguous.length
+  );
+}
+
+function queueMemoryUpdateFromClient(sessionText: string): void {
+  const text = sessionText.trim();
+  if (!text) return;
+  void fetch("/api/memory/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionText: text }),
+  }).catch((err) => {
+    console.warn("[StreamOverlay] memory update failed", err);
+  });
+}
+
 const STREAM_PANEL_SLIDE_CSS = `
 
 @keyframes streamOverlayFloatIn {
@@ -388,6 +416,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
   const [closing, setClosing] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [onboardingRetryReady, setOnboardingRetryReady] = useState(false);
 
   const [extraction, setExtraction] = useState<StreamExtractResponse | null>(
@@ -417,6 +446,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
     setDraft(initialDraft);
 
     setVoiceUsedInSession(false);
+    setNotice(null);
   }, [sessionKey(props), initialDraft]);
 
   useEffect(() => {
@@ -455,6 +485,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
     setBusy(true);
 
     setError(null);
+    setNotice(null);
     setOnboardingRetryReady(false);
 
     setNarrative("");
@@ -529,6 +560,12 @@ export function StreamOverlay(props: StreamOverlayProps) {
       }
 
       const extractionData = result.data;
+      if (streamConfirmationCardCount(extractionData) === 0) {
+        queueMemoryUpdateFromClient(body.input);
+        setNotice(EMPTY_STREAM_MESSAGE);
+        setPhase("input");
+        return;
+      }
       setNarrative(extractionData.narrativeSentence ?? "");
       setExtraction(extractionData);
 
@@ -542,6 +579,12 @@ export function StreamOverlay(props: StreamOverlayProps) {
           try {
             const retryResult = await extractOnce();
             if (retryResult.ok) {
+              if (streamConfirmationCardCount(retryResult.data) === 0) {
+                queueMemoryUpdateFromClient(body.input);
+                setNotice(EMPTY_STREAM_MESSAGE);
+                setPhase("input");
+                return;
+              }
               setNarrative(retryResult.data.narrativeSentence ?? "");
               setExtraction(retryResult.data);
               setPhase("confirm");
@@ -574,6 +617,7 @@ export function StreamOverlay(props: StreamOverlayProps) {
     setNarrative("");
 
     setError(null);
+    setNotice(null);
     setOnboardingRetryReady(false);
 
     setDraft(initialDraft);
@@ -762,6 +806,10 @@ export function StreamOverlay(props: StreamOverlayProps) {
                   </button>
                 ) : null}
               </div>
+            ) : null}
+
+            {notice && phase !== "confirm" && !error ? (
+              <p style={STREAM_ASSISTANT_MESSAGE_STYLE}>{notice}</p>
             ) : null}
           </div>
         </div>

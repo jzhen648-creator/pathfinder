@@ -34,6 +34,7 @@
     "backfill:rename-legacy-subtasks": "npx tsx scripts/backfill-rename-legacy-subtask-titles.ts",
     "backfill:delete-scaffolding-subtasks": "npx tsx scripts/backfill-delete-scaffolding-subtasks.ts",
     "backfill:first-run": "npx tsx scripts/backfill-first-run-complete.ts",
+    "backfill:user-memory": "npx tsx scripts/backfill-user-memory.ts",
     "audit:map-health": "npx tsx scripts/audit-map-health.ts",
     "benchmark:api": "npx tsx scripts/benchmark-api.ts",
     "seed:demo-user": "npx tsx scripts/seed-demo-user.ts",

@@ -15,7 +15,11 @@ import {
   resolveBranchForHub,
 } from "@/lib/resolve-hub-branch";
 import { activateHubForUser } from "@/lib/system-hubs";
-import { recordStreamThemeSession } from "@/lib/stream-theme-context";
+import {
+  recordStreamGlobalSession,
+  recordStreamThemeSession,
+} from "@/lib/stream-theme-context";
+import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import {
@@ -847,6 +851,8 @@ export async function commitStreamToTheme(
       itemsSkipped: payload.itemsSkipped,
     });
 
+    queueMemoryUpdateAfterStream(userId, payload.inputText);
+
     return {
       ok: true,
       themeId,
@@ -984,6 +990,15 @@ export async function commitStreamGlobal(
     }
 
     await persistShortLabelsForGoals(goalsNeedingShortLabel);
+
+    await recordStreamGlobalSession(prisma, userId, {
+      inputText: payload.inputText,
+      inputMode: payload.inputMode,
+      itemsAdded: payload.itemsAdded,
+      itemsSkipped: payload.itemsSkipped,
+    });
+
+    queueMemoryUpdateAfterStream(userId, payload.inputText);
 
     return {
       ok: true,

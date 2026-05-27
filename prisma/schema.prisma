@@ -54,6 +54,8 @@ model User {
   profileFacts               ProfileFact[]
   manualProfile              UserManualProfile?
   insightCache               InsightCache?
+  userMemory                 UserMemory?
+  userMemoryHistory          UserMemoryHistory[]
 }
 
 /// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation.
@@ -292,6 +294,34 @@ model UserManualProfile {
   occupation  String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+/// AI-observed personal context (WHO). Separate from map data (WHAT).
+model UserMemory {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Structured prose summary (~250 words) for formatUserContext.
+  blob               String   @db.Text
+  version            Int      @default(1)
+  isDirty            Boolean  @default(false)
+  lastUserEditedAt   DateTime?
+  streamSessionCount Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model UserMemoryHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blob      String   @db.Text
+  version   Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 /// Cached AI insights for Now tab + theme/hub/pursuit sparkle buttons (Session 11).

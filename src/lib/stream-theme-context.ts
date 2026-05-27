@@ -279,6 +279,15 @@ export async function buildStreamThemeContextInput(
 }
 
 /** Persist theme Stream session after successful commit (fail-safe; outside tree transaction). */
+/** Persist global FAB Stream session (limbId = "global"). */
+export async function recordStreamGlobalSession(
+  prisma: PrismaClient,
+  userId: string,
+  fields: StreamSessionCommitFields,
+): Promise<void> {
+  await recordStreamThemeSession(prisma, userId, "global", fields);
+}
+
 export async function recordStreamThemeSession(
   prisma: PrismaClient,
   userId: string,

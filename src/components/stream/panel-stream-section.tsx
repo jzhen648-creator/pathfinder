@@ -16,6 +16,34 @@ import type { StreamExtractResponse, StreamUiSession } from "@/types/stream";
 
 type Phase = "input" | "extracting" | "confirm";
 
+const EMPTY_STREAM_MESSAGE =
+  "Got it — I'll remember that about you.";
+
+function streamConfirmationCardCount(extraction: StreamExtractResponse): number {
+  return (
+    extraction.marks.length +
+    extraction.pursuits.length +
+    extraction.milestones.length +
+    extraction.pursuitUpdates.length +
+    extraction.milestoneUpdates.length +
+    extraction.milestoneCompletions.length +
+    extraction.milestoneDeletes.length +
+    extraction.ambiguous.length
+  );
+}
+
+function queueMemoryUpdateFromClient(sessionText: string): void {
+  const text = sessionText.trim();
+  if (!text) return;
+  void fetch("/api/memory/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionText: text }),
+  }).catch((err) => {
+    console.warn("[PanelStreamSection] memory update failed", err);
+  });
+}
+
 type PanelStreamSectionProps = {
   session: StreamUiSession;
   onClose: () => void;
@@ -175,6 +203,7 @@ export function PanelStreamSection({
   const [draft, setDraft] = useState(session.initialDraft ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [onboardingRetryReady, setOnboardingRetryReady] = useState(false);
   const [extraction, setExtraction] = useState<StreamExtractResponse | null>(null);
   const [narrative, setNarrative] = useState("");
@@ -192,6 +221,7 @@ export function PanelStreamSection({
     setExtraction(null);
     setNarrative("");
     setError(null);
+    setNotice(null);
     setOnboardingRetryReady(false);
   }, [sessionKey(session), session.initialDraft]);
 
@@ -225,6 +255,7 @@ export function PanelStreamSection({
 
     setBusy(true);
     setError(null);
+    setNotice(null);
     setOnboardingRetryReady(false);
     setNarrative("");
     setExtraction(null);
@@ -270,6 +301,13 @@ export function PanelStreamSection({
         return;
       }
 
+      if (streamConfirmationCardCount(result.data) === 0) {
+        queueMemoryUpdateFromClient(body.input);
+        setNotice(EMPTY_STREAM_MESSAGE);
+        setPhase("input");
+        return;
+      }
+
       setNarrative(result.data.narrativeSentence ?? "");
       setExtraction(result.data);
       setPhase("confirm");
@@ -280,6 +318,12 @@ export function PanelStreamSection({
         try {
           const retryResult = await extractOnce();
           if (retryResult.ok) {
+            if (streamConfirmationCardCount(retryResult.data) === 0) {
+              queueMemoryUpdateFromClient(body.input);
+              setNotice(EMPTY_STREAM_MESSAGE);
+              setPhase("input");
+              return;
+            }
             setNarrative(retryResult.data.narrativeSentence ?? "");
             setExtraction(retryResult.data);
             setPhase("confirm");
@@ -310,6 +354,7 @@ export function PanelStreamSection({
     setExtraction(null);
     setNarrative("");
     setError(null);
+    setNotice(null);
     setOnboardingRetryReady(false);
     setDraft(session.initialDraft ?? "");
     setVoiceUsedInSession(false);
@@ -458,6 +503,10 @@ export function PanelStreamSection({
             </button>
           ) : null}
         </div>
+      ) : null}
+
+      {notice && phase !== "confirm" && !error ? (
+        <p style={ASSISTANT_MESSAGE_STYLE}>{notice}</p>
       ) : null}
     </section>
   );

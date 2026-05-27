@@ -44,7 +44,11 @@ export async function computeMapVersion(userId: string): Promise<string> {
   return createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex").slice(0, 32);
 }
 
-/** UserMemory.version when Phase B exists; 0 until then. */
-export async function getMemoryVersion(_userId: string): Promise<number> {
-  return 0;
+/** UserMemory.version — insights invalidate when this changes. */
+export async function getMemoryVersion(userId: string): Promise<number> {
+  const row = await prisma.userMemory.findUnique({
+    where: { userId },
+    select: { version: true },
+  });
+  return row?.version ?? 0;
 }

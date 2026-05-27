@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { seedUserMemory } from "@/lib/memory/seed-memory";
 
 function calculateAge(dateOfBirth: Date | null): number | null {
   if (!dateOfBirth) return null;
@@ -11,32 +12,60 @@ function calculateAge(dateOfBirth: Date | null): number | null {
   return age >= 0 ? age : null;
 }
 
+async function formatManualProfileFallback(userId: string): Promise<string> {
+  const profile = await prisma.userManualProfile.findUnique({
+    where: { userId },
+    select: {
+      displayName: true,
+      dateOfBirth: true,
+      location: true,
+      languages: true,
+      occupation: true,
+    },
+  });
+
+  if (!profile) return "";
+
+  const lines = ["User context:"];
+  if (profile.displayName) lines.push(`Name: ${profile.displayName}`);
+  const age = calculateAge(profile.dateOfBirth);
+  if (age !== null) lines.push(`Age: ${age}`);
+  if (profile.location) lines.push(`Location: ${profile.location}`);
+  if (profile.languages.length > 0) lines.push(`Languages: ${profile.languages.join(", ")}`);
+  if (profile.occupation) lines.push(`Occupation: ${profile.occupation}`);
+
+  return lines.length > 1 ? lines.join("\n") : "";
+}
+
 export async function formatUserContext(userId: string): Promise<string> {
   try {
-    const profile = await prisma.userManualProfile.findUnique({
+    let memory = await prisma.userMemory.findUnique({
       where: { userId },
-      select: {
-        displayName: true,
-        dateOfBirth: true,
-        location: true,
-        languages: true,
-        occupation: true,
-      },
+      select: { blob: true },
     });
 
-    if (!profile) return "";
+    if (!memory?.blob.trim()) {
+      const seeded = await seedUserMemory(userId);
+      if (seeded?.blob.trim()) {
+        return `User context:\n${seeded.blob.trim()}`;
+      }
+      memory = await prisma.userMemory.findUnique({
+        where: { userId },
+        select: { blob: true },
+      });
+    }
 
-    const lines = ["User context:"];
-    if (profile.displayName) lines.push(`Name: ${profile.displayName}`);
-    const age = calculateAge(profile.dateOfBirth);
-    if (age !== null) lines.push(`Age: ${age}`);
-    if (profile.location) lines.push(`Location: ${profile.location}`);
-    if (profile.languages.length > 0) lines.push(`Languages: ${profile.languages.join(", ")}`);
-    if (profile.occupation) lines.push(`Occupation: ${profile.occupation}`);
+    if (memory?.blob.trim()) {
+      return `User context:\n${memory.blob.trim()}`;
+    }
 
-    return lines.length > 1 ? lines.join("\n") : "";
+    return await formatManualProfileFallback(userId);
   } catch (err) {
     console.warn("[formatUserContext] failed", err);
-    return "";
+    try {
+      return await formatManualProfileFallback(userId);
+    } catch {
+      return "";
+    }
   }
 }

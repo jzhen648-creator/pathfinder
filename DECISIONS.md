@@ -203,7 +203,7 @@ No guided multi-step flow needed; Stream V3 handles everything naturally. Store 
 
 ### Session 15 — Profile Memory Phase B — PLANNED
 
-`UserMemory` blob (AI-observed context). Strict separation: blob = WHO, map = WHAT. Never reference pursuits or marks in the blob. Evolution mechanism with session calibration. `UserMemoryHistory` retains the last 5 versions. Extraction runs after Stream commit (background). User can read and edit the blob directly. Displayed as flowing text on the profile screen, below the manual profile fields.
+`UserMemory` uses one structured prose `blob` field for V1, not separate `coreBlob` / `extendedBlob` fields. The blob has internal sections such as "Who I am", "How I operate", and "What I'm oriented toward". Strict separation: blob = WHO, map = WHAT. Never reference pursuits, marks, milestones, projects, or specific named work items in the blob; extract only identity-level patterns. Evolution mechanism with session calibration. `UserMemoryHistory` retains the last 5 versions. `lastUserEditedAt` protects manual edits from being silently overwritten by background extraction. Extraction runs after Stream commit (background). User can read and edit the blob directly. Displayed as flowing text on the profile screen, below the manual profile fields.
 
 **Sequenced after Onboarding** because onboarding seeds initial Stream data, blob extraction needs Stream sessions to work from, and Phase B is most valuable with rich data.
 
@@ -288,7 +288,7 @@ Onboarding must not ask about goals, pursuits, health, relationships, personal g
 
 _Superseded by the 2026-05-25 revised session roadmap above: Phase B is now **Session 15**, scheduled after Onboarding (Session 14) so the blob has Stream history to extract from._
 
-Future Profile Memory Phase B adds a `UserMemory` model with `coreBlob`, `extendedBlob`, `isDirty`, `streamSessionCount`, and `version`, plus `UserMemoryHistory` retaining the last five versions. Extraction runs after Stream commits in the background and evolves the blob with session calibration. Strict separation remains: the blob is **WHO** context, while pursuits, milestones, and marks are **WHAT** map data. The blob must never reference pursuits or marks, and users can read and edit the blob directly as flowing text on the profile screen.
+Future Profile Memory Phase B adds a `UserMemory` model with a single structured prose `blob`, `isDirty`, `streamSessionCount`, `version`, and `lastUserEditedAt`, plus `UserMemoryHistory` retaining the last five versions. Do not add `coreBlob` or `extendedBlob` for V1. Extraction runs after Stream commits in the background and evolves the blob with session calibration. Strict separation remains: the blob is **WHO** context, while pursuits, milestones, and marks are **WHAT** map data. The blob must never reference pursuits, marks, milestones, projects, or specific named work items, and users can read and edit it directly as flowing text on the profile screen.
 
 ## Cleanup needed (future migration)
 
