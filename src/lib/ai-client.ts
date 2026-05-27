@@ -74,6 +74,42 @@ function getAiClient() {
   return { client: new OpenAI({ apiKey, baseURL: config.baseURL }), config };
 }
 
+function providerStatus(err: unknown): number | null {
+  if (err && typeof err === "object" && "status" in err) {
+    const status = (err as { status?: unknown }).status;
+    return typeof status === "number" ? status : null;
+  }
+  return null;
+}
+
+function isRateLimitError(err: unknown): boolean {
+  if (providerStatus(err) === 429) return true;
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  return message.includes("429") || message.includes("rate limit") || message.includes("quota");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRateLimitRetry<T>(operation: () => Promise<T>): Promise<T> {
+  const delaysMs = [900, 2200];
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= delaysMs.length; attempt += 1) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (!isRateLimitError(err) || attempt >= delaysMs.length) {
+        throw err;
+      }
+      const jitter = Math.floor(Math.random() * 250);
+      await sleep(delaysMs[attempt] + jitter);
+    }
+  }
+  throw lastError;
+}
+
 function withGeminiReasoningEffort(config: ProviderConfig) {
   return config.id === "gemini" ? { reasoning_effort: "none" as const } : {};
 }
@@ -152,17 +188,19 @@ export async function generateJsonCompletion(input: {
   temperature?: number;
 }): Promise<string> {
   const { client, config } = getAiClient();
-  const completion = await client.chat.completions.create({
-    model: config.model,
-    ...withGeminiReasoningEffort(config),
-    temperature: input.temperature ?? 0.2,
-    max_tokens: input.maxTokens ?? 1024,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: input.system },
-      { role: "user", content: input.user },
-    ],
-  });
+  const completion = await withRateLimitRetry(() =>
+    client.chat.completions.create({
+      model: config.model,
+      ...withGeminiReasoningEffort(config),
+      temperature: input.temperature ?? 0.2,
+      max_tokens: input.maxTokens ?? 1024,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.user },
+      ],
+    }),
+  );
 
   return completion.choices[0]?.message?.content?.trim() ?? "";
 }

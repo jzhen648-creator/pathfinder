@@ -391,12 +391,16 @@ async function commitItemsToBranchInTx(
 
   for (const mark of marks) {
     const title = displayMarkTitleFromInput(mark.title, undefined);
-    if (!title) continue;
+    if (!title) {
+      throw new Error("Stream mark is missing a title");
+    }
 
     const dateStr = parseMarkDateYmd(mark.date);
     const resolved = resolveMarkInputDate({ date: dateStr });
-    if (!resolved.ok) continue;
-    if (isMarkDateInTheFuture(resolved.d)) continue;
+    if (!resolved.ok) {
+      throw new Error(resolved.message);
+    }
+    const future = isMarkDateInTheFuture(resolved.d);
 
     const sequencePosition = await nextSequencePosition();
     await tx.mark.create({
@@ -409,6 +413,9 @@ async function commitItemsToBranchInTx(
         date: resolved.d,
         sentiment: "positive",
         archived: false,
+        future,
+        year: resolved.d.getUTCFullYear(),
+        month: resolved.d.getUTCMonth() + 1,
         sequencePosition,
         kind: "stream",
       },
@@ -694,6 +701,14 @@ function groupByBranchId<T extends { hubId?: string }>(items: T[]): Map<string, 
   return map;
 }
 
+function hasMissingHubId(items: Array<{ hubId?: string }>): boolean {
+  return items.some((item) => !item.hubId?.trim());
+}
+
+function expectedCreatedPursuits(pursuits: ExtractedPursuit[]): number {
+  return pursuits.filter((p) => !p.existingGoalId).length;
+}
+
 function resolveThemeForHubSlug(preferredThemeId: LifeAreaId, slug: string): LifeAreaId | null {
   if (isValidHubSlugForTheme(preferredThemeId, slug)) return preferredThemeId;
   for (const candidate of LIFE_AREA_IDS) {
@@ -853,9 +868,24 @@ export async function commitStreamGlobal(
   userId: string,
   payload: StreamGlobalCommitPayload,
 ): Promise<GlobalCommitResult> {
+  if (
+    hasMissingHubId(payload.marks) ||
+    hasMissingHubId(payload.pursuits) ||
+    hasMissingHubId(payload.milestones)
+  ) {
+    return {
+      ok: false,
+      error: "Choose a hub for each new mark, pursuit, and milestone before saving.",
+      status: 400,
+    };
+  }
+
   const marksByBranch = groupByBranchId(payload.marks);
   const pursuitsByBranch = groupByBranchId(payload.pursuits);
   const milestonesByBranch = groupByBranchId(payload.milestones);
+  const expectedMarks = payload.marks.length;
+  const expectedPursuits = expectedCreatedPursuits(payload.pursuits);
+  const expectedMilestones = payload.milestones.length;
   const allBranchIds = new Set([
     ...marksByBranch.keys(),
     ...pursuitsByBranch.keys(),
@@ -915,6 +945,16 @@ export async function commitStreamGlobal(
         for (const id of counts.goalsNeedingShortLabel) {
           goalsNeedingShortLabel.add(id);
         }
+      }
+
+      if (createdMarks !== expectedMarks) {
+        throw new Error(`Expected to create ${expectedMarks} mark(s), created ${createdMarks}.`);
+      }
+      if (createdPursuits !== expectedPursuits) {
+        throw new Error(`Expected to create ${expectedPursuits} pursuit(s), created ${createdPursuits}.`);
+      }
+      if (createdMilestones !== expectedMilestones) {
+        throw new Error(`Expected to create ${expectedMilestones} milestone(s), created ${createdMilestones}.`);
       }
 
       const opCounts = await applyStreamOperationsInTx(tx, userId, {

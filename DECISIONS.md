@@ -183,9 +183,11 @@ Major build. Natural-language interface for the entire life map. **Built before 
 
 **Works as a Claude/ChatGPT companion:** user has a deep conversation with Claude, copies key insights and action items, pastes into Pathfinder Stream V3, and the map updates automatically — new pursuits created, existing ones updated, milestones added from advice, status changes applied. One paste, map fully synchronised.
 
-### Session 13 — Marks on Mobile — PLANNED
+### Session 13 — Marks on Mobile — BUILT (device sign-off pending)
 
 Show marks as checkpoints on the map path. Mark detail as a bottom sheet. Marks visible in hub and pursuit detail. Mark creation via Stream already works — this session makes them visible on the map. Marks are permanent and immutable; reframe adds perspective without editing the original.
+
+**Mobile shipped:** amber diamond nodes along hub branch connectors on `MapCanvas` (up to 8 per hub, chronological); `/mark/[id]` bottom sheet (title, date, description, hub link, immutability note, related marks); hub “Marks on this hub” list; pursuit “Marks on this hub” section when the branch has marks.
 
 ### Session 14 — Onboarding — PLANNED
 

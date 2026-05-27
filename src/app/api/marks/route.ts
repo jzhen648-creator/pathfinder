@@ -165,9 +165,7 @@ export async function POST(request: Request) {
   if (!resolved.ok) {
     return NextResponse.json({ error: resolved.message }, { status: 400 });
   }
-  if (isMarkDateInTheFuture(resolved.d)) {
-    return NextResponse.json({ error: "Date cannot be in the future." }, { status: 400 });
-  }
+  const markIsFuture = isMarkDateInTheFuture(resolved.d);
 
   const title = displayMarkTitleFromInput(input.title, input.label);
   if (!title) {
@@ -193,6 +191,9 @@ export async function POST(request: Request) {
         value: input.value === undefined ? null : input.value,
         sentiment: inferSentiment(input),
         archived: Boolean(input.archived ?? false),
+        future: markIsFuture,
+        year: resolved.d.getUTCFullYear(),
+        month: resolved.d.getUTCMonth() + 1,
         sequencePosition,
         kind: input.kind ?? "mark",
       },

@@ -53,7 +53,7 @@ export async function GET() {
       },
       forkedGoals: { select: { id: true } },
     };
-    const [goals, archivedGoals] = await Promise.all([
+    const [goals, archivedGoals, marks] = await Promise.all([
       prisma.goal.findMany({
         where: { userId, archived: false },
         orderBy: { createdAt: "asc" },
@@ -64,9 +64,30 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
         select: { id: true, title: true, branchId: true, updatedAt: true },
       }),
+      prisma.mark.findMany({
+        where: { userId, archived: false },
+        orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          branchId: true,
+          limbId: true,
+          date: true,
+          year: true,
+          month: true,
+          sequencePosition: true,
+          kind: true,
+          future: true,
+          isTurningPoint: true,
+          needsResolution: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
     ]);
     const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), branches);
-    return NextResponse.json({ branches, goals, archivedGoals, unlockedLimbIds });
+    return NextResponse.json({ branches, goals, archivedGoals, marks, unlockedLimbIds });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load branches";
     console.error("[GET /api/branches]", err);

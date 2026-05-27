@@ -137,7 +137,7 @@ export const createMarkBodySchema = z
     const resolved = resolveMarkInputDate(data);
     if (!resolved.ok) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: resolved.message, path: ["date"] });
-    } else if (isMarkDateInTheFuture(resolved.d)) {
+    } else if (isMarkDateInTheFuture(resolved.d) && data.kind !== "stream") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Date cannot be in the future.",
