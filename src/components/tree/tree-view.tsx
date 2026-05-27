@@ -12,6 +12,7 @@ import { useMapData } from "@/contexts/map-data-context";
 import { StreamPreviewProvider, useStreamPreview } from "@/contexts/stream-preview-context";
 import { FirstRunWelcomeOverlay } from "@/components/onboarding/first-run-welcome-overlay";
 import { OnboardingCoachMark } from "@/components/onboarding/OnboardingCoachMark";
+import { ONBOARDING_DEFAULT_THEME_ID } from "@/components/onboarding/onboarding-theme-order";
 import { findFirstRunFocusTarget, resolveFirstRunPrimaryLimbId } from "@/lib/first-run-focus";
 import { getFirstRunStreamPrompt } from "@/lib/first-run-stream-prompts";
 import { buildStreamHubUiFromThread, buildStreamThemeUiFromArea } from "@/lib/stream-theme-ui";
@@ -87,11 +88,13 @@ export function TreeView({
   onboardingLocked = false,
   isOnboardingGuideActive = false,
   initialCoachMarkStep = null,
+  sceneOverlayVisible = false,
 }: {
   firstRun: TreeFirstRunConfig;
   onboardingLocked?: boolean;
   isOnboardingGuideActive?: boolean;
   initialCoachMarkStep?: CoachMarkStep;
+  sceneOverlayVisible?: boolean;
 }) {
   return (
     <StreamPreviewProvider>
@@ -100,6 +103,7 @@ export function TreeView({
         onboardingLocked={onboardingLocked}
         isOnboardingGuideActive={isOnboardingGuideActive}
         initialCoachMarkStep={initialCoachMarkStep}
+        sceneOverlayVisible={sceneOverlayVisible}
       />
     </StreamPreviewProvider>
   );
@@ -110,11 +114,13 @@ function TreeViewInner({
   onboardingLocked,
   isOnboardingGuideActive,
   initialCoachMarkStep,
+  sceneOverlayVisible,
 }: {
   firstRun: TreeFirstRunConfig;
   onboardingLocked: boolean;
   isOnboardingGuideActive: boolean;
   initialCoachMarkStep: CoachMarkStep;
+  sceneOverlayVisible: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -758,7 +764,7 @@ function TreeViewInner({
           const res = await fetch("/api/first-run/complete", { method: "POST" });
           if (res.ok) {
             await refreshSession();
-            showTreeToast("Your map has started.");
+            showTreeToast("Congratulations — your map has started.");
             return;
           }
           firstRunCompletedRef.current = false;
@@ -885,7 +891,7 @@ function TreeViewInner({
     if (!isOnboardingGuideActive || !coachMarkStep) return null;
     switch (coachMarkStep) {
       case "tap_theme": {
-        const preferredTheme = firstRun.primaryLimbId ?? "work";
+        const preferredTheme = firstRun.primaryLimbId ?? ONBOARDING_DEFAULT_THEME_ID;
         return {
           targetSelector: `[data-tree-gateway-node][data-area-id="${preferredTheme}"], [data-tree-gateway-node]`,
           instruction: "Tap a theme to begin",
@@ -896,27 +902,18 @@ function TreeViewInner({
         const accentColor = panel.type === "area" ? panel.area.color : "#EF9F27";
         return {
           targetSelector: `[data-onboarding-coach="first-hub"]`,
-          instruction: "Tap a track to open it",
+          instruction: "Hold a hub to open it",
           accentColor,
         };
       }
       case "open_stream": {
-        if (panel.type !== "hub") return null;
-        const hubLabel = panel.thread.type.trim() || "Hub";
-        return {
-          targetSelector: `[data-onboarding-coach="open-stream"]`,
-          instruction: "Tell me what's on your mind here",
-          accentColor: panel.area.color,
-          areaId: panel.area.id,
-          hubLabel,
-          hubSlug: normalizeHubLabelKey(hubLabel),
-        };
+        return null;
       }
       default:
         return null;
     }
   }, [coachMarkStep, firstRun.primaryLimbId, isOnboardingGuideActive, panel]);
-  const onboardingCoachMarkActive = isOnboardingGuideActive && coachMarkStep != null;
+  const onboardingCoachMarkActive = onboardingCoachMark != null;
 
   const handleAreaClick = useCallback(
     (area: AreaData) => {
@@ -1009,7 +1006,11 @@ function TreeViewInner({
   ]);
 
   const handleActivateHubFromPanel = useCallback(
-    async (branchId: string, area: AreaData) => {
+    async (
+      branchId: string,
+      area: AreaData,
+      options?: { beforeReveal?: () => Promise<void> },
+    ) => {
       const result = await activateHubOnServer(branchId);
       if (!result.ok) {
         showTreeToast(result.error ?? "Could not open this hub.", "#e85d5d");
@@ -1018,6 +1019,7 @@ function TreeViewInner({
       const nextAreas = await loadData({ silent: true });
       const fresh = nextAreas?.find((a) => a.id === area.id) ?? area;
       const thread = fresh.branches.find((b) => b.id === branchId);
+      await options?.beforeReveal?.();
       if (thread) {
         setFocused(area.id);
         setPanel({ type: "hub", area: fresh, thread });
@@ -1518,8 +1520,8 @@ function TreeViewInner({
     <div
       className="pf-tree-canvas h-full overflow-hidden"
       style={{
-        pointerEvents: onboardingLocked && !isOnboardingGuideActive ? "none" : undefined,
-        opacity: onboardingLocked && !isOnboardingGuideActive ? 0 : 1,
+        pointerEvents: sceneOverlayVisible ? "none" : undefined,
+        opacity: sceneOverlayVisible ? 0 : 1,
       }}
     >
       <style>{PF_TREE_CANVAS_CSS}</style>
@@ -1671,9 +1673,6 @@ function TreeViewInner({
           targetSelector={onboardingCoachMark.targetSelector}
           instruction={onboardingCoachMark.instruction}
           accentColor={onboardingCoachMark.accentColor}
-          areaId={onboardingCoachMark.areaId}
-          hubLabel={onboardingCoachMark.hubLabel}
-          hubSlug={onboardingCoachMark.hubSlug}
         />
       ) : null}
 
