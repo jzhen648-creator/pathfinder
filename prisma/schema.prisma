@@ -54,6 +54,7 @@ model User {
   profileFacts               ProfileFact[]
   manualProfile              UserManualProfile?
   insightCache               InsightCache?
+  storyCache                 StoryCache?
   userMemory                 UserMemory?
   userMemoryHistory          UserMemoryHistory[]
 }
@@ -339,6 +340,18 @@ model InsightCache {
   /// From UserMemory.version when Phase B exists; 0 until then.
   memoryVersion   Int      @default(0)
   updatedAt       DateTime @updatedAt
+}
+
+/// Cached AI Story — personal coach narrative (on-demand, richer than Now tab insights).
+model StoryCache {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payload       String   @db.Text
+  generatedAt   DateTime @default(now())
+  mapVersion    String
+  memoryVersion Int      @default(0)
+  updatedAt     DateTime @updatedAt
 }
 
 model Goal {
