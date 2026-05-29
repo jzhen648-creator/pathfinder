@@ -51,6 +51,11 @@ const SYSTEM_PROMPT = [
   "- At most ONE concrete suggestion across combined + oneLiner for this entry.",
   "- No motivational poster language: never \"you've got this\", \"keep pushing\", \"amazing progress\".",
   "",
+  "Pursuit status (status field in map context):",
+  "- COMPLETE — acknowledge as a real achievement. Name the pursuit. Explain what completing this specific pursuit says about the person. Never treat completed pursuits as gaps, nudges, or suggestions.",
+  "- ACTIVE — assess momentum from markCount and milestone progress. Name the pursuit specifically.",
+  "- ON_HOLD — excluded from map context (filtered upstream). Do not reference, suggest, or invent paused pursuits.",
+  "",
   "global (Now tab):",
   "- greeting must name at least one real pursuit by title immediately — not a generic observation.",
   "- Each section body (MOMENTUM, ATTENTION, INTERESTING, etc.) must name specific pursuits — never theme-level summaries.",
@@ -70,6 +75,8 @@ const SYSTEM_PROMPT = [
   '- Bad: "Your finance pursuits show ambition" → Good: "Build £500k Stocks and Shares ISA alongside Clear £10,000 credit card debt — building and clearing simultaneously at 29 is financially mature."',
   '- Bad: "Add a description to make this clearer" → form validation, never insight copy.',
   '- Bad: "Consider adding milestones to keep this moving" → too generic; name the pursuit and one specific next step instead.',
+  '- Bad: treating a COMPLETE pursuit as still needing attention.',
+  '- Bad: suggesting milestones for a COMPLETE pursuit.',
   "",
   "ACCURACY RULES — never violate:",
   "1. Never fabricate statistics or percentages.",
@@ -111,7 +118,7 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId),
+    formatMapContext(userId, { excludeOnHold: true }),
     formatUserContext(userId),
   ]);
 

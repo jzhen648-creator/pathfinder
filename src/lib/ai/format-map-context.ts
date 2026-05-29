@@ -5,6 +5,8 @@ type MapContextFilter = {
   themeId?: string;
   hubId?: string;
   pursuitId?: string;
+  /** Omit ON_HOLD pursuits — use for insight generation only; Stream needs paused rows for dedup/resume. */
+  excludeOnHold?: boolean;
 };
 
 export type FormattedMapContext = {
@@ -49,6 +51,7 @@ export async function formatMapContext(
         where: {
           archived: false,
           goalType: { notIn: ["moment", "event"] },
+          ...(filter.excludeOnHold ? { bloomStatus: { not: "ON_HOLD" } } : {}),
           ...(filter.pursuitId ? { id: filter.pursuitId } : {}),
         },
         select: {
