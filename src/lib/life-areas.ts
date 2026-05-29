@@ -42,7 +42,7 @@ export const LIFE_AREAS: LifeArea[] = [
     angle: 34,
     emptyPrompt: "Who has shaped your story?",
     firstMarkQuestion: "Who was the first person or relationship that changed your path?",
-    addPrompt: "Add a people & relationships pursuit",
+    addPrompt: "Add a connection",
     examples: ["Met my partner", "Found my people", "Lost someone"],
   },
   {

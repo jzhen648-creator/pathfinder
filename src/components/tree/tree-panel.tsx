@@ -12,7 +12,7 @@ import {
 } from "./tree-view-goal-queries";
 import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
 import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
-import { canonicalHubDisplayLabel, hubPanelCopy } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel, hubMapGoalNoun, hubPanelCopy } from "@/lib/hub-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { HubCatalogPanelSections } from "./hub-catalog-panel-sections";
 import { PanelStreamSection } from "@/components/stream/panel-stream-section";
@@ -1127,6 +1127,10 @@ export function TreePanel({
     const hubRail = panelPresentation === "rail";
     const momentCount = thread.moments.filter((m) => m.synthetic !== true).length;
     const hubCopy = hubPanelCopy(area.id, hubLabelRaw);
+    const hubGoalNoun = hubMapGoalNoun(area.id);
+    const hubGoalNounPlural = hubMapGoalNoun(area.id, true);
+    const hubGoalNounTitle =
+      hubGoalNounPlural.charAt(0).toUpperCase() + hubGoalNounPlural.slice(1);
     const hubCtx = {
       branchId: thread.id,
       areaId: area.id,
@@ -1372,8 +1376,8 @@ export function TreePanel({
     const hubEmptyStateBlock = hubCanvasRail ? (
       <div className="pf-tree-rail-empty">
         <p style={{ margin: 0 }}>
-          No pursuits on this hub yet. Use <strong>Open Stream</strong> to talk about this part of your life —
-          Pathfinder will surface what belongs here.
+          No {hubGoalNounPlural} on this hub yet. Use <strong>Open Stream</strong> to talk about this part of
+          your life — Pathfinder will surface what belongs here.
         </p>
         {hubOpeningQuestionChips}
       </div>
@@ -1395,10 +1399,10 @@ export function TreePanel({
             color: "var(--color-text-primary)",
           }}
         >
-          No pursuits yet
+          No {hubGoalNounPlural} yet
         </p>
         <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.5 }}>
-          Use Open Stream, or add a pursuit to start tracking on this hub.
+          Use Open Stream, or add a {hubGoalNoun} to start tracking on this hub.
         </p>
         {hubOpeningQuestionChips}
       </div>
@@ -1470,7 +1474,7 @@ export function TreePanel({
               <h2 className="pf-tree-rail-title">{hubLabel}</h2>
               <p className="pf-tree-rail-body">{hubCopy.about}</p>
               <p className="pf-tree-rail-meta">
-                {hubGoals.length} {hubGoals.length === 1 ? "pursuit" : "pursuits"}
+                {hubGoals.length} {hubGoals.length === 1 ? hubGoalNoun : hubGoalNounPlural}
                 {momentCount > 0 ? ` · ${momentCount} ${momentCount === 1 ? "mark" : "marks"}` : ""}
               </p>
               {hubUnresolvedCount > 0 ? (
@@ -1484,7 +1488,7 @@ export function TreePanel({
               {hubMarksBlock}
               <div className="pf-tree-rail-section-head">
                 <span>
-                  Pursuits · {hubGoals.length}
+                  {hubGoalNounTitle} · {hubGoals.length}
                 </span>
                 <button
                   type="button"
@@ -1583,7 +1587,7 @@ export function TreePanel({
                 {hubLabel}
               </h2>
               <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-tertiary)", lineHeight: 1.45 }}>
-                {hubGoals.length} {hubGoals.length === 1 ? "pursuit" : "pursuits"}
+                {hubGoals.length} {hubGoals.length === 1 ? hubGoalNoun : hubGoalNounPlural}
                 {momentCount > 0 ? ` · ${momentCount} ${momentCount === 1 ? "mark" : "marks"}` : ""}
               </p>
               {hubUnresolvedCount > 0 ? (
@@ -1600,7 +1604,7 @@ export function TreePanel({
                     onClick={() => onAddGoal(hubCtx)}
                     style={hubGhostBtnStyle}
                   >
-                    Add pursuit
+                    Add {hubGoalNoun}
                   </button>
                 ) : (
                   <button
@@ -1609,7 +1613,7 @@ export function TreePanel({
                     onClick={() => onAddGoal(hubCtx)}
                     style={hubGhostBtnStyle}
                   >
-                    Add pursuit
+                    Add {hubGoalNoun}
                   </button>
                 )}
               </div>

@@ -125,7 +125,7 @@ export const ALEX_CARTER_SEEDS: MockHubSeed[] = [
   {
     limbId: "people",
     name: "Family",
-    goal: "Monthly call rhythm with parents and sister",
+    goal: "Parents & sister",
     events: [
       { date: "2024-11-01", title: "Set recurring Sunday slot", description: "Shared calendar with siblings.", type: "decision", sentiment: "positive" },
       { date: "2026-03-10", title: "Visited parents in Cardiff", description: "Weekend trip; helped with garden project.", type: "milestone", sentiment: "positive" },
@@ -134,7 +134,7 @@ export const ALEX_CARTER_SEEDS: MockHubSeed[] = [
   {
     limbId: "people",
     name: "Romance",
-    goal: "Plan 2027 wedding with Sam without financial stress",
+    goal: "Sam",
     events: [
       { date: "2024-06-01", title: "Engaged in Lisbon", description: "Committed to joint planning cadence.", type: "achievement", sentiment: "positive" },
       { date: "2026-04-01", title: "Venue shortlist", description: "Three options under £12k all-in.", type: "milestone", sentiment: "positive" },
@@ -143,7 +143,7 @@ export const ALEX_CARTER_SEEDS: MockHubSeed[] = [
   {
     limbId: "people",
     name: "Friendships",
-    goal: "Host quarterly dinner for close friends",
+    goal: "Dinner club crew",
     events: [
       { date: "2025-01-15", title: "First supper club", description: "Six friends; rotating cooking.", type: "milestone", sentiment: "positive" },
       { date: "2026-04-12", title: "Spring supper", description: "Q2 gathering on the calendar.", type: "milestone", sentiment: "positive" },

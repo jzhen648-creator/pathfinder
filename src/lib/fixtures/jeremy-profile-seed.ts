@@ -87,14 +87,14 @@ export const JEREMY_SEEDS: MockHubSeed[] = [
     { date: "2026-01-20", title: "Planned Bangkok farewell trip", description: "Marriage + dental + saying goodbye properly — not rushing the transition.", type: "milestone", sentiment: "positive" },
     { date: "2026-05-10", title: "Mapped London joy infrastructure", description: "Researched Muay Thai gyms near target areas, Thai supermarkets, parks for kids.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "people", name: "Family", goal: "Build family support infrastructure in London — parents helping, kids thriving", statusExtensive: "active", events: [
+  { limbId: "people", name: "Family", goal: "Parents", statusExtensive: "active", events: [
     { date: "2024-10-01", title: "Discussed London return with parents", description: "They're supportive — offered help with childcare, proximity matters.", type: "milestone", sentiment: "positive" },
     { date: "2025-05-15", title: "Mapped free childcare entitlements", description: "15 hours free at age 2, 30 hours at age 3 — worth £6-10k/year per child.", type: "realisation", sentiment: "positive" },
     { date: "2025-09-10", title: "Resolved to handle property situation with dad", description: "The joint property is the one friction point — need to address it head-on before October.", type: "decision", sentiment: "neutral" },
     { date: "2026-02-01", title: "Parents visited Bangkok", description: "Two weeks together — confirmed the relationship is strong, they're genuinely excited about grandchildren.", type: "milestone", sentiment: "positive" },
     { date: "2026-04-15", title: "Planned family support rotation", description: "Mum can do 2 days/week childcare, dad flexible. Between them and free entitlements, childcare costs nearly eliminated.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "people", name: "Romance", goal: "Get married, obtain spouse visa, build life together in London", goalValue: 3, currentValue: 1, unit: "milestones", statusExtensive: "active", events: [
+  { limbId: "people", name: "Romance", goal: "Partner", goalValue: 3, currentValue: 1, unit: "milestones", statusExtensive: "active", events: [
     { date: "2024-04-01", title: "Committed to building life together", description: "Made the decision: this is the person, London is the place, now plan it properly.", type: "decision", sentiment: "positive" },
     { date: "2025-01-01", title: "Created the Life OS document together", description: "Built the 15-year plan as a shared vision — housing, family, finances, all discussed and agreed.", type: "achievement", sentiment: "positive" },
     { date: "2025-06-10", title: "Researched spouse visa requirements", description: "Financial threshold, relationship evidence, English language requirement — all achievable but needs careful documentation.", type: "milestone", sentiment: "neutral" },
@@ -102,7 +102,7 @@ export const JEREMY_SEEDS: MockHubSeed[] = [
     { date: "2026-03-01", title: "Started gathering visa documentation", description: "Photos, communications history, financial evidence — building the portfolio months ahead of need.", type: "milestone", sentiment: "neutral" },
     { date: "2026-05-08", title: "Marriage trip dates confirmed", description: "Bangkok trip locked: marriage ceremony, dental work, farewell gatherings — all in one extended stay early 2027.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "people", name: "Friendships", goal: "Maintain Bangkok friendships while rebuilding London social life", statusExtensive: "active", events: [
+  { limbId: "people", name: "Friendships", goal: "Close friends", statusExtensive: "active", events: [
     { date: "2025-01-15", title: "Accepted the friendship cost of moving", description: "Bangkok social circle took years to build — leaving means some of those connections will fade.", type: "realisation", sentiment: "negative" },
     { date: "2025-07-01", title: "Reconnected with London friends", description: "Reached out to old school and uni friends — several still in London, keen to reconnect.", type: "milestone", sentiment: "positive" },
     { date: "2026-02-20", title: "Planned farewell gatherings in Bangkok", description: "Want to leave properly — dinners, trips, not just disappearing.", type: "decision", sentiment: "positive" },

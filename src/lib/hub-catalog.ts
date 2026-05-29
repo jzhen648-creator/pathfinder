@@ -360,9 +360,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Kin and family role — parents, children, siblings, co-parenting, elder care, and family obligations or healing. Blood or chosen family structure, not friends or romance.",
       why: "Family dynamics carry unique guilt and duty; they should not be diluted into generic relationships.",
       belongsHere: [
-        "Weekly call with dad",
-        "Co-parenting schedule",
-        "Support sibling through illness",
+        "Mum",
+        "Dad",
+        "Co-parenting with Alex",
       ],
       doesNotBelongHere: [
         "Date night with partner (→ Romance)",
@@ -370,30 +370,30 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Couples therapy for partnership (→ Romance)",
       ],
       aiRoutingNote:
-        "Route here for parents, siblings, children, in-laws, and family care — including emotional dynamics like a parent going silent or pressure to introduce a partner. If the user mentions a parent or sibling by relation (Mum, Dad, brother), this is Family even when the emotion is about the user's own state. Do not route partner or fiancé items here — those are Romance.",
+        "Route here for parents, siblings, children, in-laws, and family care — including emotional dynamics like a parent going silent or pressure to introduce a partner. If the user mentions a parent or sibling by relation (Mum, Dad, brother), this is Family even when the emotion is about the user's own state. Do not route partner or fiancé items here — those are Romance. Connection titles: name each new pursuit after the person or family relationship (e.g. Mum, Dad, Sister Anna, Co-parenting with Alex) — not as a productivity goal (avoid Improve relationship with…, Invest in family…, Work on…). Put plans and intentions (calls, visits, hard conversations, schedules) in milestones[]; put past moments in marks[].",
       examples: [
-        "Weekly call with dad",
-        "Co-parenting schedule",
-        "Support sibling through illness",
-        "Discuss London return with parents",
-        "Heal tension with mum",
+        "Mum",
+        "Dad",
+        "Sister Anna",
+        "Co-parenting with Alex",
+        "Grandma",
       ],
       openingQuestions: [
-        "How are things with your family right now — anything live that needs more attention from you?",
-        "Is there a relationship with a parent, sibling, or child you'd like to tend more carefully?",
-        "Any family dynamic that's been sitting in the background unresolved?",
+        "Who in your family do you want to show up for more?",
+        "Is there a parent, sibling, or child you've been distant from?",
+        "Any family conversation you've been putting off?",
       ],
       firstTimeQuestion: "Who in your family is on your mind — for better or worse?",
-      coachMarkHubInstruction: "Any family relationships you want to invest in?",
+      coachMarkHubInstruction: "Who in your family deserves more of your attention?",
     },
     Romance: {
       about:
         "Partnership and intimacy — dating, marriage, cohabitation, commitment, and the romantic relationship you are building or repairing.",
-      why: "Partnership goals have different stakes and rhythms than friendship or family duty.",
+      why: "Partnership has its own stakes and rhythms; it should not be confused with friendship or family duty.",
       belongsHere: [
-        "Plan engagement",
-        "Repair after major conflict",
-        "Align on having kids",
+        "Sarah",
+        "Our marriage",
+        "Partner",
       ],
       doesNotBelongHere: [
         "Host friends dinner (→ Friendships)",
@@ -401,31 +401,30 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Individual therapy for self only (→ Inner life)",
       ],
       aiRoutingNote:
-        "Route here for spouse, partner, fiancé, dating, engagement, and romantic commitment — including the admin that comes with it (spousal visa, wedding planning, moving in). Spousal visa applications are Romance, not Family, even when families are involved. If the user mentions a girlfriend, boyfriend, or partner by role, this hub wins.",
+        "Route here for spouse, partner, fiancé, dating, engagement, and romantic commitment — including the admin that comes with it (spousal visa, wedding planning, moving in). Spousal visa applications are Romance, not Family, even when families are involved. If the user mentions a girlfriend, boyfriend, or partner by role, this hub wins. Connection titles: name pursuits after the partner or the relationship (e.g. Sarah, James, Our marriage) — not goal verbs (avoid Improve relationship with…, Invest in partnership…, Repair our marriage as a pursuit title). Engagement, visa, date-night, and conflict-repair plans go in milestones[]; past moments in marks[].",
       examples: [
-        "Plan engagement",
-        "Repair after major conflict",
-        "Align on having kids",
-        "Date night ritual",
-        "Spouse visa paperwork",
+        "Sarah",
+        "Our marriage",
+        "James",
+        "Partner",
+        "Fiancé",
       ],
       openingQuestions: [
-        "How are things in your romantic life — are you in it, building it, or still figuring it out?",
+        "Who's at the centre of your romantic life right now?",
         "Any conversation with your partner you've been putting off?",
-        "What does a strong version of this relationship look like — and what's the gap right now?",
+        "What would feeling close again actually look like day to day?",
       ],
-      firstTimeQuestion:
-        "What's the story of your love life right now — and what would you change?",
-      coachMarkHubInstruction: "Any relationship goals you're building toward?",
+      firstTimeQuestion: "Who's at the centre of your love life right now?",
+      coachMarkHubInstruction: "Who matters most in your romantic life right now?",
     },
     Friendships: {
       about:
         "Chosen relationships and belonging — close friends, communities, neighbours, groups, and showing up for causes with people. Professional networking for career growth goes to Skills.",
       why: "Friendships need intentional care but are not the same as family duty or romance.",
       belongsHere: [
-        "Reconnect with old friend",
-        "Host monthly dinner club",
-        "Volunteer with local group",
+        "James",
+        "Friendship with James",
+        "London Thai community",
       ],
       doesNotBelongHere: [
         "LinkedIn outreach for job search (→ Skills)",
@@ -433,22 +432,21 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Family reunion (→ Family)",
       ],
       aiRoutingNote:
-        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Career) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friendships over Joy.",
+        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Career) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friendships over Joy. Connection titles: name pursuits after the friend or community (e.g. James, Friendship with James, London Thai community) — not productivity framing (avoid Improve friendship with…, Invest in social life…). Meet-ups, reconnection plans, and volunteering cadence go in milestones[]; past moments in marks[].",
       examples: [
-        "Reconnect with old friend",
-        "Host monthly dinner club",
-        "Volunteer with local group",
-        "Meet neighbours properly",
-        "Find London Thai community",
+        "James",
+        "Friendship with James",
+        "Dinner club crew",
+        "London Thai community",
+        "Neighbours on our street",
       ],
       openingQuestions: [
         "Who are the people you'd see more if life allowed — anyone who comes to mind immediately?",
-        "Is there a friendship that's drifted that you've been meaning to bring back — who is it with?",
+        "Is there a friendship that's drifted — who is it with?",
         "What kind of community do you want around you, and is it actually there?",
       ],
-      firstTimeQuestion:
-        "Who do you wish you saw more of, and what's getting in the way?",
-      coachMarkHubInstruction: "Any friendships you want to invest in or reconnect with?",
+      firstTimeQuestion: "Who do you wish you saw more of, and what's getting in the way?",
+      coachMarkHubInstruction: "Who do you want in your life more — or back in it?",
     },
   },
   health: {
@@ -602,33 +600,45 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
     finance: "Money, security, and how resources flow through your life.",
     work: "Skills, career momentum, and work that matters to you.",
     becoming: "Purpose, inner life, and joy you protect for yourself.",
-    people: "Relationships and the people who shape your story.",
+    people: "Relationships and the people who shape your story — named connections, not task lists.",
     health: "Physical foundation — movement, fuel, appearance, and rest.",
   };
   const themeLine = byTheme[areaId as LifeAreaId] ?? "this theme";
+  const isPeople = areaId === "people";
+  const mapItem = isPeople ? "connection" : "pursuit";
   return {
-    about: `${label} is a track under ${themeLine}. Pursuits and marks you add here stay grouped on the map.`,
+    about: `${label} is a track under ${themeLine}. ${isPeople ? "Connections" : "Pursuits"} and marks you add here stay grouped on the map.`,
     why: "Naming what matters in this part of your life makes it easier to act on and remember.",
     belongsHere: [
-      `Add a pursuit that fits ${label}`,
+      `Add a ${mapItem} that fits ${label}`,
       "Capture a mark when something changes",
       "Review what is active on this hub",
     ],
     doesNotBelongHere: [
       "Items that clearly belong on another hub in this theme",
       "Work that is really about a different part of life",
-      "Duplicates of pursuits already on the map",
+      isPeople ? "Duplicates of connections already on the map" : "Duplicates of pursuits already on the map",
     ],
     aiRoutingNote: `Route here only when the item clearly fits ${label} under ${themeLine}.`,
-    examples: ["Add a pursuit that fits this track", "Capture a mark"],
+    examples: isPeople
+      ? ["Add a connection that fits this track", "Capture a mark"]
+      : ["Add a pursuit that fits this track", "Capture a mark"],
     openingQuestions: [
       `What's been happening in ${label} lately?`,
       `Is there something in ${label} you've been meaning to work on?`,
       `What would progress look like for you in ${label}?`,
     ],
     firstTimeQuestion: `What's on your mind about ${label} right now?`,
-    coachMarkHubInstruction: `Anything in ${label} you want to build or track?`,
+    coachMarkHubInstruction: isPeople
+      ? `Anyone in ${label} you want to tend or reconnect with?`
+      : `Anything in ${label} you want to build or track?`,
   };
+}
+
+/** User-facing map goal label — "connection" on People & Relationships. */
+export function hubMapGoalNoun(areaId: string, plural = false): string {
+  if (areaId === "people") return plural ? "connections" : "connection";
+  return plural ? "pursuits" : "pursuit";
 }
 
 /** First-time onboarding Stream placeholder for a hub. */

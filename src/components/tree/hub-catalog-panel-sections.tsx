@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import {
   canonicalHubDisplayLabel,
+  hubMapGoalNoun,
   hubPanelCopy,
   parseHubRedirectTarget,
   type HubCatalogEntry,
@@ -179,7 +180,9 @@ export function HubCatalogPanelPreview({
       <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 600, color: "var(--color-text-primary)" }}>
         {hubLabel}
       </h2>
-      <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--color-text-tertiary)" }}>0 pursuits</p>
+      <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--color-text-tertiary)" }}>
+        0 {hubMapGoalNoun(themeId, true)}
+      </p>
       <HubCatalogPanelSections copy={copy} areaColor={areaColor} />
     </section>
   );
