@@ -2,7 +2,7 @@
  * Stream extraction dogfood — stress-tests POST /api/stream/extract (no commit).
  *
  * Run: npm run dogfood:stream
- * Flags: --json | --slow
+ * Flags: --json | --slow | --only <category>
  * Requires: dev server (port 3001), GEMINI_API_KEY, E2E_EMAIL + E2E_PASSWORD
  */
 import "dotenv/config";
@@ -67,7 +67,8 @@ type ScenarioCategory =
   | "uk-london-specifics"
   | "long-brain-dumps"
   | "milestone-status"
-  | "contradictory-pivots";
+  | "contradictory-pivots"
+  | "people-connection-framing";
 
 const SCENARIO_CATEGORY_LABELS: Record<ScenarioCategory, string> = {
   "multi-session": "Multi-session sequences",
@@ -79,6 +80,7 @@ const SCENARIO_CATEGORY_LABELS: Record<ScenarioCategory, string> = {
   "long-brain-dumps": "Very long brain dumps",
   "milestone-status": "Milestone completions and status updates",
   "contradictory-pivots": "Contradictory and pivot inputs",
+  "people-connection-framing": "People hub connection title framing",
 };
 
 type CategorySummary = {
@@ -104,6 +106,14 @@ type DogfoodExpect = {
   bloomStatus?: StreamBloomStatus;
   forbidNewPursuit?: boolean;
   preferAmbiguous?: boolean;
+  /** At least one new pursuit title must include one of these (case-insensitive). */
+  pursuitTitleOneOfSubstrings?: string[];
+  /** New pursuit titles must not include any of these (case-insensitive). */
+  pursuitTitleForbiddenSubstrings?: string[];
+  /** At least one mark or milestone title must include one of these (case-insensitive). */
+  markOrMilestoneTitleOneOfSubstrings?: string[];
+  /** Theme extract: no item may use these hub slugs. */
+  forbidHubSlugs?: string[];
 };
 
 type DogfoodCase = {
@@ -291,6 +301,130 @@ function themeCase(
   expect: DogfoodExpect,
 ): DogfoodCase {
   return { id, category, label, mode: "theme", themeId, input, expect };
+}
+
+function hubCase(
+  category: ScenarioCategory,
+  id: string,
+  label: string,
+  map: MapSnapshot,
+  themeId: LifeAreaId,
+  hubSlug: string,
+  input: string,
+  expect: DogfoodExpect,
+): DogfoodCase | null {
+  const branchId = map.branchByThemeHub.get(`${themeId}::${hubSlug}`);
+  if (!branchId) return null;
+  return {
+    id,
+    category,
+    label,
+    mode: "hub",
+    themeId,
+    hubBranchId: branchId,
+    hubSlug,
+    input,
+    expect,
+  };
+}
+
+const GOAL_FRAMED_TITLE_SUBSTRINGS = [
+  "improve relationship",
+  "invest in relationship",
+  "invest in family",
+  "advance relationship",
+  "work on relationship",
+  "strengthen relationship",
+  "build relationship",
+];
+
+function buildPeopleConnectionCases(map: MapSnapshot): DogfoodCase[] {
+  const cases: Array<DogfoodCase | null> = [
+    hubCase(
+      "people-connection-framing",
+      "people-james-friendships",
+      "Friendships — James reconnect and Manchester visit",
+      map,
+      "people",
+      "friendships",
+      "James has been one of my closest friends since uni. We haven't spoken much lately and I want to change that. Planning to visit him in Manchester next month.",
+      {
+        minStructured: 2,
+        maxStructured: 6,
+        kinds: ["pursuit"],
+        pursuitTitleOneOfSubstrings: ["james", "friendship with james"],
+        pursuitTitleForbiddenSubstrings: GOAL_FRAMED_TITLE_SUBSTRINGS,
+        markOrMilestoneTitleOneOfSubstrings: ["manchester", "visit"],
+        milestone: true,
+      },
+    ),
+    hubCase(
+      "people-connection-framing",
+      "people-mum-family",
+      "Family — call Mum more often",
+      map,
+      "people",
+      "family",
+      "I need to be better at calling my mum. She's getting older and I don't want to regret not spending more time with her.",
+      {
+        minStructured: 2,
+        maxStructured: 6,
+        kinds: ["pursuit", "milestone"],
+        pursuitTitleOneOfSubstrings: ["mum", "mother", "mom"],
+        pursuitTitleForbiddenSubstrings: GOAL_FRAMED_TITLE_SUBSTRINGS,
+        markOrMilestoneTitleOneOfSubstrings: ["call", "weekly", "phone", "ring"],
+        milestone: true,
+      },
+    ),
+    hubCase(
+      "people-connection-framing",
+      "people-sarah-romance",
+      "Romance — Sarah and moving in together",
+      map,
+      "people",
+      "romance",
+      "Sarah and I have been together three years. We've been talking about moving in together and I want to make that happen this year.",
+      {
+        minStructured: 2,
+        maxStructured: 6,
+        kinds: ["pursuit", "milestone"],
+        pursuitTitleOneOfSubstrings: ["sarah", "our relationship", "our marriage", "partner"],
+        pursuitTitleForbiddenSubstrings: GOAL_FRAMED_TITLE_SUBSTRINGS,
+        markOrMilestoneTitleOneOfSubstrings: ["mov", "together", "cohabit", "flat", "house"],
+        milestone: true,
+      },
+    ),
+    themeCase(
+      "people-connection-framing",
+      "people-community-friendships",
+      "Community (Friendships hub) — local London involvement",
+      "people",
+      "I want to get more involved in my local area in London. Maybe join a running club or volunteer somewhere.",
+      {
+        minStructured: 2,
+        maxStructured: 6,
+        kinds: ["pursuit", "milestone"],
+        hubSlug: "friendships",
+        hubSlugs: ["friendships"],
+        forbidHubSlugs: ["family", "romance"],
+        pursuitTitleForbiddenSubstrings: [
+          ...GOAL_FRAMED_TITLE_SUBSTRINGS,
+          "get more involved in",
+          "improve social",
+        ],
+        markOrMilestoneTitleOneOfSubstrings: [
+          "running",
+          "volunteer",
+          "club",
+          "local",
+          "london",
+          "community",
+        ],
+        milestone: true,
+      },
+    ),
+  ];
+  return cases.filter((c): c is DogfoodCase => c !== null);
 }
 
 const richDogfoodCases: DogfoodCase[] = [
@@ -1039,9 +1173,7 @@ function _buildMultiSessionCases(): DogfoodCase[] {
 }
 
 function buildStaticCases(map: MapSnapshot): DogfoodCase[] {
-  void map;
-
-  return richDogfoodCases;
+  return [...richDogfoodCases, ...buildPeopleConnectionCases(map)];
 }
 
 function _buildMixedThemeDumpCases(): DogfoodCase[] {
@@ -2056,6 +2188,84 @@ function scoreCase(
     }
   }
 
+  const newPursuitTitles = extraction.pursuits
+    .filter((p) => !p.existingGoalId)
+    .map((p) => p.title.trim());
+
+  if (expect.pursuitTitleOneOfSubstrings?.length) {
+    if (newPursuitTitles.length === 0) {
+      anomalies.push({
+        code: "missing_new_pursuit",
+        severity: "critical",
+        message: "Expected at least one new pursuit for title framing check",
+      });
+    } else {
+      const needles = expect.pursuitTitleOneOfSubstrings.map((s) => s.toLowerCase());
+      const ok = newPursuitTitles.some((title) =>
+        needles.some((needle) => title.toLowerCase().includes(needle)),
+      );
+      if (!ok) {
+        anomalies.push({
+          code: "connection_title_mismatch",
+          severity: "critical",
+          message: `Expected new pursuit title to match one of [${expect.pursuitTitleOneOfSubstrings.join(", ")}], got: ${newPursuitTitles.join("; ") || "(none)"}`,
+        });
+      }
+    }
+  }
+
+  if (expect.pursuitTitleForbiddenSubstrings?.length && newPursuitTitles.length > 0) {
+    const forbidden = expect.pursuitTitleForbiddenSubstrings.map((s) => s.toLowerCase());
+    for (const title of newPursuitTitles) {
+      const lower = title.toLowerCase();
+      const hit = forbidden.find((f) => lower.includes(f));
+      if (hit) {
+        anomalies.push({
+          code: "goal_framed_title",
+          severity: "critical",
+          message: `Goal-framed pursuit title "${title}" (matched "${hit}")`,
+        });
+      }
+    }
+  }
+
+  if (expect.markOrMilestoneTitleOneOfSubstrings?.length) {
+    const secondaryTitles = [
+      ...extraction.marks.map((m) => m.title),
+      ...extraction.milestones.map((m) => m.title),
+    ];
+    const needles = expect.markOrMilestoneTitleOneOfSubstrings.map((s) => s.toLowerCase());
+    const ok = secondaryTitles.some((title) =>
+      needles.some((needle) => title.toLowerCase().includes(needle)),
+    );
+    if (!ok) {
+      anomalies.push({
+        code: "missing_plan_or_moment",
+        severity: "warning",
+        message: `Expected mark/milestone title to include one of [${expect.markOrMilestoneTitleOneOfSubstrings.join(", ")}], got marks: ${extraction.marks.map((m) => m.title).join("; ") || "(none)"}; milestones: ${extraction.milestones.map((m) => m.title).join("; ") || "(none)"}`,
+      });
+    }
+  }
+
+  if (expect.forbidHubSlugs?.length && themeId && testCase.mode === "theme") {
+    const forbidden = new Set(expect.forbidHubSlugs);
+    const hubIds = [
+      ...extraction.marks.map((m) => m.hubId),
+      ...extraction.pursuits.map((p) => p.hubId),
+      ...extraction.milestones.map((m) => m.hubId),
+      ...extraction.ambiguous.map((a) => a.hubId),
+    ].filter(Boolean) as string[];
+    for (const hubId of hubIds) {
+      if (forbidden.has(hubId)) {
+        anomalies.push({
+          code: "wrong_hub",
+          severity: "critical",
+          message: `Item routed to forbidden hub "${hubId}"`,
+        });
+      }
+    }
+  }
+
   void map;
   return anomalies;
 }
@@ -2138,7 +2348,17 @@ async function main(): Promise<void> {
     `Map: ${map.goals.length} goals, ${map.marks.length} marks, ${map.branches.length} active branches`,
   );
 
-  const { cases, fixturesUsed } = buildAllCases(map);
+  let { cases, fixturesUsed } = buildAllCases(map);
+  const onlyIdx = process.argv.indexOf("--only");
+  if (onlyIdx >= 0) {
+    const onlyCategory = process.argv[onlyIdx + 1] as ScenarioCategory | undefined;
+    if (!onlyCategory || !SCENARIO_CATEGORY_LABELS[onlyCategory]) {
+      throw new Error(
+        `Unknown --only category "${onlyCategory ?? ""}". Use one of: ${Object.keys(SCENARIO_CATEGORY_LABELS).join(", ")}`,
+      );
+    }
+    cases = cases.filter((c) => c.category === onlyCategory);
+  }
   console.log(`Cases: ${cases.length} (${cases.filter((c) => c.mode === "theme").length} theme, ${cases.filter((c) => c.mode === "hub").length} hub)`);
   if (fixturesUsed.length > 0) {
     console.log("DB fixtures:");

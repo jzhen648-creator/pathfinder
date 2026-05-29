@@ -1,0 +1,200 @@
+{
+  "runAt": "2026-05-29T05:29:50.686Z",
+  "userEmail": "jzhen648@gmail.com",
+  "baseUrl": "http://localhost:3001",
+  "mapSnapshot": {
+    "goalCount": 11,
+    "markCount": 1,
+    "branchCount": 17
+  },
+  "fixturesUsed": [],
+  "summary": {
+    "total": 4,
+    "extractionRate": 0.25,
+    "misplacementCount": 0,
+    "errorCount": 3,
+    "passCount": 1,
+    "passRate": 0.25,
+    "byCategory": {
+      "multi-session": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "mixed-theme-dumps": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "cross-theme-events": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "emotional-reflective": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "vague-uncertain": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "uk-london-specifics": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "long-brain-dumps": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "milestone-status": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "contradictory-pivots": {
+        "total": 0,
+        "passCount": 0,
+        "passRate": 0,
+        "extractionRate": 0,
+        "misplacementCount": 0,
+        "errorCount": 0
+      },
+      "people-connection-framing": {
+        "total": 4,
+        "passCount": 1,
+        "passRate": 0.25,
+        "extractionRate": 0.25,
+        "misplacementCount": 0,
+        "errorCount": 3
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "people-james-friendships",
+      "category": "people-connection-framing",
+      "label": "Friendships — James reconnect and Manchester visit",
+      "pass": true,
+      "input": "James has been one of my closest friends since uni. We haven't spoken much lately and I want to change that. Planning to visit him in Manchester next month.",
+      "mode": "hub",
+      "status": 200,
+      "error": null,
+      "extracted": [
+        {
+          "cardType": "pursuit-peer",
+          "hubPlacement": "friendships",
+          "confidence": "ok",
+          "title": "Friendship with James",
+          "parentRef": null
+        },
+        {
+          "cardType": "milestone",
+          "hubPlacement": "friendships",
+          "confidence": "ok",
+          "title": "Visit James in Manchester",
+          "parentRef": "new:pursuit-1"
+        }
+      ],
+      "ambiguousCount": 0,
+      "committedAmbiguousCount": 0,
+      "structuredCount": 2,
+      "anomalies": [],
+      "durationMs": 6760
+    },
+    {
+      "id": "people-mum-family",
+      "category": "people-connection-framing",
+      "label": "Family — call Mum more often",
+      "pass": false,
+      "input": "I need to be better at calling my mum. She's getting older and I don't want to regret not spending more time with her.",
+      "mode": "hub",
+      "status": 429,
+      "error": "429 status code (no body)",
+      "extracted": [],
+      "ambiguousCount": 0,
+      "committedAmbiguousCount": 0,
+      "structuredCount": 0,
+      "anomalies": [
+        {
+          "code": "http_error",
+          "severity": "critical",
+          "message": "429 status code (no body)"
+        }
+      ],
+      "durationMs": 13844
+    },
+    {
+      "id": "people-sarah-romance",
+      "category": "people-connection-framing",
+      "label": "Romance — Sarah and moving in together",
+      "pass": false,
+      "input": "Sarah and I have been together three years. We've been talking about moving in together and I want to make that happen this year.",
+      "mode": "hub",
+      "status": 429,
+      "error": "429 status code (no body)",
+      "extracted": [],
+      "ambiguousCount": 0,
+      "committedAmbiguousCount": 0,
+      "structuredCount": 0,
+      "anomalies": [
+        {
+          "code": "http_error",
+          "severity": "critical",
+          "message": "429 status code (no body)"
+        }
+      ],
+      "durationMs": 13775
+    },
+    {
+      "id": "people-community-friendships",
+      "category": "people-connection-framing",
+      "label": "Community (Friendships hub) — local London involvement",
+      "pass": false,
+      "input": "I want to get more involved in my local area in London. Maybe join a running club or volunteer somewhere.",
+      "mode": "theme",
+      "status": 429,
+      "error": "429 status code (no body)",
+      "extracted": [],
+      "ambiguousCount": 0,
+      "committedAmbiguousCount": 0,
+      "structuredCount": 0,
+      "anomalies": [
+        {
+          "code": "http_error",
+          "severity": "critical",
+          "message": "429 status code (no body)"
+        }
+      ],
+      "durationMs": 14005
+    }
+  ]
+}
