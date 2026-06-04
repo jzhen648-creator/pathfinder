@@ -58,7 +58,7 @@ export async function dedupeDuplicateRootHubs(
           data: { isSystemHub: true, isActive: keeper.isActive || dup.isActive },
         });
       }
-      const canonicalKey = normalizeHubLabelKey(keeper.label ?? keeper.name);
+      const canonicalKey = normalizeHubLabelKey(keeper.label ?? keeper.name ?? "");
       const template = LOCKED_HUB_TEMPLATES.find(
         (t) => t.limbId === keeper.limbId && normalizeHubLabelKey(t.threadType) === canonicalKey,
       );
