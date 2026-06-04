@@ -547,9 +547,6 @@ async function applyStreamOperationsInTx(
       data.title = op.title.trim();
       goalsNeedingShortLabel.add(op.goalId);
     }
-    if (op.description?.trim()) {
-      data.description = op.description.trim();
-    }
     if (op.bloomStatus) {
       data.bloomStatus = op.bloomStatus as BloomStatus;
       data.bloomedAt = op.bloomStatus === "COMPLETE" ? new Date() : null;
