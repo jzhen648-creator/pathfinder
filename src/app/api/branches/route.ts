@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { dedupeDuplicateRootHubs } from "@/lib/hub-dedupe";
 import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
@@ -36,6 +37,12 @@ export async function GET() {
         await ensureHubTaxonomyCurrent(prisma, userId);
       } catch (err) {
         console.error("[GET /api/branches] hub taxonomy sync failed", err);
+      }
+    } else {
+      try {
+        await dedupeDuplicateRootHubs(prisma, userId);
+      } catch (err) {
+        console.error("[GET /api/branches] hub dedupe failed", err);
       }
     }
 

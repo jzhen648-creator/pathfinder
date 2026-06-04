@@ -5,6 +5,7 @@
  * Run from repo root: npm run backfill:hub-taxonomy
  */
 import { PrismaClient } from "@prisma/client";
+import { dedupeDuplicateRootHubs } from "../src/lib/hub-dedupe";
 import { ensureHubTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
 import { TAXONOMY_VERSION } from "../src/lib/taxonomy";
 
@@ -16,23 +17,29 @@ async function main() {
   });
 
   let synced = 0;
+  let deduped = 0;
   let skipped = 0;
   let errors = 0;
 
   for (const user of users) {
-    if (user.hubTaxonomyVersion === TAXONOMY_VERSION) {
-      skipped += 1;
-      continue;
-    }
-
     try {
-      const result = await ensureHubTaxonomyCurrent(prisma, user.id);
-      if (result.skipped) {
-        skipped += 1;
-        console.log(`skip ${user.email} (already current after check)`);
+      if (user.hubTaxonomyVersion !== TAXONOMY_VERSION) {
+        const result = await ensureHubTaxonomyCurrent(prisma, user.id);
+        if (result.skipped) {
+          skipped += 1;
+          console.log(`skip ${user.email} (already current after check)`);
+        } else {
+          synced += 1;
+          console.log(`sync ${user.email} updates=${result.updates}`);
+        }
       } else {
-        synced += 1;
-        console.log(`sync ${user.email} updates=${result.updates}`);
+        const merges = await dedupeDuplicateRootHubs(prisma, user.id);
+        if (merges > 0) {
+          deduped += 1;
+          console.log(`dedupe ${user.email} merges=${merges}`);
+        } else {
+          skipped += 1;
+        }
       }
     } catch (e) {
       errors += 1;
@@ -41,7 +48,7 @@ async function main() {
   }
 
   console.log(
-    `Backfill complete (${TAXONOMY_VERSION}): synced=${synced} skipped=${skipped} errors=${errors} total=${users.length}`,
+    `Backfill complete (${TAXONOMY_VERSION}): synced=${synced} deduped=${deduped} skipped=${skipped} errors=${errors} total=${users.length}`,
   );
 }
 

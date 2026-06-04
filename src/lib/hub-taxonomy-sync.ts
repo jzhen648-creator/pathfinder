@@ -5,7 +5,8 @@ import {
   LOCKED_HUB_TEMPLATES,
   TAXONOMY_VERSION,
 } from "@/lib/taxonomy";
-import { ensureSystemHubsForUser, isLockedSystemHub, normLabel } from "@/lib/system-hubs";
+import { dedupeDuplicateRootHubs } from "@/lib/hub-dedupe";
+import { ensureSystemHubsForUser, isLockedSystemHub, normLabel, systemHubKey } from "@/lib/system-hubs";
 
 export type EnsureHubTaxonomyCurrentResult = {
   skipped: boolean;
@@ -120,35 +121,7 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
     }
   }
 
-  const refreshed = await prisma.branch.findMany({
-    where: { userId, parentBranchId: null },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const groups = new Map<string, typeof refreshed>();
-  for (const b of refreshed) {
-    const key = `${b.limbId}::${normLabel(b.label ?? b.name)}`;
-    const list = groups.get(key) ?? [];
-    list.push(b);
-    groups.set(key, list);
-  }
-
-  for (const [, list] of groups) {
-    if (list.length <= 1) continue;
-    const [keeper, ...dupes] = list;
-    for (const dup of dupes) {
-      await prisma.goal.updateMany({ where: { branchId: dup.id }, data: { branchId: keeper.id } });
-      await prisma.mark.updateMany({ where: { branchId: dup.id }, data: { branchId: keeper.id } });
-      if (!keeper.isSystemHub && dup.isSystemHub) {
-        await prisma.branch.update({
-          where: { id: keeper.id },
-          data: { isSystemHub: true, isActive: keeper.isActive || dup.isActive },
-        });
-      }
-      await prisma.branch.delete({ where: { id: dup.id } });
-      updates += 1;
-    }
-  }
+  updates += await dedupeDuplicateRootHubs(prisma, userId);
 
   const afterDedupe = await prisma.branch.findMany({
     where: { userId, parentBranchId: null },
@@ -164,7 +137,7 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
 
   for (const branch of afterDedupe) {
     if (isLockedSystemHub(branch)) continue;
-    const labelKey = normLabel(branch.label ?? branch.name);
+    const labelKey = systemHubKey(branch.limbId, branch.label ?? branch.name).split("::")[1] ?? "";
     const valid = validHubKeysByLimb.get(branch.limbId);
     if (!labelKey || !valid || valid.has(labelKey)) continue;
     const [goalCount, markCount] = await Promise.all([
