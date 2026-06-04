@@ -53,6 +53,7 @@ next-env.d.ts
 # stream dogfood output
 /scripts/dogfood-results.json
 /scripts/dogfood-last-run.log
+scripts/simulate-mandela-results*.json
 
 # local screenshots / scratch
 /tmp/
