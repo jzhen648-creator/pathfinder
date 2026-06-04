@@ -20,6 +20,7 @@
     "migrate:moments": "npx tsx scripts/migrate-moments-to-marks.ts",
     "seed:tree": "npx tsx scripts/seed-tree-test.ts",
     "reset:all-accounts": "npx tsx scripts/reset-all-accounts-fresh.ts",
+    "wipe:user-tree": "tsx scripts/wipe-user-tree.ts",
     "wipe:all-user-data": "npx tsx scripts/wipe-all-user-data.ts",
     "fresh-start:dev": "npx tsx scripts/fresh-start-keep-dev.ts",
     "test:system-hubs": "npx tsx scripts/test-system-hubs-idempotent.ts",
