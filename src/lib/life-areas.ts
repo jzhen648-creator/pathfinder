@@ -61,3 +61,32 @@ export const LIFE_AREAS: LifeArea[] = [
 export function getLifeArea(id: string): LifeArea | undefined {
   return LIFE_AREAS.find((l) => l.id === id);
 }
+
+/** Retired theme display names for id `becoming` — never use in AI/UI copy. */
+const LEGACY_BECOMING_THEME_LABELS = [
+  "Who I'm Becoming",
+  "Who I'm becoming",
+  "Who Im Becoming",
+  "Who im becoming",
+  "Mind & Spirit",
+  "Personal Growth",
+] as const;
+
+const WHO_IM_BECOMING_RE =
+  /\bwho\s+i['\u2019]?m\s+becoming\b|\bwho\s+im\s+becoming\b/gi;
+
+/** Rewrite legacy theme names in AI-generated prose (Story, insights, etc.). */
+export function sanitizeThemeLabelsInText(text: string): string {
+  let out = text;
+  for (const legacy of LEGACY_BECOMING_THEME_LABELS) {
+    if (out.includes(legacy)) {
+      out = out.split(legacy).join("Self & Mind");
+    }
+  }
+  return out.replace(WHO_IM_BECOMING_RE, "Self & Mind");
+}
+
+/** Theme id → display label block for LLM prompts. */
+export function formatThemeDisplayNamesForPrompt(): string {
+  return LIFE_AREAS.map((a) => `- ${a.id} → ${a.label}`).join("\n");
+}

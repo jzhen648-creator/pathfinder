@@ -1,4 +1,5 @@
 import type { StoryCache } from "@prisma/client";
+import { sanitizeStoryPayload } from "./sanitize-story";
 import { storyGenerationSchema, type StoryPayload } from "./story-types";
 
 export function parseStoryPayload(raw: string, generatedAt: Date): StoryPayload | null {
@@ -6,10 +7,10 @@ export function parseStoryPayload(raw: string, generatedAt: Date): StoryPayload 
     const json = JSON.parse(raw) as unknown;
     const parsed = storyGenerationSchema.safeParse(json);
     if (!parsed.success) return null;
-    return {
+    return sanitizeStoryPayload({
       ...parsed.data,
       generatedAt: generatedAt.toISOString(),
-    };
+    });
   } catch {
     return null;
   }
