@@ -1,63 +1,40 @@
-# Current focus (inferred May 2026)
+# Current focus (June 2026)
 
-Practical snapshot for contributors and AI sessions. Revisit after major changelog entries.
+**Active product:** mobile app in `pathfinder-mobile/`.  
+**Backend:** `pathfinder/` API + Prisma + Stream/Story AI. Desktop tree UI is on hold.
 
-## Likely priorities
+See also [../../START-HERE.md](../../START-HERE.md) and [../../pathfinder-mobile/BACKLOG.md](../../pathfinder-mobile/BACKLOG.md).
 
-1. **Dogfood / stabilization** — Relational milestones, Stream E2E, edit-map, mark hover UX; fix payload/regression bugs before new subsystems (`docs/STABILIZATION.md` QA checklist).
-2. **Stream product loop** — Extract → confirm → commit; ambiguous-on-map; status-only updates; enrich sparse context; theme session dedup.
-3. **Tree interaction polish** — Left rail panels, gateway/hub/pursuit hits only, edit-map reorganize, unresolved mark resolution.
-4. **Hub taxonomy v6** — 17 hubs, catalog copy, `aiRoutingNote` in extract; progressive activation.
-5. **Longitudinal layout (behind flag)** — `BRANCH_LONGITUDINAL_ALL` off in `flags.ts`; geometry and APIs ready; visual sign-off pending before default-on.
+## Priorities
 
-## Active refactor directions
+1. **Map** — overview canopy, theme bridge, hub/pursuit drill, MapSheet, pursuit visuals, edit-map move-to-hub.
+2. **Stream** — scoped composer (map + detail routes), confirm queue, pursuit/child apply pipelines.
+3. **Review & Story** — client Review triage; Story via `/api/story` with shared insight cards.
+4. **Taxonomy** — Self & Mind theme + v7 hub names; `GET /api/branches` awaits sync before response; keep `life-areas.ts` ↔ `tokens.ts` aligned.
+5. **UI consolidation Phase 8** — settings, dashboard, finance, mark screens → shared primitives.
 
-| Area | Direction |
-|------|-----------|
-| Layout | Trunk grammar live; longitudinal grammar opt-in; domain-cluster still default visual |
-| Intake | Stream is primary for pursuits/marks; hub **Add pursuit** remains for explicit manual adds (no panel **Add mark**) |
-| Panels | Rail for theme/hub/pursuit; marks off rail (hover card) |
-| Ordering | `sequencePosition` + `branch-sequence.ts` anchors across goals and marks |
-| Bloom | Simplified enum (`ACTIVE`/`ON_HOLD`/`COMPLETE`); milestone-driven recompute |
-| Taxonomy | Sync-on-read branches; locked templates; finance hub renames absorbed |
+## Source of truth (do not skip)
 
-## Systems under evolution
+| Data | Where |
+|------|--------|
+| Theme labels / subtitles | `src/lib/life-areas.ts` + `pathfinder-mobile/theme/tokens.ts` |
+| Hub labels in UI | Database via hub taxonomy sync (`src/lib/taxonomy.ts`, `hub-taxonomy-sync.ts`) |
+| Product vocabulary | `GLOSSARY.md`, `ONTOLOGY.md` |
 
-- **`tree-branch-geometry.ts`** — Dual paths for domain-cluster vs longitudinal; large surface area.
-- **Stream stack** — `stream-extract`, `stream-commit`, confirmation UI, `resolve-ambiguous`.
-- **Edit map** — `tree-edit-map-*`, `goal-reorganize`, reorganize API.
-- **Hub catalog / AI routing** — `hub-catalog.ts` feeding extract prompts.
-- **Visual materials** — `tree-render-staging`, `tree-render-materials`, goal ambient breathe (post-uniform-limb-brightness pass).
+## Backend touch points
 
-## Short-term goals (reasonable)
+- `src/app/api/` — routes mobile calls
+- `src/lib/hub-catalog.ts`, `src/lib/ai/stream-extract.ts` — Stream routing
+- `prisma/schema.prisma` — data model
 
-- Pass stabilization QA (Stream, edit-map, marks, archive, milestone→bloom).
-- Flip `BRANCH_LONGITUDINAL_ALL` locally until layout acceptable, then consider default-on.
-- Retire `Goal.goalType moment|event` rows and `/api/moments` paths once longitudinal stable.
-- Ensure every milestone/subtask mutation calls `recomputeGoalBloomStatus`; run `backfill:goal-bloom` after bulk fixes.
-- Commit or reconcile WIP called out in `CHANGELOG.md` (2026-05-16 section noted as possibly uncommitted on older HEAD).
+## Do not drive-by rewrite
 
-## Do not rewrite right now
+- `src/components/tree/` — frozen desktop UI unless explicitly requested
+- Taxonomy sync semantics on `GET /api/branches` — dedicated change only
+- Prisma cosmetic renames (`limbId`, `GoalFork`) — deferred
 
-- **`mapToTreeData` / `tree-types` assembly** — Central; touch only with full payload understanding.
-- **`milestone-semantics.ts` + `goal-bloom-lifecycle.ts`** — Converged truth; changes need explicit product sign-off.
-- **Taxonomy sync semantics** — Moving off `GET /api/branches` mutation is a dedicated sprint, not a drive-by.
-- **Full tree-svg decomposition** — Already split; avoid re-monolithing or parallel render pipelines.
-- **Prisma schema renames** (`limbId`, `Branch`, `GoalFork`) — Cosmetic rename pass deferred; high churn/low user value.
-- **Re-adding Evolve/fork APIs or limb polygon click targets** — Explicitly removed May 2026.
+## Ops
 
-## Operational constraints
-
-- **`GEMINI_API_KEY`** required for Stream extract/enrich and several parse routes.
-- **Restart `next dev`** after `NEXT_PUBLIC_*` flag changes.
-- **Backfills** before/after migrations on old DBs (`backfill:tree-milestones`, `backfill:node-sequence`, `backfill:goal-bloom`).
-- **E2E** — `milestone-bloom-evolve`, `stream-confirmation-cards`; seed tree test user.
-- **Default home** — `/tree` after onboarding.
-- **Read `AGENTS.md` / `ONTOLOGY.md`** before tree, bloom, or continuation edits.
-
-## Success signals for this phase
-
-- Stream changes map state reliably without duplicate pursuits on status dumps.
-- Hex dots match relational milestones (first six by position).
-- Edit map does not fight pan or panel open.
-- No regression of invisible limb hit stealing map clicks.
+- **`GEMINI_API_KEY`** for Stream extract and Story
+- After taxonomy bumps: `npm run backfill:hub-taxonomy` in `pathfinder/`
+- Mobile typecheck: `cd pathfinder-mobile; npx tsc --noEmit`

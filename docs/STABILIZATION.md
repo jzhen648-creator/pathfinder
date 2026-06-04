@@ -2,7 +2,7 @@
 
 This document defines the **stabilization / QA phase** after ontology restructuring (milestones, continuation, terminology). It tells contributors and AI agents what is **canonical**, what is **intentionally transitional**, and what **must not be “fixed” ad hoc** during heavy usage validation.
 
-**Related:** [`ONTOLOGY.md`](../ONTOLOGY.md), [`GLOSSARY.md`](../GLOSSARY.md), [`docs/UX-TERMINOLOGY-AUDIT.md`](./UX-TERMINOLOGY-AUDIT.md).
+**Related:** [`ONTOLOGY.md`](../ONTOLOGY.md), [`GLOSSARY.md`](../GLOSSARY.md), [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./archive/UX-TERMINOLOGY-AUDIT.md).
 
 ---
 

@@ -109,4 +109,4 @@ Prefer **small pure modules** over framework indirection. Tree code is intention
 - Narrow hit targets and edit-map/pan mutual exclusion.
 - `mapToTreeData` as the one assembly gate before SVG.
 
-**Pointers:** `VISION.md`, `docs/STREAM.md`, `ONTOLOGY.md`, `GLOSSARY.md`, `DECISIONS.md`, `docs/STABILIZATION.md`, `BRIEF.md`, `docs/README.md`.
+**Pointers:** `docs/current-focus.md`, `docs/STREAM.md`, `ONTOLOGY.md`, `GLOSSARY.md`, `DECISIONS.md`, `docs/STABILIZATION.md`, `BRIEF.md`, `docs/README.md`, `DESKTOP-ON-HOLD.md`.

@@ -28,7 +28,7 @@ Patterns the architecture **appears to resist**, plus **regression risks** for h
 - Note: tree is already split (`tree-svg`, `tree-panel`, geometry modules)—avoid **further** splintering without cohesion; also avoid re-monolithing `tree-view.tsx`.
 
 ### Visual rigidity
-- Whole-limb opacity multipliers that make areas feel disabled (see `docs/DIARY.md` May 2026).
+- Whole-limb opacity multipliers that make areas feel disabled (see `docs/archive/DIARY.md` May 2026).
 - Literal flower art instead of milestone-driven geometry (orbital hex, chords, ambient halo).
 
 ### Duplicated semantic logic

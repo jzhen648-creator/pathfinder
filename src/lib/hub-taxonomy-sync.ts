@@ -40,7 +40,7 @@ export async function ensureHubTaxonomyCurrent(
   return { skipped: false, updates };
 }
 
-/** Retired sixth theme — re-home any surviving rows under Who I'm Becoming / Joy. */
+/** Retired sixth theme — re-home any surviving rows under Self & Mind / Joy & Creativity. */
 function resolveLegacyLimbId(limbId: string): LifeAreaId {
   return limbId === "pleasures" ? "becoming" : (limbId as LifeAreaId);
 }
@@ -69,25 +69,25 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
       name = legacy.label;
     } else if (branch.limbId === "pleasures") {
       limbId = "becoming";
-      label = label || "Joy";
+      label = label || "Joy & Creativity";
       name = name || label;
     } else if (raw === "joy" && limbId === "health") {
       limbId = "becoming";
-      label = "Joy";
-      name = "Joy";
+      label = "Joy & Creativity";
+      name = "Joy & Creativity";
     } else if (raw === "play" && limbId === "becoming") {
-      label = "Joy";
-      name = "Joy";
+      label = "Joy & Creativity";
+      name = "Joy & Creativity";
     } else if (raw === "play" && limbId === "health") {
       limbId = "becoming";
-      label = "Joy";
-      name = "Joy";
+      label = "Joy & Creativity";
+      name = "Joy & Creativity";
     } else if (raw === "mind" && limbId === "health") {
       label = "Appearance";
       name = "Appearance";
     } else if (raw === "mind" && limbId === "becoming") {
-      label = "Inner life";
-      name = "Inner life";
+      label = "Mind & Emotions";
+      name = "Mind & Emotions";
     } else if (raw === "energy" && limbId === "health") {
       label = "Appearance";
       name = "Appearance";

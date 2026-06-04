@@ -92,7 +92,7 @@ Bloom describes **maturity of one goal**, not graph shape.
 
 ## References
 
-- User-visible audit & UX notes: [`docs/UX-TERMINOLOGY-AUDIT.md`](./docs/UX-TERMINOLOGY-AUDIT.md)
+- Historical UX audit (desktop): [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md)
 - **Stabilization phase** (canonical vs transitional, QA checklist, freeze rules): [`docs/STABILIZATION.md`](./docs/STABILIZATION.md)
 - **Milestone projection** (hex dots from relational milestones; legacy JSON fallback): `src/components/tree/milestone-tree-projection.ts`
 - **Tree panel milestone predicates** (has relational vs legacy-only structure): `src/components/tree/goal-milestone-predicates.ts`

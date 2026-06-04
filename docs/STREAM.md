@@ -141,7 +141,7 @@ Do not resurrect Evolve or fork UX. `Goal.parentGoalId` remains for **legacy lay
 
 ## Related docs
 
-- [`../VISION.md`](../VISION.md) — product north star
+- [`../docs/archive/VISION.md`](../docs/archive/VISION.md) — historical product north star
 - [`../BRIEF.md`](../BRIEF.md) — short Stream + tree summary
 - [`../DECISIONS.md`](../DECISIONS.md) — ambiguous-on-tree, edit map, Evolve removal
 - [`architecture.md`](./architecture.md) — system mental model

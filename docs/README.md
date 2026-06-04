@@ -1,18 +1,35 @@
 # Pathfinder docs index
 
-Quick map for humans and agents. **Engineering truth:** [`../CHANGELOG.md`](../CHANGELOG.md), [`../DECISIONS.md`](../DECISIONS.md).
+> **Desktop/web UI is paused.** The active client is **`pathfinder-mobile/`**.  
+> Workspace map: [../../START-HERE.md](../../START-HERE.md)
+
+**Engineering history:** [`../CHANGELOG.md`](../CHANGELOG.md), [`../DECISIONS.md`](../DECISIONS.md).  
+**Frozen desktop UI:** [`../DESKTOP-ON-HOLD.md`](../DESKTOP-ON-HOLD.md).
+
+## Active docs
 
 | Doc | Use for |
 |-----|---------|
-| [`../VISION.md`](../VISION.md) | Product north star — why Pathfinder exists |
-| [`../BRIEF.md`](../BRIEF.md) | Short product + tree + Stream summary |
+| [`../GLOSSARY.md`](../GLOSSARY.md) / [`../ONTOLOGY.md`](../ONTOLOGY.md) | Terms and code↔product mapping |
+| [`../AGENTS.md`](../AGENTS.md) | Agent rules (domain language; API + legacy tree notes) |
+| [`current-focus.md`](./current-focus.md) | What to work on now (mobile-first) |
 | [`STREAM.md`](./STREAM.md) | Stream feature spec (extract, confirm, ambiguous) |
-| [`MOBILE-VISION.md`](./MOBILE-VISION.md) | Future mobile metaphor (not in build) |
-| [`architecture.md`](./architecture.md) | Compressed system architecture |
-| [`STABILIZATION.md`](./STABILIZATION.md) | QA phase, milestone truth, dogfood checklist |
-| [`../ONTOLOGY.md`](../ONTOLOGY.md) / [`../GLOSSARY.md`](../GLOSSARY.md) | Terms and code↔product mapping |
-| [`../PROJECT.md`](../PROJECT.md) | Deeper philosophy (hydraulic effect, etc.) |
+| [`architecture.md`](./architecture.md) | System architecture (API, taxonomy sync) |
+| [`STABILIZATION.md`](./STABILIZATION.md) | QA checklist (shared backend behaviors) |
+| [`BACKLOG.md`](./BACKLOG.md) | Deferred backend / desktop ideas |
+| [`../PROMPTS.md`](../PROMPTS.md) | AI prompts (Stream, Story) |
+| [`../BRIEF.md`](../BRIEF.md) | Short product summary |
 
-**Cursor canvas (IDE only, not in git):** `canvases/pathfinder-claude-brief.canvas.tsx` — scannable brief; keep aligned with VISION + STREAM after sprints.
+## Archive (desktop / tree era)
 
-*Reconcile vision docs with CHANGELOG after each sprint.*
+Historical only — do not treat as current product direction:
+
+[`archive/README.md`](./archive/README.md)
+
+## Optional / philosophy
+
+| Doc | Note |
+|-----|------|
+| [`../PROJECT.md`](../PROJECT.md) | Deeper philosophy |
+
+*Reconcile active docs with CHANGELOG after each sprint.*

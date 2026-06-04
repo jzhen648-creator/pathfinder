@@ -35,8 +35,8 @@ export const ONBOARDING_LIMB_OPTIONS: readonly OnboardingLimbOption[] = [
   },
   {
     id: "becoming",
-    label: "Becoming",
-    description: "Purpose, habits, inner life",
+    label: "Self & Mind",
+    description: "Purpose & values, mind & emotions, joy & creativity",
     color: "#7F77DD",
     Icon: LimbBecoming,
   },

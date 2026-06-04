@@ -4,16 +4,16 @@ Canonical vocabulary for the product, tree view, roadmap, and database. Prefer t
 
 **Mental model:** Self → **theme** → **hub** → **goals** (and **timeline notes** on the hub where applicable). TypeScript and Prisma still use historical identifiers (`LifeAreaId`, `limbId`, `branchId`); see each term below.
 
-For ongoing UX wording inventory and Phase 2 notes, see [`docs/UX-TERMINOLOGY-AUDIT.md`](./docs/UX-TERMINOLOGY-AUDIT.md).
+For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md).
 
 ## Product hierarchy
 
 | Term | Meaning |
 |------|--------|
 | **Self** | The user / center of the life map (conceptual). |
-| **Theme** | One of the five fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Who I'm Becoming** `becoming`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (17 default hubs total). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
-| **Hub** | A **named track under a theme** (e.g. Family, Skills, Mind) — **where goals and timeline notes attach** in product language. Each hub corresponds to one root **`Branch`** row (three or four starter hubs per theme; see taxonomy). Prefer **hub** over **branch line** in new UI strings. |
-| **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Who I'm Becoming"** in UI (matches the tree and pillars). Do not use **"Personal Growth"** or **"Growth"** as the pillar label. |
+| **Theme** | One of the five fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Self & Mind** `becoming`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (17 default hubs total). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
+| **Hub** | A **named track under a theme** (e.g. Family, Skills, Mind & Emotions) — **where goals and timeline notes attach** in product language. Each hub corresponds to one root **`Branch`** row (three or four starter hubs per theme; see taxonomy). Prefer **hub** over **branch line** in new UI strings. |
+| **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Self & Mind"** in UI. Legacy labels **Who I'm Becoming**, **Mind & Spirit**, and **Personal Growth** map to `becoming` in serializers only — do not use them in new copy. |
 | **Branch** | A persisted **`Branch`** row: the database anchor for a **hub**; owns **timeline notes** (`Mark`) and goals via `branchId`. **Not** the same as **goal evolution** (`Goal.parentGoalId`). Columns `parentBranchId` / `turningPointId` remain for legacy rows; **new hub splits from the timeline are disabled** (2026-05). |
 | **Goal evolution (legacy)** | Successor goal linked via `Goal.parentGoalId` / `forkedGoals`. Fork API removed; **Stream** adds new pursuits. Older docs: **continuation**. |
 | **Goal** | Roadmap item (`Goal` model): types such as project, practice, identity; may include timeline-style `moment` / `event` goals. Carries **bloom** lifecycle for that pursuit alone. |
@@ -84,7 +84,7 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md) and `npm run backfill:goal-bloom` for normali
 
 ## UI wording
 
-- **Theme** — pillar labels (Money & Finance, Work & Career, Who I'm Becoming, …).
+- **Theme** — pillar labels (Money & Finance, Work & Career, Self & Mind, …).
 - **Hub** — which track a goal or timeline note sits on (maps to a root **`Branch`** row).
 - **Stream** — brain dump from **Open Stream** on theme, hub, or pursuit panel (replaces Evolve/fork UX).
 - **Open Stream** — opens Stream for the current theme, hub, or pursuit.

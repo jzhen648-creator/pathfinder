@@ -79,9 +79,9 @@ Individuals who want a **private, holistic** view of their story and priorities 
 
 | Doc | Use for |
 |-----|---------|
-| [`VISION.md`](./VISION.md) | Product **north star** (why we exist). |
+| [`docs/archive/VISION.md`](./docs/archive/VISION.md) | Historical product north star (desktop era). |
 | [`docs/STREAM.md`](./docs/STREAM.md) | Stream feature spec. |
-| [`docs/MOBILE-VISION.md`](./docs/MOBILE-VISION.md) | Future mobile direction (not in build). |
+| [`docs/archive/MOBILE-VISION.md`](./docs/archive/MOBILE-VISION.md) | Pre-ship mobile notes (archived). |
 | [`docs/README.md`](./docs/README.md) | Full docs index. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Dated **what shipped** (start with 2026-05-19). |
 | [`DECISIONS.md`](./DECISIONS.md) | **Why** — sequence grammar, Stream, taxonomy, focus/edit-map behaviour. |

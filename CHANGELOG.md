@@ -1,5 +1,7 @@
 # Changelog
 
+> **Active client:** `pathfinder-mobile/`. API changes here affect mobile. Desktop tree UI paused — [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md).
+
 Hand-maintained work log. Line-level history: `git log` in this repo (`pathfinder/`). **Latest commit on `HEAD`:** `70f44e3` (2026-05-14). The **2026-05-16** section below is **local WIP** (uncommitted) unless you have since committed it.
 
 ## 2026-05-22

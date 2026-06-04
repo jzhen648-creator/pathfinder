@@ -134,7 +134,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Snowball consumer debt",
       ],
       doesNotBelongHere: [
-        "Values-led charity or tithing (→ Purpose)",
+        "Values-led charity or tithing (→ Purpose & Values)",
         "Building investment portfolio (→ Assets)",
         "Income protection policy (→ Safety net)",
       ],
@@ -202,7 +202,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       doesNotBelongHere: [
         "Ship side project MVP (→ Builds & Launches)",
         "Ask for promotion (→ Career)",
-        "Weekend trip with friends (→ Joy)",
+        "Weekend trip with friends (→ Joy & Creativity)",
       ],
       aiRoutingNote:
         "Route here for learning, qualifications, courses, certifications, practice, and skill-building — the inputs that compound into capability. CEMAP, language learning, technical practice, and reading lists belong here even when motivated by a career goal. If the user names a specific qualification or course, this hub almost always wins over Career. Do not collapse a Skills item into a Career pursuit just because they share a target role.",
@@ -234,7 +234,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       doesNotBelongHere: [
         "Promotion planning (→ Career)",
         "Learn React course (→ Skills)",
-        "Hobby game dev with no ship goal (→ Joy)",
+        "Hobby game dev with no ship goal (→ Joy & Creativity)",
       ],
       aiRoutingNote:
         "Route here when the user describes building, shipping, or releasing a tangible work output — YouTube videos, portfolio pieces, products, side projects with a deliverable. The signal is something that gets published or completed, not learned or earned. When a new target is a clear next chapter of an existing shipped pursuit (same channel or product, higher metric, later date), extract it as a continuation with parentRef, not a peer pursuit.",
@@ -257,28 +257,28 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
     },
   },
   becoming: {
-    Purpose: {
+    "Purpose & Values": {
       about:
-        "Meaning and direction — values, north star, faith, wonder, contemplation, and values-led giving. The why behind your life, not day-to-day mood management or hobbies.",
+        "Life direction, meaning, identity, principles, and the kind of person you want to become — values, north star, faith, wonder, and values-led giving. The why behind your life, not day-to-day mood management or hobbies.",
       why: "Without a purpose hub, existential goals get misfiled as generic self-help or random projects.",
       belongsHere: [
-        "Clarify whether I still believe in my career north star",
+        "Figure out what I actually want from life",
+        "Make my actions match my values",
         "Values-led giving plan",
-        "Contemplative retreat for direction (not therapy)",
       ],
       doesNotBelongHere: [
-        "Weekly therapy for anxiety (→ Inner life)",
-        "Grief after father's death (→ Inner life)",
-        "Plan concert trip (→ Joy)",
+        "Weekly therapy for anxiety (→ Mind & Emotions)",
+        "Manage my anxiety better (→ Mind & Emotions)",
+        "Start painting again (→ Joy & Creativity)",
       ],
       aiRoutingNote:
-        "Route here for meaning, values, spirituality, life direction, and intentional giving — the 'what do I believe and what matters' questions. If the core work is healing, processing patterns, or therapy, that's Inner life. If it's leisure or refuel, that's Joy. Purpose is about direction; Inner life is about repair. When the user is genuinely uncertain which one applies, route to ambiguous[] rather than guessing.",
+        "Route here for life direction, meaning, identity, principles, personal standards, values, self-definition, and long-term personal direction — the 'what matters and who I want to become' questions. If the core work is healing, processing patterns, therapy, anxiety, or emotional regulation, that's Mind & Emotions. If it's fun, hobbies, play, or leisure, that's Joy & Creativity. Purpose & Values is direction; Mind & Emotions is thoughts and feelings in practice. When genuinely uncertain, route to ambiguous[] rather than guessing.",
       examples: [
-        "Write a personal mission",
-        "Refine my north star",
-        "Move back to London for family (values-led)",
-        "Values-led giving plan",
-        "Figure out what I actually want long-term",
+        "I want to figure out what I actually want from life",
+        "I want to live with more discipline and integrity",
+        "I need to decide what kind of person I want to become",
+        "I want to build a more meaningful life",
+        "I want my actions to match my values",
       ],
       openingQuestions: [
         "What gives your life a sense of direction right now — does that feel clear or fuzzy?",
@@ -289,28 +289,29 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What feels meaningful to you right now — and is your life pointing toward it?",
       coachMarkHubInstruction: "Any direction or values you want to build toward?",
     },
-    "Inner life": {
+    "Mind & Emotions": {
       about:
-        "Psychological and identity work in practice — therapy, journaling, shadow patterns, identity shifts, grief processing, and personal rituals. Not physical appearance or career skills.",
-      why: "Inner work is ongoing and intimate; it should not compete with skills on the tree or body projects under Health.",
+        "Thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, and psychological wellbeing — including therapy and grief work.",
+      why: "Emotional and mental life is ongoing and intimate; it should not compete with career skills or body projects under Health.",
       belongsHere: [
-        "Weekly therapy for anxiety",
-        "Work through grief after a loss",
-        "Work through recurring relationship pattern",
+        "I feel overwhelmed and need to organise my thoughts",
+        "I need to manage my anxiety better",
+        "Start weekly therapy",
       ],
       doesNotBelongHere: [
-        "Clarify life mission statement (→ Purpose)",
-        "Values-led charity plan (→ Purpose)",
-        "Girls' weekend trip (→ Joy)",
+        "Clarify life mission statement (→ Purpose & Values)",
+        "Values-led charity plan (→ Purpose & Values)",
+        "Run a 10k training plan (→ Movement)",
       ],
       aiRoutingNote:
-        "Route here for therapy, grief, shadow patterns, identity shifts, emotional processing, and personal rituals that work on inner experience. The signal is repair, healing, or pattern change. Not for values questions (Purpose), not for skills or work (Skills/Career), not for body projects (Appearance). If the user mentions therapy by name, this hub wins over Purpose. Loneliness, self-criticism, and emotional flinching belong here.",
+        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Purpose & Values), not career output (Career/Skills), not body presentation projects (Appearance). If the user mentions therapy by name, this hub wins over Purpose & Values. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
       examples: [
-        "Start therapy",
-        "Process anxiety before the move",
-        "Journal through a breakup",
-        "Work through anger at Dad",
-        "Build a morning reflection ritual",
+        "I feel overwhelmed and need to organise my thoughts",
+        "I want to become more confident",
+        "I need to manage my anxiety better",
+        "I keep procrastinating and want to understand why",
+        "I want to stop being so reactive emotionally",
+        "I want to build better mental discipline",
       ],
       openingQuestions: [
         "How would you describe where you are emotionally at the moment?",
@@ -318,31 +319,33 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Are you doing any deliberate inner work right now — therapy, journalling, anything like that?",
       ],
       firstTimeQuestion:
-        "What's something about yourself you've been figuring out lately?",
-      coachMarkHubInstruction: "Any personal growth you're actively working on?",
+        "What's something about your thoughts or feelings you've been working through lately?",
+      coachMarkHubInstruction: "Anything on your mind emotionally that you want to track?",
     },
-    Joy: {
+    "Joy & Creativity": {
       about:
-        "Play, culture, and experiences that make life worth living — hobbies, travel, music, art, and anything that refuels you without a work outcome attached.",
+        "Fun, hobbies, play, leisure, creativity, personal expression, art, writing, music, exploration, entertainment, and experiences that make life enjoyable — not work output.",
       why: "Joy deferred becomes burnout; giving it a hub prevents every fun thing from looking like a career project.",
       belongsHere: [
-        "Revive weekend hiking",
+        "I want to start painting again",
+        "I want to make time for hobbies",
         "Plan Japan trip",
-        "See live jazz monthly",
       ],
       doesNotBelongHere: [
         "Launch paid newsletter as a business (→ Builds & Launches)",
-        "Values clarification retreat (→ Purpose)",
-        "Skincare routine for confidence in body (→ Appearance)",
+        "Values clarification retreat (→ Purpose & Values)",
+        "Weekly dinner with friends as belonging (→ Friendships)",
       ],
       aiRoutingNote:
-        "Route here for hobbies, travel, culture, play, and refuel — things that are ends in themselves, not means to a goal. If the user would feel guilty calling it work, it belongs here. Reading, gaming, weekend trips, concerts, walks, time with friends as recreation. If a friendship activity is framed as social belonging (Friendships) or family care (Family), prefer those hubs; Joy is for the activity itself.",
+        "Route here for fun, hobbies, play, leisure, creativity, personal expression, art, writing, music, exploration, and entertainment — things the user wants because they make life enjoyable, not because they advance career or values. If the user would feel guilty calling it work, it belongs here. Social fun centered on people and belonging may belong on Friendships or Romance; Joy & Creativity is for the activity itself. Career qualifications, job progress, and business output belong on Work & Career, not here.",
       examples: [
-        "Revive weekend hiking",
-        "Plan Japan trip",
-        "See live jazz monthly",
-        "Join local game night",
-        "Book concert tickets",
+        "I want to start painting again",
+        "I want to make time for hobbies",
+        "I want to enjoy life more instead of only working",
+        "I want to write creatively",
+        "I want to plan more fun experiences",
+        "I want to learn guitar",
+        "I want to make space for things that feel playful",
       ],
       openingQuestions: [
         "What's something you genuinely enjoy that you haven't done in too long?",
@@ -398,7 +401,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       doesNotBelongHere: [
         "Host friends dinner (→ Friendships)",
         "Visit parents (→ Family)",
-        "Individual therapy for self only (→ Inner life)",
+        "Individual therapy for self only (→ Mind & Emotions)",
       ],
       aiRoutingNote:
         "Route here for spouse, partner, fiancé, dating, engagement, and romantic commitment — including the admin that comes with it (spousal visa, wedding planning, moving in). Spousal visa applications are Romance, not Family, even when families are involved. If the user mentions a girlfriend, boyfriend, or partner by role, this hub wins. Connection titles: name pursuits after the partner or the relationship (e.g. Sarah, James, Our marriage) — not goal verbs (avoid Improve relationship with…, Invest in partnership…, Repair our marriage as a pursuit title). Engagement, visa, date-night, and conflict-repair plans go in milestones[]; past moments in marks[].",
@@ -432,7 +435,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Family reunion (→ Family)",
       ],
       aiRoutingNote:
-        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Career) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friendships over Joy. Connection titles: name pursuits after the friend or community (e.g. James, Friendship with James, London Thai community) — not productivity framing (avoid Improve friendship with…, Invest in social life…). Meet-ups, reconnection plans, and volunteering cadence go in milestones[]; past moments in marks[].",
+        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Career) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friendships over Joy & Creativity. Connection titles: name pursuits after the friend or community (e.g. James, Friendship with James, London Thai community) — not productivity framing (avoid Improve friendship with…, Invest in social life…). Meet-ups, reconnection plans, and volunteering cadence go in milestones[]; past moments in marks[].",
       examples: [
         "James",
         "Friendship with James",
@@ -523,12 +526,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Complete hair restoration protocol",
       ],
       doesNotBelongHere: [
-        "Therapy for body image (→ Inner life)",
-        "Buy dream watch (→ Joy)",
+        "Therapy for body image (→ Mind & Emotions)",
+        "Buy dream watch (→ Joy & Creativity)",
         "General fat loss via diet (→ Nutrition)",
       ],
       aiRoutingNote:
-        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, style. The signal is presentation and how the user looks. Photo flinching, mirror avoidance, and not feeling comfortable in pictures belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Appearance and Inner life flagged.",
+        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, style, fitness, diet, sleep, and medical wellbeing when the focus is physical. The signal is presentation and how the user looks or trains their body. Photo flinching and grooming projects belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Appearance and Mind & Emotions flagged. Do not route general anxiety, values, or hobby goals here.",
       examples: [
         "Plan Invisalign",
         "Book dermatologist for acne",
@@ -555,12 +558,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Address chronic undersleep",
       ],
       doesNotBelongHere: [
-        "Meditation for self-understanding (→ Inner life)",
-        "Weekend ski trip (→ Joy)",
+        "Meditation for self-understanding (→ Mind & Emotions)",
+        "Weekend ski trip (→ Joy & Creativity)",
         "Strength deload week (→ Movement)",
       ],
       aiRoutingNote:
-        "Route here for sleep, recovery, downtime, lights-out rules, and deliberate rest — the deliberate practice of resting. Lights-out times, sleep hygiene, naps, recovery days from training all belong here. Not for entertainment as leisure (Joy) and not for medical sleep treatments framed primarily as a health condition. If the user names a specific bedtime rule or sleep target, this hub wins.",
+        "Route here for sleep, recovery, downtime, lights-out rules, and deliberate rest — the deliberate practice of resting. Lights-out times, sleep hygiene, naps, recovery days from training all belong here. Not for entertainment as leisure (Joy & Creativity) and not for medical sleep treatments framed primarily as a health condition. If the user names a specific bedtime rule or sleep target, this hub wins.",
       examples: [
         "Fix 10pm wind-down",
         "Block recovery weekend after launch",
@@ -599,7 +602,8 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
   const byTheme: Partial<Record<LifeAreaId, string>> = {
     finance: "Money, security, and how resources flow through your life.",
     work: "Skills, career momentum, and work that matters to you.",
-    becoming: "Purpose, inner life, and joy you protect for yourself.",
+    becoming:
+      "Purpose & values, mind & emotions, and joy & creativity you protect for yourself — personal development that does not belong on Money, Work, Health, or People.",
     people: "Relationships and the people who shape your story — named connections, not task lists.",
     health: "Physical foundation — movement, fuel, appearance, and rest.",
   };

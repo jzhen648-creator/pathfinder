@@ -32,9 +32,11 @@ export async function GET() {
     }
 
     if (user.hubTaxonomyVersion !== TAXONOMY_VERSION) {
-      void ensureHubTaxonomyCurrent(prisma, userId).catch((err) => {
-        console.error("[GET /api/branches] hub taxonomy backfill failed", err);
-      });
+      try {
+        await ensureHubTaxonomyCurrent(prisma, userId);
+      } catch (err) {
+        console.error("[GET /api/branches] hub taxonomy sync failed", err);
+      }
     }
 
     const branches = await prisma.branch.findMany({

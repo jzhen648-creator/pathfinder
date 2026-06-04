@@ -25,13 +25,13 @@ export const LIFE_AREAS: LifeArea[] = [
   },
   {
     id: "becoming",
-    label: "Who I'm Becoming",
-    sublabel: "Purpose, inner life, and joy",
+    label: "Self & Mind",
+    sublabel: "Purpose & values, mind & emotions, joy & creativity",
     color: "#7F77DD",
     angle: -2,
-    emptyPrompt: "How have you grown and changed?",
-    firstMarkQuestion: "What early pursuit most shaped your personal growth?",
-    addPrompt: "Add a growth pursuit",
+    emptyPrompt: "What matters to you beyond work, money, health, and other people?",
+    firstMarkQuestion: "What early pursuit most shaped who you are becoming?",
+    addPrompt: "Add a self & mind pursuit",
     examples: ["Changed my view on", "Learned that", "Became someone who"],
   },
   {

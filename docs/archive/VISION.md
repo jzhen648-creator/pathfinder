@@ -107,15 +107,32 @@ The two in conversation with each other.
 
 ---
 
-## How Pathfinder fits with AI tools
+## How Pathfinder fits alongside AI
 
-Pathfinder is not a replacement for Claude, ChatGPT, or the other tools you already use for depth of advice. Keep them.
+Pathfinder is not a replacement for Claude or ChatGPT — it's where those conversations land.
 
-Those tools are where you think. Pathfinder is where you live.
+Use Claude to think through a decision, plan a goal, or understand your options in depth.
+Then bring what matters into Pathfinder via Stream.
 
-The flow that works: have the rich conversation elsewhere, take the advice home, then bring it into Pathfinder through Stream. Paste the whole transcript if that's what you have — a long ChatGPT or Claude thread is exactly what Stream is for. It extracts pursuits, milestones, and marks without you doing any filing work.
+Pathfinder holds the start, the finish, and every meaningful checkpoint in between.
+That's what AI conversations alone can never do — they end.
+Your map doesn't.
 
-This is a product principle, not a feature request. Pathfinder will never try to out-advise general AI tools. Its job is to make sure the insight doesn't disappear.
+The division of labour is intentional:
+
+Claude and ChatGPT → thinking partner
+Deep advice, task lists, planning, research
+"How do I apply for a UK spousal visa?"
+"What should I consider before changing careers?"
+
+Pathfinder → memory and progress tracker
+Milestones, marks, momentum, the story of your life
+"Visa application submitted"
+"First interview secured"
+"First day completed"
+
+Neither does the other's job well.
+Together they're complete.
 
 ---
 
