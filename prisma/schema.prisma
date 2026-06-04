@@ -51,6 +51,7 @@ model User {
   trunkSegments              TrunkSegment[]
   trunkEntries               TrunkEntry[]
   streamSessions             StreamSession[]
+  streamRuns                 StreamRun[]
   profileFacts               ProfileFact[]
   manualProfile              UserManualProfile?
   insightCache               InsightCache?
@@ -223,12 +224,16 @@ model Mark {
   needsResolution   Boolean       @default(false)
   /// Stable id from Stream extract `ambiguous[].id` (dedup on re-extract).
   streamAmbiguousId String?
+  /// Pursuit Stream apply run that created this mark (for undo/review).
+  sourceStreamRunId String?
+  sourceStreamRun   StreamRun?    @relation(fields: [sourceStreamRunId], references: [id], onDelete: SetNull)
   reframes          Reframe[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
   @@index([userId])
   @@index([branchId])
+  @@index([sourceStreamRunId])
   @@index([limbId])
   @@index([archived])
   @@index([date])
@@ -266,6 +271,39 @@ model StreamSession {
 
   @@index([userId, limbId, createdAt])
   @@index([userId, processedForProfile, createdAt])
+}
+
+enum StreamRunStatus {
+  pending
+  applied
+  failed
+  undone
+}
+
+/// One pursuit-scoped Stream submission — raw input, applied items, undo metadata.
+model StreamRun {
+  id                  String          @id @default(cuid())
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId              String
+  branchId            String
+  limbId              String
+  rawInput            String          @db.Text
+  inputMode           StreamInputMode @default(text)
+  status              StreamRunStatus @default(pending)
+  /// Goal.description before this run (for revert).
+  previousDescription String?         @db.Text
+  /// Goal.bloomStatus before this run (for revert).
+  previousBloomStatus BloomStatus?
+  summaryJson         Json?
+  expiresAt           DateTime
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  marks               Mark[]
+  milestones          Milestone[]
+
+  @@index([userId, goalId, createdAt])
+  @@index([userId, expiresAt])
 }
 
 model ProfileFact {
@@ -414,9 +452,12 @@ model Goal {
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   branchId         String?
   branch           Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  /// Last pursuit Stream run that updated this goal's context/status.
+  sourceStreamRunId String?
   milestones       Milestone[]
 
   @@index([parentGoalId])
+  @@index([sourceStreamRunId])
   @@index([branchId])
   @@index([limbId])
   @@index([archived])
@@ -447,9 +488,12 @@ model Milestone {
   completedAt DateTime?
   goalId      String
   goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  sourceStreamRunId String?
+  sourceStreamRun   StreamRun? @relation(fields: [sourceStreamRunId], references: [id], onDelete: SetNull)
   subtasks    Subtask[]
 
   @@unique([goalId, position])
+  @@index([sourceStreamRunId])
 }
 
 model Subtask {

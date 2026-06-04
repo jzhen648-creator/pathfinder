@@ -69,8 +69,61 @@ export const extractedMilestoneSchema = z.object({
 export const streamPursuitUpdateSchema = z.object({
   goalId: z.string().min(1),
   title: z.string().trim().min(1).max(100).optional(),
+  /** Rewritten pursuit context/summary (Goal.description). */
+  description: z.string().max(2000).optional(),
   bloomStatus: z.enum(STREAM_BLOOM_VALUES).optional(),
 });
+
+export const streamPursuitApplyRequestSchema = z.object({
+  pursuitId: z.string().min(1),
+  input: z.string().min(1).max(4000),
+  inputMode: z.enum(["text", "voice"]).default("text"),
+});
+
+/** Child-pursuit branch composer: intentional creation of a new pursuit from a parent. */
+export const streamChildPursuitApplyRequestSchema = z.object({
+  parentPursuitId: z.string().min(1),
+  input: z.string().min(1).max(4000),
+  inputMode: z.enum(["text", "voice"]).default("text"),
+});
+
+export const streamRunAppliedItemSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("context"),
+    goalId: z.string(),
+    label: z.string(),
+    previousDescription: z.string().nullable(),
+    newDescription: z.string(),
+  }),
+  z.object({
+    kind: z.literal("milestone"),
+    milestoneId: z.string(),
+    title: z.string(),
+  }),
+  z.object({
+    kind: z.literal("mark"),
+    markId: z.string(),
+    title: z.string(),
+  }),
+  z.object({
+    kind: z.literal("status"),
+    goalId: z.string(),
+    previousBloomStatus: z.enum(STREAM_BLOOM_VALUES),
+    newBloomStatus: z.enum(STREAM_BLOOM_VALUES),
+  }),
+  z.object({
+    kind: z.literal("pursuit"),
+    /** The newly created child pursuit goal id (deleted on undo). */
+    createdGoalId: z.string(),
+    title: z.string(),
+    /** Parent pursuit this child branched from (link stored in context, not parentGoalId for now). */
+    parentGoalId: z.string(),
+    parentTitle: z.string(),
+    milestoneCount: z.number().int().nonnegative(),
+  }),
+]);
+
+export type StreamRunAppliedItem = z.infer<typeof streamRunAppliedItemSchema>;
 
 export const streamMilestoneUpdateSchema = z.object({
   goalId: z.string().min(1),
