@@ -1,4 +1,5 @@
 import { getLifeArea } from "@/lib/life-areas";
+import { canonicalRootHubRows } from "@/lib/hub-dedupe";
 import { prisma } from "@/lib/prisma";
 
 type MapContextFilter = {
@@ -19,6 +20,7 @@ export type FormattedMapContext = {
       pursuits: Array<{
         id: string;
         title: string;
+        description: string;
         status: string;
         milestones: Array<{
           id: string;
@@ -35,9 +37,11 @@ export async function formatMapContext(
   userId: string,
   filter: MapContextFilter = {},
 ): Promise<FormattedMapContext> {
-  const branches = await prisma.branch.findMany({
+  const branches = canonicalRootHubRows(
+    await prisma.branch.findMany({
     where: {
       userId,
+      parentBranchId: null,
       ...(filter.themeId ? { limbId: filter.themeId } : {}),
       ...(filter.hubId ? { id: filter.hubId } : {}),
       isActive: true,
@@ -47,6 +51,8 @@ export async function formatMapContext(
       limbId: true,
       label: true,
       name: true,
+      isSystemHub: true,
+      createdAt: true,
       goals: {
         where: {
           archived: false,
@@ -57,6 +63,7 @@ export async function formatMapContext(
         select: {
           id: true,
           title: true,
+          description: true,
           bloomStatus: true,
           milestones: {
             select: {
@@ -75,7 +82,8 @@ export async function formatMapContext(
       },
     },
     orderBy: [{ limbId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
-  });
+  }),
+  );
 
   const themeMap = new Map<string, FormattedMapContext["themes"][number]>();
 
@@ -94,6 +102,7 @@ export async function formatMapContext(
       pursuits: branch.goals.map((goal) => ({
         id: goal.id,
         title: goal.title,
+        description: goal.description?.trim() ?? "",
         status: goal.bloomStatus,
         milestones: goal.milestones.map((milestone) => ({
           id: milestone.id,

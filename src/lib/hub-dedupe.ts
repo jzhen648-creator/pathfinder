@@ -10,7 +10,7 @@ function matchesTemplate(limbId: string, label: string | null | undefined): bool
 }
 
 /** Prefer canonical template label, then system hub, then oldest row. */
-function pickKeeperHub(list: readonly Branch[]): Branch {
+export function pickKeeperHub(list: readonly Branch[]): Branch {
   return [...list].sort((a, b) => {
     const aTemplate = matchesTemplate(a.limbId, a.label ?? a.name) ? 0 : 1;
     const bTemplate = matchesTemplate(b.limbId, b.label ?? b.name) ? 0 : 1;
@@ -74,4 +74,35 @@ export async function dedupeDuplicateRootHubs(
   }
 
   return updates;
+}
+
+type RootHubRow = Pick<Branch, "id" | "limbId" | "label" | "name" | "isSystemHub" | "createdAt">;
+
+/** Read-only: one row per canonical hub slot (for map context / Stream resolver). */
+export function canonicalRootHubRows<T extends RootHubRow>(roots: readonly T[]): T[] {
+  const groups = new Map<string, T[]>();
+  for (const branch of roots) {
+    const key = systemHubKey(branch.limbId, branch.label ?? branch.name);
+    const list = groups.get(key) ?? [];
+    list.push(branch);
+    groups.set(key, list);
+  }
+  const out: T[] = [];
+  for (const list of groups.values()) {
+    if (list.length === 1) {
+      out.push(list[0]!);
+      continue;
+    }
+    const sorted = [...list].sort((a, b) => {
+      const aTemplate = matchesTemplate(a.limbId, a.label ?? a.name) ? 0 : 1;
+      const bTemplate = matchesTemplate(b.limbId, b.label ?? b.name) ? 0 : 1;
+      if (aTemplate !== bTemplate) return aTemplate - bTemplate;
+      const aSystem = a.isSystemHub ? 0 : 1;
+      const bSystem = b.isSystemHub ? 0 : 1;
+      if (aSystem !== bSystem) return aSystem - bSystem;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+    out.push(sorted[0]!);
+  }
+  return out;
 }

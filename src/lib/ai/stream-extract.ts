@@ -26,7 +26,7 @@ const STREAM_PURUIT_REVIEW_RULES = [
   "## Pursuit review (typo correction and event context)",
   "",
   "Help the user catch mistakes before they confirm. On each pursuit object, optionally set:",
-  "- description: 1–2 plain sentences explaining what the pursuit is about and what success means; this should reassure the user you understood it",
+  "- description: 1–2 plain sentences explaining what the pursuit is about and what success means; this should reassure the user you understood it. Where it clearly continues, builds on, or sits alongside an existing pursuit in the provided map/hub context, say so in plain second person (e.g. \"Continues your half-marathon training\", \"Your third Health pursuit this year\", \"Sits alongside your existing ISA goal\"). Use only pursuits present in the provided context; never invent a relationship.",
   "- sourcePhrase: verbatim user wording for this pursuit",
   "- titleConfidence: 0–1 confidence in title/match",
   "- suggestedTitle: clearer corrected title when the phrase looks like a typo, spacing error, or near-match to an existing pursuit/profile term (e.g. user \"Dip FPS\" → suggestedTitle \"DipPFS\" when map/profile suggests DipPFS)",
@@ -54,16 +54,27 @@ type StreamExtractContextOptions = {
   mapContext?: FormattedMapContext;
 };
 
-const STREAM_EXTRACT_BOUNDARY_PAIRS = [
-  ["Skills", "Career"],
-  ["Purpose", "Inner life"],
-  ["Safety net", "Assets"],
-  ["Appearance", "Inner life"],
-] as const;
-
-const STREAM_EXTRACT_BOUNDARY_PAIR_TEXT = STREAM_EXTRACT_BOUNDARY_PAIRS.map(
-  ([a, b]) => `${a} / ${b}`,
-).join("; ");
+/** Cross-theme routing for theme id `becoming` (display: Self & Mind). */
+const STREAM_SELF_MIND_THEME_BOUNDARIES = [
+  "## Self & Mind theme boundaries (themeId: becoming)",
+  "",
+  "Use Self & Mind for personal development, identity, thoughts, feelings, mindset, emotional life, values, meaning, reflection, fun, creativity, hobbies, and personal expression when items do not clearly belong elsewhere.",
+  "",
+  "Hub slugs (normalized — use exactly as in hub context): purpose & values | mind & emotions | joy & creativity",
+  "",
+  "Purpose & Values: life direction, meaning, identity, principles, values, self-definition, long-term personal direction.",
+  "Mind & Emotions: thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, psychological wellbeing.",
+  "Joy & Creativity: fun, hobbies, play, leisure, creativity, personal expression, art, writing, music, exploration, entertainment.",
+  "",
+  "Do NOT route to Self & Mind when:",
+  "- Physical fitness, diet, sleep, medical wellbeing, weight, strength, endurance, body projects → Health & Body hubs (unless the user is mainly discussing emotions or mindset around those issues)",
+  "- Career ambition, job progress, professional skills, business, career qualifications, work output → Work & Career (unless mainly identity, confidence, values, or meaning)",
+  "- Family, friendships, romance, dating, social life, communication with others, relationship repair → People & Relationships (unless primarily reflecting on own emotions or thoughts)",
+  "- Assets, debt, investing, property, mortgages, savings, tax, income → Money & Finance",
+  "",
+  "Fun usually → joy & creativity; social fun with other people may → Friendships or Romance.",
+  "\"What's on my mind?\" is a Stream input placeholder, not a hub name.",
+].join("\n");
 
 const STREAM_EXTRACT_TITLE_LENGTH_RULES = [
   "## Title and field length (hard limits)",
@@ -72,15 +83,6 @@ const STREAM_EXTRACT_TITLE_LENGTH_RULES = [
   "- Use short action-style titles (about 3–8 words). Never paste long sentence fragments as titles.",
   "- Put detailed wording in description, milestones[], or sourcePhrase — not in title.",
   "- sourcePhrase max 200 characters; description max 500 characters.",
-].join("\n");
-
-const STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT = [
-  `Use ambiguous[] with confidence < ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} for these known adjacent-hub boundaries unless one side is clearly stronger:`,
-  "- Skills / Career: learning, credentials, confidence, practice, or mentorship that may be about role progression.",
-  "- Purpose / Inner life: meaning, direction, values, identity, or existential reflection with unclear action area.",
-  "- Safety net / Assets: insurance, buffers, emergency funds, savings, debt protection, or investable reserves.",
-  "- Appearance / Inner life: body image, confidence, mirrors/photos, grooming, shame, self-worth, or presentation.",
-  "For each such item, put it only in ambiguous[] with { id, label, reason, confidence }. Keep labels 2-8 words and max 40 characters when possible. In theme-scoped extraction, also include the best-fit hubId slug so the unresolved node appears on the tree.",
 ].join("\n");
 
 function stripNullObjectFields(row: Record<string, unknown>, keys: string[]): void {
@@ -291,7 +293,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "Messy, contradictory, uncertain, or emotionally rambling input is normal Stream input. Do not summarize it into only the first one or two obvious cards.",
   "Extract every distinct concrete item the user mentions: completed moments, new active pursuits, milestones/steps, continuations, pauses, resumes, and status changes.",
-  "Uncertainty about one item must not suppress other confident items. Put only the uncertain item in ambiguous[] and continue extracting the rest.",
+  "Uncertainty about one item must not suppress other confident items. Place each item on its best-fit hub and continue extracting the rest.",
   "When the user is changing the shape of an existing map goal — evolving it, picking it back up, stretching the target, pausing it, or pivoting from it — still emit the relevant pursuit update instead of dropping the item.",
   "",
   "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitExistingGoalId or pursuitClientKey on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
@@ -351,15 +353,10 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "   - Never add milestones to pursuits with goalType \"practice\" or goalType \"identity\" — these have no fixed end state.",
   "   - Max 5 milestones per pursuit. Short actionable titles.",
   "",
-  "5. Honest about uncertainty",
-  "   - If you cannot tell whether something is done vs in progress vs not started, do NOT guess.",
-  `   - If your confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} for an item's status or hub fit, do NOT guess.`,
-  "   - If hub placement, user intent, or pursuit-vs-mark classification is unclear, err toward flagging: put the item only in ambiguous[] with confidence below 0.6.",
-  `   - Explicit low-confidence boundary pairs: ${STREAM_EXTRACT_BOUNDARY_PAIR_TEXT}. If the current hub is one side of a boundary pair and the item could belong to the other side, use ambiguous[] unless this hub is clearly stronger.`,
-  STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT,
-  "   - Add it to ambiguous[] only; the app will surface it as a needsResolution node for the user.",
-  `   - Add an entry to ambiguous[] with a stable id (use a short slug like "amb-1"), a 2-8 word label describing the item (max 40 characters when possible), confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}, and an optional reason.`,
-  "   - Do not place uncertain items in marks, pursuits, or milestones — only in ambiguous[]. They appear on the tree immediately for the user to resolve by tapping the node.",
+  "5. Best-guess placement (never defer)",
+  "   - If status is unclear (done vs in progress vs not started), default to bloomStatus \"ACTIVE\".",
+  "   - If the hub is unclear, route the item to the single most likely hub in this theme — placement is low-stakes and the user can re-drag it later.",
+  "   - Never withhold, defer, or flag an item over placement or status uncertainty. Always emit it as a mark, pursuit, or milestone.",
   "",
   "6. One clarifying question max",
   "   - If the dump is too vague to extract anything useful (e.g. one word, no specifics), set clarifyingQuestion to ONE specific question that would unlock extraction.",
@@ -368,8 +365,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "7. Cross-session deduplication",
   "   - Natural speech is repetitive across many sessions. Before creating any new pursuit or mark, check existing pursuits, existing marks, AND removed-from-map pursuits/marks (hidden but still on the user's record).",
-  "   - If the user mentions something that is clearly the same as an active OR removed item — same intent, paraphrase, or obvious synonym — do NOT create a duplicate.",
-  "   - Instead add an entry to ambiguous[] with label describing the item and reason: \"This already exists on your map (or was removed from it).\" The user resolves it on the tree.",
+  "   - If the user mentions something that is clearly the same as an active OR removed item — same intent, paraphrase, or obvious synonym — do NOT create a duplicate; omit it.",
   "   - Also deduplicate within this extraction: if two marks in the same dump describe the same event — same achievement, same date, same title or obvious paraphrase — extract it once only using the most specific version.",
   "",
   "8. Embellishment over duplication",
@@ -382,11 +378,11 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "For every candidate new pursuit, scan same-hub existing pursuits first (including removed-from-map titles for dedup):",
   "",
-  "1. Same intent / paraphrase / synonym → do not create; use existingGoalId, milestone, or ambiguous[] per other rules.",
+  "1. Same intent / paraphrase / synonym → do not create; use existingGoalId or a milestone per other rules.",
   "2. Step, method, treatment, tactic, or named subtask toward an existing pursuit → milestone on that existing pursuit using pursuitExistingGoalId, not a new pursuit and not a peer.",
   "3. Later chapter / higher target / next phase of an existing pursuit → continuation child using parentExistingGoalId, not a peer.",
   "4. No plausible same-hub parent, predecessor, or duplicate exists → new peer pursuit with distilled title.",
-  "5. If you cannot decide between milestone vs new pursuit or mark vs pursuit, use ambiguous[] with confidence below 0.6.",
+  "5. If you cannot decide milestone vs new pursuit, prefer the milestone; if you cannot decide mark vs pursuit, prefer a mark. Always emit it — do not defer.",
   "",
   "When one brain dump introduces an umbrella outcome AND specific methods:",
   "- One new pursuit with distilled title (e.g. \"Improve my teeth\").",
@@ -516,14 +512,6 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   '      "pursuitClientKey": "string or null — clientKey of new pursuit this milestone belongs to"',
   "    }",
   "  ],",
-  '  "ambiguous": [',
-  "    {",
-  '      "id": "string",',
-  '      "label": "2-8 words, max 40 characters when possible",',
-  `      "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; below 0.6 when hub, intent, or pursuit-vs-mark is unclear",`,
-  '      "reason": "string or null"',
-  "    }",
-  "  ],",
   '  "itemOrder": [',
   '    { "kind": "mark"|"pursuit"|"milestone", "index": 0 }',
   "  ],",
@@ -538,7 +526,6 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "- Pursuit titles: distilled plain-language outcomes (~3–8 words when possible); never verbatim multi-clause dumps; max 100 characters (prefer 80 or fewer).",
   "- Milestone titles: short, actionable; may name a specific method or treatment; max 100 characters.",
   "- Mark titles: concise moment labels; max 100 characters (prefer 80 or fewer).",
-  "- Ambiguous labels: 2-8 words, max 40 characters when possible.",
   "- Prefer fewer, higher-confidence items over speculative ones.",
   "- When in doubt between mark vs new pursuit for a DONE item, prefer a mark.",
 ].join("\n");
@@ -784,10 +771,10 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "Messy/contradictory input is normal. Process the whole dump; do not stop after the first obvious cards.",
   "Extract every distinct concrete mark, pursuit, milestone/step, continuation, pause, resume, and status change.",
   "Cross-theme extraction rule: extract ALL concrete items from the input even when they belong outside the theme/hub where Stream was opened. Use map context to route them to the correct hubId. Hub/pursuit context is a placement hint only; do not drop items because they are cross-theme.",
-  "Uncertainty about one item must not suppress other confident items: put only that item in ambiguous[] and keep extracting.",
+  "Uncertainty about one item must not suppress other confident items: place each item on its best-fit hub and keep extracting.",
   "If an existing map goal evolves, resumes, stretches, pauses, or pivots, emit the pursuit update instead of dropping it.",
   "Before writing the JSON response, scan the input once more. For each hub topic mentioned, confirm you have emitted at least one structured item (mark, pursuit, or milestone). If a topic has no structured item and you are confident about it, add it now.",
-  "If the user's input mentions N distinct concrete outcomes, do not return fewer than N-1 structured items without placing the remainder in ambiguous[].",
+  "If the user's input mentions N distinct concrete outcomes, extract all N as structured items, each on its best-fit hub.",
   "",
   "## Hub routing (critical)",
   "",
@@ -795,10 +782,9 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "- Never use display labels (\"Career\", \"Skills\") as hubId — only the slug.",
   "- Route each item to the hub whose catalog scope and AI routing note best fit the user's intent.",
   "- Work & Career examples: promotions, roles, pivots → career; learning, credentials, mentors, deliberate practice → skills; shipping, portfolios, concrete deliverables → builds & launches.",
-  `- When an item could fit two hubs and your routing confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}, use ambiguous[] instead of guessing. The app will surface it as a needsResolution node.`,
-  "- If hub placement, user intent, or pursuit-vs-mark classification is unclear, err toward flagging: put the item only in ambiguous[] with confidence below 0.6.",
-  `- Explicit low-confidence boundary pairs: ${STREAM_EXTRACT_BOUNDARY_PAIR_TEXT}. If the user intent sits on one of these boundaries and neither side is clearly stronger, add one ambiguous[] item with confidence below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} and the best-fit hubId slug for where the unresolved node should appear.`,
-  STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT,
+  "- When an item could fit two hubs, route it to the single most likely one and proceed; placement is low-stakes and the user can re-drag it later. Never defer or flag placement.",
+  "",
+  STREAM_SELF_MIND_THEME_BOUNDARIES,
   "",
   "## Core principles",
   "",
@@ -810,7 +796,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   STREAM_EXTRACT_TITLE_LENGTH_RULES,
   "",
-  "Existing-pursuit-first checklist (per hub, before any new pursuit): (1) same intent → no new row; (2) step/method/treatment/tactic toward existing outcome → milestone with pursuitExistingGoalId; (3) later chapter/higher target → continuation with parentExistingGoalId; (4) no plausible same-hub parent/predecessor/duplicate → new peer with distilled title; (5) unclear milestone-vs-pursuit or mark-vs-pursuit → ambiguous[] with confidence below 0.6. Umbrella + methods in one dump → one pursuit + milestones, never peer pursuits per method.",
+  "Existing-pursuit-first checklist (per hub, before any new pursuit): (1) same intent → no new row; (2) step/method/treatment/tactic toward existing outcome → milestone with pursuitExistingGoalId; (3) later chapter/higher target → continuation with parentExistingGoalId; (4) no plausible same-hub parent/predecessor/duplicate → new peer with distilled title; (5) unclear milestone-vs-pursuit → prefer the milestone; unclear mark-vs-pursuit → prefer a mark; always emit it. Umbrella + methods in one dump → one pursuit + milestones, never peer pursuits per method.",
   "",
   "1. Read before writing — check all provided hubs' existing pursuits and marks before extracting. A higher/later target for the same activity is a continuation (Rule 6B), not a duplicate peer.",
   "2. Completion over creation — complete existing pursuits (existingGoalId + COMPLETE) instead of duplicating.",
@@ -818,7 +804,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "Rule 9 — Pursuit status changes (no new row): finished → existingGoalId + COMPLETE; paused/on hold/shelved/dropping for now/deprioritised/back burner → existingGoalId + ON_HOLD; resuming/back on/picking up again → existingGoalId + ACTIVE. Never create a new pursuit for status-only updates. No milestones on status-only updates.",
   "4A. User-named steps → milestones on the matching pursuit (existing or new this session), even if one visit/session; not peer pursuits.",
   "4B. Do not invent milestone structure; never on practice/identity; max 5 per pursuit.",
-  `5. Honest about uncertainty — use ambiguous[] when status, hub placement, user intent, or pursuit-vs-mark classification is unclear, or when confidence is below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; use confidence below 0.6 for these flagged cases.`,
+  "5. Best-guess placement (never defer) — if status is unclear default to ACTIVE; if the hub is unclear route to the single most likely hub and proceed. Always emit the item; never withhold or flag it over placement or status uncertainty.",
   "6. One clarifying question max (clarifyingQuestion) — still extract confident items.",
   "7. Cross-session deduplication — no duplicates of active OR removed-from-map pursuits/marks on the assigned hub.",
   "8. Embellishment — route new methods/treatments to milestones; never lengthen pursuit title with verbatim method lists.",
@@ -827,7 +813,7 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "## Hierarchy inference (parent-child pursuits)",
   "",
-  "Milestone vs child pursuit: prefer milestones for methods/treatments/tactics under one outcome; use flat parent fields for distinct sub-goals (Rule 6A). When in doubt, milestone; when classification itself is unclear, use ambiguous[].",
+  "Milestone vs child pursuit: prefer milestones for methods/treatments/tactics under one outcome; use flat parent fields for distinct sub-goals (Rule 6A). When in doubt, prefer the milestone.",
   "",
   "Rule 6 — Two kinds of parent-child link (same flat parent field mechanism):",
   "",
@@ -859,7 +845,6 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "type": "...", "hubId": "slug" }],',
   '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "...", "bloomStatus": "...", "hubId": "slug", "deadline": "YYYY-MM-DD or null", "existingGoalId": "optional/null", "clientKey": "optional/null", "parentExistingGoalId": "optional/null", "parentClientKey": "optional/null", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
   '  "milestones": [{ "title": "string", "hubId": "slug", "pursuitExistingGoalId": "string or null", "pursuitClientKey": "string or null" }],',
-  `  "ambiguous": [{ "id": "string", "label": "2-8 words, max 40 characters when possible", "confidence": "number below ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD}; below 0.6 when hub, intent, or pursuit-vs-mark is unclear", "reason": "string or null", "hubId": "required slug for theme-scoped ambiguous items" }],`,
   '  "itemOrder": [{ "kind": "mark"|"pursuit"|"milestone", "index": 0 }],',
   '  "clarifyingQuestion": "string or null"',
   "}",
@@ -984,7 +969,7 @@ function fillThemeExtractHubIds(
   const resolveRawHub = (raw: string | undefined): string | null => {
     if (!raw?.trim()) return null;
     const slug = normalizeStreamHubSlug(raw);
-    return validHubSlugs.has(slug) ? slug : slug;
+    return validHubSlugs.has(slug) ? slug : null;
   };
 
   const inferHub = (title: string, hint?: string | null): string => {
@@ -1100,10 +1085,12 @@ export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
   "Require clear intention phrasing: \"I want to…\", \"I am trying to…\", \"my task is to…\" for ongoing aims.",
   "Do NOT force every emotional sentence into a pursuit. Pure reflection without an ongoing aim stays out of pursuits[].",
   "",
-  "## Purpose vs Career hub routing",
+  STREAM_SELF_MIND_THEME_BOUNDARIES,
   "",
-  "Moral/spiritual identity language → Purpose hub (becoming theme), even when the paragraph also mentions politics or law:",
-  '- "keep the ideal alive", moral core, dignity, hope, forgiveness, reconciliation, legacy, conscience → Purpose',
+  "## Purpose & Values vs Career hub routing",
+  "",
+  "Moral/spiritual identity language → Purpose & Values hub (becoming / Self & Mind theme), even when the paragraph also mentions politics or law:",
+  '- "keep the ideal alive", moral core, dignity, hope, forgiveness, reconciliation, legacy, conscience → purpose & values',
   "",
   "Career/work language → Career hub (work theme):",
   '- legal practice, law firm, attorney, ANC leadership, election campaign, voter education → Career',

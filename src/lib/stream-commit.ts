@@ -9,11 +9,14 @@ import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { prisma } from "@/lib/prisma";
 import {
+  buildHubBranchResolver,
   isValidHubSlugForTheme,
   normalizeStreamHubSlug,
   resolveAllHubBranchesForTheme,
   resolveBranchForHub,
+  type HubBranchResolver,
 } from "@/lib/resolve-hub-branch";
+import { dedupeDuplicateRootHubs } from "@/lib/hub-dedupe";
 import { activateHubForUser } from "@/lib/system-hubs";
 import {
   recordStreamGlobalSession,
@@ -536,12 +539,16 @@ async function applyStreamOperationsInTx(
 
     const data: {
       title?: string;
+      description?: string;
       bloomStatus?: BloomStatus;
       bloomedAt?: Date | null;
     } = {};
     if (op.title?.trim()) {
       data.title = op.title.trim();
       goalsNeedingShortLabel.add(op.goalId);
+    }
+    if (op.description?.trim()) {
+      data.description = op.description.trim();
     }
     if (op.bloomStatus) {
       data.bloomStatus = op.bloomStatus as BloomStatus;
@@ -596,8 +603,15 @@ export async function commitStreamToHub(
   userId: string,
   payload: StreamCommitPayload,
 ): Promise<CommitResult> {
+  await dedupeDuplicateRootHubs(prisma, userId);
+  const resolver = await buildHubBranchResolver(prisma, userId);
+  const hubId = resolver.resolve(payload.hubId);
+  if (!hubId) {
+    return { ok: false, error: "Hub not found", status: 404 };
+  }
+
   const branch = await prisma.branch.findFirst({
-    where: { id: payload.hubId, userId },
+    where: { id: hubId, userId },
     select: { id: true, limbId: true, isActive: true },
   });
   if (!branch) {
@@ -721,6 +735,30 @@ function resolveThemeForHubSlug(preferredThemeId: LifeAreaId, slug: string): Lif
   return null;
 }
 
+function remapHubIdOnItems<T extends { hubId?: string }>(
+  items: T[],
+  resolver: HubBranchResolver,
+  preferredThemeId?: LifeAreaId,
+): T[] {
+  return items.map((item) => {
+    if (!item.hubId?.trim()) return item;
+    const resolved = resolver.resolve(item.hubId, preferredThemeId);
+    return resolved ? { ...item, hubId: resolved } : item;
+  });
+}
+
+function remapHubSlugOnItems<T extends { hubId?: string }>(
+  items: T[],
+  resolver: HubBranchResolver,
+  preferredThemeId: LifeAreaId,
+): T[] {
+  return items.map((item) => {
+    if (!item.hubId?.trim()) return item;
+    const slug = resolver.resolveSlug(item.hubId, preferredThemeId);
+    return slug ? { ...item, hubId: slug } : item;
+  });
+}
+
 async function alignThemeMilestoneHubIds(
   userId: string,
   themeId: LifeAreaId,
@@ -755,15 +793,23 @@ export async function commitStreamToTheme(
   userId: string,
   payload: StreamThemeCommitPayload,
 ): Promise<ThemeCommitResult> {
+  await dedupeDuplicateRootHubs(prisma, userId);
+  const resolver = await buildHubBranchResolver(prisma, userId);
   const themeId = payload.themeId as LifeAreaId;
   if (!getLifeArea(themeId)) {
     return { ok: false, error: "Unknown theme", status: 400 };
   }
 
-  const alignedMilestones = await alignThemeMilestoneHubIds(userId, themeId, payload.milestones);
+  const marks = remapHubSlugOnItems(payload.marks, resolver, themeId);
+  const pursuits = remapHubSlugOnItems(payload.pursuits, resolver, themeId);
+  const alignedMilestones = await alignThemeMilestoneHubIds(
+    userId,
+    themeId,
+    remapHubSlugOnItems(payload.milestones, resolver, themeId),
+  );
 
-  const marksByHub = groupByHubSlug(payload.marks);
-  const pursuitsByHub = groupByHubSlug(payload.pursuits);
+  const marksByHub = groupByHubSlug(marks);
+  const pursuitsByHub = groupByHubSlug(pursuits);
   const milestonesByHub = groupByHubSlug(alignedMilestones);
 
   const allSlugs = new Set([
@@ -778,7 +824,11 @@ export async function commitStreamToTheme(
     if (!targetThemeId) {
       return { ok: false, error: `Unknown hub "${slug}"`, status: 400 };
     }
-    const resolved = await resolveBranchForHub(prisma, userId, targetThemeId, slug);
+    const resolvedId = resolver.resolve(slug, targetThemeId);
+    const resolved =
+      resolvedId != null
+        ? { branchId: resolvedId, limbId: targetThemeId }
+        : await resolveBranchForHub(prisma, userId, targetThemeId, slug);
     if (!resolved) {
       return { ok: false, error: `Hub branch not found for "${slug}"`, status: 404 };
     }
@@ -874,10 +924,16 @@ export async function commitStreamGlobal(
   userId: string,
   payload: StreamGlobalCommitPayload,
 ): Promise<GlobalCommitResult> {
+  await dedupeDuplicateRootHubs(prisma, userId);
+  const resolver = await buildHubBranchResolver(prisma, userId);
+  const marks = remapHubIdOnItems(payload.marks, resolver);
+  const pursuits = remapHubIdOnItems(payload.pursuits, resolver);
+  const milestones = remapHubIdOnItems(payload.milestones, resolver);
+
   if (
-    hasMissingHubId(payload.marks) ||
-    hasMissingHubId(payload.pursuits) ||
-    hasMissingHubId(payload.milestones)
+    hasMissingHubId(marks) ||
+    hasMissingHubId(pursuits) ||
+    hasMissingHubId(milestones)
   ) {
     return {
       ok: false,
@@ -886,12 +942,12 @@ export async function commitStreamGlobal(
     };
   }
 
-  const marksByBranch = groupByBranchId(payload.marks);
-  const pursuitsByBranch = groupByBranchId(payload.pursuits);
-  const milestonesByBranch = groupByBranchId(payload.milestones);
-  const expectedMarks = payload.marks.length;
-  const expectedPursuits = expectedCreatedPursuits(payload.pursuits);
-  const expectedMilestones = payload.milestones.length;
+  const marksByBranch = groupByBranchId(marks);
+  const pursuitsByBranch = groupByBranchId(pursuits);
+  const milestonesByBranch = groupByBranchId(milestones);
+  const expectedMarks = marks.length;
+  const expectedPursuits = expectedCreatedPursuits(pursuits);
+  const expectedMilestones = milestones.length;
   const allBranchIds = new Set([
     ...marksByBranch.keys(),
     ...pursuitsByBranch.keys(),
