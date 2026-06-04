@@ -21,6 +21,9 @@
  * Smoke mode without Story/Insights AI (Stream + marks + routing checks only):
  *   MAX_STREAM_SESSIONS=3 SKIP_STORY_INSIGHTS=1 API_BASE=http://localhost:3001 npx tsx scripts/simulate-mandela.ts
  *
+ * Skip specific brain dumps (no extract call; session recorded as skipped):
+ *   SKIP_BRAIN_DUMP_IDS=03-underground-rivonia MAX_STREAM_SESSIONS=6 npx tsx scripts/simulate-mandela.ts
+ *
  * Requires: GEMINI_API_KEY on the API server, API_BASE pointing at a running backend.
  * Production/Vercel targets require ALLOW_PROD_SIMULATION=1.
  */
@@ -55,6 +58,15 @@ const REPLAY_STREAM_CHECKPOINT = process.env.REPLAY_STREAM_CHECKPOINT === "1";
 const SKIP_STORY_INSIGHTS = process.env.SKIP_STORY_INSIGHTS === "1";
 const SKIP_STORY_INSIGHTS_REASON =
   "SKIP_STORY_INSIGHTS=1 (smoke harness — Story/Insights AI calls omitted)";
+const SKIP_BRAIN_DUMP_REASON = "Skipped by SKIP_BRAIN_DUMP_IDS";
+
+function parseSkipBrainDumpIds(): Set<string> {
+  const raw = process.env.SKIP_BRAIN_DUMP_IDS?.trim();
+  if (!raw) return new Set();
+  return new Set(raw.split(",").map((id) => id.trim()).filter(Boolean));
+}
+
+const SKIP_BRAIN_DUMP_IDS = parseSkipBrainDumpIds();
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 /** Always next to this script — not `process.cwd()` — so runs from any directory write the same file. */
 const RESULTS_PATH = resolve(SCRIPT_DIR, "simulate-mandela-results.json");
@@ -266,6 +278,7 @@ type StreamSummary = {
   pursuitsByTheme: Record<string, number>;
   pursuitsByHub: Record<string, number>;
   skippedStoryInsights: boolean;
+  skippedBrainDumpIds?: string[];
   titleQualityWarnings?: TitleQualityWarning[];
 };
 
@@ -280,6 +293,8 @@ type StreamSessionResult = {
   id: string;
   label: string;
   input: string;
+  skipped?: boolean;
+  skipReason?: string;
   extractStatus: number;
   extractError: string | null;
   extractErrorKind?: "extract_validation_error" | "rate_limit" | "service_error" | null;
@@ -361,6 +376,7 @@ type SimulationResults = {
     estimatedMinRuntimeMs: number;
     maxStreamSessions: number;
     skipStoryInsights: boolean;
+    skipBrainDumpIds?: string[];
   };
   rateLimitEvents: RateLimitEvent[];
   phase1?: { ok: boolean; factCount: number; response: unknown };
@@ -1871,6 +1887,7 @@ async function phase2StreamSessions(
 
   const sessionsToRun = streamSessionsToRun();
   const sessions: StreamSessionResult[] = [];
+  const skippedBrainDumpIds: string[] = [];
   const hubResolutionStats = emptyHubResolutionStats();
   let sessionsExtracted = 0;
   let sessionsCommitted = 0;
@@ -1883,6 +1900,28 @@ async function phase2StreamSessions(
   for (let i = 0; i < sessionsToRun.length; i += 1) {
     const dump = sessionsToRun[i]!;
     console.log(`\n  Session ${i + 1}/${sessionsToRun.length}: ${dump.label}`);
+
+    if (SKIP_BRAIN_DUMP_IDS.has(dump.id)) {
+      skippedBrainDumpIds.push(dump.id);
+      console.log(`  Skipped: ${SKIP_BRAIN_DUMP_REASON}`);
+      sessions.push({
+        id: dump.id,
+        label: dump.label,
+        input: dump.text,
+        skipped: true,
+        skipReason: SKIP_BRAIN_DUMP_REASON,
+        extractStatus: 0,
+        extractError: null,
+        extractedCards: [],
+        unsupportedOrUncommitted: [],
+        commitStatus: null,
+        commitError: null,
+        commitCreated: null,
+        pursuitsCreatedThisSession: [],
+      });
+      saveCheckpoint(results);
+      continue;
+    }
 
     const { goals: goalsBefore, branchById: branchesBefore, hubIndex } = await fetchBranchMap(token);
     const idsBefore = collectGoalIds(goalsBefore);
@@ -2042,6 +2081,7 @@ async function phase2StreamSessions(
     pursuitsByTheme,
     pursuitsByHub,
     skippedStoryInsights: false,
+    skippedBrainDumpIds: skippedBrainDumpIds.length > 0 ? skippedBrainDumpIds : undefined,
     titleQualityWarnings: mergeTitleQualityWarnings([], results.createdPursuits),
   };
   saveCheckpoint(results);
@@ -2276,6 +2316,13 @@ function printFinalReport(results: SimulationResults): void {
   console.log("\n========== FINAL REPORT ==========");
   console.log(`Stream sessions extracted: ${results.streamSummary?.sessionsExtracted ?? "?"}`);
   console.log(`Stream sessions committed: ${results.streamSummary?.sessionsCommitted ?? "?"}`);
+  const skippedBrainDumpIds =
+    results.streamSummary?.skippedBrainDumpIds ??
+    results.phase2?.sessions.filter((s) => s.skipped).map((s) => s.id) ??
+    [];
+  if (skippedBrainDumpIds.length > 0) {
+    console.log(`Skipped brain dumps: ${skippedBrainDumpIds.join(", ")}`);
+  }
   console.log(
     `Cards skipped (unresolved hub): ${results.streamSummary?.cardsSkippedUnresolvedHub ?? "?"}`,
   );
@@ -2391,6 +2438,9 @@ async function main(): Promise<void> {
   console.log(`DB_WRITE_DELAY_MS:     ${DB_WRITE_DELAY_MS}`);
   console.log(`MAX_STREAM_SESSIONS:   ${MAX_STREAM_SESSIONS} (running ${sessionsToRun.length}/${BRAIN_DUMPS.length})`);
   console.log(`SKIP_STORY_INSIGHTS:   ${SKIP_STORY_INSIGHTS ? "yes" : "no"}`);
+  console.log(
+    `SKIP_BRAIN_DUMP_IDS:   ${SKIP_BRAIN_DUMP_IDS.size > 0 ? [...SKIP_BRAIN_DUMP_IDS].join(", ") : "none"}`,
+  );
   console.log(`REPLAY_STREAM_CHECKPOINT: ${REPLAY_STREAM_CHECKPOINT ? "yes" : "no"}`);
   console.log(`Estimated min runtime: ~${Math.round(estimatedMinRuntimeMs / 1000)}s (delays only, excluding AI latency)`);
   console.log(`Account:               ${MANDELA_EMAIL}`);
@@ -2413,6 +2463,7 @@ async function main(): Promise<void> {
       estimatedMinRuntimeMs,
       maxStreamSessions: MAX_STREAM_SESSIONS,
       skipStoryInsights: SKIP_STORY_INSIGHTS,
+      skipBrainDumpIds: SKIP_BRAIN_DUMP_IDS.size > 0 ? [...SKIP_BRAIN_DUMP_IDS] : undefined,
     },
     rateLimitEvents: [],
     createdPursuits: [],
