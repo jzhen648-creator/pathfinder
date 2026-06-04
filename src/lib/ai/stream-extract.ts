@@ -1,4 +1,10 @@
 import { generateJsonCompletion } from "@/lib/gemini";
+import {
+  formatStreamExtractValidationFailure,
+  normalizeStreamExtractFieldLengths,
+  repairStreamExtractSchemaViolations,
+  STREAM_EXTRACT_TITLE_PREFERRED,
+} from "@/lib/ai/stream-extract-normalize";
 import { truncateStreamNarrative } from "@/lib/ai/stream-extract-narrative";
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 import { hubPanelCopy, type HubCatalogEntry } from "@/lib/hub-catalog";
@@ -58,6 +64,15 @@ const STREAM_EXTRACT_BOUNDARY_PAIRS = [
 const STREAM_EXTRACT_BOUNDARY_PAIR_TEXT = STREAM_EXTRACT_BOUNDARY_PAIRS.map(
   ([a, b]) => `${a} / ${b}`,
 ).join("; ");
+
+const STREAM_EXTRACT_TITLE_LENGTH_RULES = [
+  "## Title and field length (hard limits)",
+  "",
+  `- Pursuit, mark, and milestone titles: max 100 characters; prefer ${STREAM_EXTRACT_TITLE_PREFERRED} or fewer.`,
+  "- Use short action-style titles (about 3–8 words). Never paste long sentence fragments as titles.",
+  "- Put detailed wording in description, milestones[], or sourcePhrase — not in title.",
+  "- sourcePhrase max 200 characters; description max 500 characters.",
+].join("\n");
 
 const STREAM_EXTRACT_BOUNDARY_TRIGGER_TEXT = [
   `Use ambiguous[] with confidence < ${STREAM_EXTRACT_LOW_CONFIDENCE_THRESHOLD} for these known adjacent-hub boundaries unless one side is clearly stronger:`,
@@ -201,7 +216,7 @@ export function preprocessStreamExtractJson(json: unknown): unknown {
     ? row.milestoneCompletions
     : [];
   const milestoneDeletes = Array.isArray(row.milestoneDeletes) ? row.milestoneDeletes : [];
-  return {
+  return normalizeStreamExtractFieldLengths({
     ...row,
     narrativeSentence:
       typeof row.narrativeSentence === "string" ? row.narrativeSentence.trim() : "",
@@ -223,14 +238,37 @@ export function preprocessStreamExtractJson(json: unknown): unknown {
       milestoneCompleteCount: milestoneCompletions.length,
       milestoneDeleteCount: milestoneDeletes.length,
     }),
-  };
+  });
 }
 
-function formatStreamExtractParseError(err: { issues: Array<{ message: string; path: PropertyKey[] }> }): string {
-  const issue = err.issues[0];
-  if (!issue) return "Parsed JSON did not match expected shape.";
-  const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "root";
-  return `${issue.message} (at ${path})`;
+function readJsonAtPath(root: unknown, path: PropertyKey[]): unknown {
+  let current: unknown = root;
+  for (const key of path) {
+    if (!current || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[String(key)];
+  }
+  return current;
+}
+
+function parseStreamExtractResponse(json: unknown): StreamExtractResponse {
+  const preprocessed = preprocessStreamExtractJson(json);
+  let parsed = streamExtractResponseSchema.safeParse(preprocessed);
+
+  if (!parsed.success && parsed.error.issues.some((issue) => issue.code === "too_big")) {
+    const repaired = repairStreamExtractSchemaViolations(preprocessed, parsed.error);
+    parsed = streamExtractResponseSchema.safeParse(repaired);
+  }
+
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const path = issue && issue.path.length > 0 ? issue.path.map(String).join(".") : "root";
+    const rawValue = issue ? readJsonAtPath(preprocessed, issue.path) : undefined;
+    throw new Error(
+      formatStreamExtractValidationFailure(issue?.message ?? "Parsed JSON did not match expected shape.", path, rawValue),
+    );
+  }
+
+  return assignMissingClientKeys(withTruncatedNarrative(parsed.data));
 }
 
 export const STREAM_EXTRACT_SYSTEM_PROMPT = [
@@ -271,6 +309,8 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "- Do NOT stack procedures, brands, modalities, or comma-separated methods in a pursuit title.",
   "- Put named treatments, tactics, appointments, providers, and sub-steps in milestones[] (or child pursuits with flat parent fields only when Rule 6A applies — see Hierarchy inference).",
   "- Marks and milestones may keep slightly more specific wording than the pursuit title; the pursuit title stays the simplest umbrella.",
+  "",
+  STREAM_EXTRACT_TITLE_LENGTH_RULES,
   "",
   "1. Read before writing",
   "   - Process ALL existing hub data before extracting anything.",
@@ -495,9 +535,9 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "- Return empty arrays when nothing applies; do not omit keys (including itemOrder).",
   "- Always include narrativeSentence. Use an empty string only when the dump has no substance.",
   "- No markdown, no code fences, no commentary outside the JSON object.",
-  "- Pursuit titles: distilled plain-language outcomes (~3–8 words when possible); never verbatim multi-clause dumps.",
-  "- Milestone titles: short, actionable; may name a specific method or treatment.",
-  "- Mark titles: concise moment labels; max ~80 characters.",
+  "- Pursuit titles: distilled plain-language outcomes (~3–8 words when possible); never verbatim multi-clause dumps; max 100 characters (prefer 80 or fewer).",
+  "- Milestone titles: short, actionable; may name a specific method or treatment; max 100 characters.",
+  "- Mark titles: concise moment labels; max 100 characters (prefer 80 or fewer).",
   "- Ambiguous labels: 2-8 words, max 40 characters when possible.",
   "- Prefer fewer, higher-confidence items over speculative ones.",
   "- When in doubt between mark vs new pursuit for a DONE item, prefer a mark.",
@@ -723,12 +763,7 @@ export async function runStreamExtract(
     throw new Error("Model returned invalid JSON.");
   }
 
-  const parsed = streamExtractResponseSchema.safeParse(preprocessStreamExtractJson(json));
-  if (!parsed.success) {
-    throw new Error(formatStreamExtractParseError(parsed.error));
-  }
-
-  return assignMissingClientKeys(withTruncatedNarrative(parsed.data));
+  return parseStreamExtractResponse(json);
 }
 
 export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
@@ -772,6 +807,8 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "Marks always belong to the hub — never to a specific pursuit. Do not set pursuitExistingGoalId or pursuitClientKey on any mark. A mark is a standalone moment on the hub branch, not a checkpoint within a pursuit. Milestones do that job.",
   "",
   "Pursuit titles (same as hub Stream): distilled plain-language outcomes (~3–8 words); never verbatim multi-clause dumps. Named methods, treatments, and sub-steps go in milestones[], not in the pursuit title.",
+  "",
+  STREAM_EXTRACT_TITLE_LENGTH_RULES,
   "",
   "Existing-pursuit-first checklist (per hub, before any new pursuit): (1) same intent → no new row; (2) step/method/treatment/tactic toward existing outcome → milestone with pursuitExistingGoalId; (3) later chapter/higher target → continuation with parentExistingGoalId; (4) no plausible same-hub parent/predecessor/duplicate → new peer with distilled title; (5) unclear milestone-vs-pursuit or mark-vs-pursuit → ambiguous[] with confidence below 0.6. Umbrella + methods in one dump → one pursuit + milestones, never peer pursuits per method.",
   "",
@@ -1029,12 +1066,7 @@ export async function runStreamThemeExtract(
     throw new Error("Model returned invalid JSON.");
   }
 
-  const parsed = streamExtractResponseSchema.safeParse(preprocessStreamExtractJson(json));
-  if (!parsed.success) {
-    throw new Error(formatStreamExtractParseError(parsed.error));
-  }
-
-  const withKeys = assignMissingClientKeys(withTruncatedNarrative(parsed.data));
+  const withKeys = parseStreamExtractResponse(json);
   return fillThemeExtractHubIds(withKeys, theme);
 }
 
@@ -1057,6 +1089,26 @@ export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
   "- If the target item is not clearly present in map context, return NO operation for that intent.",
   "- Example: if two milestones contain \"CV\" and the user says \"complete the CV milestone\", do not pick one; omit milestoneCompletions for that phrase.",
   "- Continue extracting other confident items from the same input.",
+  "",
+  "## Relationship pursuits (People / Family hub)",
+  "",
+  "When the user states a clear ongoing relationship intention — not mere reflection — extract an ACTIVE pursuit on the Family hub (people theme):",
+  '- "I want to protect those bonds…" → pursuit "Protect family bonds" (identity or practice)',
+  '- "I want to be present for my children" → pursuit "Be present for my children" (practice or identity)',
+  '- "I am trying to repair / preserve / strengthen…" → short pursuit title reflecting that aim',
+  "",
+  "Require clear intention phrasing: \"I want to…\", \"I am trying to…\", \"my task is to…\" for ongoing aims.",
+  "Do NOT force every emotional sentence into a pursuit. Pure reflection without an ongoing aim stays out of pursuits[].",
+  "",
+  "## Purpose vs Career hub routing",
+  "",
+  "Moral/spiritual identity language → Purpose hub (becoming theme), even when the paragraph also mentions politics or law:",
+  '- "keep the ideal alive", moral core, dignity, hope, forgiveness, reconciliation, legacy, conscience → Purpose',
+  "",
+  "Career/work language → Career hub (work theme):",
+  '- legal practice, law firm, attorney, ANC leadership, election campaign, voter education → Career',
+  "",
+  STREAM_EXTRACT_TITLE_LENGTH_RULES,
   "",
   "Creation rules:",
   "- Do not create duplicates of existing pursuits or milestones.",
@@ -1134,12 +1186,7 @@ export async function runStreamGlobalExtract(
     throw new Error("Model returned invalid JSON.");
   }
 
-  const parsed = streamExtractResponseSchema.safeParse(preprocessStreamExtractJson(json));
-  if (!parsed.success) {
-    throw new Error(formatStreamExtractParseError(parsed.error));
-  }
-
-  return assignMissingClientKeys(withTruncatedNarrative(parsed.data));
+  return parseStreamExtractResponse(json);
 }
 
 export function buildStreamHubContextInput(args: {
