@@ -3,6 +3,7 @@ import {
   formatPreviousStreamSessionDumps,
   formatPreviousStreamSessionSummary,
   preprocessStreamExtractJson,
+  STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT,
   STREAM_EXTRACT_SYSTEM_PROMPT,
   STREAM_EXTRACT_THEME_SYSTEM_PROMPT,
 } from "./stream-extract";
@@ -15,7 +16,9 @@ assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("narrativeSentence"));
 assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("confidence < 0.65"));
 assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("confidence < 0.65"));
 assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("Skills / Career"));
-assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("Appearance / Inner life"));
+assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("Self & Mind theme boundaries"));
+assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("mind & emotions"));
+assert.ok(STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT.includes("purpose & values"));
 
 assert.equal(formatPreviousStreamSessionDumps([]), "None yet");
 

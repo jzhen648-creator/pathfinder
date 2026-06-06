@@ -24,6 +24,7 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-hubs";
+import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -118,6 +119,11 @@ export async function POST(request: Request) {
     const existingNodes = await loadBranchSequencedNodes(prisma, branchRecord.id);
     const resolution = resolveSequenceAnchor(existingNodes, anchor);
     const sequencePosition = resolution.sequencePosition;
+    const iconName = await assignPursuitIconSafe({
+      title,
+      description,
+      lifeArea,
+    });
 
     const goal = await prisma.$transaction(async (tx) => {
       await applySequenceResolution(tx, resolution);
@@ -126,6 +132,7 @@ export async function POST(request: Request) {
           userId,
           title,
           description,
+          iconName,
           lifeArea,
           goalType: input.goalType,
           branchId: branchRecord.id,

@@ -4,6 +4,7 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
 import { getLifeArea } from "@/lib/life-areas";
+import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
 import { prisma } from "@/lib/prisma";
 import { displayMarkTitleFromInput } from "@/lib/validation/marks-and-branches";
 import type { AmbiguousItem, StreamAmbiguousResolution } from "@/types/stream";
@@ -173,6 +174,12 @@ export async function resolveAmbiguousMark(
   const now = new Date();
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
+  const markDescription = mark.description?.trim() || "";
+  const iconName = await assignPursuitIconSafe({
+    title: mark.title,
+    description: markDescription,
+    lifeArea,
+  });
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
@@ -186,7 +193,8 @@ export async function resolveAmbiguousMark(
         branchId: mark.branchId,
         limbId: mark.limbId,
         title: mark.title,
-        description: mark.description?.trim() || "",
+        description: markDescription,
+        iconName,
         lifeArea,
         goalType: "project",
         bloomStatus: "ACTIVE",

@@ -97,7 +97,7 @@ export const ALEX_CARTER_SEEDS: MockHubSeed[] = [
   },
   {
     limbId: "becoming",
-    name: "Purpose",
+    name: "Purpose & Values",
     goal: "Design work that compounds — craft, family, and financial calm",
     events: [
       { date: "2023-12-01", title: "Wrote personal north star", description: "Clarified trade-offs between ambition and presence.", type: "realisation", sentiment: "positive" },
@@ -106,7 +106,7 @@ export const ALEX_CARTER_SEEDS: MockHubSeed[] = [
   },
   {
     limbId: "becoming",
-    name: "Inner life",
+    name: "Mind & Emotions",
     goal: "10-minute morning reflection habit, 5 days a week",
     events: [
       { date: "2024-08-01", title: "Started journaling", description: "Three prompts: energy, friction, gratitude.", type: "milestone", sentiment: "positive" },
@@ -115,7 +115,7 @@ export const ALEX_CARTER_SEEDS: MockHubSeed[] = [
   },
   {
     limbId: "becoming",
-    name: "Joy",
+    name: "Joy & Creativity",
     goal: "Finish draft of short-story collection",
     events: [
       { date: "2025-05-01", title: "Joined writers' circle", description: "Monthly feedback in Bristol.", type: "milestone", sentiment: "positive" },

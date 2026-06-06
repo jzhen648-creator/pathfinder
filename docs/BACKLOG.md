@@ -6,6 +6,7 @@ Items logged for later; not in scope for the current ship window.
 
 - **Global Capture / Bark (post-Stream-stability):** Add global "say anything" capture after theme Stream is stable. Theme Stream should first preserve out-of-theme items as ambiguous so the later global route can build on per-item `themeId` + `hubId` assignment.
 - **Profile Memory layer (post-Stream-stability):** Add a private, editable Profile Memory extraction lane to `StreamSession.summaryJson` for small reviewable insights that improve Stream routing and personalisation without becoming tree nodes.
+- **Cinematic intro video (post-stability):** 30–60s AI-generated video for App Store preview, onboarding splash, and marketing (website hero, social). Emotional priming, not a feature walkthrough: problem (insights disappearing) → a path appears → map comes alive → "Start talking." Visual language: dark background, thin strokes, warm cream nodes (Pathfinder aesthetic in cinematic form). Tools to explore: Sora, Kling, Runway. **Status:** Not started — do not build until core product is stable and in users' hands. Detail: [`../DECISIONS.md`](../DECISIONS.md#backlog--future-ideas).
 
 ## Onboarding complete API payload
 

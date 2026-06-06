@@ -1,5 +1,4 @@
 import type { Point } from "./tree-types";
-import defaultTreeGeometryJson from "@/data/pathfinder-tree-geometry.json";
 import {
   translateBranchToForkPoint,
   branchKnotPolyline,
@@ -66,7 +65,7 @@ export function buildTreeGeometryExportPayload(
   };
 }
 
-export const LAYOUT_OVERRIDES_STORAGE_KEY = "pathfinder-tree-layout-overrides-v1";
+export const LAYOUT_OVERRIDES_STORAGE_KEY = "pathfinder-tree-layout-overrides-v2-pentagon";
 export const LAYOUT_EDIT_ACTIVE_STORAGE_KEY = "pathfinder-tree-layout-edit-active-v1";
 
 export function loadLayoutEditActive(): Record<string, boolean> {
@@ -117,7 +116,7 @@ export function parseLayoutOverridesFromJson(json: unknown): LayoutOverrides | n
 
 /** Shipped tree layout (same file as **Save geometry** export); used when localStorage has no overrides. */
 export function getDefaultLayoutOverrides(): LayoutOverrides {
-  return parseLayoutOverridesFromJson(defaultTreeGeometryJson as unknown) ?? {};
+  return {};
 }
 
 function add(a: Point, b: Point): Point {

@@ -1,6 +1,12 @@
 # Decisions
 
+> **Active client:** `pathfinder-mobile/`. Desktop tree UI is on hold — see [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md). Historical vision docs: [docs/archive/](./docs/archive/).
+
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
+
+## 2026-05-28 — Trunk theme slot reorder for visual balance
+
+Reordered trunk/theme rendering arrays to bias denser themes toward the middle of the trunk ladder for better visual balance and reduced crowding in upper/lower extremes. The active top-to-bottom slot order is now: Who I'm Becoming, Money & Finance, Health & Body, Work & Career, People & Relationships. This is an array reorder only with no schema or API changes.
 
 ## Product Positioning
 
@@ -45,6 +51,50 @@ Do not build any of this copy into the app yet. Document only. Implementation ha
 **Tools to explore:** Sora, Kling, Runway.
 
 **Status:** Not started. Do not build until core product is stable and in users' hands.
+
+## 2026-05-27 — Session 16 — Mobile map architecture: vertical scroll → radial pan/zoom canvas
+
+The mobile map moved from a vertical `ScrollView` path to a fixed radial tree canvas. The mobile renderer still owns its own geometry (`pathfinder-mobile/lib/map/geometry.ts`) and does not import desktop tree geometry, but it now mirrors the desktop topology: central trunk, authored theme attachment heights, theme limbs, hub fans around gateways, and a pan/pinch camera. `/api/branches`, `/api/marks`, and `MapNode` ids/kinds remain unchanged.
+
+**Mobile trunk parity (shipped):** vertical trunk canvas (1360×1800), desktop-style pursuit wedge layout, icon medallions, label LOD with pinch ramps, inactive-theme dimming, parallel flow filaments (lightweight port of desktop conduit language), pursuit `bloomStatus` visuals, hub activity emphasis, and camera fit that includes halos/labels—not just logical radii.
+
+**Intentionally mobile-specific:** react-native-svg renderer (not desktop SVG tree module), inline `MapMarkCard` instead of routing every mark tap to a sheet, fewer filaments per segment, and no sibling-swipe / path-sliding navigation yet.
+
+**Deferred:** full desktop material staging, sibling swipe between themes/hubs, path-sliding along branches.
+
+## Session 16 — Mobile map direction reset
+
+After three iterations, mobile map architecture is being rebuilt from scratch with a motion-first linear journey model. See MOBILE-VISION.md (rewritten this session) for the full spec.
+
+**Iterations explored before arriving here:**
+
+1. Vertical scroll, themes chained in a string (original "Candy Crush" model). Failed: the path-as-string metaphor swallowed the trunk. Themes felt like beads on a wire, not landmarks on a journey.
+
+2. Radial pan/zoom canvas with central trunk (Session 16 first attempt). Failed: two-finger pinch is too fiddly on iPhone; top-down camera kills the sense of journey; outer themes hard to reach.
+
+3. Linear journey with bottom sheet, dual-driving state, faux perspective via scale, snap-to-stop scrolling, motion-first design (this iteration). Committed.
+
+**What survives the rewrite:**
+- Living-spine ribbon math
+- Active-theme weighting
+- All data hooks and MapNode contracts
+- Routes used for deep linking only
+
+**What was thrown away:**
+- Radial geometry
+- Pan/pinch camera
+- Viewport-centre legend probe
+- Vertical Bézier chain trunk between themes
+
+**Implementation phases:**
+- Phase 1: Linear geometry + snap-scroll skeleton
+- Phase 2: Bottom sheet + dual-driving focus state
+- Phase 3: Faux perspective + Reanimated springs + haptics
+- Phase 4: Motion polish
+
+**Reference apps:** Apple Maps, Strava, Spotify Now Playing, Linear.
+
+Status: Vision locked. Phase 1 next.
 
 ## 2026-05-25 — Revised session roadmap (Sessions 9–16)
 
@@ -489,3 +539,190 @@ For a **file- and route-level** list of what landed in the repo (migrations, del
 **Hub catalog (v6):** `src/lib/hub-catalog.ts` — per-hub `about`, `why`, `belongsHere`, `doesNotBelongHere`, `aiRoutingNote`, `examples`. Stream injects `aiRoutingNote` (hub + theme extract). Slug aliases preserve `projects` → `builds & launches`, `mind` → `inner life`.
 
 **Moment subtype:** `LIMB_SUBTYPES.people` still includes `community` as a tag — not a hub name.
+
+## Session 16 Phase 3 — Tap interactions
+
+Tap wiring complete. Theme taps and back button working.
+
+Status: COMPLETE.
+
+## Session 16 Phase 4 — Map MVP foundation
+
+Phase 4 scope narrowed intentionally. The interaction model is:
+
+- **Overview:** pan the map (single finger, bounded)
+- **Tap** theme / hub to drill in; tap pursuit / mark for detail routes
+- **Back** to move up one level
+
+Deferred as over-complex for now:
+
+- Sibling swipe between themes or hubs
+- Path-sliding navigation along branches
+- Overview pinch zoom
+
+Also shipped in this phase: hub camera fix, node spacing increases, render-only visual differentiation (theme medallion / hub ring / pursuit dot), removal of dev chip bar and overview crosshair.
+
+Status: MVP foundation locked. Phase 5 = motion polish (springs, haptics).
+
+## Session 16 Phase 5 — Motion polish
+
+- Shared spring configs in `lib/map/cameraMotion.ts` (glide, reset, UI chrome)
+- Camera glide tuned for ~300–400ms feel (damping 26, stiffness 210)
+- Haptics: light impact when drilling deeper (overview → theme → hub); soft impact when backing up
+- Selection haptic on theme/hub tap for immediate feedback
+- Pan/pinch release springs for subtle settle after manual exploration
+
+Status: COMPLETE. Map interaction stack Session 16 is done.
+
+## 2026-06-04 — Theme-confident placement; hubs best-guess; ambiguous machinery dormant
+
+**Decision.** Stream's confident unit of placement is the **theme**, not the hub. The
+extractor drops each pursuit/mark onto a best-guess hub within the chosen theme as a
+low-stakes default. The boundary-adjudication / ambiguous-flagging behaviour is removed
+from the extractor prompts — the model no longer defers or flags placement, it always
+emits.
+
+**Why.** Every pursuit fits cleanly into one of five themes; the same is not true of
+seventeen hubs (gaps + overlaps → boundary bugs, empty-hub "report card" feeling). Aim
+the AI at the grain it's near-perfect on (theme) and stop forcing the grain it gets wrong
+(precise hub). On the rare miss the user re-drags — `moveToHub` already supports this.
+Spend freed from filing moves to enrichment (relating a new pursuit to existing ones).
+
+**Scope of change (Option B — behaviour now, no migration).** Prompt-only edits to
+`stream-extract.ts` (hub + theme extractors). Goals still attach to hub Branch rows in
+the data — this is NOT a goal→theme migration (that's Option A, deferred). No taxonomy
+version bump: the locked schema (TAXONOMY_VERSION 2026-05-19-v6, 17 system hubs) is
+unchanged. Best-guess placement relies on the existing `fillThemeExtractHubIds` /
+`inferHub` fallback, which already always returns a slug.
+
+**Deliberately left dormant — DO NOT "clean up" without a separate decision.** The
+ambiguous / needsResolution machinery is kept in place but inert: `ambiguousItemSchema`,
+`resolvedAmbiguous`, `stream-commit-ambiguous.ts`, `/api/stream/resolve-ambiguous`,
+`Mark.needsResolution` / `streamAmbiguousId`, and all tree/mobile unresolved-node
+rendering. With the prompt emitting `ambiguous: []`, the route's ambiguous-commit blocks
+are no-ops. Full excision (9-area removal surface, inventoried in the Option-B audit) is
+a separate deferred prompt. A future session must not delete this code assuming it's dead
+— it was retained on purpose, pending a decision on whether a lighter "flag this one"
+affordance is wanted back.
+
+**Enrichment.** `STREAM_PURUIT_REVIEW_RULES` description bullet strengthened to relate a
+new pursuit to existing map pursuits in plain second person, hard-constrained to pursuits
+present in context (never invent a relationship). Shared block, so global pursuits gain it
+too (benign).
+
+**Companion doc.** See `POSITIONING-theme-placement.md` (theme placement · emergent
+decorative hubs · enrichment-first AI · hub-as-render-layer) for full direction, including
+the deferred work: emergent hub-clustering as a render pass, and the pursuit-scope wiring +
+false-child brake.
+
+**Status.** Built, typecheck/lint clean. Pending dogfood validation of three behaviours:
+dedup-vs-continuation (next-chapter must become a continuation, not a silent omission),
+best-guess placement (out-of-theme item lands visibly, not dropped), and relational
+enrichment firing without fabricating on sparse maps.
+
+## 2026-06-06 — Pursuit Lucide icons · Phase 1 (icon foundation)
+
+Installed `lucide-react-native@1.17.0` in mobile. Enumerated **1713** kebab-case icon slugs from the installed package `.d.ts` (source of truth — not lucide.dev). Copied `docs/pursuit-icon-list.md`; parsed **194** preferred override rows (Pleasures section excluded; 23 ⚠️ custom-commission rows). **125** slugs in the tree-shaken import map (124 resolved override slugs + `sparkles`); aliases applied where markdown names differ (`home`→`house`, `palm-tree`→`tree-palm`). Unresolved override slugs in raw markdown: `broom`, `home`, `palm-tree`, `waves` — generator normalizes or nulls these; pursuits fall through to AI/theme icon.
+
+Artifacts: `pathfinder-mobile/lib/icons/pursuit-icon-catalog.ts`, `PursuitIcon` wrapper, `scripts/pursuit-icon-audit.json` (audit diff only), `pathfinder/src/lib/icons/pursuit-icon-overrides.ts`. Dev preview: `/dev/pursuit-icons`. No schema, map render, or Stream changes in this phase.
+
+## 2026-06-06 — Pursuit Lucide icons · Phase 2 (data model)
+
+Added optional `Goal.iconName` (`String?`) — kebab-case Lucide slug; null means render theme icon. Migration `20260606200000_goal_icon_name` applied to Supabase. No taxonomy bump. Field flows on **`GET /api/branches`** with full goal rows (same payload as `title` / `shortLabel`); mobile `BranchGoal` type updated. No UI consumption, no AI assignment, no map geometry changes in this phase.
+
+## 2026-06-06 — Pursuit Lucide icons · Phase 3 (icon assignment at creation)
+
+Added `assignPursuitIcon()` — separate from Stream extract. Resolution order: preferred override match (word-boundary concept matching) → AI JSON pick from **live** `lucide@1.17.0` enumeration (`enumerate-lucide-slugs.ts` reads installed package `.d.ts` at runtime, not audit JSON) → validate slug → persist or `null`.
+
+Wired into pursuit creation: `stream-commit` `createNewPursuit`, `POST /api/goals`, `stream-child-pursuit`, ambiguous mark → pursuit resolution. Failures are non-blocking (`assignPursuitIconSafe`). Override matcher uses word boundaries to avoid false positives (e.g. `visa` inside "Invisalign"). No map render changes in this phase.
+
+## 2026-06-06 — Pursuit Lucide icons · Phase 4 (map render)
+
+Threaded `Goal.iconName` through map geometry: `MapNode.iconName` set alongside `label` in `geometry.ts`; `patchLayoutPursuitVisuals` patches `iconName` and title without relayout. Map render uses **`PursuitMapIconOverlay`** — absolute-positioned `PursuitIcon` Views after the map `Svg` (Lucide icons are standalone `Svg` roots and cannot nest inside `react-native-svg`). Icons centered on pursuit hex at ~60% of diameter; hidden for seed/compact radii; opacity matches node visibility and dims on complete pursuits. Fallback: theme limb via `PursuitIcon`, then sparkles.
+
+## 2026-06-06 — Pursuit Lucide icons · Phase 5 (app-wide migration proposal — plan only)
+
+Follow-up pass after Phases 1–4 ship. **No code in this phase** — product decision + execution backlog for a future sprint.
+
+### Mixed styles on the map (decision required)
+
+Phases 1–4 leave **two icon languages on the map canvas**:
+
+| Layer | Source | Style | Role |
+|-------|--------|-------|------|
+| Theme hex (5) + hub hex (18) | Custom SVG (`limb-icons`, `branch-icons`) | Pathfinder brand strokes | Territory / taxonomy identity |
+| Pursuit hex | Lucide via `PursuitIcon` | Standard Lucide 24×24 stroke | Pursuit semantic shorthand |
+
+**Options:**
+
+- **A — Accept mixed styles everywhere on map:** Keep bespoke theme/track art; pursuits stay Lucide. Lowest effort; style clash visible at theme/hub focus where both appear together.
+- **B — Migrate theme icons to Lucide:** Replace 5 limb icons with fixed Lucide equivalents (`Briefcase`, `Wallet`, `Sparkles`, `Users`, `HeartPulse`). Unifies pursuit + theme hexes; loses bespoke brand artwork. Hub/track icons still mixed unless also migrated.
+- **C — Hybrid (recommended default):** Keep custom theme + track icons **inside map hex layer only**; migrate **nav, utility bar, Stream, panels, and secondary routes** to Lucide. Accepts mixed styles on the map; unifies everything outside the hex canopy.
+
+**QA gate before choosing:** Screenshot theme focus with pursuits visible; judge whether pursuit Lucide + custom theme/hub icons feel coherent enough for Option A/C. If clash is too strong, escalate to B for theme icons only (not full track migration).
+
+### Keep custom (brand-critical)
+
+| Asset | Location | Reason |
+|-------|----------|--------|
+| 5 theme limb icons | `limb-icons.tsx`, map theme hex | Distinct Pathfinder visual language |
+| 18 track branch icons | `branch-icons.tsx`, map hub hex | Taxonomy-specific artwork; no 1:1 Lucide set |
+| `MapBrandMark` | map utility bar | Product mark |
+| `PursuitStatusGlyph` | detail panels | Status shape language tied to hex bloom states |
+| Mark detail glyph | `mark/[id].tsx` | Empty bordered square — no Lucide equivalent |
+
+### Migrate to Lucide (high value, low risk)
+
+Introduce a thin **`AppIcon`** wrapper (named Lucide imports only — same tree-shaking pattern as `pursuit-icon-catalog.ts`; ~20–30 slugs, not the full 1713). Suggested mappings:
+
+| Current | File(s) | Lucide |
+|---------|---------|--------|
+| `MapTabIcon` (pin SVG) | `components/nav/MapTabIcon.tsx` | `MapPin` |
+| `StoryTabIcon` | `components/nav/StoryTabIcon.tsx` | `BookOpen` |
+| `SettingsTabIcon` | `components/nav/SettingsTabIcon.tsx` | `Settings` |
+| `ReviewTabIcon` (hidden tab) | `components/nav/ReviewTabIcon.tsx` | `ShieldCheck` |
+| Stream FAB `+` | `StreamTabBarButton.tsx` | `Plus` |
+| Search `⌕` | `MapUtilityBar.tsx` | `Search` |
+| Recenter `◎` | `MapZoomControls.tsx` | `LocateFixed` |
+| Edit `✎` / close `✕` | `ConfirmationCard.tsx`, `PursuitDetailPanel.tsx`, `MapOverlayCard.tsx` | `Pencil`, `X` |
+| Add `+` | `DetailDashedAction.tsx`, milestone rows | `Plus` |
+| Settings clock `◷` | `settings.tsx` ListRow | `Clock` |
+| Stream `◎` | `StreamPrimaryButton.tsx` | `Mic` (voice-forward) or `CircleDot` |
+| Insight `✨` | `InsightSparkle.tsx` | `Sparkles` |
+| Scope `●` | `StreamScopePill.tsx`, `StoryThemeChip.tsx` | `Circle` with fill |
+| Chevron `›` | `ListRow`, `HubListRow`, `ActionCard`, `StreamThemePicker` | `ChevronRight` |
+| Back `←` | `BackButton`, `DetailPanelNavBar`, `Composer`, onboarding | `ChevronLeft` (drop unicode arrow text) |
+| Check `✓` | `tasks.tsx`, `PursuitDetailPanel.tsx` | `Check` |
+
+**Delete after migration:** `MapTabIcon.tsx`, `StoryTabIcon.tsx`, `SettingsTabIcon.tsx`, `ReviewTabIcon.tsx` (4 bespoke nav SVG files).
+
+### Suggested execution order
+
+1. **`AppIcon` + nav tab bar** — highest visibility, validates Lucide sizing/stroke in tab chrome
+2. **Map utility bar + zoom controls** — search, recenter
+3. **Stream + confirm** — FAB, composer back, edit/close, scope pill
+4. **Detail panels + shared UI** — chevrons, back buttons, `InsightSparkle`, dashed actions
+5. **Secondary routes** — settings, tasks, onboarding back links
+6. **Desktop web** (if UI resumes) — parallel `lucide-react` + shared slug names; out of scope while desktop is on hold
+
+**Estimated touch:** ~18 mobile files, 1 new shared module (`app-icon-catalog.ts`), 4 deletions. No API or schema changes.
+
+### Implementation notes
+
+- **Stroke weight:** Lucide defaults to `strokeWidth={2}`; tab/nav icons currently use `1.5`. Standardize on `1.75` or `2` app-wide for Lucide chrome; keep custom map hex icons unchanged.
+- **Size:** Nav tabs `22`, utility bar `20`, inline chevrons `16–18` — match existing tap targets, not Lucide's 24 default.
+- **Do not** replace theme/track map icons or `PursuitIcon` in this pass unless product chooses Option B.
+- Re-run `audit-lucide-exports.mjs` if `lucide-react-native` is upgraded; `AppIcon` catalog is independent of pursuit catalog but should share version pin.
+
+### Acceptance criteria (when executed)
+
+- No unicode glyph used as a functional icon in nav, map chrome, Stream, or detail panels
+- Tab bar + Stream FAB visually consistent with pursuit hex Lucide weight
+- Custom theme/hub hex icons unchanged (unless Option B approved)
+- `npx tsc --noEmit` clean; spot-check map overlay icons still render after utility bar migration
+
+**Product decision (2026-06-06): Option C — Hybrid.** Custom theme + track icons stay on map hex layer; Lucide everywhere else.
+
+## 2026-06-06 — Pursuit Lucide icons · Phase 5 executed (Option C)
+
+Shipped **`AppIcon`** + **`app-icon-catalog.ts`** (18 tree-shaken Lucide slugs) and **`BackChevronLabel`** for nav/UI chrome. Migrated: tab bar, Stream FAB, map utility search + zoom controls, back affordances, chevrons, edit/close, checkmarks, `InsightSparkle`, scope pills, settings row icons. Deleted bespoke `MapTabIcon`, `StoryTabIcon`, `SettingsTabIcon`, `ReviewTabIcon`. **Unchanged:** `limb-icons`, `branch-icons`, `MapBrandMark`, `PursuitStatusGlyph`, mark glyph, `PursuitIcon` map overlay.

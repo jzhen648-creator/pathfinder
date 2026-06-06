@@ -8,6 +8,7 @@ import type { OnboardingHubOption } from "../onboarding-scene-router";
 import type { AreaData } from "@/components/tree/tree-types";
 import { OnboardingThemeChips } from "@/components/onboarding/onboarding-theme-chips";
 import { OnboardingTreeBackground } from "@/components/onboarding/onboarding-tree-background";
+import { ONBOARDING_DEFAULT_THEME_ID } from "@/components/onboarding/onboarding-theme-order";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 
 /** Keep the tree between the header chips and the bottom edge. */
@@ -25,29 +26,29 @@ type SceneHubPickProps = {
  * Phase 1: theme gateways only. Phase 2: one theme zoomed with hub spokes + side list.
  */
 export function SceneHubPick({ themeId, allHubs, syntheticAreas, onAdvance }: SceneHubPickProps) {
+  const activeThemeId = (themeId as LifeAreaId | null) ?? ONBOARDING_DEFAULT_THEME_ID;
   const hubs = useMemo(
-    () => (themeId ? allHubs.filter((hub) => hub.limbId === themeId) : []),
-    [allHubs, themeId],
+    () => allHubs.filter((hub) => hub.limbId === activeThemeId),
+    [activeThemeId, allHubs],
   );
-  const lifeArea = themeId ? getLifeArea(themeId as LifeAreaId) : null;
+  const lifeArea = getLifeArea(activeThemeId);
   const accentColor = lifeArea?.color ?? "#EF9F27";
   const themeLabel = lifeArea?.label ?? "this area";
   const unlockedLimbIds = LIFE_AREA_IDS as readonly LifeAreaId[];
 
   const handleHubSelect = useCallback(
     (slug: string) => {
-      if (!themeId) return;
-      onAdvance(4, themeId, slug);
+      onAdvance(4, activeThemeId, slug);
     },
-    [onAdvance, themeId],
+    [activeThemeId, onAdvance],
   );
 
   const handleThemeSwitch = useCallback(
     (id: LifeAreaId) => {
-      if (id === themeId) return;
+      if (id === activeThemeId) return;
       onAdvance(3, id, null);
     },
-    [onAdvance, themeId],
+    [activeThemeId, onAdvance],
   );
 
   const handleAreaClick = useCallback(
@@ -75,7 +76,7 @@ export function SceneHubPick({ themeId, allHubs, syntheticAreas, onAdvance }: Sc
           unlockedLimbIds={unlockedLimbIds}
           onAreaClick={handleAreaClick}
           onboardingHubPick={{
-            themeId: (themeId as LifeAreaId | null) ?? null,
+            themeId: activeThemeId,
             onHubSelect: handleHubSelect,
           }}
         />
@@ -107,29 +108,23 @@ export function SceneHubPick({ themeId, allHubs, syntheticAreas, onAdvance }: Sc
             textShadow: "0 2px 12px rgba(0,0,0,0.65)",
           }}
         >
-          {themeId ? (
-            <>
-              Inside <span style={{ color: accentColor }}>{themeLabel}</span> there are {hubs.length}{" "}
-              tracks.
-            </>
-          ) : (
-            "Tap a theme on the map, or pick one above."
-          )}
+          <>
+            Inside <span style={{ color: accentColor }}>{themeLabel}</span> there are {hubs.length}{" "}
+            tracks.
+          </>
         </p>
-        {themeId ? (
-          <p
-            style={{
-              margin: 0,
-              fontSize: 14,
-              color: "rgba(245,243,250,0.55)",
-              textShadow: "0 2px 10px rgba(0,0,0,0.55)",
-            }}
-          >
-            Tap a track on the map.
-          </p>
-        ) : null}
+        <p
+          style={{
+            margin: 0,
+            fontSize: 14,
+            color: "rgba(245,243,250,0.55)",
+            textShadow: "0 2px 10px rgba(0,0,0,0.55)",
+          }}
+        >
+          Tap a track on the map.
+        </p>
 
-        <OnboardingThemeChips selectedId={themeId} onSelect={handleThemeSwitch} />
+        <OnboardingThemeChips selectedId={activeThemeId} onSelect={handleThemeSwitch} />
       </div>
     </div>
   );

@@ -83,7 +83,7 @@ export const TREE_FORK_HEALTH: Point = deriveTrunkSurfaceAttach(
 )
 
 /**
- * Crown fork: Who I'm Becoming — one Work→People step above Work, plus a small gap so the crown
+ * Crown fork: Self & Mind — one Work→People step above Work, plus a small gap so the crown
  * stays visually separated when the four limbs are shifted lower.
  */
 const TREE_BECOMING_CLEARANCE_ABOVE_WORK = -50

@@ -62,14 +62,14 @@ export const JEREMY_SEEDS: MockHubSeed[] = [
     { date: "2026-03-15", title: "Tree layout redesign started", description: "Moved from radial scatter to trunk-based tree — visual hierarchy finally readable. Feature-flagged for safe iteration.", type: "decision", sentiment: "positive" },
     { date: "2026-05-14", title: "First dogfood session", description: "Used own product with real data — found 8 issues, triaged them, started fixing. Product feels close to real.", type: "milestone", sentiment: "positive" },
   ]},
-  { limbId: "becoming", name: "Purpose", goal: "Build a life of intentional freedom — not rich, not poor, not trapped by money", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Purpose & Values", goal: "Build a life of intentional freedom — not rich, not poor, not trapped by money", statusExtensive: "active", events: [
     { date: "2024-03-01", title: "Articulated what actually matters", description: "Wrote it down: raising a family in London, being present, not grinding endlessly. Freedom to choose.", type: "realisation", sentiment: "positive" },
     { date: "2024-12-15", title: "Rejected the get rich framing", description: "Realised I don't want to be rich — I want to not be trapped. Different goal, different strategy.", type: "realisation", sentiment: "positive" },
     { date: "2025-06-20", title: "Created the Life OS document", description: "Built a comprehensive 15-year plan — housing, investments, family, career, all sequenced.", type: "achievement", sentiment: "positive" },
     { date: "2025-10-01", title: "Understood the hard truth about London", description: "The UK isn't sanuk, sabai sabai. It's sacrifice now for freedom later. Accepted that years 1-5 will be hard.", type: "realisation", sentiment: "neutral" },
     { date: "2026-02-15", title: "Pathfinder as purpose expression", description: "Realised the product I'm building IS the practice — mapping my own life with the tool I'm creating for others.", type: "realisation", sentiment: "positive" },
   ]},
-  { limbId: "becoming", name: "Inner life", goal: "Maintain regular reflection practice through Pathfinder and journaling", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Mind & Emotions", goal: "Maintain regular reflection practice through Pathfinder and journaling", statusExtensive: "active", events: [
     { date: "2024-07-01", title: "Started journaling about life direction", description: "Unstructured at first — what do I want, where am I going, what's the plan.", type: "milestone", sentiment: "neutral" },
     { date: "2025-01-10", title: "First deep reflection on Bangkok years", description: "Assessed what Bangkok gave me: low cost of living, space to think, time to build skills.", type: "realisation", sentiment: "neutral" },
     { date: "2025-08-15", title: "Built reflection features into Pathfinder", description: "AI-powered reflection endpoints — the product does what my journal does but better.", type: "milestone", sentiment: "positive" },
@@ -80,7 +80,7 @@ export const JEREMY_SEEDS: MockHubSeed[] = [
     { date: "2025-11-01", title: "Spending discipline tightened", description: "Tracked every pound for a month — identified leaks, set budgets per category.", type: "milestone", sentiment: "neutral" },
     { date: "2026-04-01", title: "Worried about habit survival in London", description: "Morning routine depends on Bangkok flexibility — 9-to-5 office job will break it. Need to plan London version.", type: "setback", sentiment: "negative" },
   ]},
-  { limbId: "becoming", name: "Joy", goal: "Protect the things that make life worth living — even during the grind years", goalValue: 4, currentValue: 2, unit: "sources", statusExtensive: "active", events: [
+  { limbId: "becoming", name: "Joy & Creativity", goal: "Protect the things that make life worth living — even during the grind years", goalValue: 4, currentValue: 2, unit: "sources", statusExtensive: "active", events: [
     { date: "2024-08-01", title: "Identified non-negotiable joy sources", description: "Holidays, cooking, friends visiting, Muay Thai. These aren't luxuries — they're load-bearing.", type: "decision", sentiment: "positive" },
     { date: "2025-03-15", title: "Budgeted holidays into the 15-year plan", description: "Refused to cut travel from the financial model — joy is structural, not optional.", type: "decision", sentiment: "positive" },
     { date: "2025-09-01", title: "Thai food cooking deep-dive", description: "Started learning to cook Thai dishes properly — partly for joy, partly because eating out in London is expensive.", type: "milestone", sentiment: "positive" },

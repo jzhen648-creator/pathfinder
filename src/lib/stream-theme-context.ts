@@ -116,6 +116,41 @@ export function inferLikelyThemeHubSlugs(inputText: string, themeId: LifeAreaId,
   return new Set(scored.map((row) => row.slug));
 }
 
+/** Highest catalog score for a theme (0 if no hub matches). */
+export function bestHubScoreForThemeInput(
+  inputText: string,
+  themeId: LifeAreaId,
+  hubLabels: string[],
+): number {
+  const input = normalizeForHubInference(inputText);
+  if (!input) return 0;
+
+  let best = 0;
+  for (const hubLabel of hubLabels) {
+    best = Math.max(best, scoreHubFromCatalog(input, themeId, hubLabel));
+  }
+  return best;
+}
+
+/** Highest-scoring hub slug for pre-LLM routing hints (score >= 4), or null. */
+export function pickBestHubSlugForThemeInput(
+  inputText: string,
+  themeId: LifeAreaId,
+  hubLabels: string[],
+): string | null {
+  const input = normalizeForHubInference(inputText);
+  if (!input) return null;
+
+  let best: { slug: string; score: number } | null = null;
+  for (const hubLabel of hubLabels) {
+    const score = scoreHubFromCatalog(input, themeId, hubLabel);
+    const slug = normalizeForHubInference(hubLabel);
+    if (score < 4) continue;
+    if (!best || score > best.score) best = { slug, score };
+  }
+  return best?.slug ?? null;
+}
+
 function fallbackRecentThemeHubs<T extends { updatedAt?: Date }>(hubs: T[], limit = 2): T[] {
   return [...hubs]
     .sort((a, b) => {

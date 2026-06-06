@@ -79,7 +79,7 @@ export function collectTreeFitSamplePoints(opts: {
 }): Point[] {
   const { areas, forks, floatNudges, layoutOverrides, areaIds, includePreviewBranchTips = false } = opts;
   const out: Point[] = [];
-  const includeTrunk = areaIds == null || areaIds.length !== 1;
+  const includeTrunk = FLAGS.TREE_TRUNK_VISIBLE && (areaIds == null || areaIds.length !== 1);
 
   if (includeTrunk) {
   for (const y of [TRUNK_CROWN_Y, TRUNK_BASE_Y, (TRUNK_CROWN_Y + TRUNK_BASE_Y) / 2]) {

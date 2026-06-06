@@ -15,22 +15,20 @@ export type AreaAnchors = {
 
 /** Life areas that use straight hub-and-spoke fork geometry in the tree SVG. */
 export const STRAIGHT_LIFE_AREA_IDS = [
-  "finance",
-  "work",
   "becoming",
   "people",
   "health",
+  "finance",
+  "work",
 ] as const;
 
 export type StraightLifeAreaId = (typeof STRAIGHT_LIFE_AREA_IDS)[number];
 
 /**
- * Hub **theme** gateways orbit {@link THEME_STAR_CENTER} on irregular sectors (not a regular
- * pentagon). Radial depth is authored here.
+ * Hub **theme** gateways orbit {@link THEME_STAR_CENTER} on exact pentagon points.
  */
 export const THEME_STAR_CENTER: Point = {
   x: VIEWBOX_WIDTH * 0.5,
-  /** Slightly above mid-view — crown (Becoming) needs headroom above the lower theme band. */
   y: VIEWBOX_HEIGHT * 0.455,
 };
 
@@ -38,27 +36,15 @@ export const THEME_STAR_CENTER: Point = {
 export const THEME_STAR_RADIUS_PX = 1180;
 
 /**
- * Per-theme radial stretch. Becoming sits higher; the lower band pushes outward so crown hub
- * spokes do not crowd People / Work / Health gateways beneath.
+ * Pentagon slot order, clockwise from top. This keeps the old radial neighborhoods while making
+ * the geometry exact: Becoming at 12 o'clock, then People / Health / Finance / Work clockwise.
  */
-const THEME_STAR_RADIUS_SCALE: Record<StraightLifeAreaId, number> = {
-  becoming: 1.16,
-  people: 1.12,
-  health: 1.14,
-  finance: 1.14,
-  work: 1.12,
-};
-
-/**
- * Sector centre angles (clockwise from top). Irregular spacing breaks the 72° flower symmetry
- * while keeping each limb in its familiar band around the map.
- */
-const THEME_SECTOR_CW_FROM_TOP_DEG: Record<StraightLifeAreaId, number> = {
+const THEME_PENTAGON_SLOT: Record<StraightLifeAreaId, number> = {
   becoming: 0,
-  people: 84,
-  health: 158,
-  finance: 236,
-  work: 310,
+  people: 1,
+  health: 2,
+  finance: 3,
+  work: 4,
 };
 
 const AREA_LIMB_STROKE_WIDTH: Record<StraightLifeAreaId, number> = {
@@ -69,36 +55,23 @@ const AREA_LIMB_STROKE_WIDTH: Record<StraightLifeAreaId, number> = {
   health: 7.95,
 };
 
-/** Stable 0…1 hash for per-limb angular jitter (no runtime randomness). */
-function stableLimbLayout01(seed: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) / 4294967295;
+export const THEME_PENTAGON_STEP_RAD = (2 * Math.PI) / STRAIGHT_LIFE_AREA_IDS.length;
+
+export function themePentagonAngleRad(id: StraightLifeAreaId): number {
+  return -Math.PI / 2 + THEME_PENTAGON_SLOT[id] * THEME_PENTAGON_STEP_RAD;
 }
 
-function sectorCenterRad(id: StraightLifeAreaId): number {
-  const cwDeg = THEME_SECTOR_CW_FROM_TOP_DEG[id];
-  const jitterDeg = (stableLimbLayout01(`${id}:sector`) - 0.5) * 13;
-  return -Math.PI / 2 + ((cwDeg + jitterDeg) * Math.PI) / 180;
+export function themeOutwardUnit(id: StraightLifeAreaId): Point {
+  const theta = themePentagonAngleRad(id);
+  return { x: Math.cos(theta), y: Math.sin(theta) };
 }
 
-/** Extra lift for the crown theme on the radial star layout (smaller y = higher). */
-const BECOMING_STAR_EXTRA_UP_PX = 72;
-
-/** Theme gateway in SVG space — irregular sectors, authored radial depth. */
+/** Theme gateway in SVG space — exact pentagon, uniform radius. */
 export function computeThemeGateway(id: StraightLifeAreaId): Point {
-  const theta = sectorCenterRad(id);
-  const r = THEME_STAR_RADIUS_PX * THEME_STAR_RADIUS_SCALE[id];
-  const y =
-    THEME_STAR_CENTER.y +
-    r * Math.sin(theta) -
-    (id === "becoming" ? BECOMING_STAR_EXTRA_UP_PX : 0);
+  const theta = themePentagonAngleRad(id);
   return {
-    x: THEME_STAR_CENTER.x + r * Math.cos(theta),
-    y,
+    x: THEME_STAR_CENTER.x + THEME_STAR_RADIUS_PX * Math.cos(theta),
+    y: THEME_STAR_CENTER.y + THEME_STAR_RADIUS_PX * Math.sin(theta),
   };
 }
 

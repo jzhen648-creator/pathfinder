@@ -48,6 +48,22 @@ import { SwimlaneTimeline } from "@/components/timeline/swimlane-timeline";
 // BranchView remains in `./tree-alternate-views.tsx`; it is currently unwired from the map HUD.
 import { MarkHoverCard, type MarkInteractionAnchor } from "./mark-hover-card";
 import { TreePanel } from "./tree-panel";
+import { CreateMarkModal } from "./create-mark-modal";
+import { SparseContextPrompt } from "./sparse-context-prompt";
+import {
+  NodeContextMenu,
+  ContextMenuIconArchive,
+  ContextMenuIconCheck,
+  ContextMenuIconEdit,
+  ContextMenuIconMark,
+  ContextMenuIconMilestone,
+  ContextMenuIconPause,
+  ContextMenuIconPlus,
+  ContextMenuIconReframe,
+  ContextMenuIconStream,
+  type NodeContextMenuAction,
+} from "@/components/ui/NodeContextMenu";
+import { formatUserInput } from "@/utils/text";
 import {
   normalizeArchivedGoalsFromBranches,
   normalizeMarks,
@@ -61,6 +77,7 @@ import {
   type AddGoalHubContext,
   type ArchivedGoalRow,
   type CoachMarkStep,
+  type NodeContextMenuTarget,
   type OnboardingSproutState,
   type PanelState,
   type ViewMode,
@@ -173,6 +190,16 @@ function TreeViewInner({
   const [pendingThemeConfirm, setPendingThemeConfirm] = useState<LifeAreaId | null>(null);
   const [coachMarkStep, setCoachMarkStep] = useState<CoachMarkStep>(initialCoachMarkStep);
   const [onboardingSprout, setOnboardingSprout] = useState<OnboardingSproutState>(null);
+  const [hoveredHubId, setHoveredHubId] = useState<string | null>(null);
+  const [hoveredGoalId, setHoveredGoalId] = useState<string | null>(null);
+  const [nodeContextMenu, setNodeContextMenu] = useState<
+    (NodeContextMenuTarget & { reframeMode?: boolean }) | null
+  >(null);
+  const [createMarkOpen, setCreateMarkOpen] = useState(false);
+  const [createMarkDefaults, setCreateMarkDefaults] = useState<{
+    limbId: LifeAreaId;
+    branchId: string;
+  } | null>(null);
   const keepStreamPreviewOnCloseRef = useRef(false);
 
   useEffect(() => {
@@ -428,6 +455,37 @@ function TreeViewInner({
       });
     }
   }, [advanceOnboardingGuide, coachMarkStep, isOnboardingGuideActive]);
+
+  const closeNodeContextMenu = useCallback(() => {
+    setNodeContextMenu(null);
+  }, []);
+
+  const hubContextFrom = useCallback(
+    (area: AreaData, thread: AreaData["branches"][number]): AddGoalHubContext => ({
+      branchId: thread.id,
+      areaId: area.id,
+      branchLabel: thread.type.trim() || "Hub",
+      areaLabel: area.label,
+      anchorClient: { x: window.innerWidth / 2, y: Math.min(window.innerHeight - 100, window.innerHeight * 0.5) },
+    }),
+    [],
+  );
+
+  const handleNodeContextMenu = useCallback((target: NodeContextMenuTarget) => {
+    setNodeContextMenu({ ...target, reframeMode: false });
+  }, []);
+
+  const openCreateMarkForHub = useCallback((area: AreaData, branchId: string) => {
+    setCreateMarkDefaults({ limbId: area.id as LifeAreaId, branchId });
+    setCreateMarkOpen(true);
+  }, []);
+
+  const contextMenuTargetId = useMemo(() => {
+    if (!nodeContextMenu) return null;
+    if (nodeContextMenu.kind === "hub") return nodeContextMenu.thread.id;
+    if (nodeContextMenu.kind === "pursuit") return nodeContextMenu.goal.id;
+    return nodeContextMenu.moment.id;
+  }, [nodeContextMenu]);
 
   const showTreeToast = useCallback((msg: string, color = "#7B68C8") => {
     setTreeToast({ msg, color });
@@ -827,12 +885,8 @@ function TreeViewInner({
   }, []);
 
   const handleGoalClick = useCallback((goal: TreeGoalNode, area: AreaData) => {
-    let close = false;
-    setPanel((curr) => {
-      close = curr.type === "goal" && curr.goal.id === goal.id;
-      return close ? { type: "none" } : { type: "goal", goal, area };
-    });
-    setFocused(close ? null : area.id);
+    setFocused(area.id);
+    setPanel({ type: "goal", goal, area });
   }, []);
 
   const visibleAreas = areas;
@@ -1230,6 +1284,12 @@ function TreeViewInner({
           onMarkPointerLeave={handleMarkPointerLeave}
           onMarkClick={handleMarkClickNode}
           onGoalClick={handleGoalClick}
+          hoveredHubId={hoveredHubId}
+          onHoveredHubChange={setHoveredHubId}
+          hoveredGoalId={hoveredGoalId}
+          onHoveredGoalChange={setHoveredGoalId}
+          onNodeContextMenu={handleNodeContextMenu}
+          contextMenuTargetId={contextMenuTargetId}
           exportRootRef={treeExportRootRef}
           showElementGuide={TREE_ELEMENT_GUIDE_ENABLED && showTreeElementGuide}
           suppressDevUi={onboardingLocked && process.env.NODE_ENV !== "development"}
@@ -1450,6 +1510,192 @@ function TreeViewInner({
     },
     [clearPreviewNodes, showTreeToast],
   );
+
+  const nodeContextMenuConfig = useMemo(() => {
+    if (!nodeContextMenu) return null;
+
+    const wrap =
+      (fn: () => void | Promise<void>) =>
+      async () => {
+        closeNodeContextMenu();
+        await fn();
+      };
+
+    if (nodeContextMenu.kind === "hub") {
+      const { area, thread } = nodeContextMenu;
+      const hubLabel = thread.type.trim() || "Hub";
+      const actions: NodeContextMenuAction[] = [
+        {
+          id: "add-pursuit",
+          label: "Add Pursuit",
+          icon: <ContextMenuIconPlus />,
+          onSelect: wrap(() => handleAddGoalOnHub(hubContextFrom(area, thread))),
+        },
+        {
+          id: "add-mark",
+          label: "Add Mark",
+          icon: <ContextMenuIconMark />,
+          onSelect: wrap(() => openCreateMarkForHub(area, thread.id)),
+        },
+        {
+          id: "open-stream",
+          label: "Open in Stream",
+          icon: <ContextMenuIconStream />,
+          onSelect: wrap(() => handleOpenHubStream(area, thread)),
+        },
+      ];
+      return {
+        title: hubLabel,
+        subtitle: `${area.label} · Hub`,
+        spotlight: { clientX: nodeContextMenu.clientX, clientY: nodeContextMenu.clientY },
+        actions,
+        destructiveActions: [] as NodeContextMenuAction[],
+        reframeMode: false,
+        markId: null as string | null,
+        areaColor: area.color,
+      };
+    }
+
+    if (nodeContextMenu.kind === "pursuit") {
+      const { area, goal } = nodeContextMenu;
+      const actions: NodeContextMenuAction[] = [
+        {
+          id: "add-milestone",
+          label: "Add Milestone",
+          icon: <ContextMenuIconMilestone />,
+          onSelect: wrap(async () => {
+            const title = formatUserInput(window.prompt("Add milestone") ?? "");
+            if (!title) return;
+            const result = await handlePanelAppendCanonicalTreeMilestone(goal.id, title);
+            if (!result.ok) showTreeToast(result.error ?? "Could not add milestone.", "#e85d5d");
+          }),
+        },
+        {
+          id: "add-mark",
+          label: "Add Mark",
+          icon: <ContextMenuIconMark />,
+          onSelect: wrap(() => openCreateMarkForHub(area, goal.branchId)),
+        },
+        {
+          id: "complete",
+          label: "Complete",
+          icon: <ContextMenuIconCheck />,
+          disabled: goal.bloomStatus === "COMPLETE",
+          onSelect: wrap(async () => {
+            const result = await handlePanelUpdateGoal(goal.id, { bloomStatus: "COMPLETE" });
+            if (!result.ok) showTreeToast(result.error ?? "Could not complete pursuit.", "#e85d5d");
+          }),
+        },
+        {
+          id: "edit",
+          label: "Edit",
+          icon: <ContextMenuIconEdit />,
+          onSelect: wrap(() => handleGoalClick(goal, area)),
+        },
+      ];
+      const destructiveActions: NodeContextMenuAction[] = [
+        {
+          id: "on-hold",
+          label: "Put On Hold",
+          icon: <ContextMenuIconPause />,
+          warning: true,
+          disabled: goal.bloomStatus === "ON_HOLD",
+          onSelect: wrap(async () => {
+            const result = await handlePanelUpdateGoal(goal.id, { bloomStatus: "ON_HOLD" });
+            if (!result.ok) showTreeToast(result.error ?? "Could not update pursuit.", "#e85d5d");
+          }),
+        },
+        {
+          id: "archive",
+          label: "Archive",
+          icon: <ContextMenuIconArchive />,
+          destructive: true,
+          onSelect: wrap(async () => {
+            if (!window.confirm(`Remove “${goal.title}” from your map? It will be archived.`)) return;
+            const result = await handlePanelDeleteGoal(goal.id);
+            if (!result.ok) showTreeToast(result.error ?? "Could not archive pursuit.", "#e85d5d");
+          }),
+        },
+      ];
+      return {
+        title: goal.title,
+        subtitle: `${area.label} · Pursuit`,
+        spotlight: { clientX: nodeContextMenu.clientX, clientY: nodeContextMenu.clientY },
+        actions,
+        destructiveActions,
+        reframeMode: false,
+        markId: null as string | null,
+        areaColor: area.color,
+      };
+    }
+
+    const { area, moment } = nodeContextMenu;
+    const markTitle = moment.description?.trim() || moment.label.trim() || "Mark";
+    const actions: NodeContextMenuAction[] = [
+      {
+        id: "reframe",
+        label: "Reframe",
+        icon: <ContextMenuIconReframe />,
+        onSelect: () => {
+          setNodeContextMenu((curr) => (curr ? { ...curr, reframeMode: true } : curr));
+        },
+      },
+      {
+        id: "edit",
+        label: "Edit",
+        icon: <ContextMenuIconEdit />,
+        onSelect: wrap(() => {
+          handleMarkClick(
+            buildMarkAnchor(moment, area, nodeContextMenu.clientX, nodeContextMenu.clientY),
+          );
+        }),
+      },
+    ];
+    const destructiveActions: NodeContextMenuAction[] = [
+      {
+        id: "archive",
+        label: "Archive",
+        icon: <ContextMenuIconArchive />,
+        destructive: true,
+        onSelect: wrap(async () => {
+          if (
+            !window.confirm(
+              `Remove “${moment.label}” from your map? It will be archived (hidden from the tree).`,
+            )
+          ) {
+            return;
+          }
+          const result = await handleTimelineDeleteMoment(moment.id);
+          if (!result.ok) showTreeToast(result.error ?? "Could not archive mark.", "#e85d5d");
+        }),
+      },
+    ];
+    return {
+      title: markTitle,
+      subtitle: `${area.label} · Mark`,
+      spotlight: { clientX: nodeContextMenu.clientX, clientY: nodeContextMenu.clientY },
+      actions,
+      destructiveActions,
+      reframeMode: nodeContextMenu.reframeMode === true,
+      markId: moment.id,
+      areaColor: area.color,
+    };
+  }, [
+    buildMarkAnchor,
+    closeNodeContextMenu,
+    handleAddGoalOnHub,
+    handleGoalClick,
+    handleMarkClick,
+    handleOpenHubStream,
+    handlePanelAppendCanonicalTreeMilestone,
+    handlePanelDeleteGoal,
+    handlePanelUpdateGoal,
+    handleTimelineDeleteMoment,
+    hubContextFrom,
+    nodeContextMenu,
+    openCreateMarkForHub,
+    showTreeToast,
+  ]);
 
   if (loading) {
     return (
@@ -1689,6 +1935,53 @@ function TreeViewInner({
           onHoverZoneLeave={handleMarkCardHoverLeave}
         />
       ) : null}
+
+      {nodeContextMenuConfig ? (
+        <NodeContextMenu
+          open
+          title={nodeContextMenuConfig.title}
+          subtitle={nodeContextMenuConfig.subtitle}
+          spotlight={nodeContextMenuConfig.spotlight}
+          actions={nodeContextMenuConfig.reframeMode ? [] : nodeContextMenuConfig.actions}
+          destructiveActions={
+            nodeContextMenuConfig.reframeMode ? [] : nodeContextMenuConfig.destructiveActions
+          }
+          onClose={closeNodeContextMenu}
+        >
+          {nodeContextMenuConfig.reframeMode && nodeContextMenuConfig.markId ? (
+            <SparseContextPrompt
+              itemType="mark"
+              itemId={nodeContextMenuConfig.markId}
+              accentColor={nodeContextMenuConfig.areaColor}
+              compact
+              initialOpen
+              onDone={async () => {
+                await handleSparseEnriched();
+                closeNodeContextMenu();
+              }}
+            />
+          ) : null}
+        </NodeContextMenu>
+      ) : null}
+
+      <CreateMarkModal
+        open={createMarkOpen}
+        onClose={() => {
+          setCreateMarkOpen(false);
+          setCreateMarkDefaults(null);
+        }}
+        branches={apiBranchRows}
+        defaultLifeAreaId={
+          createMarkDefaults?.limbId ??
+          (visibleAreas[0]?.id as LifeAreaId | undefined) ??
+          ONBOARDING_DEFAULT_THEME_ID
+        }
+        defaultBranchId={createMarkDefaults?.branchId ?? null}
+        onCreated={() => {
+          void loadData({ silent: true });
+          showTreeToast("Mark added to your map.");
+        }}
+      />
 
       <AddAreaModal
         open={addAreaOpen}

@@ -37,20 +37,28 @@ test.describe("Six-scene guided onboarding", () => {
     await registerAndLogin(page, email);
 
     await page.goto("/tree", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText(/turn one thing on your mind/i)).toBeVisible();
-    await page.getByRole("button", { name: "I'm ready" }).click();
+    const readyButton = page.getByRole("button", { name: "I'm ready" }).filter({ visible: true }).first();
+    await expect(readyButton).toBeVisible();
+    await readyButton.click();
 
     await expect(page.getByText(/Tap a theme to begin/i)).toBeVisible({ timeout: 15_000 });
-    await page.locator('circle[aria-label="Add Money to your tree"]').click({ force: true });
-    await page.getByRole("button", { name: "Add Money" }).click();
+    await page.locator('circle[aria-label="Add Work to your tree"]').click({ force: true });
+    await page.getByRole("button", { name: "Add Work" }).click();
     await expect(page.getByRole("complementary", { name: "Theme details" })).toBeVisible({
       timeout: 30_000,
     });
 
-    await page.getByRole("button", { name: /^Income\b/ }).click();
-    await expect(page.getByText("Opened Income.")).toBeVisible({ timeout: 30_000 });
+    const firstHubButton = page.getByRole("button", { name: /^Career Closed/ });
+    await expect(firstHubButton).toBeVisible();
+    await firstHubButton.hover();
+    await page.mouse.down();
+    await page.waitForTimeout(1_100);
+    await page.mouse.up();
+    await expect(page.getByRole("complementary", { name: "Hub details" })).toBeVisible({
+      timeout: 30_000,
+    });
 
-    await page.getByRole("button", { name: /Open Stream — Money/i }).click();
+    await page.getByRole("button", { name: /Open Stream — Career/i }).click();
     await expect(page.getByText("Take your time. Sentences are fine.")).toBeVisible({
       timeout: 30_000,
     });
@@ -67,12 +75,12 @@ test.describe("Six-scene guided onboarding", () => {
       await fetch("/api/onboarding/advance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scene: 6, themeId: "finance", hubSlug: "income" }),
+        body: JSON.stringify({ scene: 6, themeId: "work", hubSlug: "career" }),
       });
     });
     await advanceToHorizon;
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByText("Your map has started.")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Congratulations — your map has started.")).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole("button", { name: /I'm done for now/i }).click();
     await expect(page).toHaveURL(/\/tree/, { timeout: 30_000 });
@@ -93,6 +101,6 @@ test.describe("Six-scene guided onboarding", () => {
     });
     expect(progress.email).toBe(email);
     expect(progress.onboardingCompleted).toBe(true);
-    expect(progress.unlocked).toContain("finance");
+    expect(progress.unlocked).toContain("work");
   });
 });

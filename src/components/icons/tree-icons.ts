@@ -52,9 +52,9 @@ export const HUB_BRANCH_ICONS: Record<LifeAreaId, Record<string, TreeIconCompone
     "Builds & Launches": BranchProjects,
   },
   becoming: {
-    Purpose: BranchPurpose,
-    "Inner life": BranchInnerWork,
-    Joy: BranchExperiences,
+    "Purpose & Values": BranchPurpose,
+    "Mind & Emotions": BranchInnerWork,
+    "Joy & Creativity": BranchExperiences,
   },
   people: {
     Family: BranchFamily,

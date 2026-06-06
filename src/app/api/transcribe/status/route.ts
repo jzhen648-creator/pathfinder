@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasGeminiTranscriptionKey } from "@/lib/gemini";
+import { hasGroqTranscriptionKey } from "@/lib/gemini";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -9,10 +9,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasGeminiTranscriptionKey()) {
+  if (!hasGroqTranscriptionKey()) {
     return NextResponse.json({
       available: false,
-      reason: "Voice transcription requires GEMINI_API_KEY.",
+      reason: "Voice transcription requires GROQ_API_KEY.",
     });
   }
 

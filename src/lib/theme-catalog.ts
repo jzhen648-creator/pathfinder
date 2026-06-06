@@ -66,27 +66,27 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
   },
   becoming: {
     vision:
-      "Who you are becoming is the inner arc — purpose, mind, and joy you protect. Orientation and depth, not physical projects (see Health & Body).",
+      "Self & Mind is your inner world — values, emotions, reflection, and joy you protect. Orientation and depth, not physical projects (see Health & Body).",
     dimensions: [
-      "Purpose — north star, values, faith, wonder, and values-led giving",
-      "Inner life — therapy, patterns, identity, and rituals that express who you are",
-      "Joy — hobbies, culture, experiences",
+      "Purpose & Values — direction, meaning, identity, and principles",
+      "Mind & Emotions — thoughts, feelings, patterns, and psychological wellbeing",
+      "Joy & Creativity — hobbies, play, culture, and personal expression",
     ],
     lenses: [
       "Do you have a lived sense of direction, not just ambition?",
-      "Is inner life resourced — or only optimized?",
-      "Do you protect joy that is yours?",
+      "Is your emotional and mental life resourced — or only optimized?",
+      "Do you protect joy and creativity that is yours?",
       "Does the timeline show real inner shifts?",
     ],
     healthySignals: [
-      "Pursuits or marks across purpose, mind, and joy",
-      "Inner life hub with an active pursuit",
+      "Pursuits or marks across purpose, mind, and joy hubs",
+      "Mind & Emotions hub with an active pursuit",
       "Timeline marks that capture identity shifts",
     ],
     gapSignals: [
-      "Only purpose statements — no mind or joy",
-      "Empty theme — growth not yet mapped",
-      "Pursuits with no inner-life story on the timeline",
+      "Only values statements — no mind or joy",
+      "Empty theme — inner life not yet mapped",
+      "Pursuits with no emotional or reflective story on the timeline",
     ],
   },
   people: {
@@ -115,7 +115,7 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
   },
   health: {
     vision:
-      "Health and body are the foundation everything else stands on — how you move, fuel, rest, and tend appearance. Physical infrastructure only; meaning and joy live under Who I'm Becoming.",
+      "Health and body are the foundation everything else stands on — how you move, fuel, rest, and tend appearance. Physical infrastructure only; meaning and joy live under Self & Mind.",
     dimensions: [
       "Movement — training, sport, mobility",
       "Nutrition — fuel and nourishment",

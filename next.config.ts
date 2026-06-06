@@ -1,4 +1,12 @@
 import type { NextConfig } from "next";
+import { networkInterfaces } from "node:os";
+
+function localIpv4DevOrigins(): string[] {
+  return Object.values(networkInterfaces())
+    .flatMap((interfaces) => interfaces ?? [])
+    .filter((networkInterface) => networkInterface.family === "IPv4" && !networkInterface.internal)
+    .map((networkInterface) => networkInterface.address);
+}
 
 const nextConfig: NextConfig = {
   // pdf-parse wraps pdf.js and mammoth relies on Node streams. Leaving them to
@@ -6,8 +14,8 @@ const nextConfig: NextConfig = {
   // them as external forces Next to `require()` them at runtime from
   // node_modules, which is what the upstream libs expect.
   serverExternalPackages: ["pdf-parse", "mammoth"],
-  /** Playwright and some browsers hit 127.0.0.1; without this, client HMR can fail and the tree stays on "Growing your tree…". */
-  allowedDevOrigins: ["127.0.0.1", "localhost"],
+  /** Allow phones/tablets on the LAN to load dev assets; otherwise login never hydrates and forms submit as plain HTML. */
+  allowedDevOrigins: ["127.0.0.1", "localhost", ...localIpv4DevOrigins()],
   async redirects() {
     return [
       {

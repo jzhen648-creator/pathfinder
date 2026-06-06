@@ -10,6 +10,8 @@ export type SparseContextPromptProps = {
   accentColor?: string;
   onDone: () => void | Promise<void>;
   compact?: boolean;
+  /** When true, open the enrich form immediately (e.g. context menu Reframe). */
+  initialOpen?: boolean;
 };
 
 export function SparseContextPrompt({
@@ -18,8 +20,9 @@ export function SparseContextPrompt({
   accentColor = MARK_TREE_AMBER,
   onDone,
   compact = false,
+  initialOpen = false,
 }: SparseContextPromptProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

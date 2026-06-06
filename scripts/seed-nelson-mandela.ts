@@ -14,15 +14,15 @@ const PASSWORD = "password123";
 const HUBS = [
   { limbId: "work", label: "Career", name: "Career", createdAt: new Date("1941-01-01") },
   { limbId: "work", label: "Builds & Launches", name: "Builds & Launches", createdAt: new Date("1952-01-01") },
-  { limbId: "becoming", label: "Purpose", name: "Purpose", createdAt: new Date("1944-01-01") },
-  { limbId: "becoming", label: "Inner life", name: "Inner life", createdAt: new Date("1964-06-12") },
+  { limbId: "becoming", label: "Purpose & Values", name: "Purpose & Values", createdAt: new Date("1944-01-01") },
+  { limbId: "becoming", label: "Mind & Emotions", name: "Mind & Emotions", createdAt: new Date("1964-06-12") },
   { limbId: "people", label: "Family", name: "Family", createdAt: new Date("1918-07-18") },
   { limbId: "people", label: "Friendships", name: "Friendships", createdAt: new Date("1952-01-01") },
 ] as const;
 
 const LIFE_AREA_BY_LIMB: Record<string, string> = {
   work: "Work & Career",
-  becoming: "Becoming",
+  becoming: "Self & Mind",
   people: "People & Relationships",
 };
 
@@ -86,7 +86,7 @@ const GOALS: GoalSeed[] = [
   },
   {
     key: "freedom-charter",
-    hub: "Purpose",
+    hub: "Purpose & Values",
     limbId: "becoming",
     title: "Anchor the liberation movement around a democratic Freedom Charter",
     description:
@@ -106,7 +106,7 @@ const GOALS: GoalSeed[] = [
   },
   {
     key: "robin-island",
-    hub: "Inner life",
+    hub: "Mind & Emotions",
     limbId: "becoming",
     title: "Preserve dignity, discipline, and political clarity through imprisonment",
     description:
@@ -233,13 +233,13 @@ const GOALS: GoalSeed[] = [
 
 const MARKS: MarkSeed[] = [
   { hub: "Family", limbId: "people", title: "Born in Mvezo in the Thembu royal lineage", date: new Date("1918-07-18") },
-  { hub: "Purpose", limbId: "becoming", title: "Arrived in Johannesburg and encountered urban political life", date: new Date("1941-04-01") },
+  { hub: "Purpose & Values", limbId: "becoming", title: "Arrived in Johannesburg and encountered urban political life", date: new Date("1941-04-01") },
   { hub: "Career", limbId: "work", title: "Joined the African National Congress", date: new Date("1943-08-01") },
   { hub: "Friendships", limbId: "people", title: "Built organising partnership with Oliver Tambo and Walter Sisulu", date: new Date("1944-09-10") },
   { hub: "Builds & Launches", limbId: "work", title: "Opened Mandela and Tambo law practice", date: new Date("1952-08-01") },
-  { hub: "Purpose", limbId: "becoming", title: "Freedom Charter adopted at Kliptown", date: new Date("1955-06-26") },
-  { hub: "Inner life", limbId: "becoming", title: "Sentenced to life imprisonment after Rivonia", date: new Date("1964-06-12") },
-  { hub: "Inner life", limbId: "becoming", title: "Transferred from Robben Island to Pollsmoor Prison", date: new Date("1982-03-31") },
+  { hub: "Purpose & Values", limbId: "becoming", title: "Freedom Charter adopted at Kliptown", date: new Date("1955-06-26") },
+  { hub: "Mind & Emotions", limbId: "becoming", title: "Sentenced to life imprisonment after Rivonia", date: new Date("1964-06-12") },
+  { hub: "Mind & Emotions", limbId: "becoming", title: "Transferred from Robben Island to Pollsmoor Prison", date: new Date("1982-03-31") },
   { hub: "Career", limbId: "work", title: "Released from prison after 27 years", date: new Date("1990-02-11") },
   { hub: "Career", limbId: "work", title: "Elected president in South Africa's first democratic election", date: new Date("1994-05-10") },
   { hub: "Builds & Launches", limbId: "work", title: "Signed the final constitution", date: new Date("1996-12-10") },

@@ -9,7 +9,7 @@ This document governs every AI-generated string shown to users in Pathfinder. Wh
 | Insights sparkle + Now tab global | `src/lib/insights/generate-insights.ts` |
 | Stream interpretation + confirmation copy | `src/lib/ai/stream-extract.ts` (`STREAM_*_SYSTEM_PROMPT`, `STREAM_PURUIT_REVIEW_RULES`) |
 | Money tracker reflection | `src/app/api/finance/reflection/route.ts` |
-| Story (coach narrative) | *Not yet a dedicated prompt — target spec below* |
+| Story (coach narrative) | `src/lib/story/generate-story.ts` (`STORY_SYSTEM_PROMPT`) |
 | Profile memory (internal, not user insight copy) | `src/lib/memory/seed-memory.ts`, `update-memory.ts` |
 | Milestone suggestions (structural, not insight) | `src/lib/milestone-generator.ts`, `src/app/api/goals/*/suggest-milestones/` |
 | Dashboard message | `src/lib/dashboard-message.ts` |
@@ -89,28 +89,28 @@ Good comparison sentence shape:
 
 > For a [age]-year-old in [location], [specific observation about this pursuit/hub/theme] puts you [ahead of / behind / in line with] most peers at your life stage.
 
+**Story exception:** The live Story prompt in `generate-story.ts` is stricter — no peer comparison inside strength bodies; age, location, occupation, and life stage at most once per reading; comparison optional and omitted if already used in opening. Insights and Now tab still follow this section.
+
 ---
 
 ## What each surface should do
 
-### Story (personal coach narrative)
+### Story (whole-map reading)
 
-*Target surface — full narrative read, not yet a dedicated prompt. Partial overlap with Now tab `global` insight today.*
+*Live prompt: `src/lib/story/generate-story.ts`. Panoramic map interpretation — not diagnostics (Review), not per-entity insight (sparkle). Mobile renders map-structure maturity labels and pursuit rows separately.*
 
-| Section | Job |
+| Field | Job |
 |--------|-----|
-| **Opening** | 2–3 sentences, personal and specific. Sets the tone for the whole read. Names real pursuits or themes immediately. |
-| **Strengths** | Break down each strong pursuit individually — name it, explain specifically why it is good, smart, or brave for *this* person. |
-| **Gaps** | Name stalled or missing areas specifically — which pursuit, how long inactive if known, what the consequence is. |
-| **Comparison** | 2–3 peer benchmarks tied to actual pursuits (not theme-level hand-waving). |
-| **Focus** | One specific suggestion — small, concrete, actionable. |
-| **Closing** | One sentence connecting to identity — who this person is becoming, not a task list. |
+| **opening** | Exactly 2–3 **short** sentences (~60 words max). Map phase + where structure concentrates. No peer comparison, no gap prompts, no persona stack. |
+| **focus** | One short sentence — named pursuit, gentle lean-in. Not gap repair. |
 
-Story is the longest read. It earns length by naming real things, not by repeating the map.
+**Hard bans:** peer/age/stage comparison; empty-hub callouts; generic theme advice; Review-style "consider filling X".
+
+Schema: `schemaVersion`, `opening`, `focus`.
 
 ### Insights sparkle (per hub / theme / pursuit)
 
-Shown via ✨ on map panels. Schema: `reflective`, `contextual`, `combined`, `tone`, `oneLiner` (`insight-types.ts`).
+Shown via ✨ on map panels. Schema: `reflective`, `contextual`, `combined`, `tone`, `oneLiner` (`insight-types.ts`). Story map-shape uses separate deterministic `buildMapMetrics` — not insight fields.
 
 - **`contextual`:** Exactly one sentence — the peer comparison benchmark, specific to this entity and a named pursuit where possible.
 - **`combined` / `oneLiner`:** Must reference the actual pursuit or hub name and something specific about it (status, target, recent activity, gap).
@@ -184,6 +184,13 @@ Use this when adding or editing any user-facing AI prompt:
 7. Does it forbid **fabricated stats** and require **approximate language**?
 8. Does it connect to **identity**, not only productivity?
 9. Does it include **negative examples** for the most common failure mode of that surface?
+
+**Story prompt (`generate-story.ts`) also check:**
+
+10. **Ground truth** — only map/profile facts; no invented traits or momentum without evidence.
+11. **No diagnostics** — never empty-hub/theme language; Review owns gaps.
+12. **No entity duplication** — do not replicate sparkle insight copy or enumerate every pursuit.
+13. **Context once** — age, location, occupation at most once per reading.
 
 ---
 

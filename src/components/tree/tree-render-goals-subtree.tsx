@@ -1,6 +1,6 @@
 "use client";
 
-import type { PointerEvent } from "react";
+import type { MouseEvent, PointerEvent } from "react";
 import { FLAGS } from "@/lib/flags";
 import { deriveGoalNodeRenderState } from "./goal-node-render-phase";
 import {
@@ -25,7 +25,7 @@ import {
 import type { AreaData, TreeGoalNode } from "./tree-types";
 import { TreeElementGuideTag } from "./tree-element-guide-tag";
 import { roadmapGoalShowsProgressPulse } from "./tree-view-badges";
-import type { PanelState } from "./tree-view-types";
+import type { PanelState, NodeContextMenuTargetBase } from "./tree-view-types";
 import type { TreeRenderQualityFactors } from "./tree-render-quality";
 import {
   snapTreeSvgScalar,
@@ -99,6 +99,19 @@ export function renderGoalsSubtree(
     originY: number,
   ) => void,
   editDraggedGoalId: string | null = null,
+  hoveredGoalId: string | null = null,
+  onHoveredGoalChange?: (goalId: string | null) => void,
+  contextMenuTargetId: string | null = null,
+  bindNodeContextMenu?: (
+    target: NodeContextMenuTargetBase,
+  ) => {
+    onContextMenu: (e: MouseEvent) => void;
+    onPointerDown: (e: PointerEvent) => void;
+    onPointerUp: (e: PointerEvent) => void;
+    onPointerCancel: (e: PointerEvent) => void;
+    onPointerLeave: (e: PointerEvent) => void;
+  },
+  didLongPress?: () => boolean,
 ) {
   void _renderQuality;
   void branchThreadIndex;
@@ -326,6 +339,11 @@ export function renderGoalsSubtree(
           editMapMode,
           onEditGoalPointerDown,
           editDraggedGoalId,
+          hoveredGoalId,
+          onHoveredGoalChange,
+          contextMenuTargetId,
+          bindNodeContextMenu,
+          didLongPress,
         )}
       </g>
     );
@@ -354,9 +372,21 @@ export function renderGoalsSubtree(
         ambientBreathing={goal.bloomStatus === "ACTIVE"}
         bloomPlaying={bloomPlayingIds.has(goal.id)}
         selected={goalSelected}
+        hovered={hoveredGoalId === goal.id || contextMenuTargetId === goal.id}
         idSeed={goal.id}
+        onMouseEnter={() => onHoveredGoalChange?.(goal.id)}
+        onMouseLeave={() => {
+          if (hoveredGoalId === goal.id) onHoveredGoalChange?.(null);
+        }}
+        contextMenuHandlers={
+          bindNodeContextMenu
+            ? bindNodeContextMenu({ kind: "pursuit", area, goal })
+            : undefined
+        }
+        didLongPress={didLongPress}
         onClick={() => {
           if (editMapMode) return;
+          if (didLongPress?.()) return;
           if (shouldSuppressClick()) return;
           onGoalClick(goal, area);
         }}

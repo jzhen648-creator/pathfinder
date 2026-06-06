@@ -17,7 +17,7 @@ export const TREE_DESIGN_NODE_CORE = "#0B0A11";
 export const TREE_THEME_SHORT_LABEL: Record<LifeAreaId, string> = {
   work: "Work",
   finance: "Money",
-  becoming: "Becoming",
+  becoming: "Self & Mind",
   people: "People",
   health: "Health",
 };

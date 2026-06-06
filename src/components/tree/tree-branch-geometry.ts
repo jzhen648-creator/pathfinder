@@ -45,7 +45,7 @@ export type DomainClusterMomentChainContext = {
   branchId?: string;
 };
 import type { StraightLifeAreaId } from "./tree-area-anchors";
-import { THEME_STAR_CENTER } from "./tree-area-anchors";
+import { computeThemeGateway, THEME_STAR_CENTER } from "./tree-area-anchors";
 import { iconMedallionRadii } from "./tree-icon-medallion";
 import {
   BRANCH_HEAD_OFFSET_PX,
@@ -55,7 +55,6 @@ import {
   BRANCH_T_PAST_LAST_MOMENT,
   DOMAIN_CLUSTER_BASE_RADIUS_PX,
   DOMAIN_CLUSTER_GOAL_RING_MAX_RADIUS_PX,
-  DOMAIN_CLUSTER_GOAL_RING_PHASE_OFFSET_RAD,
   DOMAIN_CLUSTER_HUB_RADIAL_MAX_FRACTION_OF_CHORD,
   DOMAIN_CLUSTER_HUB_RADIAL_MIN_PX,
   DOMAIN_CLUSTER_HUB_RADIAL_RING_PX,
@@ -968,27 +967,25 @@ export function goalScreenPositionDomainCluster(
     );
   }
 
-  const { outward } = domainClusterBranchOutwardUnit(catalogPath);
-  const uDir = outward;
+  const uDir = branchOutwardUnitForLongitudinalRay(catalogPath, hub);
   const v = { x: -uDir.y, y: uDir.x };
   const nGoals = Math.max(1, goalsOnThreadCount);
   /**
-   * Equal angles on a **full 360°** ring in the hub tangent–normal plane — low goal counts (e.g. 4) spread
-   * to all quadrants instead of packing into a shallow wedge.
+   * Pentagon mode uses a forward wedge, not a full orbital ring: every pursuit remains outside the
+   * hub along the theme-owned ray while busier hubs fill more radial depth.
    */
-  const theta =
-    nGoals <= 1
-      ? 0
-      : (2 * Math.PI * goalIndex) / nGoals + DOMAIN_CLUSTER_GOAL_RING_PHASE_OFFSET_RAD;
-  /** One tight ring; angles carry separation, with a slot-count shrink so dense limbs don't collide. */
-  let r =
-    (domainClusterGoalBaseRadiusPx() + magBump * 0.34 + Math.sin((goalIndex + 1) * 0.37 + idPhase) * 1.05) *
-    ringMul;
-  r = Math.min(domainClusterGoalRingMaxPx() * ringMul, r);
-  /** True circle in the outward × perp plane (`v` ⟂ `uDir`). */
-  const ox = (Math.cos(theta) * v.x + Math.sin(theta) * uDir.x) * r;
-  const oy = (Math.cos(theta) * v.y + Math.sin(theta) * uDir.y) * r;
-  return { x: hub.x + ox, y: hub.y + oy };
+  const fanSpan = Math.min(Math.PI / 3, (Math.PI / 12) + Math.max(0, nGoals - 1) * (Math.PI / 34));
+  const centeredSlot = nGoals <= 1 ? 0 : goalIndex / (nGoals - 1) - 0.5;
+  const theta = centeredSlot * fanSpan + Math.sin(idPhase) * 0.035;
+  const baseR = domainClusterGoalBaseRadiusPx() * ringMul + magBump * 0.26;
+  const depthStep = 26 * ringMul;
+  const laneBump = Math.floor(goalIndex / 3) * 18 * ringMul;
+  const r = Math.min(domainClusterGoalRingMaxPx() * ringMul + 168, baseR + goalIndex * depthStep + laneBump);
+  const dir = {
+    x: uDir.x * Math.cos(theta) + v.x * Math.sin(theta),
+    y: uDir.y * Math.cos(theta) + v.y * Math.sin(theta),
+  };
+  return { x: hub.x + dir.x * r, y: hub.y + dir.y * r };
 }
 
 export function goalScreenPositionForLifeAreaThread(
@@ -1156,7 +1153,7 @@ export function themeGatewayPointForArea(
     return computeThemeGatewayFromTrunkSlot(areaId as StraightLifeAreaId);
   }
   if (forkSpec) return { ...forkSpec.limbTip };
-  return computeThemeGatewayFromTrunkSlot(areaId as StraightLifeAreaId);
+  return computeThemeGateway(areaId as StraightLifeAreaId);
 }
 
 function domainClusterFlowBowOrigin(areaId: string, layoutOv?: AreaLayoutOverride, forkSpec?: AreaForkSpec): Point {

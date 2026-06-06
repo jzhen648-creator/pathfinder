@@ -24,7 +24,7 @@ import type { LimbId } from "@/lib/types";
 const LIMB_SHORT: Record<LimbId, string> = {
   work: "Work",
   health: "Health",
-  becoming: "Becoming",
+  becoming: "Self & Mind",
   finance: "Money",
   people: "People",
 };

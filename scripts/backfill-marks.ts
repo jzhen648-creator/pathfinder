@@ -91,7 +91,7 @@ function inferJourneyBranchName(g: {
   }
   if (g.limbId === "becoming") {
     if (/(hobby|trip|joy|culture|experience|creative)/.test(text)) return "Joy";
-    if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Inner life";
+    if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Mind & Emotions";
     return "Purpose";
   }
   return "Career";

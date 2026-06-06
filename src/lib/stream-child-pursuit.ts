@@ -6,6 +6,7 @@ import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-hubs";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
+import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
 import { loadPursuitStreamContext } from "@/lib/stream-pursuit-extract";
 import type { PursuitStreamApplyResult } from "@/lib/stream-pursuit-apply";
 import type { StreamRunAppliedItem } from "@/types/stream";
@@ -212,6 +213,12 @@ export async function applyChildPursuitStream(
   const now = new Date();
   const items: StreamRunAppliedItem[] = [];
   let createdGoalId = "";
+  const description = composeChildPursuitDescription(proposal, ctx.pursuitTitle);
+  const iconName = await assignPursuitIconSafe({
+    title: proposal.title,
+    description,
+    lifeArea,
+  });
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -221,13 +228,12 @@ export async function applyChildPursuitStream(
       });
       if (!branch) throw new Error("Hub not found");
 
-      const description = composeChildPursuitDescription(proposal, ctx.pursuitTitle);
-
       const child = await tx.goal.create({
         data: {
           userId,
           title: proposal.title,
           description,
+          iconName,
           lifeArea,
           goalType: "project",
           branchId: branch.id,

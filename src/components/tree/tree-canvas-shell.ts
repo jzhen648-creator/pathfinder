@@ -444,6 +444,23 @@ export const PF_TREE_CANVAS_CSS = `
   padding: 11px 10px;
 }
 
+.pf-tree-rail-hub-card--hold {
+  position: relative;
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.pf-tree-rail-hub-card--hold.is-holding,
+.pf-tree-rail-hub-card--hold.is-opening {
+  border-style: solid;
+  background: color-mix(in srgb, var(--hub-accent, #7B68C8) 12%, transparent);
+}
+
+.pf-tree-rail-hub-card--hold:disabled {
+  cursor: progress;
+}
+
 .pf-tree-rail-hub-card-title-row {
   display: flex;
   align-items: center;
@@ -491,6 +508,74 @@ export const PF_TREE_CANVAS_CSS = `
   -webkit-box-orient: vertical;
 }
 
+.pf-tree-rail-hub-hold-track {
+  position: relative;
+  display: block;
+  height: 4px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pf-tree-rail-hub-hold-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--hub-accent, #7B68C8) 70%, white),
+    var(--hub-accent, #7B68C8)
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--hub-accent, #7B68C8) 55%, transparent);
+  transform: scaleX(var(--hub-progress, 0));
+  transform-origin: left;
+  transition: transform 120ms linear;
+}
+
+.pf-tree-rail-hub-hold-fill::after {
+  content: "";
+  position: absolute;
+  inset: -1px 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent);
+  opacity: 0;
+  transform: translateX(-120%);
+}
+
+.pf-tree-rail-hub-card--hold.is-holding .pf-tree-rail-hub-hold-fill {
+  transform: scaleX(var(--hub-progress, 0));
+}
+
+.pf-tree-rail-hub-card--hold.is-opening .pf-tree-rail-hub-hold-fill {
+  transform: scaleX(var(--hub-progress, 1));
+}
+
+.pf-tree-rail-hub-card--hold.is-opening .pf-tree-rail-hub-hold-fill::after {
+  opacity: 1;
+  animation: pf-tree-hub-opening-sheen 1.25s ease-in-out infinite;
+}
+
+.pf-tree-rail-hub-hold-hint {
+  font-family: var(--font-pf-tree-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--hub-accent, #7B68C8) 58%, rgba(255,255,255,0.44));
+}
+
+@keyframes pf-tree-hub-opening-sheen {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
 .pf-tree-detail-rail-accent {
   display: none;
 }
@@ -534,6 +619,22 @@ export const PF_TREE_CANVAS_CSS = `
 .pf-tree-theme-toggle.is-off .pf-tree-theme-dot,
 .pf-tree-theme-toggle.is-off span {
   opacity: 0.35;
+}
+
+.tree-hub-hover-fill,
+.tree-hub-hover-rim {
+  transition: fill-opacity 150ms ease-out, stroke-opacity 150ms ease-out;
+}
+
+.tree-goal-hover-stroke,
+.tree-goal-hover-glow {
+  transition: stroke-opacity 150ms ease-out, fill-opacity 150ms ease-out;
+}
+
+.tree-mark-node-visual {
+  transition: transform 120ms ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 `;
 

@@ -244,7 +244,7 @@ export type RawMark = {
 export const LIFE_AREA_CONFIG: Record<string, { label: string; color: string }> = {
   finance: { label: "Money & Finance", color: "#1D9E75" },
   work: { label: "Work & Career", color: "#EF9F27" },
-  becoming: { label: "Who I'm Becoming", color: "#7F77DD" },
+  becoming: { label: "Self & Mind", color: "#7F77DD" },
   people: { label: "People & Relationships", color: "#D4537E" },
   health: { label: "Health & Body", color: "#D85A30" },
 };
@@ -252,7 +252,7 @@ export const LIFE_AREA_CONFIG: Record<string, { label: string; color: string }> 
 /** @deprecated Use `LIFE_AREA_CONFIG`. */
 export const LIMB_CONFIG = LIFE_AREA_CONFIG;
 
-export const LIFE_AREA_ORDER = ["finance", "work", "becoming", "people", "health"] as const;
+export const LIFE_AREA_ORDER = ["becoming", "finance", "health", "work", "people"] as const;
 
 /** `limbId`s omitted from the life-tree SVG (`mapToTreeData`). API/DB branches unchanged. */
 export const TREE_DISABLED_LIFE_AREA_IDS: ReadonlySet<string> = new Set();

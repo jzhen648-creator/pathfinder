@@ -7,6 +7,8 @@ import {
   resolveAreaAnchors,
   STRAIGHT_LIFE_AREA_IDS,
   THEME_STAR_CENTER,
+  THEME_PENTAGON_STEP_RAD,
+  themePentagonAngleRad,
   type StraightLifeAreaId,
 } from "./tree-area-anchors";
 import { deriveTrunkEmergenceDirection } from "./tree-trunk-geometry";
@@ -31,24 +33,17 @@ import {
 import { hubCountForTheme } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 
-/**
- * Hub branch angle for slot `slotIndex` among `slotCount` spokes.
- * Four slots use square-corner directions; counts above four use extended ring layouts.
- */
-function hubBranchAngleRad(slotIndex: number, slotCount: number): number {
-  if (slotCount <= 4) {
-    return -Math.PI / 4 + slotIndex * (Math.PI / 2);
-  }
-  if (slotCount === 5) {
-    return -Math.PI / 2 + slotIndex * ((2 * Math.PI) / 5);
-  }
-  if (slotCount === 6) {
-    if (slotIndex < 4) {
-      return -Math.PI / 4 + slotIndex * (Math.PI / 2);
-    }
-    return slotIndex === 4 ? -Math.PI / 2 : Math.PI / 2;
-  }
-  return -Math.PI / 2 + slotIndex * ((2 * Math.PI) / slotCount);
+const THEME_HUB_FAN_SPAN_RAD = THEME_PENTAGON_STEP_RAD * 0.78;
+
+function pentagonHubBranchAngleRad(
+  areaId: StraightLifeAreaId,
+  slotIndex: number,
+  slotCount: number,
+): number {
+  const n = Math.max(1, slotCount);
+  if (n <= 1) return themePentagonAngleRad(areaId);
+  const t = slotIndex / (n - 1);
+  return themePentagonAngleRad(areaId) - THEME_HUB_FAN_SPAN_RAD / 2 + t * THEME_HUB_FAN_SPAN_RAD;
 }
 
 /** Default hub spokes per theme (from locked taxonomy). */
@@ -626,7 +621,7 @@ function buildAreaForkFromAnchorsWithSpokeCount(
   const stemPiece = colinearCubicPiece(gateway, gateway);
   const branches: BranchForkSpec[] = [];
   for (let i = 0; i < n; i += 1) {
-    const ang = hubBranchAngleRad(i, maxSlots);
+    const ang = pentagonHubBranchAngleRad(straightId, i, maxSlots);
     const tip = {
       x: gateway.x + Math.cos(ang) * spokeLen,
       y: gateway.y + Math.sin(ang) * spokeLen,

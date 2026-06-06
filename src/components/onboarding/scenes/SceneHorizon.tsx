@@ -254,7 +254,7 @@ export function SceneHorizon({
 
           >
 
-            Your map has started.
+            Congratulations — your map has started.
 
           </p>
 

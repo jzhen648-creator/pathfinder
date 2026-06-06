@@ -268,7 +268,7 @@ function PFWorkCrop() {
       {/* Callout labels (HTML for type control) */}
       <div style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
         {[
-          { tag:"01 · Trunk",       desc:"Vertical organic spine. One organism — Becoming up, Work + Money left, People + Health right.", x: 1080, y: 60,  w: 220 },
+          { tag:"01 · Trunk",       desc:"Vertical organic spine. One organism — Mind & Spirit up, Work + Money left, People + Health right.", x: 1080, y: 60,  w: 220 },
           { tag:"02 · Limb",        desc:"Thick Bézier conduit from trunk to gateway. Vascular, theme-tinted glow.",                       x: 870,  y: 82,  w: 220 },
           { tag:"03 · Gateway",     desc:"Medallion at limb tip — ring + embedded icon + serif label.",                                     x: 530,  y: 440, w: 220 },
           { tag:"04 · Spoke",       desc:"Short connective stroke from gateway to a hub. Quieter than the limb.",                           x: 460,  y: 560, w: 220 },

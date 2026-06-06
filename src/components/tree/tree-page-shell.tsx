@@ -71,6 +71,7 @@ export function TreePageShell({
         onboardingLocked={overlayVisible}
         isOnboardingGuideActive={isOnboardingGuideActive}
         initialCoachMarkStep={coachMarkStepForScene(onboardingScene)}
+        sceneOverlayVisible={showOnboardingSceneOverlay}
       />
       {showOnboardingSceneOverlay ? (
         <div

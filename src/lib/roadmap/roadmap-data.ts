@@ -116,7 +116,7 @@ export function roadmapLifeAreaRootId(lifeAreaId: LimbId): string {
   return `${ROADMAP_LIFE_AREA_ROOT_PREFIX}${lifeAreaId}`;
 }
 const ROADMAP_LIFE_AREA_ROOT_DECISION_LABEL: Record<LimbId, string> = {
-  becoming: "Start of Who I'm Becoming Journey",
+  becoming: "Start of Self & Mind Journey",
   work: "Start of Work & Career Journey",
   finance: "Start of Money & Finance Journey",
   health: "Start of Health & Body Journey",

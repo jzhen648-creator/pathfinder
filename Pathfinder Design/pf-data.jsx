@@ -5,7 +5,7 @@
 const PF_THEMES = {
   work:     { id:"work",     name:"Work & Career",          short:"Work",     color:"#EF9F27" },
   money:    { id:"money",    name:"Money & Finance",        short:"Money",    color:"#1D9E75" },
-  becoming: { id:"becoming", name:"Who I'm Becoming",       short:"Becoming", color:"#7F77DD" },
+  becoming: { id:"becoming", name:"Mind & Spirit",       short:"Mind & Spirit", color:"#7F77DD" },
   people:   { id:"people",   name:"People & Relationships", short:"People",   color:"#D4537E" },
   health:   { id:"health",   name:"Health & Body",          short:"Health",   color:"#D85A30" },
 };

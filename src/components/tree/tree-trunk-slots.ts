@@ -98,9 +98,9 @@ export const TREE_TRUNK_HUB_SLOT_RADIAL_OFFSETS_N4: readonly [number, number, nu
 const FINANCE_FOUR_HUB_FAN_ARC_SLOT: readonly number[] = [0, 3, 2, 1];
 
 /**
- * Becoming 3-hub fan: taxonomy order is Purpose → Inner life → Joy, but the crown arc places
- * slot 0 left and slot 1 centre. Remap arc index only (data order unchanged) so Purpose reads
- * centre, Inner life left, Joy right.
+ * Becoming 3-hub fan: taxonomy order is Purpose & Values → Mind & Emotions → Joy & Creativity, but the crown arc places
+ * slot 0 left and slot 1 centre. Remap arc index only (data order unchanged) so Purpose & Values reads
+ * centre, Mind & Emotions left, Joy & Creativity right.
  */
 const BECOMING_THREE_HUB_FAN_ARC_SLOT: readonly number[] = [1, 0, 2];
 
@@ -155,8 +155,28 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     hubSpokeLength: 600,
   },
   {
-    id: "work",
+    id: "finance",
     attachT: 0.15,
+    side: "left",
+    limbOffsetX: 740,
+    limbRiseY: -100,
+    hubFanHalfSpanDeg: 78,
+    hubOrbitRadius: 248,
+    hubSpokeLength: 540,
+  },
+  {
+    id: "health",
+    attachT: 0.2,
+    side: "right",
+    limbOffsetX: 760,
+    limbRiseY: -60,
+    hubFanHalfSpanDeg: 76,
+    hubOrbitRadius: 252,
+    hubSpokeLength: 580,
+  },
+  {
+    id: "work",
+    attachT: 0.5,
     side: "left",
     limbOffsetX: 780,
     limbRiseY: 380,
@@ -167,7 +187,7 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
   },
   {
     id: "people",
-    attachT: 0.2,
+    attachT: 0.56,
     side: "right",
     limbOffsetX: 760,
     limbRiseY: 420,
@@ -175,26 +195,6 @@ export const TRUNK_THEME_SLOTS: readonly TrunkThemeSlotSpec[] = [
     hubFanCenterOffsetRad: 0.12,
     hubOrbitRadius: 232,
     hubSpokeLength: 640,
-  },
-  {
-    id: "finance",
-    attachT: 0.5,
-    side: "left",
-    limbOffsetX: 740,
-    limbRiseY: -100,
-    hubFanHalfSpanDeg: 78,
-    hubOrbitRadius: 248,
-    hubSpokeLength: 540,
-  },
-  {
-    id: "health",
-    attachT: 0.56,
-    side: "right",
-    limbOffsetX: 760,
-    limbRiseY: -60,
-    hubFanHalfSpanDeg: 76,
-    hubOrbitRadius: 252,
-    hubSpokeLength: 580,
   },
 ] as const;
 
@@ -302,8 +302,29 @@ function symmetricFanAngle(spec: FanSpec, slotIndex: number, slotCount: number):
   return spec.center - spec.halfSpan / 2 + t * spec.halfSpan;
 }
 
+function sideUpwardFanAngle(
+  side: TrunkEmergenceSide,
+  slotIndex: number,
+  slotCount: number,
+): number {
+  const n = Math.max(1, slotCount);
+  const t = n <= 1 ? 0.5 : slotIndex / (n - 1);
+  if (side === "left") {
+    const a0 = Math.PI;
+    const a1 = (3 * Math.PI) / 2;
+    return a0 + t * (a1 - a0);
+  }
+  const a0 = -Math.PI / 2;
+  const a1 = 0;
+  return a0 + t * (a1 - a0);
+}
+
 function domainHubFanAngleRad(areaId: StraightLifeAreaId, slotIndex: number, slotCount: number): number {
   const arcSlot = hubFanArcSlotIndex(areaId, slotIndex, slotCount);
+  const side = TRUNK_THEME_SLOT_BY_ID[areaId].side;
+  if (side !== "center") {
+    return sideUpwardFanAngle(side, arcSlot, slotCount);
+  }
   if (areaId === "becoming") {
     const slot = TRUNK_THEME_SLOT_BY_ID.becoming;
     if (slot.hubFanHalfSpanDeg !== undefined) {
@@ -323,6 +344,10 @@ export function domainHubFanAngleRadAtAnchors(
   slotCount: number,
 ): number {
   const arcSlot = hubFanArcSlotIndex(areaId, slotIndex, slotCount);
+  const side = TRUNK_THEME_SLOT_BY_ID[areaId].side;
+  if (side !== "center") {
+    return sideUpwardFanAngle(side, arcSlot, slotCount);
+  }
   if (areaId === "becoming") {
     const slot = TRUNK_THEME_SLOT_BY_ID.becoming;
     const spec = buildHubFanSpecAtAnchors(areaId, trunkAttach, gateway);

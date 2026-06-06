@@ -27,7 +27,8 @@ const STREAM_PURUIT_REVIEW_RULES = [
   "",
   "Help the user catch mistakes before they confirm. On each pursuit object, optionally set:",
   "- description: 1–2 plain sentences explaining what the pursuit is about and what success means; this should reassure the user you understood it. Where it clearly continues, builds on, or sits alongside an existing pursuit in the provided map/hub context, say so in plain second person (e.g. \"Continues your half-marathon training\", \"Your third Health pursuit this year\", \"Sits alongside your existing ISA goal\"). Use only pursuits present in the provided context; never invent a relationship.",
-  "- sourcePhrase: verbatim user wording for this pursuit",
+  "- sourcePhrase: **required on every new pursuit** — verbatim user wording for this pursuit (exact substring from input when possible)",
+  "- title: **always the distilled outcome title** (~3–8 words, plain language); never paste the full rambling source into title",
   "- titleConfidence: 0–1 confidence in title/match",
   "- suggestedTitle: clearer corrected title when the phrase looks like a typo, spacing error, or near-match to an existing pursuit/profile term (e.g. user \"Dip FPS\" → suggestedTitle \"DipPFS\" when map/profile suggests DipPFS)",
   "- reviewNote: one short second-person sentence when the phrase is unclear or likely wrong (e.g. \"I think you may mean DipPFS — Dip FPS doesn't match anything on your map.\")",
@@ -35,7 +36,7 @@ const STREAM_PURUIT_REVIEW_RULES = [
   "",
   "Rules:",
   "- If a phrase is meaningless as written but strongly matches an existing pursuit title or profile shorthand, prefer suggestedTitle + reviewNote over silently creating a nonsense title.",
-  "- Do not auto-replace title in JSON — keep title as your best parse; put the correction in suggestedTitle for the user to accept on the confirmation card.",
+  "- Do not auto-replace title in JSON for typo cases — put typo/near-match corrections in suggestedTitle for the user to accept; but title itself must still be the distilled form, not raw transcript.",
   "- Omit review fields when the pursuit is clear and unambiguous.",
   "- Never fabricate live calendar dates for future events; eventContext is informational only.",
 ].join("\n");

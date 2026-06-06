@@ -72,8 +72,8 @@ function getGeminiApiKey() {
   return apiKey;
 }
 
-export function hasGeminiTranscriptionKey() {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+export function hasGroqTranscriptionKey() {
+  return Boolean(process.env.GROQ_API_KEY?.trim());
 }
 
 function inferAudioMimeType(blob: Blob, filename: string) {
@@ -91,53 +91,52 @@ export async function transcribeAudioBlob(
   blob: Blob,
   filename = "recording.webm",
 ): Promise<string> {
-  const apiKey = getGeminiApiKey();
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new AiNotConfiguredError("GROQ_API_KEY is not configured.");
+  }
   const mimeType = inferAudioMimeType(blob, filename);
-  const data = Buffer.from(await blob.arrayBuffer()).toString("base64");
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: "Transcribe this audio exactly. Return only the spoken words, with no commentary. If there is no intelligible speech, return an empty string.",
-              },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data,
-                },
-              },
-            ],
-          },
-        ],
-        generation_config: {
-          temperature: 0,
-          max_output_tokens: 512,
-          thinking_config: { thinking_budget: 0 },
-        },
-      }),
-    },
-  );
+  const form = new FormData();
+  form.append("file", blob, filename);
+  form.append("model", "whisper-large-v3-turbo");
 
-  if (!response.ok) {
-    throw normalizeGeminiError({ status: response.status });
+  const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: "application/json",
+    },
+    body: form,
+  });
+
+  let body: unknown = null;
+  const raw = await response.text();
+  if (raw) {
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      body = raw;
+    }
   }
 
-  const result = (await response.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
-  };
-  const text = result.candidates?.[0]?.content?.parts
-    ?.map((part) => part.text ?? "")
-    .join("")
-    .trim();
+  if (!response.ok) {
+    const providerMessage =
+      typeof body === "object" &&
+      body !== null &&
+      "error" in body &&
+      typeof (body as { error?: { message?: unknown } }).error?.message === "string"
+        ? (body as { error: { message: string } }).error.message
+        : "Transcription provider request failed.";
+    throw new GeminiProviderError(providerMessage, { status: response.status, cause: body });
+  }
+
+  const text =
+    typeof body === "object" &&
+    body !== null &&
+    "text" in body &&
+    typeof (body as { text: unknown }).text === "string"
+      ? (body as { text: string }).text.trim()
+      : "";
 
   if (!text) {
     throw new Error("No speech detected in recording.");

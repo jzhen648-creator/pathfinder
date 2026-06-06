@@ -2,7 +2,7 @@
 
 Canonical vocabulary for the product, tree view, roadmap, and database. Prefer these names in new **user-facing copy** and product documentation.
 
-**Mental model:** Self → **theme** → **hub** → **goals** (and **timeline notes** on the hub where applicable). TypeScript and Prisma still use historical identifiers (`LifeAreaId`, `limbId`, `branchId`); see each term below.
+**Mental model:** Self → **theme** → **track** (mobile) / **hub** (desktop legacy UI) → **goals** (and **timeline notes** on the track where applicable). TypeScript and Prisma still use historical identifiers (`LifeAreaId`, `limbId`, `branchId`); see each term below.
 
 For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md).
 
@@ -12,7 +12,8 @@ For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINO
 |------|--------|
 | **Self** | The user / center of the life map (conceptual). |
 | **Theme** | One of the five fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Self & Mind** `becoming`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (17 default hubs total). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
-| **Hub** | A **named track under a theme** (e.g. Family, Skills, Mind & Emotions) — **where goals and timeline notes attach** in product language. Each hub corresponds to one root **`Branch`** row (three or four starter hubs per theme; see taxonomy). Prefer **hub** over **branch line** in new UI strings. |
+| **Hub** | A **named track under a theme** (e.g. Family, Skills, Mind & Emotions) — **where goals and timeline notes attach** in product language. Each hub corresponds to one root **`Branch`** row (three or four starter hubs per theme; see taxonomy). **Desktop / legacy UI** still says **hub**. |
+| **Track** | **Mobile user-facing** name for the same concept as **hub** / root **`Branch`**: a taxonomy category under a theme (e.g. Skills, Family). Not a map node in the mobile constellation model — pursuits carry a track label; marks attach to the track. Same `branchId` as hub. **Mobile copy:** see [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md). |
 | **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Self & Mind"** in UI. Legacy labels **Who I'm Becoming**, **Mind & Spirit**, and **Personal Growth** map to `becoming` in serializers only — do not use them in new copy. |
 | **Branch** | A persisted **`Branch`** row: the database anchor for a **hub**; owns **timeline notes** (`Mark`) and goals via `branchId`. **Not** the same as **goal evolution** (`Goal.parentGoalId`). Columns `parentBranchId` / `turningPointId` remain for legacy rows; **new hub splits from the timeline are disabled** (2026-05). |
 | **Goal evolution (legacy)** | Successor goal linked via `Goal.parentGoalId` / `forkedGoals`. Fork API removed; **Stream** adds new pursuits. Older docs: **continuation**. |
@@ -75,7 +76,8 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md) and `npm run backfill:goal-bloom` for normali
 |--------|--------|
 | **Theme** (user-facing) / `LifeArea`, `LifeAreaId` (code) | Older prose: **life area**; oldest code: `Limb`, `LimbId` |
 | `LIFE_AREA_SUBTYPES` | `LIMB_SUBTYPES` |
-| **Hub** (user-facing) | Older UI: **branch line** for the same track |
+| **Track** (mobile UI) / **Hub** (desktop UI) | Older UI: **branch line** for the same track |
+| **Hub** (desktop UI) | Mobile now prefers **track** for the same `Branch` row |
 | **Timeline note** (user-facing) | Older copy: **mark** (Prisma model remains `Mark`) |
 | `DomainHubData`, `AreaData.branches` | `ThreadData`, `threads` (**deprecated** — never means goal continuation) |
 | `AreaBranchData` | Same as `DomainHubData` (**deprecated** name only) |
@@ -85,9 +87,8 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md) and `npm run backfill:goal-bloom` for normali
 ## UI wording
 
 - **Theme** — pillar labels (Money & Finance, Work & Career, Self & Mind, …).
-- **Hub** — which track a goal or timeline note sits on (maps to a root **`Branch`** row).
-- **Stream** — brain dump from **Open Stream** on theme, hub, or pursuit panel (replaces Evolve/fork UX).
-- **Open Stream** — opens Stream for the current theme, hub, or pursuit.
+- **Track** (mobile) / **Hub** (desktop) — which category a goal or timeline note sits on (maps to a root **`Branch`** row / `branchId`).
+- **Stream** — brain dump from **Open Stream** on theme, track, or pursuit (replaces Evolve/fork UX). Mobile: theme-first entry via centre **+**; global Stream only in onboarding.
 - **Edit map** — toolbar toggle to drag-reorganize pursuits on the SVG map.
 - **Continuation** — legacy prose for goal evolution; prefer **evolution** in new UI.
 - **Goal** — user-facing word for roadmap items (some APIs still use `moments` internally).

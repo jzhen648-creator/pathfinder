@@ -23,6 +23,7 @@ import {
   recordStreamThemeSession,
 } from "@/lib/stream-theme-context";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
+import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import {
@@ -274,12 +275,18 @@ async function commitItemsToBranchInTx(
     const bloomStatus = p.bloomStatus as BloomStatus;
     const isChild = parentGoalId != null;
     const sequencePosition = isChild ? null : await nextSequencePosition();
+    const iconName = await assignPursuitIconSafe({
+      title,
+      description,
+      lifeArea,
+    });
 
     const goal = await tx.goal.create({
       data: {
         userId,
         title,
         description,
+        iconName,
         lifeArea,
         goalType: p.goalType,
         branchId: branch.id,

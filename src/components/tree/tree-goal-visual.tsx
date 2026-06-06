@@ -81,8 +81,21 @@ type TreeGoalNodeSvgProps = {
   bloomPlaying: boolean;
   /** Goal detail panel is open for this node — selected halo renders only then. */
   selected: boolean;
+  /** Pointer hover — brighter active hex rim + glow (does not affect selected/bloom). */
+  hovered?: boolean;
   onClick: (e: MouseEvent | PointerEvent) => void;
   onPointerDown?: (e: PointerEvent) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  /** Right-click / long-press context menu handlers from tree-svg. */
+  contextMenuHandlers?: {
+    onContextMenu: (e: MouseEvent) => void;
+    onPointerDown: (e: PointerEvent) => void;
+    onPointerUp: (e: PointerEvent) => void;
+    onPointerCancel: (e: PointerEvent) => void;
+    onPointerLeave: (e: PointerEvent) => void;
+  };
+  didLongPress?: () => boolean;
   /** Stable SVG gradient id seed (SSR-safe); falls back to `useId`. */
   idSeed?: string;
 };
@@ -110,8 +123,13 @@ export function TreeGoalNodeSvg({
   ambientBreathing = false,
   bloomPlaying,
   selected,
+  hovered = false,
   onClick,
   onPointerDown,
+  onMouseEnter,
+  onMouseLeave,
+  contextMenuHandlers,
+  didLongPress,
   idSeed,
 }: TreeGoalNodeSvgProps) {
   const groupClass = bloomPlaying ? "tree-goal-bloom-once" : undefined;
@@ -139,7 +157,8 @@ export function TreeGoalNodeSvg({
   const sealCy = cy - Math.SQRT1_2 * sealArm;
   /** Soft accent rim — dimmer when ended, baseline otherwise. */
   const rimStrokeOpacity =
-    status === "ON_HOLD" ? 0.62 : status === "ACTIVE" ? 0.88 : 0.98;
+    status === "ON_HOLD" ? 0.62 : status === "ACTIVE" ? (hovered ? 1 : 0.88) : 0.98;
+  const activeGlowFillOpacity = hovered ? 0.32 : 0.18;
   const glyphAlphaBase = status === "ON_HOLD" ? 0.72 : status === "COMPLETE" ? 1 : 0.98;
   const glyphAlpha = Math.min(0.97, glyphAlphaBase + (mv?.intensities.coreGlyphOpacityBoost ?? 0));
 
@@ -227,11 +246,24 @@ export function TreeGoalNodeSvg({
       style={{ transformOrigin: `${cx}px ${cy}px` }}
       onClick={(e) => {
         e.stopPropagation();
+        if (didLongPress?.()) return;
         onClick(e);
       }}
+      onContextMenu={contextMenuHandlers?.onContextMenu}
       onPointerDown={(e) => {
         e.stopPropagation();
+        contextMenuHandlers?.onPointerDown(e);
         onPointerDown?.(e);
+      }}
+      onPointerUp={(e) => {
+        contextMenuHandlers?.onPointerUp(e);
+      }}
+      onPointerCancel={(e) => {
+        contextMenuHandlers?.onPointerCancel(e);
+      }}
+      onPointerLeave={(e) => {
+        onMouseLeave?.();
+        contextMenuHandlers?.onPointerLeave(e);
       }}
       role="button"
       tabIndex={0}
@@ -321,7 +353,8 @@ export function TreeGoalNodeSvg({
                 <path
                   d={hexGlowPath}
                   fill={limbPaint}
-                  fillOpacity={0.18}
+                  fillOpacity={activeGlowFillOpacity}
+                  className="tree-goal-hover-glow"
                   pointerEvents="none"
                   aria-hidden
                 />
@@ -333,6 +366,7 @@ export function TreeGoalNodeSvg({
                 strokeWidth={selected ? 1.7 : 1.35}
                 strokeOpacity={rimStrokeOpacity}
                 strokeDasharray={status === "ON_HOLD" ? "2 2" : undefined}
+                className="tree-goal-hover-stroke"
                 pointerEvents="none"
               />
               {glowAlpha > 0.005 ? (
@@ -440,7 +474,16 @@ export function TreeGoalNodeSvg({
         </g>
       ) : null}
 
-      <circle cx={cx} cy={cy} r={hitR} fill="transparent" style={{ cursor: "pointer" }} pointerEvents="all" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={hitR}
+        fill="transparent"
+        style={{ cursor: "pointer" }}
+        pointerEvents="all"
+        onMouseEnter={() => onMouseEnter?.()}
+        onMouseLeave={() => onMouseLeave?.()}
+      />
       {surface}
     </g>
   );

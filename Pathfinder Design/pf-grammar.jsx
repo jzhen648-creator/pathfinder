@@ -226,7 +226,7 @@ function PFTokens() {
         <div style={{ height: 14 }}/>
         <div style={{ marginBottom: 18 }}>
           <div style={{ font:'500 24px "Lora", serif' }}>Pathfinder</div>
-          <div style={{ font:'italic 400 16px "Lora", serif', color:"rgba(255,255,255,0.62)", marginTop: 2 }}>Becoming</div>
+          <div style={{ font:'italic 400 16px "Lora", serif', color:"rgba(255,255,255,0.62)", marginTop: 2 }}>Mind & Spirit</div>
           <div style={{ font:'400 10.5px "JetBrains Mono", monospace', color:"rgba(255,255,255,0.42)", marginTop: 4 }}>
             Lora · wordmark · theme labels · writing surface
           </div>

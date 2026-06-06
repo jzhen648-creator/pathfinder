@@ -1,8 +1,8 @@
 "use client";
 
-import { LIFE_AREAS } from "@/lib/life-areas";
 import type { LifeAreaId } from "@/lib/types";
 import { obThemeChipStyle } from "./onboarding-ui";
+import { ONBOARDING_DEFAULT_THEME_ID, ONBOARDING_THEME_AREAS } from "./onboarding-theme-order";
 
 type OnboardingThemeChipsProps = {
   selectedId: string | null;
@@ -11,6 +11,8 @@ type OnboardingThemeChipsProps = {
 };
 
 export function OnboardingThemeChips({ selectedId, onSelect, disabled }: OnboardingThemeChipsProps) {
+  const highlightedId = selectedId ?? ONBOARDING_DEFAULT_THEME_ID;
+
   return (
     <div
       style={{
@@ -22,8 +24,8 @@ export function OnboardingThemeChips({ selectedId, onSelect, disabled }: Onboard
         opacity: disabled ? 0.55 : 1,
       }}
     >
-      {LIFE_AREAS.map((area) => {
-        const isSelected = selectedId === area.id;
+      {ONBOARDING_THEME_AREAS.map((area) => {
+        const isSelected = highlightedId === area.id;
         return (
           <button
             key={area.id}

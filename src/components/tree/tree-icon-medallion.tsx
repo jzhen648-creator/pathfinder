@@ -217,6 +217,8 @@ type TreeIconMedallionProps = {
   haloFilterId?: string;
   /** Stable SVG gradient id seed (SSR-safe); falls back to `useId`. */
   idSeed?: string;
+  /** Pointer hover — brighter rim + theme radial wash (domain hubs). */
+  hovered?: boolean;
   children: ReactNode;
 };
 
@@ -236,6 +238,7 @@ export function TreeIconMedallion({
   auraFilterId = "treeGatewayIconAura",
   haloFilterId = "treeMedallionAmbientHalo",
   idSeed,
+  hovered = false,
   children,
 }: TreeIconMedallionProps) {
   const autoId = useId().replace(/:/g, "");
@@ -269,6 +272,19 @@ export function TreeIconMedallion({
         filter={`url(#${haloFilterId})`}
       />
 
+      {tier === "domainHub" ? (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r.discR}
+          fill={color}
+          fillOpacity={hovered ? 0.12 : 0}
+          className="tree-hub-hover-fill"
+          pointerEvents="none"
+          aria-hidden
+        />
+      ) : null}
+
       {/* Opaque disc occludes connective strokes at the hub boundary. */}
       {tier === "domainHub" || tier === "theme" ? (
         <circle cx={cx} cy={cy} r={r.discR * 1.02} fill="#0d0d0f" fillOpacity={1} />
@@ -286,8 +302,9 @@ export function TreeIconMedallion({
         r={r.discR * 0.98}
         fill="none"
         stroke={color}
-        strokeOpacity={grad.ring}
+        strokeOpacity={hovered && tier === "domainHub" ? 0.85 : grad.ring}
         strokeWidth={tier === "theme" ? 1.6 : tier === "domainHub" ? 1.35 : 1.1}
+        className={tier === "domainHub" ? "tree-hub-hover-rim" : undefined}
       />
 
       <g transform={`translate(${cx},${cy})`}>

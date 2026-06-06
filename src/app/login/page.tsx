@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -40,8 +40,9 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const submitCredentials = useCallback(
     async (email: string, password: string) => {
@@ -73,8 +74,8 @@ export default function LoginPage() {
   );
 
   const handleDevLogin = useCallback(() => {
-    if (emailRef.current) emailRef.current.value = DEV_LOGIN_EMAIL;
-    if (passwordRef.current) passwordRef.current.value = DEV_LOGIN_PASSWORD;
+    setEmail(DEV_LOGIN_EMAIL);
+    setPassword(DEV_LOGIN_PASSWORD);
     void submitCredentials(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD);
   }, [submitCredentials]);
 
@@ -129,16 +130,12 @@ export default function LoginPage() {
         </div>
 
         <form
+          method="post"
           className="mt-5 space-y-4"
           onSubmit={async (event) => {
             event.preventDefault();
             setError(null);
             setIsSubmitting(true);
-
-            const formData = new FormData(event.currentTarget);
-            const email = String(formData.get("email") ?? "");
-            const password = String(formData.get("password") ?? "");
-            const name = String(formData.get("name") ?? "");
 
             try {
               if (mode === "forgot") {
@@ -193,6 +190,8 @@ export default function LoginPage() {
                 id="name"
                 name="name"
                 type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
                 placeholder="Jane Doe"
                 required={mode === "signup"}
                 className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
@@ -205,10 +204,11 @@ export default function LoginPage() {
               Email
             </label>
             <input
-              ref={emailRef}
               id="email"
               name="email"
               type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               required
               className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
@@ -221,10 +221,11 @@ export default function LoginPage() {
                 Password
               </label>
               <input
-                ref={passwordRef}
                 id="password"
                 name="password"
                 type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder="********"
                 required
                 className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"

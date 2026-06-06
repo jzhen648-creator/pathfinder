@@ -32,7 +32,7 @@ export default function HubPanelPreviewDevPage() {
         {becoming ? (
           <HubCatalogPanelPreview
             themeId="becoming"
-            hubLabel="Inner life"
+            hubLabel="Mind & Emotions"
             themeLabel={becoming.label}
             areaColor={becoming.color}
           />

@@ -8,7 +8,7 @@ const KNOWN = new Set(LIFE_AREAS.map((l) => l.id));
 
 export function goalLifeAreaToLimbId(lifeArea: string): LimbId {
   const t = lifeArea.trim();
-  if (t === "Personal Growth") return "becoming";
+  if (t === "Personal Growth" || t === "Mind & Spirit" || t === "Who I'm Becoming") return "becoming";
   if (t === "Money") return "finance";
   if (t === "Relationships") return "people";
   if (t === "Health") return "health";

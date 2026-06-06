@@ -16,7 +16,7 @@ loadEnv({ path: ".env.local", override: true });
 import { runStreamThemeExtract } from "../src/lib/ai/stream-extract";
 import { hasGeminiKey } from "../src/lib/gemini";
 import { hubPanelCopy } from "../src/lib/hub-catalog";
-import { LOCKED_HUB_TEMPLATES } from "../src/lib/taxonomy";
+import { LOCKED_HUB_TEMPLATES, normalizeHubLabelKey } from "../src/lib/taxonomy";
 import { getLifeArea } from "../src/lib/life-areas";
 import type { LifeAreaId } from "../src/lib/types";
 import type { StreamThemeContextInput, StreamThemeHubContextInput } from "../src/types/stream";
@@ -35,7 +35,7 @@ function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
   const hubs: StreamThemeHubContextInput[] = templates.map((t) => {
     const copy = hubPanelCopy(themeId, t.threadType);
     return {
-      hubId: t.threadType.toLowerCase(),
+      hubId: normalizeHubLabelKey(t.threadType),
       hubLabel: t.threadType,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,
@@ -98,8 +98,8 @@ const CASES: RoutingCase[] = [
     id: "therapy-inner-life",
     themeId: "becoming",
     input: "Started therapy on 20 February",
-    expected: { kind: "hub", hubSlug: "inner life" },
-    description: "Therapy — should land on Inner life, not Purpose",
+    expected: { kind: "hub", hubSlug: "mind & emotions" },
+    description: "Therapy — should land on Mind & Emotions, not Purpose & Values",
   },
   {
     id: "cemap-skills",
@@ -113,7 +113,7 @@ const CASES: RoutingCase[] = [
     themeId: "becoming",
     input: "Went on a direction-finding retreat, clarified my north star",
     expected: { kind: "hub", hubSlug: "purpose" },
-    description: "Values/direction retreat — should land on Purpose, not Inner life",
+    description: "Values/direction retreat — should land on Purpose & Values, not Mind & Emotions",
   },
   {
     id: "youtube-builds",

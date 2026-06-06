@@ -202,6 +202,7 @@ import {
   snapTreeSvgScalar,
 } from "./tree-view-constants";
 import { FLAGS } from "@/lib/flags";
+import { THEME_STAR_CENTER } from "./tree-area-anchors";
 import { DormantPulse, GhostPulse } from "./tree-node-pulse";
 import {
   resolveThemeLayoutMode,
@@ -227,7 +228,8 @@ import { hubPanelCopy } from "@/lib/hub-catalog";
 import { StreamPreviewMarkersLayer } from "@/components/stream/stream-preview-tree-layer";
 import { TreeEditMapOverlay } from "./tree-edit-map-overlay";
 import type { EditDragGoalPayload } from "./tree-edit-drag";
-import type { LayoutPointerDrag, TreeSVGProps } from "./tree-view-types";
+import { useLongPress } from "@/hooks/useLongPress";
+import type { LayoutPointerDrag, NodeContextMenuTarget, NodeContextMenuTargetBase, TreeSVGProps } from "./tree-view-types";
 
 const ONBOARDING_HUB_SUBTITLE_MAX_CHARS = 30;
 
@@ -359,6 +361,12 @@ function TreeSVGInner({
   onboardingHubPickMode,
   previewGatewayLayout = false,
   onCameraFrame,
+  hoveredHubId = null,
+  onHoveredHubChange,
+  hoveredGoalId = null,
+  onHoveredGoalChange,
+  onNodeContextMenu,
+  contextMenuTargetId = null,
 }: TreeSVGProps) {
   const selectedMomentId = activeMarkId;
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -463,6 +471,8 @@ function TreeSVGInner({
     y: VIEWBOX_HEIGHT / 2 - baselineZoomScale * (VIEWBOX_HEIGHT * 0.42),
     scale: baselineZoomScale,
   });
+  const [isOverviewActive, setIsOverviewActive] = useState(false);
+  const preOverviewTransformRef = useRef<{ x: number; y: number; scale: number } | null>(null);
   const transformRef = useRef(transform);
   useEffect(() => {
     transformRef.current = transform;
@@ -516,7 +526,11 @@ function TreeSVGInner({
   const notifyPanMoved = useCallback(() => {
     panMovedRef.current = true;
   }, []);
-  const shouldSuppressMapClick = useCallback(() => panMovedRef.current, []);
+  const shouldSuppressMapClick = useCallback(() => {
+    const suppress = panMovedRef.current;
+    panMovedRef.current = false;
+    return suppress;
+  }, []);
   const beginGoalDragRef = useRef<
     ((payload: EditDragGoalPayload, clientX: number, clientY: number, originX: number, originY: number) => void) | null
   >(null);
@@ -582,7 +596,7 @@ function TreeSVGInner({
 
     if (dx === 0 && dy === 0) return;
     setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
-  }, []);
+  }, [setTransform]);
 
   const cancelPanFrame = useCallback(
     (flush = false) => {
@@ -601,6 +615,7 @@ function TreeSVGInner({
   const beginPan = (x: number, y: number) => {
     if (panDisabled) return;
     if (editMapMode) return;
+    if (isOverviewActive) return;
     cancelPanFrame(false);
     window.getSelection()?.removeAllRanges();
     setIsPanning(true);
@@ -624,6 +639,66 @@ function TreeSVGInner({
     panStart.current = null;
     pendingPanPointRef.current = null;
   };
+
+  const longPressTargetRef = useRef<NodeContextMenuTargetBase | null>(null);
+
+  const openNodeContextMenu = useCallback(
+    (clientX: number, clientY: number, target: NodeContextMenuTargetBase) => {
+      if (editMapMode || onboardingHubPickMode || !onNodeContextMenu) return;
+      if (shouldSuppressMapClick()) return;
+      if (isPanning) endPan();
+      onNodeContextMenu({ ...target, clientX, clientY } as NodeContextMenuTarget);
+    },
+    [editMapMode, isPanning, onboardingHubPickMode, onNodeContextMenu, shouldSuppressMapClick],
+  );
+
+  const {
+    onPointerDown: longPressPointerDown,
+    onPointerUp: longPressPointerUp,
+    onPointerCancel: longPressPointerCancel,
+    onPointerLeave: longPressPointerLeave,
+    didLongPress,
+  } = useLongPress({
+    onLongPress: (e) => {
+      const target = longPressTargetRef.current;
+      if (!target) return;
+      openNodeContextMenu(e.clientX, e.clientY, target);
+    },
+  });
+
+  const bindNodeContextMenu = useCallback(
+    (target: NodeContextMenuTargetBase) => ({
+      onContextMenu: (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openNodeContextMenu(e.clientX, e.clientY, target);
+      },
+      onPointerDown: (e: PointerEvent) => {
+        if (e.button !== 0) return;
+        longPressTargetRef.current = target;
+        longPressPointerDown(e);
+      },
+      onPointerUp: (e: PointerEvent) => {
+        longPressPointerUp(e);
+        longPressTargetRef.current = null;
+      },
+      onPointerCancel: (e: PointerEvent) => {
+        longPressPointerCancel(e);
+        longPressTargetRef.current = null;
+      },
+      onPointerLeave: (e: PointerEvent) => {
+        longPressPointerLeave(e);
+        longPressTargetRef.current = null;
+      },
+    }),
+    [
+      longPressPointerCancel,
+      longPressPointerDown,
+      longPressPointerLeave,
+      longPressPointerUp,
+      openNodeContextMenu,
+    ],
+  );
 
   const isLayoutEditHandleTarget = (target: EventTarget | null) => {
     if (!(target instanceof Element)) return false;
@@ -1027,6 +1102,25 @@ function TreeSVGInner({
     viewHeight,
   ]);
 
+  const setOverviewTransform = () => {
+    setTransform(treeFitTransform);
+  };
+
+  const toggleOverview = () => {
+    if (!isOverviewActive) {
+      preOverviewTransformRef.current = transformRef.current;
+      setOverviewTransform();
+      setIsOverviewActive(true);
+      return;
+    }
+    const prior = preOverviewTransformRef.current;
+    if (prior) {
+      setTransform(prior);
+    }
+    preOverviewTransformRef.current = null;
+    setIsOverviewActive(false);
+  };
+
   return (
     <div
       style={{
@@ -1073,6 +1167,10 @@ function TreeSVGInner({
         }}
         onWheel={(e) => {
           if (onboardingHubPickMode || panDisabled) {
+            e.preventDefault();
+            return;
+          }
+          if (isOverviewActive) {
             e.preventDefault();
             return;
           }
@@ -1619,6 +1717,46 @@ function TreeSVGInner({
             data-tree-compose-south="1"
           />
           {/* Vein + luminous veil render after limb/branch strokes (see emergence blend group) so overlap reads as embedded emergence, not hard under-stack clipping. */}
+
+          {!trunkLayoutEnabled() ? (
+            <g data-tree-self-center="1" pointerEvents="none" aria-hidden>
+              <circle
+                cx={snapTreeSvgScalar(THEME_STAR_CENTER.x)}
+                cy={snapTreeSvgScalar(THEME_STAR_CENTER.y)}
+                r={42}
+                fill="rgba(255,255,255,0.035)"
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth={1.4}
+              />
+              <circle
+                cx={snapTreeSvgScalar(THEME_STAR_CENTER.x)}
+                cy={snapTreeSvgScalar(THEME_STAR_CENTER.y)}
+                r={9}
+                fill="rgba(255,255,255,0.72)"
+              />
+              <TreeSvgTextLabel
+                x={THEME_STAR_CENTER.x}
+                y={THEME_STAR_CENTER.y + 56}
+                text="Self"
+                color="#FFFFFF"
+                ink={{
+                  fill: "#FFFFFF",
+                  fillOpacity: 0.74,
+                  stroke: "#050406",
+                  strokeOpacity: 0.45,
+                  strokeWidth: 0.7,
+                }}
+                fontSize={13}
+                fontWeight={700}
+                textAnchor="middle"
+                dominantBaseline="hanging"
+                opacity={0.72}
+                maxLines={1}
+                maxWidthPx={72}
+                letterSpacing="0.08em"
+              />
+            </g>
+          ) : null}
 
           {/* Refs (pan, layout drag, svg) are read only inside pointer handlers in this subtree. */}
           {/* eslint-disable react-hooks/refs -- large composed SVG layer */}
@@ -2678,6 +2816,7 @@ function TreeSVGInner({
                             const hcy = snapTreeSvgScalar(domainHubPt.y);
                             const pulseDur =
                               (2.6 + 0.9 * stableRenderJitter01(`${thread.id}:dhpulse`)).toFixed(2) + "s";
+                            const hubHovered = hoveredHubId === thread.id || contextMenuTargetId === thread.id;
                             return (
                               <TreeIconMedallion
                                 cx={hcx}
@@ -2685,6 +2824,7 @@ function TreeSVGInner({
                                 color={area.color}
                                 artworkSpanPx={hubIconPx}
                                 tier="domainHub"
+                                hovered={hubHovered}
                               >
                                 <g opacity={trunkDomainHub ? 0.84 : 0.92}>
                                   {trunkDomainHub || revealActive ? null : (
@@ -2759,6 +2899,8 @@ function TreeSVGInner({
                               domainHubPt.y + hubDiscR + 10,
                               labelPos.y + labelH + 6,
                             );
+                            const hubContextTarget = { kind: "hub" as const, area, thread };
+                            const hubContextHandlers = bindNodeContextMenu(hubContextTarget);
                             return (
                               <rect
                                 x={domainHubPt.x - hitW / 2}
@@ -2767,8 +2909,18 @@ function TreeSVGInner({
                                 height={hitBot - hitTop}
                                 fill="transparent"
                                 style={{ cursor: "pointer" }}
+                                onMouseEnter={() => onHoveredHubChange?.(thread.id)}
+                                onMouseLeave={() => {
+                                  if (hoveredHubId === thread.id) onHoveredHubChange?.(null);
+                                }}
+                                onContextMenu={hubContextHandlers.onContextMenu}
+                                onPointerDown={hubContextHandlers.onPointerDown}
+                                onPointerUp={hubContextHandlers.onPointerUp}
+                                onPointerCancel={hubContextHandlers.onPointerCancel}
+                                onPointerLeave={hubContextHandlers.onPointerLeave}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (didLongPress()) return;
                                   if (shouldSuppressMapClick()) return;
                                   onHubClick(area, thread);
                                 }}
@@ -3028,6 +3180,11 @@ function TreeSVGInner({
                                   editMapMode,
                                   handleEditGoalPointerDown,
                                   editDraggedGoalId,
+                                  hoveredGoalId,
+                                  onHoveredGoalChange,
+                                  contextMenuTargetId,
+                                  bindNodeContextMenu,
+                                  didLongPress,
                                 )}
                               </g>
                             );
@@ -3082,8 +3239,14 @@ function TreeSVGInner({
                                   x={pos.x}
                                   y={pos.y}
                                   zoomRatio={zoomRatio}
-                                  isSelected={selectedMomentId === moment.id}
+                                  isSelected={selectedMomentId === moment.id || contextMenuTargetId === moment.id}
                                   shouldSuppressClick={shouldSuppressMapClick}
+                                  didLongPress={didLongPress}
+                                  contextMenuHandlers={bindNodeContextMenu({
+                                    kind: "mark",
+                                    area,
+                                    moment,
+                                  })}
                                   onMarkClick={onMarkClick}
                                   onMarkPointerEnter={onMarkPointerEnter}
                                   onMarkPointerLeave={onMarkPointerLeave}
@@ -4153,6 +4316,10 @@ function TreeSVGInner({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (isOverviewActive) {
+              setIsOverviewActive(false);
+              preOverviewTransformRef.current = null;
+            }
             setTransform((t) => ({ ...t, scale: Math.min(3, t.scale * 1.2) }));
           }}
           style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(0,0,0,0.5)", color: "white", cursor: "pointer" }}
@@ -4165,7 +4332,7 @@ function TreeSVGInner({
           aria-label="Overview — fit full tree in view"
           onClick={(e) => {
             e.stopPropagation();
-            setTransform(treeFitTransform);
+            toggleOverview();
           }}
           style={{
             minWidth: 32,
@@ -4187,6 +4354,10 @@ function TreeSVGInner({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (isOverviewActive) {
+              setIsOverviewActive(false);
+              preOverviewTransformRef.current = null;
+            }
             setTransform((t) => ({ ...t, scale: Math.max(0.3, t.scale * 0.8) }));
           }}
           style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(0,0,0,0.5)", color: "white", cursor: "pointer" }}

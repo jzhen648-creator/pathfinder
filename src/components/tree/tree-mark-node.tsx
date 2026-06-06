@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState, type MouseEvent, type PointerEvent } from "react";
 import type { AreaData, MomentNode } from "./tree-types";
 import {
   MARK_DIAMOND_HALF_PX,
@@ -24,6 +24,14 @@ export type TreeMarkNodeProps = {
   zoomRatio?: number;
   isSelected: boolean;
   shouldSuppressClick: () => boolean;
+  didLongPress?: () => boolean;
+  contextMenuHandlers?: {
+    onContextMenu: (e: MouseEvent) => void;
+    onPointerDown: (e: PointerEvent) => void;
+    onPointerUp: (e: PointerEvent) => void;
+    onPointerCancel: (e: PointerEvent) => void;
+    onPointerLeave: (e: PointerEvent) => void;
+  };
   onMarkClick: (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => void;
   onMarkPointerEnter?: (moment: MomentNode, area: AreaData, clientX: number, clientY: number) => void;
   onMarkPointerLeave?: (momentId: string) => void;
@@ -44,6 +52,8 @@ export const TreeMarkNode = memo(function TreeMarkNode({
   zoomRatio = MARK_VISIBILITY_FULL_ZOOM,
   isSelected,
   shouldSuppressClick,
+  didLongPress,
+  contextMenuHandlers,
   onMarkClick,
   onMarkPointerEnter,
   onMarkPointerLeave,
@@ -54,10 +64,19 @@ export const TreeMarkNode = memo(function TreeMarkNode({
   const half = unresolved ? MARK_DIAMOND_HALF_PX + 1 : MARK_DIAMOND_HALF_PX;
   const hitR = half + MARK_NODE_HIT_PADDING_PX + 6;
   const markOpacityMul = markZoomOpacityMul(zoomRatio);
+  const [diamondHovered, setDiamondHovered] = useState(false);
 
   return (
     <g style={{ cursor: "pointer" }}>
       <g transform={`translate(${sx},${sy})`} opacity={markOpacityMul} pointerEvents="none">
+        <g
+          className="tree-mark-node-visual"
+          style={{
+            transform: diamondHovered ? "scale(1.15)" : "scale(1)",
+            transformBox: "fill-box",
+            transformOrigin: "center",
+          }}
+        >
         {unresolved ? (
           <circle
             cx={0}
@@ -108,6 +127,7 @@ export const TreeMarkNode = memo(function TreeMarkNode({
             opacity={0.35}
           />
         ) : null}
+        </g>
       </g>
       <circle
         cx={sx}
@@ -115,14 +135,22 @@ export const TreeMarkNode = memo(function TreeMarkNode({
         r={hitR}
         fill="transparent"
         pointerEvents="all"
-        onPointerEnter={(e) => {
-          onMarkPointerEnter?.(moment, area, e.clientX, e.clientY);
-        }}
-        onPointerLeave={() => {
+        onContextMenu={contextMenuHandlers?.onContextMenu}
+        onPointerDown={contextMenuHandlers?.onPointerDown}
+        onPointerUp={contextMenuHandlers?.onPointerUp}
+        onPointerCancel={contextMenuHandlers?.onPointerCancel}
+        onPointerLeave={(e) => {
+          setDiamondHovered(false);
           onMarkPointerLeave?.(moment.id);
+          contextMenuHandlers?.onPointerLeave(e);
+        }}
+        onPointerEnter={(e) => {
+          setDiamondHovered(true);
+          onMarkPointerEnter?.(moment, area, e.clientX, e.clientY);
         }}
         onClick={(e) => {
           e.stopPropagation();
+          if (didLongPress?.()) return;
           if (shouldSuppressClick()) return;
           onMarkClick(moment, area, e.clientX, e.clientY);
         }}

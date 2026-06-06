@@ -789,7 +789,7 @@ const BRAIN_DUMP_THEME_HINTS: Record<string, LifeAreaId> = {
 const THEME_DEFAULT_HUB_PREFERENCE: Record<LifeAreaId, string[]> = {
   work: ["Career", "Builds & Launches", "Skills"],
   people: ["Family", "Friendships", "Romance"],
-  becoming: ["Purpose", "Inner life", "Joy"],
+  becoming: ["Purpose & Values", "Mind & Emotions", "Joy & Creativity"],
   health: ["Rest", "Movement", "Nutrition", "Appearance"],
   finance: ["Assets", "Income", "Safety net", "Liabilities"],
 };
@@ -1108,7 +1108,7 @@ function pickHubWithinTheme(themeId: LifeAreaId, text: string, index: HubIndex):
     },
     {
       pattern: /\b(prison|robben|forgiv|reconcil|trc|inner|hope|dignity|spirit|legacy|elders|purpose|nobel|ideal|ideal alive|moral core|conscience)\b/,
-      labels: ["Purpose", "Inner life"],
+      labels: ["Purpose & Values", "Mind & Emotions"],
     },
     {
       pattern: /\b(health|hospital|prostate|lung|fatigue|body|medical|quarry dust|doctors)\b/,

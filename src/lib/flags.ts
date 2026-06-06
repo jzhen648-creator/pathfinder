@@ -27,18 +27,14 @@ export const FLAGS = {
   CONVERSATIONAL_GOAL_CREATE: true,
   /**
    * Central vascular trunk mass (silhouette + flow + post-stroke blend) behind life-area stems.
-   * On while judging full trunk proposal look; set false for flatter hub-forward composition.
+   * Off for the pentagon map; set true only when intentionally reviewing trunk visuals.
    */
-  TREE_TRUNK_VISIBLE: true,
+  TREE_TRUNK_VISIBLE: false,
   /**
-   * Trunk-relative theme gateway layout (`tree-trunk-slots.ts`) instead of radial theme-star
-   * (`tree-area-anchors.ts` / `computeThemeGateway`). Default **on** while trunk layout is in active development.
-   * Dev: `NEXT_PUBLIC_TREE_TRUNK_LAYOUT=0` or `false` in `.env.local` reverts to theme-star instantly.
+   * Trunk-relative theme gateway layout (`tree-trunk-slots.ts`) instead of the exact pentagon
+   * (`tree-area-anchors.ts` / `computeThemeGateway`). Default off; opt in only for trunk comparison.
    */
-  TREE_TRUNK_LAYOUT:
-    TREE_TRUNK_LAYOUT_RAW === "0" || TREE_TRUNK_LAYOUT_RAW === "false"
-      ? false
-      : true,
+  TREE_TRUNK_LAYOUT: TREE_TRUNK_LAYOUT_RAW === "1" || TREE_TRUNK_LAYOUT_RAW === "true",
   /**
    * Sequence-driven longitudinal branch layout for all themes (vs domain-cluster orbit). **Off**
    * until the visual is ready — set to `true` here to work on it; ordering APIs and `sequencedNodes`

@@ -62,6 +62,16 @@ export type AddGoalHubContext = {
 
 export type AddMomentTreeContext = Omit<AddGoalHubContext, "areaId"> & { limbId: string };
 
+export type NodeContextMenuTargetBase =
+  | { kind: "hub"; area: AreaData; thread: AreaData["branches"][number] }
+  | { kind: "pursuit"; area: AreaData; goal: TreeGoalNode }
+  | { kind: "mark"; area: AreaData; moment: MomentNode };
+
+export type NodeContextMenuTarget = NodeContextMenuTargetBase & {
+  clientX: number;
+  clientY: number;
+};
+
 export type TreeSVGProps = {
   areas: AreaData[];
   /** Ghost preview nodes merged from Stream — rendered in a separate SVG layer. */
@@ -121,6 +131,16 @@ export type TreeSVGProps = {
   previewGatewayLayout?: boolean;
   /** Onboarding-only camera sync for HTML callout overlays. */
   onCameraFrame?: (frame: TreeCameraFrame) => void;
+  /** Hub branch id under the pointer — drives medallion hover emphasis. */
+  hoveredHubId?: string | null;
+  onHoveredHubChange?: (threadId: string | null) => void;
+  /** Pursuit goal id under the pointer — drives hex hover emphasis. */
+  hoveredGoalId?: string | null;
+  onHoveredGoalChange?: (goalId: string | null) => void;
+  /** Right-click / long-press context menu on a tree node. */
+  onNodeContextMenu?: (target: NodeContextMenuTarget) => void;
+  /** Node id (hub branch id, goal id, or mark id) with an open context menu — keeps it visually lit. */
+  contextMenuTargetId?: string | null;
 };
 
 export type TreePanelPresentation = "sheet" | "rail";
@@ -193,7 +213,11 @@ export type TreePanelProps = {
   themeUnlockBanner?: LifeAreaId | null;
   /** Raw branch rows for opening inactive hubs on an unlocked theme. */
   apiBranchRows?: import("@/lib/api-branch-row").ApiBranchRow[];
-  onActivateHub?: (branchId: string, area: AreaData) => void;
+  onActivateHub?: (
+    branchId: string,
+    area: AreaData,
+    options?: { beforeReveal?: () => Promise<void> },
+  ) => void | Promise<void>;
 };
 
 export type ViewMode = "tree" | "timeline";
