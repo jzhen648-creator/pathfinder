@@ -175,11 +175,13 @@ export async function resolveAmbiguousMark(
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
   const markDescription = mark.description?.trim() || "";
-  const iconName = await assignPursuitIconSafe({
-    title: mark.title,
-    description: markDescription,
-    lifeArea,
-  });
+  const iconName = (
+    await assignPursuitIconSafe({
+      title: mark.title,
+      description: markDescription,
+      lifeArea,
+    })
+  ).iconName;
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };

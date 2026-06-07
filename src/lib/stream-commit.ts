@@ -275,11 +275,13 @@ async function commitItemsToBranchInTx(
     const bloomStatus = p.bloomStatus as BloomStatus;
     const isChild = parentGoalId != null;
     const sequencePosition = isChild ? null : await nextSequencePosition();
-    const iconName = await assignPursuitIconSafe({
-      title,
-      description,
-      lifeArea,
-    });
+    const iconName = (
+      await assignPursuitIconSafe({
+        title,
+        description,
+        lifeArea,
+      })
+    ).iconName;
 
     const goal = await tx.goal.create({
       data: {
