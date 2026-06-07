@@ -50,6 +50,8 @@ type WriteUserMemoryOptions = {
   blob: string;
   /** When true, set lastUserEditedAt to now (manual profile edit). */
   userEdited?: boolean;
+  /** Allow empty blob when the user intentionally clears their summary. */
+  allowEmpty?: boolean;
   incrementStreamSessionCount?: boolean;
   clearDirty?: boolean;
 };
@@ -59,7 +61,7 @@ type WriteUserMemoryOptions = {
  */
 export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<UserMemoryRow> {
   const trimmed = options.blob.trim();
-  if (!trimmed) {
+  if (!trimmed && !(options.allowEmpty && options.userEdited)) {
     throw new Error("Memory blob cannot be empty.");
   }
 
@@ -68,8 +70,10 @@ export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<
   });
 
   if (existing) {
-    await pushHistoryRow(options.userId, existing.blob, existing.version);
-    const nextVersion = existing.version + 1;
+    if (trimmed) {
+      await pushHistoryRow(options.userId, existing.blob, existing.version);
+    }
+    const nextVersion = trimmed ? existing.version + 1 : existing.version;
     const row = await prisma.userMemory.update({
       where: { userId: options.userId },
       data: {
@@ -84,6 +88,10 @@ export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<
     });
     await bumpInsightMemoryVersion(options.userId, row.version);
     return row;
+  }
+
+  if (!trimmed) {
+    throw new Error("Memory blob cannot be empty.");
   }
 
   const row = await prisma.userMemory.create({
@@ -110,7 +118,7 @@ export async function markUserMemoryDirty(userId: string): Promise<void> {
   });
 }
 
-export function serializeUserMemory(row: UserMemoryRow) {
+export function serializeUserMemory(row: UserMemoryRow, pendingIncorporateCount = 0) {
   return {
     blob: row.blob,
     version: row.version,
@@ -118,5 +126,6 @@ export function serializeUserMemory(row: UserMemoryRow) {
     lastUserEditedAt: row.lastUserEditedAt?.toISOString() ?? null,
     isDirty: row.isDirty,
     streamSessionCount: row.streamSessionCount,
+    pendingIncorporateCount,
   };
 }

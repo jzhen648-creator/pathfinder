@@ -726,3 +726,60 @@ Introduce a thin **`AppIcon`** wrapper (named Lucide imports only — same tree-
 ## 2026-06-06 — Pursuit Lucide icons · Phase 5 executed (Option C)
 
 Shipped **`AppIcon`** + **`app-icon-catalog.ts`** (18 tree-shaken Lucide slugs) and **`BackChevronLabel`** for nav/UI chrome. Migrated: tab bar, Stream FAB, map utility search + zoom controls, back affordances, chevrons, edit/close, checkmarks, `InsightSparkle`, scope pills, settings row icons. Deleted bespoke `MapTabIcon`, `StoryTabIcon`, `SettingsTabIcon`, `ReviewTabIcon`. **Unchanged:** `limb-icons`, `branch-icons`, `MapBrandMark`, `PursuitStatusGlyph`, mark glyph, `PursuitIcon` map overlay.
+
+## 2026-06-05 — Mobile Phase A: Profile + FAB add-pursuit lanes
+
+Separated **intake entry points** so centre FAB and Self node never share a doorway:
+
+| Entry | Behaviour |
+|-------|-----------|
+| **Centre + FAB** | Always **`openAddPursuit()`** → `AddPursuitFlowSheet` (theme → track → `AddPursuitForm` → `POST /api/goals`). Never opens map Stream sheet or Stream theme-picker-to-Stream path. |
+| **Self node (map base overview)** | **`router.push("/(app)/profile")`** — identity/context screen. Verified `openWholeLifeGuidance()` was only `router.push("/(app)/story")`; Story tab remains the reading entry. |
+
+**ThemePicker coupling (Decision 2 — pure branch):** Former `StreamThemePicker` was a pure callback + list (`PageSheet`, `LIFE_AREAS`, `onSelect`) with no map canvas or Stream session imports. Renamed to **`ThemePicker`** (`components/map/ThemePicker.tsx`) with embeddable **`ThemePickerList`**. FAB from Story/Settings opens **`AddPursuitFlowSheet` in place** (no forced tab jump). After create, if the user was not on Map, **`router.navigate("/(app)/map", { openPursuit })`** so the new pursuit lands on the map as a reward — not a prerequisite.
+
+**Add pursuit flow context:** Map registers `registerMapAddPursuitBridge` while focused — seed from `resolveAddPursuitSeed(cameraFocus)`: base → theme step; theme (no highlighted track) → track step only; theme with highlighted track or pursuit focus → form with **`defaultBranchId`** (changeable when multiple tracks). FAB subtitle: **"Add pursuit"** + optional track label from map focus.
+
+**Profile screen:** `app/(app)/profile.tsx` composes existing `ProfileMemorySection`, `ProfileKeyFacts`, `ProfileFactsSection`, `EditProfileModal`. Settings unchanged (duplicate profile content OK for now). Hidden route (`href: null`); opened from Self node or deep link.
+
+**Explicitly not in this phase:** goals/parse Describe mode, Profile intake composer, Settings trim, onboarding changes, deleting map-Stream code. Map sheet Stream (`openStream=1`, hub Stream buttons, inline pursuit Stream) remains for legacy/deep links.
+
+## 2026-06-05 — Profile memory blob: editable record + Option B pause
+
+**Rule:** If the user can edit it → Profile. If it regenerates from their data → Story. Story tab untouched; blob generation prompts (`profile-memory.ts`, `UPDATE_SYSTEM`, `SEED_SYSTEM`) unchanged.
+
+**Editable blob:** `ProfileMemorySection` inline edit/save via existing **`PATCH /api/memory`** (`patchUserMemory`). Dossier styling (sans note card, visible Edit/Write, utilitarian section labels). Framing: *"What Pathfinder knows about you — edit anything here."* Footer meta: last updated · N facts · used by Story & Insights (`updatedAt`-driven, not `lastUserEditedAt`).
+
+**Option B — pause auto-overwrite (confirmed):** One manual save sets **`lastUserEditedAt`** and **permanently pauses** auto `updateUserMemory` until the user explicitly incorporates. Guard at top of `updateUserMemory`: when `lastUserEditedAt` is set and not `forceIncorporate`, **`markUserMemoryDirty` + return null** (no silent overwrite). Paused POST returns **`200 { ok: false, paused: true, isDirty, pendingIncorporateCount }`** — expected, not an error toast. **TODO:** future "Resume automatic summary updates" affordance.
+
+**Incorporate watermark (no migration):** On successful incorporate, **`lastUserEditedAt = now`** — pause persists (still blocks auto-updates) but acts as watermark so the next pull excludes already-folded sessions. **`processedForProfileAt` not used** for this path. Pending sources: **`StreamSession`** rows + applied **`StreamRun`** rows with `createdAt > lastUserEditedAt`. Text joined most-recent-first, capped 8000 chars.
+
+**StreamSession coverage fixes (in scope):**
+- Client **`postMemoryUpdate`** (empty-extract queue, mark-only save): **`persistStreamSessionForMemory`** in `POST /api/memory/update` before guard; mobile passes **`limbId`** from scope.
+- **`commitStreamToHub`**: was missing both session persistence and memory queue; extended hub commit schema with `inputText` fields + **`recordStreamThemeSession` + `queueMemoryUpdateAfterStream`**.
+- Pursuit inline Stream (`StreamRun` apply / child pursuit): covered via **`StreamRun`** in pending query (no duplicate `StreamSession` required).
+
+**`isDirty` repurposed:** Only memory pipeline + Profile UI — safe as **"pending incorporate"** when pause is active.
+
+**GET seed guard:** Skip `seedUserMemory` when **`lastUserEditedAt`** is set (intentional empty/cleared blob not re-seeded). **`PATCH`** allows empty blob with `allowEmpty + userEdited`.
+
+## 2026-06-05 — Product ontology + surface cleanup
+
+**Frame (canonical):** Two stores (Map = structured truth, Profile = unstructured truth), one view at two scopes (Story = whole-map, Insights = node-level — same regenerated view, different zoom), one input verb decomposed into **+ → Map** and **Profile tab** (Self node decorative on map). Views own no truth; stores are editable and authoritative (Map for structure, Profile for self-description); Story reconciles the two and names divergence. The "too many information sets" concern resolved to **vocabulary + cleanup**, not a structural merge.
+
+**Stream vocabulary collision:** Added to [`ONTOLOGY.md`](./ONTOLOGY.md) dangerous-collisions list. Three meanings: **(a)** retired map-wide extract surface, **(b)** live pursuit-scoped apply, **(c)** backend input pipe. UI copy: **Update pursuit** / **Capture progress** for (b); **Describe** / **Capture** for (c); forbidden bare **Stream** as a destination in new copy. Code `stream/*` paths retained this pass.
+
+**Map-wide Stream retirement (mobile):** Removed map sheet streaming/confirming mode, `useStreamSession` on map, `registerMapStreamOpen` / `openStream=1` handlers, theme-modal inline Stream. Legacy `/stream` route redirects to map (no theme-picker → stream sheet). **Kept:** `/api/stream/extract` + commit routes, `PursuitInlineStream`, pursuit apply API, memory incorporate pipe.
+
+**Settings dedupe:** Profile sections removed from Settings; single **Profile** link row. Profile is the one home for memory blob + facts.
+
+**Insights voice parity:** `generate-insights.ts` SYSTEM_PROMPT aligned with Story GROUND TRUTH / anti-flattery treatment; peer `contextual` kept at node scope when age+location known.
+
+## 2026-06-05 — Profile tab promotion
+
+**Self-node Profile entry removed; Profile promoted to tab.** Tab order: Map · Story · **+** (centre) · Profile · Settings. Profile tab is icon-only (person glyph) to avoid label truncation at five slots.
+
+**Reasoning:** Convergence-point Self tap was unintuitive in device use. Profile is a **store** — it belongs in primary navigation, not a hidden map affordance. Self node remains on the map as a decorative centre anchor only (spokes + visibility at base focus).
+
+**Also shipped:** Map tab re-press while focused returns to overview (exits edit-map if open). Profile screen uses `ScreenHeader` (no back chevron on tab root). Settings Profile link row removed (redundant with tab).
+

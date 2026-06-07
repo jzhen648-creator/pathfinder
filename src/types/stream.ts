@@ -527,6 +527,10 @@ export const streamCommitPayloadSchema = z.object({
   pursuits: z.array(extractedPursuitSchema),
   milestones: z.array(extractedMilestoneSchema),
   resolvedAmbiguous: z.array(resolvedAmbiguousSchema).default([]),
+  inputText: z.string().max(8000).default(""),
+  inputMode: z.enum(["text", "voice"]).default("text"),
+  itemsAdded: z.number().int().min(0).default(0),
+  itemsSkipped: z.number().int().min(0).default(0),
 });
 
 export type StreamCommitPayload = z.infer<typeof streamCommitPayloadSchema>;

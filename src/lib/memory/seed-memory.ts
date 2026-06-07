@@ -70,6 +70,9 @@ export async function seedUserMemory(userId: string): Promise<UserMemoryRow | nu
   if (existing?.blob.trim()) {
     return existing;
   }
+  if (existing?.lastUserEditedAt) {
+    return existing;
+  }
 
   const [user, manualProfile] = await Promise.all([
     prisma.user.findUnique({

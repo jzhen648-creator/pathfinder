@@ -1,9 +1,12 @@
 import { generateText, GeminiNotConfiguredError } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
+import {
+  countPendingMemorySources,
+  joinPendingMemoryText,
+  listPendingMemorySources,
+} from "@/lib/memory/memory-pending";
 import { markUserMemoryDirty, writeUserMemory, type UserMemoryRow } from "@/lib/memory/memory-write";
 import { seedUserMemory } from "@/lib/memory/seed-memory";
-
-const USER_EDIT_PRESERVE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const UPDATE_SYSTEM = `You update a personal context summary for Pathfinder.
 Output plain prose only — no JSON. Stay under 250 words.
@@ -16,6 +19,11 @@ Rules:
 - If something has changed, update it. If something is confirmed, sharpen it.
 - Write in a natural, grounded tone that reflects how this person talks.
 - Distil their meaning, not their exact words. Do not make them sound more confident or polished than they are.`;
+
+type UpdateUserMemoryOptions = {
+  /** User-initiated incorporate while manual-edit pause is active. */
+  forceIncorporate?: boolean;
+};
 
 function buildUpdateUserMessage(input: {
   currentBlob: string;
@@ -36,28 +44,48 @@ function buildUpdateUserMessage(input: {
   ].join("\n");
 }
 
-function userRecentlyEdited(lastUserEditedAt: Date | null): boolean {
-  if (!lastUserEditedAt) return false;
-  return Date.now() - lastUserEditedAt.getTime() < USER_EDIT_PRESERVE_MS;
+export async function countPendingIncorporateForUser(userId: string): Promise<number> {
+  const memory = await prisma.userMemory.findUnique({ where: { userId } });
+  if (!memory?.lastUserEditedAt) return 0;
+  const sources = await listPendingMemorySources(userId, memory.lastUserEditedAt);
+  return countPendingMemorySources(sources);
+}
+
+/** Advance incorporate watermark after a successful merge — pause persists, already-folded sessions excluded. */
+export async function advanceIncorporateWatermark(userId: string): Promise<void> {
+  await prisma.userMemory.update({
+    where: { userId },
+    data: {
+      lastUserEditedAt: new Date(),
+      isDirty: false,
+    },
+  });
 }
 
 /**
  * Evolve UserMemory from raw Stream conversation text. Does not read map data.
+ * When `lastUserEditedAt` is set, auto updates pause and mark dirty instead of overwriting.
  */
 export async function updateUserMemory(
   userId: string,
   sessionText: string,
+  options: UpdateUserMemoryOptions = {},
 ): Promise<UserMemoryRow | null> {
   const text = sessionText.trim();
   if (!text) return null;
 
   let memory = await prisma.userMemory.findUnique({ where: { userId } });
-  if (!memory?.blob.trim()) {
+  if (!memory?.blob.trim() && !memory?.lastUserEditedAt) {
     memory = await seedUserMemory(userId);
   }
 
+  if (memory?.lastUserEditedAt && !options.forceIncorporate) {
+    await markUserMemoryDirty(userId);
+    return null;
+  }
+
   const currentBlob = memory?.blob.trim() || "(none yet)";
-  const preserveUserEdits = userRecentlyEdited(memory?.lastUserEditedAt ?? null);
+  const preserveUserEdits = Boolean(memory?.lastUserEditedAt) || options.forceIncorporate === true;
 
   try {
     const blob = await generateText({
@@ -81,12 +109,22 @@ export async function updateUserMemory(
       return null;
     }
 
-    return await writeUserMemory({
+    const row = await writeUserMemory({
       userId,
       blob,
       incrementStreamSessionCount: true,
       clearDirty: true,
     });
+
+    if (options.forceIncorporate) {
+      await advanceIncorporateWatermark(userId);
+      return (
+        (await prisma.userMemory.findUnique({ where: { userId } })) ??
+        row
+      );
+    }
+
+    return row;
   } catch (err) {
     if (err instanceof GeminiNotConfiguredError) {
       console.warn("[updateUserMemory] Gemini not configured — marking dirty");
@@ -96,4 +134,22 @@ export async function updateUserMemory(
     await markUserMemoryDirty(userId);
     return null;
   }
+}
+
+/** Fold pending Stream activity into the summary while manual-edit pause is active. */
+export async function incorporatePendingMemory(userId: string): Promise<UserMemoryRow | null> {
+  const memory = await prisma.userMemory.findUnique({ where: { userId } });
+  if (!memory?.lastUserEditedAt) return null;
+
+  const sources = await listPendingMemorySources(userId, memory.lastUserEditedAt);
+  const sessionText = joinPendingMemoryText(sources);
+  if (!sessionText) {
+    await prisma.userMemory.update({
+      where: { userId },
+      data: { isDirty: false },
+    });
+    return memory;
+  }
+
+  return updateUserMemory(userId, sessionText, { forceIncorporate: true });
 }

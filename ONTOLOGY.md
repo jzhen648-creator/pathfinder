@@ -2,6 +2,30 @@
 
 Canonical relationships between persisted entities and derived UI concepts. Use this with [`GLOSSARY.md`](./GLOSSARY.md) for naming.
 
+## Product surfaces
+
+The product is **four categories**, not five competing information sets. Three user-facing names collapse into one category.
+
+| Surface | Category | Holds truth? | Authoritative for | User can edit? |
+|---------|----------|--------------|-------------------|----------------|
+| **Map** | Store (structured) | Yes | Structure + progress | Yes (via **+** lane) |
+| **Profile** | Store (unstructured) | Yes | Self-description | Yes (direct) |
+| **Story** | View — whole-map scope | No (regenerated) | nothing | No |
+| **Insights** | View — node scope | No (regenerated) | nothing | No |
+| **Stream** | Input verb / pipe | No | nothing | n/a |
+
+- **Two stores.** Map = structured truth (what you're building). Profile = unstructured truth (who you are, in your own words).
+- **One view, at two scopes.** Story reads both stores at whole-map scope. Insights is the same view scoped to a theme or pursuit — not a fifth thing.
+- **One input verb (decomposed).** **+** turns text into a pursuit (Map). **Profile tab** opens the Profile store. The map **Self node** is decorative only (convergence anchor at overview). The retired map-wide Stream *surface* was this verb monolithically routed through the map sheet.
+
+**Decision test (check every new feature):**
+
+1. Can the user edit it? → store (Map or Profile).
+2. Does it regenerate from data? → view (Story or Insights).
+3. Nothing originates in a view.
+
+**Authority:** Map authoritative for structure; Profile for self-description; **Story reconciles the two** (including naming divergence). Overlap between Map and Profile is layering (same fact, two forms), not redundancy.
+
 ## Core entities
 
 | Concept | Implementation | Notes |
@@ -47,6 +71,7 @@ Bloom describes **maturity of one goal**, not graph shape.
 | **Hub** | User’s track vs Prisma **`Branch`** row (one root `Branch` per hub slot). Qualify **hub (root Branch)** when ambiguous. |
 | **Theme** vs **`LifeAreaId` / `limbId`** | Same ids — **theme** is the product word; code symbols stay until an optional rename pass. |
 | **Child** | `TreeGoalNode.childGoals` = successor goals for layout (goal evolution); not “subtasks.” |
+| **Stream** | **(a)** Retired map-wide extract *surface* (map sheet, theme-picker FAB path). **(b)** Live pursuit-scoped apply (`PursuitInlineStream`, `/api/stream/pursuit/*`). **(c)** Backend input pipe concept (`/api/stream/extract`, commit routes). In **UI copy**: use **Update pursuit** / **Capture progress** for (b); **Describe** / **Capture** for (c); never bare **Stream** as a destination. Code may keep `stream/*` paths until a rename pass. |
 
 ## Terminology policy (permanent)
 
