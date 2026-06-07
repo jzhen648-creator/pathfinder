@@ -25,6 +25,11 @@ import {
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-hubs";
 import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
+import { matchPreferredOverrideIconSlug } from "@/lib/icons/match-pursuit-icon-override";
+
+function logPerfProbe(traceId: string | null, label: string, data: Record<string, unknown>): void {
+  console.log(`[PERF_PROBE] ${label}`, JSON.stringify({ traceId, ...data }));
+}
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -43,6 +48,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const handlerStart = Date.now();
+  const traceId = request.headers.get("X-Perf-Trace");
+  const stages: Record<string, number> = {};
+
   const auth = await requireApiSessionUserId();
   if (!auth.ok) return auth.response;
   const userId = auth.userId;
@@ -62,8 +71,10 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  stages.auth_parse = Date.now() - handlerStart;
 
   const input = parsed.data;
+  const branchStart = Date.now();
   const branchRecord = await prisma.branch.findFirst({
     where: { id: input.branchId.trim(), userId },
     select: { id: true, limbId: true, name: true, label: true, isActive: true },
@@ -75,6 +86,7 @@ export async function POST(request: Request) {
   if (!branchRecord.isActive) {
     await activateHubForUser(prisma, userId, branchRecord.id);
   }
+  stages.branch_lookup = Date.now() - branchStart;
 
   const title = input.title.trim();
   const description = input.description.trim();
@@ -116,15 +128,29 @@ export async function POST(request: Request) {
   try {
     /** Resolve branch-line sequence position from the optional `anchor` (defaults to append). The reindex pass, if any, runs inside the same transaction as the goal insert so existing nodes don't temporarily share a slot. */
     const anchor = input.anchor ?? { kind: "append" as const };
+    const sequenceStart = Date.now();
     const existingNodes = await loadBranchSequencedNodes(prisma, branchRecord.id);
     const resolution = resolveSequenceAnchor(existingNodes, anchor);
     const sequencePosition = resolution.sequencePosition;
-    const iconName = await assignPursuitIconSafe({
+    stages.sequence_load = Date.now() - sequenceStart;
+
+    const iconStart = Date.now();
+    const overridePreflight = matchPreferredOverrideIconSlug(title, description);
+    const iconResult = await assignPursuitIconSafe({
       title,
       description,
       lifeArea,
     });
+    const iconName = iconResult.iconName;
+    stages.icon_assign_total = Date.now() - iconStart;
+    const iconPerf = iconResult.perf;
+    if (iconPerf) {
+      stages.icon_override = iconPerf.path === "override" ? iconPerf.ms : 0;
+      stages.icon_ai =
+        iconPerf.path === "ai" || iconPerf.path === "ai_error" ? iconPerf.ms : 0;
+    }
 
+    const txStart = Date.now();
     const goal = await prisma.$transaction(async (tx) => {
       await applySequenceResolution(tx, resolution);
       return tx.goal.create({
@@ -157,12 +183,15 @@ export async function POST(request: Request) {
         },
       });
     });
+    stages.db_transaction = Date.now() - txStart;
 
+    const bloomStart = Date.now();
     try {
       await recomputeGoalBloomStatus(goal.id);
     } catch (recErr) {
       console.error("[POST /api/goals] recomputeGoalBloomStatus failed", recErr);
     }
+    stages.bloom_recompute = Date.now() - bloomStart;
 
     after(() => {
       void persistGoalShortLabel(goal.id).catch((err) =>
@@ -206,12 +235,33 @@ export async function POST(request: Request) {
 
     const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
 
+    stages.handler_total = Date.now() - handlerStart;
+    const iconPath = iconPerf?.path ?? "unknown";
+    logPerfProbe(traceId, "POST /api/goals", {
+      title,
+      overridePreflight,
+      iconPath,
+      iconSlug: iconPerf?.slug ?? iconName,
+      vercelRegion: process.env.VERCEL_REGION ?? null,
+      stages,
+    });
+
     return NextResponse.json(
       {
         goal: { id: goal.id, title: goal.title },
         branchLabel,
       },
-      { status: 201 },
+      {
+        status: 201,
+        headers: {
+          "X-Perf-Server-Ms": String(stages.handler_total),
+          "X-Perf-Icon-Path": iconPath,
+          "X-Perf-Stages": JSON.stringify(stages),
+          ...(process.env.VERCEL_REGION
+            ? { "X-Perf-Region": process.env.VERCEL_REGION }
+            : {}),
+        },
+      },
     );
   } catch (err) {
     console.error("[POST /api/goals] create failed", err);

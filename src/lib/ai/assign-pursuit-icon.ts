@@ -20,6 +20,21 @@ export type AssignPursuitIconInput = {
   lifeArea?: string | null;
 };
 
+/** PERF_PROBE — last icon assign path + ms; strip after profiling confirmed. */
+export type IconAssignPerf = {
+  path: "override" | "ai" | "ai_error" | "empty_title";
+  ms: number;
+  slug: string | null;
+};
+
+let lastIconAssignPerf: IconAssignPerf | null = null;
+
+export function consumeIconAssignPerf(): IconAssignPerf | null {
+  const snapshot = lastIconAssignPerf;
+  lastIconAssignPerf = null;
+  return snapshot;
+}
+
 function normalizeAssignedSlug(raw: unknown): string | null {
   if (raw == null) return null;
   if (typeof raw !== "string") return null;
@@ -65,20 +80,44 @@ async function pickIconWithAi(input: AssignPursuitIconInput): Promise<string | n
  */
 export async function assignPursuitIcon(input: AssignPursuitIconInput): Promise<string | null> {
   const title = input.title.trim();
-  if (!title) return null;
+  if (!title) {
+    lastIconAssignPerf = { path: "empty_title", ms: 0, slug: null };
+    return null;
+  }
 
+  const overrideStart = Date.now();
   const override = matchPreferredOverrideIconSlug(title, input.description);
-  if (override) return override;
+  if (override) {
+    lastIconAssignPerf = { path: "override", ms: Date.now() - overrideStart, slug: override };
+    return override;
+  }
 
-  return pickIconWithAi(input);
+  const aiStart = Date.now();
+  try {
+    const aiSlug = await pickIconWithAi(input);
+    lastIconAssignPerf = { path: "ai", ms: Date.now() - aiStart, slug: aiSlug };
+    return aiSlug;
+  } catch (err) {
+    lastIconAssignPerf = { path: "ai_error", ms: Date.now() - aiStart, slug: null };
+    throw err;
+  }
 }
 
+export type AssignPursuitIconResult = {
+  iconName: string | null;
+  perf: IconAssignPerf | null;
+};
+
 /** Non-blocking wrapper for creation paths — logs and returns null on failure. */
-export async function assignPursuitIconSafe(input: AssignPursuitIconInput): Promise<string | null> {
+export async function assignPursuitIconSafe(
+  input: AssignPursuitIconInput,
+): Promise<AssignPursuitIconResult> {
+  lastIconAssignPerf = null;
   try {
-    return await assignPursuitIcon(input);
+    const iconName = await assignPursuitIcon(input);
+    return { iconName, perf: lastIconAssignPerf };
   } catch (err) {
     console.error("[assignPursuitIcon] failed", err);
-    return null;
+    return { iconName: null, perf: lastIconAssignPerf };
   }
 }
