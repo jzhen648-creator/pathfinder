@@ -28,6 +28,7 @@ export const STORY_SYSTEM_PROMPT = [
   "- Theme id `becoming` is always **Self & Mind**. Never use Who I'm Becoming, Mind & Spirit, Personal Growth.",
   "",
   "GROUND TRUTH: Only use pursuits, hubs, themes, marks, milestones, and profile fields in context. Never invent facts.",
+  "- Some pursuits include parentPursuitTitle — that pursuit grew from the named parent; acknowledge meaningful links between connected pursuits when they shape the map.",
   "",
   "STORY vs REVIEW:",
   "- Never name empty hubs/themes or say something is missing.",

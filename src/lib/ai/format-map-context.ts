@@ -28,6 +28,8 @@ export type FormattedMapContext = {
           completed: boolean;
         }>;
         markCount: number;
+        /** Present when user nested this pursuit under another via edit map. */
+        parentPursuitTitle?: string;
       }>;
     }>;
   }>;
@@ -65,6 +67,7 @@ export async function formatMapContext(
           title: true,
           description: true,
           bloomStatus: true,
+          parentGoalId: true,
           milestones: {
             select: {
               id: true,
@@ -96,21 +99,34 @@ export async function formatMapContext(
         hubs: [],
       };
 
+    const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
+
     theme.hubs.push({
       id: branch.id,
       label: branch.label ?? branch.name ?? branch.id,
-      pursuits: branch.goals.map((goal) => ({
-        id: goal.id,
-        title: goal.title,
-        description: goal.description?.trim() ?? "",
-        status: goal.bloomStatus,
-        milestones: goal.milestones.map((milestone) => ({
-          id: milestone.id,
-          title: milestone.title,
-          completed: Boolean(milestone.completedAt),
-        })),
-        markCount: branch.marks.length,
-      })),
+      pursuits: branch.goals.map((goal) => {
+        const pursuit: FormattedMapContext["themes"][number]["hubs"][number]["pursuits"][number] = {
+          id: goal.id,
+          title: goal.title,
+          description: goal.description?.trim() ?? "",
+          status: goal.bloomStatus,
+          milestones: goal.milestones.map((milestone) => ({
+            id: milestone.id,
+            title: milestone.title,
+            completed: Boolean(milestone.completedAt),
+          })),
+          markCount: branch.marks.length,
+        };
+
+        if (goal.parentGoalId) {
+          const parentTitle = pursuitTitleById.get(goal.parentGoalId);
+          if (parentTitle) {
+            pursuit.parentPursuitTitle = parentTitle;
+          }
+        }
+
+        return pursuit;
+      }),
     });
 
     themeMap.set(branch.limbId, theme);
