@@ -284,7 +284,7 @@ export async function applyPursuitStream(
         if (!title) continue;
 
         const resolved = resolveMarkInputDate({
-          date: mark.date ?? new Date().toISOString().slice(0, 10),
+          date: mark.date ?? undefined,
         });
         if (!resolved.ok) continue;
 
@@ -299,9 +299,9 @@ export async function applyPursuitStream(
             date: resolved.d,
             sentiment: "positive",
             archived: false,
-            future: isMarkDateInTheFuture(resolved.d),
-            year: resolved.d.getUTCFullYear(),
-            month: resolved.d.getUTCMonth() + 1,
+            future: resolved.d ? isMarkDateInTheFuture(resolved.d) : false,
+            year: resolved.d?.getUTCFullYear() ?? null,
+            month: resolved.d ? resolved.d.getUTCMonth() + 1 : null,
             sequencePosition,
             kind: "stream",
             sourceStreamRunId: run.id,

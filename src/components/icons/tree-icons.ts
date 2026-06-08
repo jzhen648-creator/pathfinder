@@ -5,7 +5,9 @@ import type { LifeAreaId } from "@/lib/types";
 import type { IconSvgProps } from "./icon-svg-props";
 import { ICON_DESIGN_SIZE } from "./icon-svg-props";
 import { BranchCareer } from "./branch/BranchCareer";
+import { BranchCulture } from "./branch/BranchCulture";
 import { BranchExperiences } from "./branch/BranchExperiences";
+import { BranchHobbies } from "./branch/BranchHobbies";
 import { BranchFamily } from "./branch/BranchFamily";
 import { BranchFriendships } from "./branch/BranchFriendships";
 import { BranchDebt } from "./branch/BranchDebt";
@@ -34,6 +36,7 @@ export const LIMB_ICONS: Record<LifeAreaId, TreeIconComponent> = {
   work: LimbWork,
   finance: LimbMoney,
   becoming: LimbBecoming,
+  pleasures: BranchExperiences,
   people: LimbPeople,
   health: LimbHealth,
 };
@@ -56,6 +59,11 @@ export const HUB_BRANCH_ICONS: Record<LifeAreaId, Record<string, TreeIconCompone
     "Mind & Emotions": BranchInnerWork,
     "Joy & Creativity": BranchExperiences,
   },
+  pleasures: {
+    Hobbies: BranchHobbies,
+    Culture: BranchCulture,
+    Experiences: BranchExperiences,
+  },
   people: {
     Family: BranchFamily,
     Romance: BranchRomance,
@@ -74,6 +82,7 @@ export const BRANCH_ICONS_BY_LIMB: Record<LifeAreaId, readonly TreeIconComponent
   work: [BranchCareer, BranchHammer, BranchProjects],
   finance: [BranchIncome, BranchInvesting, BranchProtection, BranchDebt],
   becoming: [BranchPurpose, BranchInnerWork, BranchExperiences],
+  pleasures: [BranchHobbies, BranchCulture, BranchExperiences],
   people: [BranchFamily, BranchRomance, BranchFriendships],
   health: [BranchMovement, BranchNutrition, BranchSkills, BranchSleep],
 };
@@ -82,6 +91,7 @@ export const DEFAULT_HUB_SLOT_COUNT: Record<LifeAreaId, number> = {
   work: 3,
   finance: 4,
   becoming: 3,
+  pleasures: 3,
   people: 3,
   health: 4,
 };
@@ -99,6 +109,7 @@ export const LIMB_ICON_ARTWORK_EXTENT_MAX: Record<LifeAreaId, number> = {
   work: 20,
   finance: 20,
   becoming: 20,
+  pleasures: 20,
   people: 20,
   health: 20,
 };

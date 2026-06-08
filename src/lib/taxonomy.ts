@@ -1,9 +1,16 @@
 import type { LifeAreaId } from "./types";
 
 /** Bump when locked theme/hub names change (sync + docs). */
-export const TAXONOMY_VERSION = "2026-06-04-v7-self-mind" as const;
+export const TAXONOMY_VERSION = "2026-06-08-v8-play-leisure" as const;
 
-export const LIFE_AREA_IDS = ["becoming", "finance", "health", "work", "people"] as const satisfies readonly LifeAreaId[];
+export const LIFE_AREA_IDS = [
+  "becoming",
+  "pleasures",
+  "finance",
+  "health",
+  "work",
+  "people",
+] as const satisfies readonly LifeAreaId[];
 
 export type HubTemplate = {
   limbId: LifeAreaId;
@@ -11,7 +18,7 @@ export type HubTemplate = {
   name: string;
 };
 
-/** Locked default root hubs — count varies by theme (17 total). */
+/** Locked default root hubs — count varies by theme (20 total). */
 export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "finance", threadType: "Income", name: "Income" },
   { limbId: "finance", threadType: "Assets", name: "Assets" },
@@ -23,6 +30,9 @@ export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "becoming", threadType: "Purpose & Values", name: "Purpose & Values" },
   { limbId: "becoming", threadType: "Mind & Emotions", name: "Mind & Emotions" },
   { limbId: "becoming", threadType: "Joy & Creativity", name: "Joy & Creativity" },
+  { limbId: "pleasures", threadType: "Hobbies", name: "Hobbies" },
+  { limbId: "pleasures", threadType: "Culture", name: "Culture" },
+  { limbId: "pleasures", threadType: "Experiences", name: "Experiences" },
   { limbId: "people", threadType: "Family", name: "Family" },
   { limbId: "people", threadType: "Romance", name: "Romance" },
   { limbId: "people", threadType: "Friendships", name: "Friendships" },
@@ -51,11 +61,7 @@ export const HUB_LABEL_ALIASES: Record<string, string> = {
   giving: "liabilities",
   network: "skills",
   community: "friendships",
-  hobbies: "joy & creativity",
-  culture: "joy & creativity",
-  experiences: "joy & creativity",
-  play: "joy & creativity",
-  creativity: "joy & creativity",
+  play: "hobbies",
   downtime: "rest",
   recovery: "rest",
   upgrades: "appearance",
@@ -83,6 +89,7 @@ export const LEGACY_HUB_MIGRATIONS: Record<string, { limbId: LifeAreaId; label: 
   network: { limbId: "work", label: "Skills" },
   community: { limbId: "people", label: "Friendships" },
   joy: { limbId: "becoming", label: "Joy & Creativity" },
+  /** Legacy rows already on becoming/Joy stay put — no retroactive move to pleasures. */
   hobbies: { limbId: "becoming", label: "Joy & Creativity" },
   culture: { limbId: "becoming", label: "Joy & Creativity" },
   experiences: { limbId: "becoming", label: "Joy & Creativity" },
@@ -120,3 +127,11 @@ export function hubCountForTheme(themeId: LifeAreaId): number {
 export function validHubLabelKeysForTheme(themeId: LifeAreaId): Set<string> {
   return new Set(hubsForTheme(themeId).map((t) => normalizeHubLabelKey(t.threadType)));
 }
+
+export {
+  HUB_LUCIDE_ICONS,
+  HUB_LUCIDE_ICON_SLOT_ORDER,
+  HUB_LUCIDE_ICON_SLUGS,
+  hubLucideIconSlug,
+  type HubLucideIconSlug,
+} from "./hub-lucide-icons";

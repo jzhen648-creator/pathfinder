@@ -73,6 +73,7 @@ function buildCatalogMapContext(): FormattedMapContext {
     themes: LIFE_AREA_IDS.map((themeId) => ({
       id: themeId,
       label: getLifeArea(themeId)?.label ?? themeId,
+      marks: [],
       hubs: hubsForTheme(themeId).map((t) => ({
         id: `hub-${themeId}-${normalizeHubLabelKey(t.threadType)}`,
         label: t.threadType,

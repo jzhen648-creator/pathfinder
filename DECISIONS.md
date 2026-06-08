@@ -4,6 +4,25 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-08 — Taxonomy v8: Play & Leisure theme restored (`2026-06-08-v8-play-leisure`)
+
+**Status:** Frozen taxonomy change. `TAXONOMY_VERSION` → `2026-06-08-v8-play-leisure`. Six themes, **20** system hubs (was 17).
+
+**Play & Leisure** (`pleasures`) returns as a sixth theme with display label **Play & Leisure** and three hidden hubs for AI classification only: **Hobbies** (palette), **Culture** (book-open), **Experiences** (map-pin). Leisure was previously folded into Self & Mind → Joy; with hubs hidden from users, the theme name must carry leisure scope.
+
+**Rules:**
+- No retroactive data move — existing Joy pursuits on `becoming` stay put.
+- `hub-taxonomy-sync` no longer folds `limbId: pleasures` into `becoming`.
+- Legacy label migrations for hobbies/culture/experiences on old `becoming` rows unchanged.
+- Mobile map: **3-3 symmetric canopy** (top: becoming | pleasures | finance; bottom: people | health | work). Theme colour `#FF9F6B` (warm apricot).
+- Stream extract: `STREAM_PLAY_LEISURE_THEME_BOUNDARIES`; Self & Mind boundaries narrowed (leisure → pleasures).
+
+## 2026-06-08 — App simplification: one store, marks as theme context
+
+**Map is the single store.** Pursuits on the map surface; marks in theme detail panels as context (facts, events, people, skills). Optional mark dates (`Mark.date` nullable). Story/Insights read full mark text via `formatMapContext` theme-level `marks` arrays.
+
+**Profile tab retired.** Tab bar: Map · Story · **+** · Settings. Name / age / location in Settings (`UserManualProfile`). `formatUserContext` reads manual profile only — no `UserMemory` blob. Mobile stopped calling memory pipeline (`postMemoryUpdate`, etc.); backend `/api/memory` left dormant.
+
 ## 2026-05-28 — Trunk theme slot reorder for visual balance
 
 Reordered trunk/theme rendering arrays to bias denser themes toward the middle of the trunk ladder for better visual balance and reduced crowding in upper/lower extremes. The active top-to-bottom slot order is now: Who I'm Becoming, Money & Finance, Health & Body, Work & Career, People & Relationships. This is an array reorder only with no schema or API changes.

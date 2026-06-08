@@ -270,13 +270,13 @@ export async function buildStreamThemeContextInput(
   for (const m of marks) {
     marksByBranch.get(m.branchId)?.push({
       title: m.title,
-      date: m.date.toISOString().slice(0, 10),
+      ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
     });
   }
   for (const m of archivedMarks) {
     removedMarksByBranch.get(m.branchId)?.push({
       title: m.title,
-      date: m.date.toISOString().slice(0, 10),
+      ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
     });
   }
 

@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const [marks, branches] = await Promise.all([
       prisma.mark.findMany({
         where: { userId, ...(includeArchived ? {} : { archived: false }) },
-        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+        orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
       }),
       prisma.branch.findMany({
         where: { userId },
@@ -73,15 +73,26 @@ export async function GET(request: Request) {
       }
     >();
     byBranch.forEach((arr, branchId) => {
-      const sorted = [...arr].sort((a, b) => a.date.getTime() - b.date.getTime());
+      const sorted = [...arr].sort((a, b) => {
+        const ta = a.date?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const tb = b.date?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        if (ta !== tb) return ta - tb;
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      });
       const total = sorted.length;
       const branch = branchById[branchId];
       sorted.forEach((mark, idx) => {
         const previous = idx > 0 ? sorted[idx - 1] : null;
         const next = idx < total - 1 ? sorted[idx + 1] : null;
-        const daysFromPrevious = previous
-          ? Math.max(0, Math.round((mark.date.getTime() - previous.date.getTime()) / (1000 * 60 * 60 * 24)))
-          : null;
+        const daysFromPrevious =
+          previous?.date && mark.date
+            ? Math.max(
+                0,
+                Math.round(
+                  (mark.date.getTime() - previous.date.getTime()) / (1000 * 60 * 60 * 24),
+                ),
+              )
+            : null;
         const progressAtTime =
           branch?.goalValue && branch.goalValue > 0
             ? Math.min(
@@ -165,7 +176,7 @@ export async function POST(request: Request) {
   if (!resolved.ok) {
     return NextResponse.json({ error: resolved.message }, { status: 400 });
   }
-  const markIsFuture = isMarkDateInTheFuture(resolved.d);
+  const markIsFuture = resolved.d ? isMarkDateInTheFuture(resolved.d) : false;
 
   const title = displayMarkTitleFromInput(input.title, input.label);
   if (!title) {
@@ -189,11 +200,11 @@ export async function POST(request: Request) {
         description: input.description ?? null,
         date: resolved.d,
         value: input.value === undefined ? null : input.value,
-        sentiment: inferSentiment(input),
+        sentiment: input.sentiment ?? inferSentiment(input),
         archived: Boolean(input.archived ?? false),
         future: markIsFuture,
-        year: resolved.d.getUTCFullYear(),
-        month: resolved.d.getUTCMonth() + 1,
+        year: resolved.d?.getUTCFullYear() ?? null,
+        month: resolved.d ? resolved.d.getUTCMonth() + 1 : null,
         sequencePosition,
         kind: input.kind ?? "mark",
       },

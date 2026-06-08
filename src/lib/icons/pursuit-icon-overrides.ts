@@ -1319,6 +1319,253 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
   },
   {
     "concepts": [
+      "reading"
+    ],
+    "iconSlug": "book-open",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "music (listening)"
+    ],
+    "iconSlug": "music",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "instrument",
+      "guitar",
+      "piano"
+    ],
+    "iconSlug": "guitar",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "singing"
+    ],
+    "iconSlug": "mic",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "photography"
+    ],
+    "iconSlug": "camera",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "film",
+      "tv"
+    ],
+    "iconSlug": "clapperboard",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "gaming"
+    ],
+    "iconSlug": "gamepad-2",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "board games",
+      "chess"
+    ],
+    "iconSlug": "dices",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "puzzles"
+    ],
+    "iconSlug": "puzzle",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "travel"
+    ],
+    "iconSlug": "plane",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "explore",
+      "road trips"
+    ],
+    "iconSlug": "map",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "camping"
+    ],
+    "iconSlug": "tent",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "fishing"
+    ],
+    "iconSlug": "fish",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "sailing",
+      "boating"
+    ],
+    "iconSlug": "sailboat",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "scuba diving"
+    ],
+    "iconSlug": null,
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "astronomy",
+      "stargazing"
+    ],
+    "iconSlug": "telescope",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "birdwatching"
+    ],
+    "iconSlug": "bird",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "gardening",
+      "plants"
+    ],
+    "iconSlug": "flower-2",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "art",
+      "painting"
+    ],
+    "iconSlug": "brush",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "drawing"
+    ],
+    "iconSlug": "pencil",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "pottery",
+      "ceramics"
+    ],
+    "iconSlug": null,
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "knitting",
+      "sewing",
+      "crafts"
+    ],
+    "iconSlug": null,
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "woodworking",
+      "diy"
+    ],
+    "iconSlug": "hammer",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "baking"
+    ],
+    "iconSlug": "cake-slice",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "cooking (hobby)"
+    ],
+    "iconSlug": "chef-hat",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "wine",
+      "whisky"
+    ],
+    "iconSlug": "wine",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "coffee",
+      "cafés"
+    ],
+    "iconSlug": "coffee",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "nature",
+      "outdoors"
+    ],
+    "iconSlug": "trees",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "creative writing"
+    ],
+    "iconSlug": "feather",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "calligraphy"
+    ],
+    "iconSlug": "pen-tool",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "collecting"
+    ],
+    "iconSlug": null,
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "dancing"
+    ],
+    "iconSlug": null,
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
+      "volunteering"
+    ],
+    "iconSlug": "hand-heart",
+    "section": "Play & Leisure — Play & Leisure theme (pleasures)"
+  },
+  {
+    "concepts": [
       "move house",
       "relocate"
     ],

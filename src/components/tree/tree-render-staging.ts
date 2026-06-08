@@ -30,6 +30,7 @@ export type LimbDepthStaging = {
 const STAGING_SORT: Record<LifeAreaId, number> = {
   health: 4,
   finance: 20,
+  pleasures: 33,
   work: 46,
   people: 71,
   becoming: 96,

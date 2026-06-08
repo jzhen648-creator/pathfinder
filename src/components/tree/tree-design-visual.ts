@@ -18,6 +18,7 @@ export const TREE_THEME_SHORT_LABEL: Record<LifeAreaId, string> = {
   work: "Work",
   finance: "Money",
   becoming: "Self & Mind",
+  pleasures: "Play",
   people: "People",
   health: "Health",
 };

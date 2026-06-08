@@ -90,6 +90,7 @@ export async function GET() {
           future: true,
           isTurningPoint: true,
           needsResolution: true,
+          sentiment: true,
           createdAt: true,
           updatedAt: true,
         },

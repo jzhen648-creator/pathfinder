@@ -66,27 +66,50 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
   },
   becoming: {
     vision:
-      "Self & Mind is your inner world — values, emotions, reflection, and joy you protect. Orientation and depth, not physical projects (see Health & Body).",
+      "Self & Mind is your inner world — values, emotions, and reflection. Orientation and depth; leisure lives on Play & Leisure.",
     dimensions: [
       "Purpose & Values — direction, meaning, identity, and principles",
       "Mind & Emotions — thoughts, feelings, patterns, and psychological wellbeing",
-      "Joy & Creativity — hobbies, play, culture, and personal expression",
+      "Joy & Creativity — creative self-expression tied to who you are becoming",
     ],
     lenses: [
       "Do you have a lived sense of direction, not just ambition?",
       "Is your emotional and mental life resourced — or only optimized?",
-      "Do you protect joy and creativity that is yours?",
       "Does the timeline show real inner shifts?",
     ],
     healthySignals: [
-      "Pursuits or marks across purpose, mind, and joy hubs",
+      "Pursuits or marks across purpose and mind hubs",
       "Mind & Emotions hub with an active pursuit",
       "Timeline marks that capture identity shifts",
     ],
     gapSignals: [
-      "Only values statements — no mind or joy",
+      "Only values statements — no mind work",
       "Empty theme — inner life not yet mapped",
       "Pursuits with no emotional or reflective story on the timeline",
+    ],
+  },
+  pleasures: {
+    vision:
+      "Play & Leisure is what you do for joy — hobbies, culture, and experiences that make life feel worth living outside obligation.",
+    dimensions: [
+      "Hobbies — making, playing, collecting, and personal interests",
+      "Culture — books, music, art, film, and media",
+      "Experiences — travel, events, adventures, and joyful purchases",
+    ],
+    lenses: [
+      "Do you protect time for fun, not just productivity?",
+      "Are hobbies and interests represented, not just wishes?",
+      "Do you plan experiences you actually want?",
+    ],
+    healthySignals: [
+      "Pursuits across hobbies, culture, or experiences",
+      "At least one active leisure pursuit",
+      "Marks that capture trips, events, or new interests",
+    ],
+    gapSignals: [
+      "No leisure mapped — life looks all duty",
+      "Only one hub — other kinds of play missing",
+      "Stalled pursuits with no recent joy on the timeline",
     ],
   },
   people: {

@@ -22,7 +22,7 @@ function matchesTemplate(limbId: string, label: string | null | undefined): bool
 }
 
 /**
- * Idempotently ensures all 17 locked taxonomy hubs exist for the user (dormant by default).
+ * Idempotently ensures all 20 locked taxonomy hubs exist for the user (dormant by default).
  * Returns the number of hubs created.
  */
 export async function ensureSystemHubsForUser(

@@ -172,7 +172,7 @@ import { treeMapLimbHueReadableInk } from "./tree-canvas-label";
 import { TreeSvgTextLabel } from "./tree-svg-text-label";
 import {
   connectiveBowOriginForArea,
-  domainHubLabelLayout,
+  domainHubLabelLayoutForArea,
   trunkLayoutEnabled,
 } from "./tree-trunk-slots";
 import {
@@ -2850,7 +2850,7 @@ function TreeSVGInner({
                             const domainTitle = rawTitle;
                             const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
                             const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
-                            const labelPos = domainHubLabelLayout(
+                            const labelPos = domainHubLabelLayoutForArea(
                               area.id as LifeAreaId,
                               domainHubPt,
                               hubFanSlot,
@@ -2884,7 +2884,7 @@ function TreeSVGInner({
                           {(() => {
                             const hubDiscR = iconMedallionRadii(hubIconPx, "domainHub").discR;
                             const labelGapPx = TREE_DOMAIN_HUB_LABEL_GAP_PX;
-                            const labelPos = domainHubLabelLayout(
+                            const labelPos = domainHubLabelLayoutForArea(
                               area.id as LifeAreaId,
                               domainHubPt,
                               hubFanSlot,
@@ -3338,7 +3338,7 @@ function TreeSVGInner({
                         const hy = snapTreeSvgScalar(tip.y);
                         const HubGlyph = branchIconForHub(areaLimbId, template.threadType, slotIndex);
                         const ghostLabelFontPx = TREE_DOMAIN_HUB_LABEL_FONT_PX_TRUNK;
-                        const ghostLabelPos = domainHubLabelLayout(
+                        const ghostLabelPos = domainHubLabelLayoutForArea(
                           areaLimbId,
                           tip,
                           slotIndex,

@@ -218,7 +218,7 @@ slow down / presence → leaf
 bucket list → list-checks
 legacy → landmark
 
-## Pleasures — *(NOT in schema v6 — exclude unless a migration adds the theme)*
+## Play & Leisure — Play & Leisure theme (pleasures)
 
 reading → book-open
 music (listening) → music

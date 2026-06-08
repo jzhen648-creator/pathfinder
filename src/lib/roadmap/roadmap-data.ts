@@ -8,6 +8,7 @@ export const ROADMAP_LIFE_AREA_HEX: Record<LimbId, string> = {
   becoming: "#A0622F",
   people: "#C25E8A",
   health: "#4A8FA8",
+  pleasures: "#FF9F6B",
 };
 
 const ROADMAP_LIFE_AREA_HEX_DARK: Record<LimbId, string> = {
@@ -16,6 +17,7 @@ const ROADMAP_LIFE_AREA_HEX_DARK: Record<LimbId, string> = {
   becoming: "#C4894F",
   people: "#D47BA6",
   health: "#6AAFCA",
+  pleasures: "#FFB088",
 };
 
 const ROADMAP_LIFE_AREA_SUB: Record<LimbId, string> = {
@@ -24,6 +26,7 @@ const ROADMAP_LIFE_AREA_SUB: Record<LimbId, string> = {
   becoming: "#F7EDDF",
   people: "#F9EAF2",
   health: "#E5F4F8",
+  pleasures: "#FFF0E8",
 };
 
 const ROADMAP_LIFE_AREA_SUB_DARK: Record<LimbId, string> = {
@@ -32,6 +35,7 @@ const ROADMAP_LIFE_AREA_SUB_DARK: Record<LimbId, string> = {
   becoming: "#2E2018",
   people: "#2E1824",
   health: "#1A2E35",
+  pleasures: "#2E2018",
 };
 
 const KNOWN_LIFE_AREA_IDS = new Set(LIFE_AREAS.map((l) => l.id));
@@ -45,6 +49,7 @@ export const ROADMAP_LIFE_AREA_COLUMN_ORDER: LimbId[] = [
   "finance",
   "work",
   "becoming",
+  "pleasures",
   "people",
   "health",
 ];
@@ -121,6 +126,7 @@ const ROADMAP_LIFE_AREA_ROOT_DECISION_LABEL: Record<LimbId, string> = {
   finance: "Start of Money & Finance Journey",
   health: "Start of Health & Body Journey",
   people: "Start of People & Relationships Journey",
+  pleasures: "Start of Play & Leisure Journey",
 };
 
 /**

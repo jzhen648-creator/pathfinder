@@ -340,10 +340,10 @@ export type StreamHubContextInput = {
     bloomStatus: string;
     parentGoalId: string | null;
   }>;
-  existingMarks: Array<{ title: string; date: string }>;
+  existingMarks: Array<{ title: string; date?: string }>;
   /** Removed from map (hidden) — dedup only, not active tree context. */
   removedPursuits: Array<{ title: string }>;
-  removedMarks: Array<{ title: string; date: string }>;
+  removedMarks: Array<{ title: string; date?: string }>;
   /** Last 3 Stream mark titles (chronological), or "None yet". */
   previousStreamSessionSummary: string;
 };
@@ -371,10 +371,10 @@ export type StreamThemeHubContextInput = {
     bloomStatus: string;
     parentGoalId: string | null;
   }>;
-  existingMarks: Array<{ title: string; date: string }>;
+  existingMarks: Array<{ title: string; date?: string }>;
   /** Removed from map on this hub — dedup only. */
   removedPursuits: Array<{ title: string }>;
-  removedMarks: Array<{ title: string; date: string }>;
+  removedMarks: Array<{ title: string; date?: string }>;
 };
 
 export type StreamThemeContextInput = {

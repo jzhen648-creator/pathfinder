@@ -278,12 +278,12 @@ export async function POST(request: Request) {
       })),
       existingMarks: marks.map((m) => ({
         title: m.title,
-        date: m.date.toISOString().slice(0, 10),
+        ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
       })),
       removedPursuits: archivedGoals.map((g) => ({ title: g.title })),
       removedMarks: archivedMarks.map((m) => ({
         title: m.title,
-        date: m.date.toISOString().slice(0, 10),
+        ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
       })),
       previousStreamSessionSummary,
     });

@@ -24,6 +24,10 @@ export const STRAIGHT_LIFE_AREA_IDS = [
 
 export type StraightLifeAreaId = (typeof STRAIGHT_LIFE_AREA_IDS)[number];
 
+export function isStraightLifeAreaId(id: string): id is StraightLifeAreaId {
+  return (STRAIGHT_LIFE_AREA_IDS as readonly string[]).includes(id);
+}
+
 /**
  * Hub **theme** gateways orbit {@link THEME_STAR_CENTER} on exact pentagon points.
  */

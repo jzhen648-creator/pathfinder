@@ -15,14 +15,14 @@ function pad2(n: number) {
 
 /**
  * Resolves a mark date from `date` (ISO) and/or `year` + `month` (month 1-12, optional).
- * Returns an error if nothing usable was provided or the value is not a real date.
+ * Returns `d: null` when no date fields are provided (undated fact marks).
  */
 export function resolveMarkInputDate(input: {
-  date?: string;
+  date?: string | null;
   year?: number;
   month?: number | null;
 }):
-  | { ok: true; d: Date }
+  | { ok: true; d: Date | null }
   | { ok: false; message: string } {
   if (input.date != null && String(input.date).trim() !== "") {
     const d = new Date(String(input.date));
@@ -32,7 +32,7 @@ export function resolveMarkInputDate(input: {
     return { ok: true, d };
   }
   if (input.year === undefined) {
-    return { ok: false, message: "Date is required (provide date or year)." };
+    return { ok: true, d: null };
   }
   if (!Number.isFinite(Number(input.year))) {
     return { ok: false, message: "Year must be a valid number between 1900 and 2100." };
@@ -137,7 +137,7 @@ export const createMarkBodySchema = z
     const resolved = resolveMarkInputDate(data);
     if (!resolved.ok) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: resolved.message, path: ["date"] });
-    } else if (isMarkDateInTheFuture(resolved.d) && data.kind !== "stream") {
+    } else if (resolved.d && isMarkDateInTheFuture(resolved.d) && data.kind !== "stream") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Date cannot be in the future.",
@@ -245,18 +245,32 @@ export type CreateBranchBody = z.infer<typeof createBranchBodySchema>;
  * Used to validate "not in the future" when the client sends partial `year` / `month`.
  */
 export function resolveMarkDateForPatch(
-  input: { date?: string; year?: number; month?: number | null | undefined },
-  existingDate: Date,
-): { ok: true; d: Date } | { ok: false; message: string } {
+  input: { date?: string | null; year?: number; month?: number | null | undefined },
+  existingDate: Date | null,
+): { ok: true; d: Date | null } | { ok: false; message: string } {
+  if (input.date === null) {
+    return { ok: true, d: null };
+  }
   if (input.date != null && String(input.date).trim() !== "") {
     return resolveMarkInputDate({ date: input.date });
   }
   if (input.year === undefined && input.month === undefined) {
     return { ok: true, d: existingDate };
   }
-  const y = input.year !== undefined ? input.year : existingDate.getUTCFullYear();
+  const y =
+    input.year !== undefined
+      ? input.year
+      : existingDate
+        ? existingDate.getUTCFullYear()
+        : undefined;
+  if (y === undefined) {
+    return { ok: true, d: null };
+  }
   if (input.month === undefined) {
-    return resolveMarkInputDate({ year: y, month: existingDate.getUTCMonth() + 1 });
+    return resolveMarkInputDate({
+      year: y,
+      month: existingDate ? existingDate.getUTCMonth() + 1 : undefined,
+    });
   }
   return resolveMarkInputDate({ year: y, month: input.month });
 }

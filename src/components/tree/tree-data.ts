@@ -252,7 +252,14 @@ export const LIFE_AREA_CONFIG: Record<string, { label: string; color: string }> 
 /** @deprecated Use `LIFE_AREA_CONFIG`. */
 export const LIMB_CONFIG = LIFE_AREA_CONFIG;
 
-export const LIFE_AREA_ORDER = ["becoming", "finance", "health", "work", "people"] as const;
+export const LIFE_AREA_ORDER = [
+  "becoming",
+  "pleasures",
+  "finance",
+  "health",
+  "work",
+  "people",
+] as const;
 
 /** `limbId`s omitted from the life-tree SVG (`mapToTreeData`). API/DB branches unchanged. */
 export const TREE_DISABLED_LIFE_AREA_IDS: ReadonlySet<string> = new Set();

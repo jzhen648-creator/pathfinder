@@ -134,7 +134,7 @@ export async function POST(request: Request, { params }: RouteProps) {
   /** moment kind → Mark row */
   const resolved = resolveMarkInputDate({ date: input.date, year: input.year, month: input.month });
   if (!resolved.ok) return NextResponse.json({ error: resolved.message }, { status: 400 });
-  if (isMarkDateInTheFuture(resolved.d)) {
+  if (resolved.d && isMarkDateInTheFuture(resolved.d)) {
     return NextResponse.json({ error: "Date cannot be in the future." }, { status: 400 });
   }
   const title = displayMarkTitleFromInput(input.title, input.label);
@@ -150,10 +150,12 @@ export async function POST(request: Request, { params }: RouteProps) {
         title,
         description: input.description ?? null,
         date: resolved.d,
+        year: resolved.d?.getUTCFullYear() ?? null,
+        month: resolved.d ? resolved.d.getUTCMonth() + 1 : null,
         sentiment: "neutral",
         archived: false,
         significance: input.significance ?? 1,
-        future: Boolean(input.future ?? false),
+        future: resolved.d ? Boolean(input.future ?? false) : false,
         sequencePosition,
         kind: input.markKind ?? "mark",
       },

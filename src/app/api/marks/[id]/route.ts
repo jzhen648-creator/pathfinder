@@ -18,7 +18,7 @@ const updateMarkSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   label: z.string().min(1).max(200).optional(),
   description: z.string().nullable().optional(),
-  date: z.string().datetime().optional(),
+  date: z.union([z.string().datetime(), z.null()]).optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   month: z.number().int().min(1).max(12).nullable().optional(),
   value: z.number().nullable().optional(),
@@ -38,11 +38,21 @@ const updateMarkSchema = z.object({
     .optional(),
 });
 
-function resolveDate(input: { date?: string; year?: number; month?: number | null }): Date | undefined {
+function resolveDatePatch(
+  input: { date?: string | null; year?: number; month?: number | null },
+  existingDate: Date | null,
+): Date | null | undefined {
+  if (input.date === null) return null;
   if (input.date) return new Date(input.date);
   if (input.year !== undefined || input.month !== undefined) {
-    const y = Number.isFinite(Number(input.year)) ? Number(input.year) : new Date().getFullYear();
-    const m = Number.isFinite(Number(input.month)) ? Number(input.month) : 1;
+    const y = Number.isFinite(Number(input.year))
+      ? Number(input.year)
+      : existingDate?.getUTCFullYear() ?? new Date().getUTCFullYear();
+    const m = Number.isFinite(Number(input.month))
+      ? Number(input.month)
+      : existingDate
+        ? existingDate.getUTCMonth() + 1
+        : 1;
     return new Date(`${y}-${String(m).padStart(2, "0")}-01T00:00:00.000Z`);
   }
   return undefined;
@@ -79,6 +89,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   }
 
   const titleInput = input.title ?? input.label;
+  const patchDate = resolveDatePatch(input, existing.date);
 
   if (input.sequenceAnchor) {
     await prisma.$transaction(async (tx) => {
@@ -92,7 +103,14 @@ export async function PATCH(request: Request, { params }: RouteProps) {
           limbId: targetLimbId,
           title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
           description: input.description,
-          date: resolveDate(input),
+          ...(patchDate !== undefined ? { date: patchDate } : {}),
+          ...(patchDate !== undefined
+            ? {
+                year: patchDate?.getUTCFullYear() ?? null,
+                month: patchDate ? patchDate.getUTCMonth() + 1 : null,
+                future: patchDate ? patchDate.getTime() > Date.now() : false,
+              }
+            : {}),
           value: input.value,
           sentiment: input.sentiment,
           archived: input.archived,
@@ -111,7 +129,14 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       limbId: targetLimbId,
       title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
       description: input.description,
-      date: resolveDate(input),
+      ...(patchDate !== undefined ? { date: patchDate } : {}),
+      ...(patchDate !== undefined
+        ? {
+            year: patchDate?.getUTCFullYear() ?? null,
+            month: patchDate ? patchDate.getUTCMonth() + 1 : null,
+            future: patchDate ? patchDate.getTime() > Date.now() : false,
+          }
+        : {}),
       value: input.value,
       sentiment: input.sentiment,
       archived: input.archived,

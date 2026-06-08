@@ -324,37 +324,123 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
     },
     "Joy & Creativity": {
       about:
-        "Fun, hobbies, play, leisure, creativity, personal expression, art, writing, music, exploration, entertainment, and experiences that make life enjoyable — not work output.",
-      why: "Joy deferred becomes burnout; giving it a hub prevents every fun thing from looking like a career project.",
+        "Creative expression and playful identity projects that are about who you are becoming — not leisure hobbies, media, or travel (see Play & Leisure). Narrower than the old folded Pleasures lane.",
+      why: "Some creative joy is about self-expression tied to values; it should not compete with therapy or with pure leisure.",
       belongsHere: [
-        "I want to start painting again",
-        "I want to make time for hobbies",
-        "Plan Japan trip",
+        "Write a personal manifesto",
+        "Start a creative ritual",
+        "Make space for playful self-expression",
       ],
       doesNotBelongHere: [
-        "Launch paid newsletter as a business (→ Builds & Launches)",
-        "Values clarification retreat (→ Purpose & Values)",
-        "Weekly dinner with friends as belonging (→ Friendships)",
+        "Learn guitar for fun (→ Hobbies on Play & Leisure)",
+        "Plan Japan trip (→ Experiences on Play & Leisure)",
+        "Weekly film club (→ Culture on Play & Leisure)",
       ],
       aiRoutingNote:
-        "Route here for fun, hobbies, play, leisure, creativity, personal expression, art, writing, music, exploration, and entertainment — things the user wants because they make life enjoyable, not because they advance career or values. If the user would feel guilty calling it work, it belongs here. Social fun centered on people and belonging may belong on Friendships or Romance; Joy & Creativity is for the activity itself. Career qualifications, job progress, and business output belong on Work & Career, not here.",
+        "Route here only for creative self-expression and playful identity work that clearly fits Self & Mind — not general hobbies, media, travel, or entertainment. Leisure, hobbies, culture consumption, and experiences belong on Play & Leisure (pleasures theme). Social fun centered on people may belong on Friendships or Romance.",
       examples: [
-        "I want to start painting again",
-        "I want to make time for hobbies",
-        "I want to enjoy life more instead of only working",
-        "I want to write creatively",
-        "I want to plan more fun experiences",
-        "I want to learn guitar",
-        "I want to make space for things that feel playful",
+        "Start a creative ritual",
+        "Make space for playful self-expression",
+        "Write for myself, not to publish",
       ],
       openingQuestions: [
-        "What's something you genuinely enjoy that you haven't done in too long?",
-        "Any trip, experience, or hobby that keeps getting pushed to next month?",
-        "What does a really good week look like for you — is there enough play in it?",
+        "Is there a creative side of you that feels underfed?",
+        "Any playful expression that connects to who you're becoming?",
+        "What would making space for that look like this month?",
       ],
       firstTimeQuestion:
-        "What do you love doing for no other reason than the fact you love it?",
-      coachMarkHubInstruction: "Any experiences or hobbies you want to make room for?",
+        "Is there a creative or playful part of you that deserves its own lane?",
+      coachMarkHubInstruction: "Any creative joy that's really about you, not just fun?",
+    },
+  },
+  pleasures: {
+    Hobbies: {
+      about:
+        "Personal interests you do for fun — crafts, gaming, collecting, gardening, making, tinkering. Active doing, not passive consumption.",
+      why: "Hobbies need their own lane so they do not collapse into inner work or career side projects.",
+      belongsHere: [
+        "Get back into painting",
+        "Finish my Warhammer army",
+        "Start a vinyl collection",
+      ],
+      doesNotBelongHere: [
+        "Read more fiction (→ Culture)",
+        "Plan a trip to Japan (→ Experiences)",
+        "Therapy for burnout (→ Mind & Emotions)",
+      ],
+      aiRoutingNote:
+        "Route here for hobbies, crafts, gaming, collecting, making, and personal interests done for enjoyment. Active leisure and skill-for-fun belong here. Passive media consumption → Culture. Trips and events → Experiences. Work output with a deliverable → Builds & Launches.",
+      examples: [
+        "Get back into painting",
+        "Learn guitar for fun",
+        "Start a board game night habit",
+        "Build a model railway",
+      ],
+      openingQuestions: [
+        "What hobby have you let slide that you'd actually miss?",
+        "Anything you make or collect just because you love it?",
+        "What would picking it back up look like?",
+      ],
+      firstTimeQuestion: "What do you love making, playing, or collecting?",
+      coachMarkHubInstruction: "Any hobbies you want back in your life?",
+    },
+    Culture: {
+      about:
+        "Books, music, art, film, theatre, and media you engage with for enrichment and pleasure — reading, listening, watching, visiting.",
+      why: "Culture is consumption and appreciation — different from making hobbies or booking trips.",
+      belongsHere: [
+        "Read 12 books this year",
+        "See more live music",
+        "Start a film list",
+      ],
+      doesNotBelongHere: [
+        "Learn to play piano (→ Hobbies)",
+        "Trip to Japan (→ Experiences)",
+        "Write a novel (→ Joy & Creativity or Builds & Launches if shipping)",
+      ],
+      aiRoutingNote:
+        "Route here for reading, listening, watching, exhibitions, concerts, theatre, and media appreciation. Learning an instrument as a hobby → Hobbies. Travel and events → Experiences.",
+      examples: [
+        "Read 12 books this year",
+        "See more live music",
+        "Watch the director's cut list",
+      ],
+      openingQuestions: [
+        "What are you reading, watching, or listening to lately?",
+        "Any culture you wish you made more room for?",
+        "What would one small step toward that be?",
+      ],
+      firstTimeQuestion: "What books, music, or films are part of your life right now?",
+      coachMarkHubInstruction: "Any culture you want more of?",
+    },
+    Experiences: {
+      about:
+        "Travel, events, adventures, holidays, festivals, and purchases made for joy — the experiences you plan and remember.",
+      why: "Experiences are episodic and logistical; they should not absorb every leisure goal.",
+      belongsHere: [
+        "Plan Japan trip",
+        "Go to a festival this summer",
+        "Book a special meal out",
+      ],
+      doesNotBelongHere: [
+        "Daily gaming habit (→ Hobbies)",
+        "Read travel writing (→ Culture)",
+        "Move abroad for work (→ Career or Life & Admin themes)",
+      ],
+      aiRoutingNote:
+        "Route here for trips, holidays, events, adventures, festivals, and experience purchases done for joy. Ongoing hobbies → Hobbies. Media and books about travel → Culture unless the user is clearly planning the trip.",
+      examples: [
+        "Plan Japan trip",
+        "Weekend in the Lakes",
+        "Festival with friends",
+      ],
+      openingQuestions: [
+        "Any trip or event you're circling but haven't booked?",
+        "What experience would make the next few months feel alive?",
+        "What would planning that look like this week?",
+      ],
+      firstTimeQuestion: "What experience are you most looking forward to — or missing?",
+      coachMarkHubInstruction: "Any trips or events you want to plan?",
     },
   },
   people: {
@@ -603,7 +689,9 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
     finance: "Money, security, and how resources flow through your life.",
     work: "Skills, career momentum, and work that matters to you.",
     becoming:
-      "Purpose & values, mind & emotions, and joy & creativity you protect for yourself — personal development that does not belong on Money, Work, Health, or People.",
+      "Purpose & values and mind & emotions — personal development that does not belong on Money, Work, Health, People, or Play & Leisure.",
+    pleasures:
+      "Hobbies, culture, and experiences you protect for joy — leisure that does not belong on Self & Mind, Work, or People.",
     people: "Relationships and the people who shape your story — named connections, not task lists.",
     health: "Physical foundation — movement, fuel, appearance, and rest.",
   };

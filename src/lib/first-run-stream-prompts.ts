@@ -4,6 +4,7 @@ const FIRST_RUN_STREAM_PROMPTS: Record<LifeAreaId, string> = {
   work: "What's been happening in your work life lately?",
   finance: "What's been happening with your money lately?",
   becoming: "What's been shaping who you're becoming lately?",
+  pleasures: "What have you been doing for fun lately?",
   people: "What's been happening in your relationships lately?",
   health: "How has your body and health been lately?",
 };

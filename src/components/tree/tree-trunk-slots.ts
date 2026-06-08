@@ -2,8 +2,9 @@
  * Trunk-relative theme gateway layout — slot table + attach math for the five current themes.
  */
 import { FLAGS } from "@/lib/flags";
+import type { LifeAreaId } from "@/lib/types";
 import type { StraightLifeAreaId } from "./tree-area-anchors";
-import { THEME_STAR_CENTER } from "./tree-area-anchors";
+import { isStraightLifeAreaId, THEME_STAR_CENTER } from "./tree-area-anchors";
 import { TREE_TRUNK_MIRROR_X } from "./tree-geometry";
 import type { Point } from "./tree-types";
 import {
@@ -780,6 +781,26 @@ export function domainHubLabelLayout(
     textAnchor: "middle",
     dominantBaseline: "hanging",
   };
+}
+
+/** Same as {@link domainHubLabelLayout} but accepts any life area (non-trunk themes use a simple fallback). */
+export function domainHubLabelLayoutForArea(
+  areaId: LifeAreaId,
+  hub: Point,
+  slotIndex: number,
+  hubDiscR: number,
+  labelGapPx: number,
+  fontSizePx: number,
+): DomainHubLabelLayout {
+  if (!isStraightLifeAreaId(areaId)) {
+    return {
+      x: hub.x,
+      y: hub.y + hubDiscR + labelGapPx,
+      textAnchor: "middle",
+      dominantBaseline: "hanging",
+    };
+  }
+  return domainHubLabelLayout(areaId, hub, slotIndex, hubDiscR, labelGapPx, fontSizePx);
 }
 
 export function domainClusterRingNeighborMulForLayout(branchCountOnLimb: number): number {

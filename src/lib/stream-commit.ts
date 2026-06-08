@@ -337,11 +337,11 @@ async function commitItemsToBranchInTx(
     }
 
     const dateStr = parseMarkDateYmd(mark.date);
-    const resolved = resolveMarkInputDate({ date: dateStr });
+    const resolved = resolveMarkInputDate({ date: dateStr ?? undefined });
     if (!resolved.ok) {
       throw new Error(resolved.message);
     }
-    const future = isMarkDateInTheFuture(resolved.d);
+    const future = resolved.d ? isMarkDateInTheFuture(resolved.d) : false;
 
     const sequencePosition = await nextSequencePosition();
     await tx.mark.create({
@@ -355,8 +355,8 @@ async function commitItemsToBranchInTx(
         sentiment: "positive",
         archived: false,
         future,
-        year: resolved.d.getUTCFullYear(),
-        month: resolved.d.getUTCMonth() + 1,
+        year: resolved.d?.getUTCFullYear() ?? null,
+        month: resolved.d ? resolved.d.getUTCMonth() + 1 : null,
         sequencePosition,
         kind: "stream",
       },

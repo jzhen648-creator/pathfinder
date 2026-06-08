@@ -41,9 +41,8 @@ export async function ensureHubTaxonomyCurrent(
   return { skipped: false, updates };
 }
 
-/** Retired sixth theme — re-home any surviving rows under Self & Mind / Joy & Creativity. */
 function resolveLegacyLimbId(limbId: string): LifeAreaId {
-  return limbId === "pleasures" ? "becoming" : (limbId as LifeAreaId);
+  return limbId as LifeAreaId;
 }
 
 /** Root-branch label sync for locked hub taxonomy. Idempotent. */
@@ -68,10 +67,6 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
       limbId = legacy.limbId;
       label = legacy.label;
       name = legacy.label;
-    } else if (branch.limbId === "pleasures") {
-      limbId = "becoming";
-      label = label || "Joy & Creativity";
-      name = name || label;
     } else if (raw === "joy" && limbId === "health") {
       limbId = "becoming";
       label = "Joy & Creativity";
