@@ -214,13 +214,11 @@ export async function applyChildPursuitStream(
   const items: StreamRunAppliedItem[] = [];
   let createdGoalId = "";
   const description = composeChildPursuitDescription(proposal, ctx.pursuitTitle);
-  const iconName = (
-    await assignPursuitIconSafe({
+  const iconName = await assignPursuitIconSafe({
       title: proposal.title,
       description,
       lifeArea,
-    })
-  ).iconName;
+    });
 
   try {
     await prisma.$transaction(async (tx) => {
