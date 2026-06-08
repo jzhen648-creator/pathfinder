@@ -135,7 +135,12 @@ export async function POST(request: Request) {
     stages.sequence_load = Date.now() - sequenceStart;
 
     const iconStart = Date.now();
-    const overridePreflight = matchPreferredOverrideIconSlug(title, description);
+    let overridePreflight: string | null = null;
+    try {
+      overridePreflight = matchPreferredOverrideIconSlug(title, description);
+    } catch (preflightErr) {
+      console.error("[POST /api/goals] override preflight failed", preflightErr);
+    }
     const iconResult = await assignPursuitIconSafe({
       title,
       description,
