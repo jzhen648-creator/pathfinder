@@ -13,9 +13,9 @@ assert.equal(formatPreviousStreamSessionSummary([]), "None yet");
 assert.equal(formatPreviousStreamSessionSummary(["A", "B"]), "A, B");
 assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("narrativeSentence"));
 assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("narrativeSentence"));
-assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("confidence < 0.65"));
-assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("confidence < 0.65"));
-assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("Skills / Career"));
+assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("peers on their hub track"));
+assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("peers on their hub track"));
+assert.ok(STREAM_EXTRACT_SYSTEM_PROMPT.includes("hub-scoped extractor"));
 assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("Self & Mind theme boundaries"));
 assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("mind & emotions"));
 assert.ok(STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT.includes("purpose & values"));
@@ -78,7 +78,6 @@ const withNullParentRef = preprocessStreamExtractJson({
       title: "Ship v1",
       goalType: "project",
       bloomStatus: "ACTIVE",
-      parentRef: null,
       clientKey: null,
       hubId: null,
     },
@@ -109,7 +108,7 @@ assert.equal(parsedNulls.success, true);
 if (parsedNulls.success) {
   assert.equal(parsedNulls.data.narrativeSentence, "You are sorting what matters next.");
   assert.equal(parsedNulls.data.pursuits.length, 1);
-  assert.equal(parsedNulls.data.pursuits[0]?.parentRef, undefined);
+  assert.equal("parentRef" in (parsedNulls.data.pursuits[0] ?? {}), false);
   assert.equal(parsedNulls.data.milestones.length, 1);
   assert.equal(parsedNulls.data.milestones[0]?.title, "Good ref");
   assert.equal(parsedNulls.data.ambiguous[0]?.confidence, 0.52);

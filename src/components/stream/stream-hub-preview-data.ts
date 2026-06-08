@@ -362,10 +362,7 @@ export function mergePreviewItemsIntoHub(
       continue;
     }
 
-    let parentGoalId: string | null = null;
-    if (p.parentRef) {
-      parentGoalId = resolvePursuitRefId(p.parentRef, clientKeyToId, thread.goals as PreviewTreeGoalNode[]);
-    }
+    const parentGoalId: string | null = null;
 
     const node = extractedPursuitToGoalNode(p, thread.id, parentGoalId);
     const src = pursuitSourceNodes[pursuitSourceIdx];
@@ -507,14 +504,6 @@ export function previewNodesToApprovedItems(nodes: PreviewNode[]): ApprovedStrea
         bloomStatus: (n.bloomStatus as StreamBloomStatus) ?? "ACTIVE",
       };
       if (n.clientKey) pursuit.clientKey = n.clientKey;
-      if (n.parentId) {
-        const parentKey = clientKeyFromPreviewPursuitId(n.parentId);
-        if (parentKey) {
-          pursuit.parentRef = { kind: "new", clientKey: parentKey };
-        } else {
-          pursuit.parentRef = { kind: "existing", goalId: n.parentId };
-        }
-      }
       pursuits.push(pursuit);
       continue;
     }

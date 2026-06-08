@@ -237,7 +237,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Hobby game dev with no ship goal (→ Joy & Creativity)",
       ],
       aiRoutingNote:
-        "Route here when the user describes building, shipping, or releasing a tangible work output — YouTube videos, portfolio pieces, products, side projects with a deliverable. The signal is something that gets published or completed, not learned or earned. When a new target is a clear next chapter of an existing shipped pursuit (same channel or product, higher metric, later date), extract it as a continuation with parentRef, not a peer pursuit.",
+        "Route here when the user describes building, shipping, or releasing a tangible work output — YouTube videos, portfolio pieces, products, side projects with a deliverable. The signal is something that gets published or completed, not learned or earned. When a new target is a clear next chapter of an existing shipped pursuit (same channel or product, higher metric, later date), extract it as a new peer pursuit with a distinct title.",
       examples: [
         "Ship Pathfinder v1",
         "Finish case-study portfolio",

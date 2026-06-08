@@ -55,8 +55,6 @@ export const extractedPursuitSchema = z.object({
   reviewNote: z.string().max(280).nullable().optional(),
   /** Cautious public-event context without live lookup; confirmation UI only. */
   eventContext: z.string().max(280).nullable().optional(),
-  /** Parent pursuit on this hub (existing) or created this session (new clientKey). */
-  parentRef: pursuitRefSchema.optional(),
   hubId: streamHubSlugSchema.optional(),
 });
 
@@ -76,13 +74,6 @@ export const streamPursuitUpdateSchema = z.object({
 
 export const streamPursuitApplyRequestSchema = z.object({
   pursuitId: z.string().min(1),
-  input: z.string().min(1).max(4000),
-  inputMode: z.enum(["text", "voice"]).default("text"),
-});
-
-/** Child-pursuit branch composer: intentional creation of a new pursuit from a parent. */
-export const streamChildPursuitApplyRequestSchema = z.object({
-  parentPursuitId: z.string().min(1),
   input: z.string().min(1).max(4000),
   inputMode: z.enum(["text", "voice"]).default("text"),
 });

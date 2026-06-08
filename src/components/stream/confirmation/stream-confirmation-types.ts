@@ -147,18 +147,11 @@ export function formatPursuitPeerDetail(pursuit: ExtractedPursuit): string {
 }
 
 export function pursuitParentLabel(
-  pursuit: ExtractedPursuit,
-  titleByRef: Map<string, string>,
-  sessionPursuits: ExtractedPursuit[] = [],
+  _pursuit: ExtractedPursuit,
+  _titleByRef: Map<string, string>,
+  _sessionPursuits: ExtractedPursuit[] = [],
 ): string | null {
-  if (!pursuit.parentRef) return null;
-  if (pursuit.parentRef.kind === "existing") {
-    return titleByRef.get(pursuit.parentRef.goalId) ?? null;
-  }
-  const key = pursuit.parentRef.clientKey;
-  const mapped = titleByRef.get(key);
-  if (mapped) return mapped;
-  return sessionPursuits.find((p) => p.clientKey === key)?.title ?? null;
+  return null;
 }
 
 export function formatPursuitDetail(
@@ -381,19 +374,9 @@ const EMPTY_COMMIT: StreamSingleCommitPayload = {
 
 export function preparePursuitForCommit(
   pursuit: ExtractedPursuit,
-  skippedClientKeys: Set<string>,
-  committedClientKeyToGoalId: Map<string, string>,
+  _skippedClientKeys: Set<string>,
+  _committedClientKeyToGoalId: Map<string, string>,
 ): ExtractedPursuit {
-  if (!pursuit.parentRef) return pursuit;
-  if (pursuit.parentRef.kind === "existing") return pursuit;
-  const parentKey = pursuit.parentRef.clientKey;
-  if (skippedClientKeys.has(parentKey)) {
-    return { ...pursuit, parentRef: undefined };
-  }
-  const goalId = committedClientKeyToGoalId.get(parentKey);
-  if (goalId) {
-    return { ...pursuit, parentRef: { kind: "existing", goalId } };
-  }
   return pursuit;
 }
 

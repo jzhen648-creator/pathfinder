@@ -15,7 +15,6 @@ export function streamCardVariant(item: ConfirmationQueueItem): StreamCardVarian
   if (item.kind === "ambiguous") return "ambiguous";
   if (item.kind === "mark") return "mark";
   if (item.kind === "milestone") return "milestone";
-  if (item.item.parentRef) return "pursuit-child";
   return "pursuit-peer";
 }
 

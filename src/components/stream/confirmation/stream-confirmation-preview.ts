@@ -26,18 +26,11 @@ export function previewNodeFromDecision(
 
   if (decision.kind === "pursuit") {
     const clientKey = decision.item.clientKey ?? decision.queueId;
-    let parentId: string | null = null;
-    if (decision.item.parentRef) {
-      parentId =
-        decision.item.parentRef.kind === "existing"
-          ? decision.item.parentRef.goalId
-          : `${PREVIEW_ID_PREFIX}pursuit-${decision.item.parentRef.clientKey}`;
-    }
     return {
       id: `${PREVIEW_ID_PREFIX}pursuit-${clientKey}`,
       kind: "pursuit",
       title: decision.item.title,
-      parentId,
+      parentId: null,
       clientKey,
       bloomStatus: decision.item.bloomStatus,
       goalType: decision.item.goalType,

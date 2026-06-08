@@ -64,18 +64,6 @@ function maxMilestonePosition(milestones: { position: number }[]): number {
   return milestones.reduce((acc, m) => Math.max(acc, m.position), -1);
 }
 
-function resolveParentGoalId(
-  parentRef: ExtractedPursuit["parentRef"],
-  hubGoalIds: Set<string>,
-  clientKeyToGoalId: Map<string, string>,
-): string | null {
-  if (!parentRef) return null;
-  if (parentRef.kind === "existing") {
-    return hubGoalIds.has(parentRef.goalId) ? parentRef.goalId : null;
-  }
-  return clientKeyToGoalId.get(parentRef.clientKey) ?? null;
-}
-
 function buildAllowedPursuitGoalIds(
   hubGoalIds: Set<string>,
   pursuits: ExtractedPursuit[],
@@ -119,24 +107,6 @@ function resolveMilestonesForBranch(
     console.warn("[stream-commit] skipping milestone — unknown pursuit", ms.title, goalId);
   }
   return out;
-}
-
-/** Parents and existing-hub children first; session children after clientKey map is populated. */
-function partitionNewPursuits(pursuits: ExtractedPursuit[]): {
-  firstPass: ExtractedPursuit[];
-  deferred: ExtractedPursuit[];
-} {
-  const firstPass: ExtractedPursuit[] = [];
-  const deferred: ExtractedPursuit[] = [];
-  for (const p of pursuits) {
-    if (p.existingGoalId) continue;
-    if (p.parentRef?.kind === "new") {
-      deferred.push(p);
-    } else {
-      firstPass.push(p);
-    }
-  }
-  return { firstPass, deferred };
 }
 
 type TxClient = Prisma.TransactionClient;
@@ -267,14 +237,13 @@ async function commitItemsToBranchInTx(
     return resolution.sequencePosition;
   };
 
-  const createNewPursuit = async (p: ExtractedPursuit, parentGoalId: string | null) => {
+  const createNewPursuit = async (p: ExtractedPursuit) => {
     const title = p.title.trim();
     if (!title) return;
     const description = p.description?.trim() ?? "";
 
     const bloomStatus = p.bloomStatus as BloomStatus;
-    const isChild = parentGoalId != null;
-    const sequencePosition = isChild ? null : await nextSequencePosition();
+    const sequencePosition = await nextSequencePosition();
     const iconName = await assignPursuitIconSafe({
         title,
         description,
@@ -299,7 +268,6 @@ async function commitItemsToBranchInTx(
         year: defaultYear,
         month: defaultMonth,
         sequencePosition,
-        parentGoalId,
         ...(bloomStatus === "COMPLETE" ? { bloomedAt: new Date() } : {}),
       },
     });
@@ -320,13 +288,10 @@ async function commitItemsToBranchInTx(
 
     const goalId = p.existingGoalId;
     const title = p.title.trim();
-    const parentGoalId = resolveParentGoalId(p.parentRef, hubGoalIds, clientKeyToGoalId);
     const updateData: {
       title?: string;
       bloomStatus?: BloomStatus;
       bloomedAt?: Date;
-      parentGoalId?: string | null;
-      sequencePosition?: null;
     } = {};
 
     const currentBloom = currentBloomByGoalId.get(goalId);
@@ -347,16 +312,6 @@ async function commitItemsToBranchInTx(
       updateData.title = title;
       goalsNeedingShortLabel.add(goalId);
     }
-    if (
-      p.parentRef &&
-      parentGoalId &&
-      parentGoalId !== goalId &&
-      p.bloomStatus !== "COMPLETE" &&
-      p.bloomStatus !== "ON_HOLD"
-    ) {
-      updateData.parentGoalId = parentGoalId;
-      updateData.sequencePosition = null;
-    }
 
     if (Object.keys(updateData).length > 0) {
       await tx.goal.update({
@@ -370,37 +325,9 @@ async function commitItemsToBranchInTx(
     }
   }
 
-  const { firstPass, deferred } = partitionNewPursuits(pursuits);
-
-  for (const p of firstPass) {
-    const parentGoalId = resolveParentGoalId(p.parentRef, hubGoalIds, clientKeyToGoalId);
-    await createNewPursuit(p, parentGoalId);
-  }
-
-  for (const goalId of clientKeyToGoalId.values()) {
-    hubGoalIds.add(goalId);
-  }
-
-  let pending = [...deferred];
-  while (pending.length > 0) {
-    const next: ExtractedPursuit[] = [];
-    let progressed = false;
-    for (const p of pending) {
-      const parentGoalId = resolveParentGoalId(p.parentRef, hubGoalIds, clientKeyToGoalId);
-      if (p.parentRef?.kind === "new" && !parentGoalId) {
-        next.push(p);
-        continue;
-      }
-      progressed = true;
-      await createNewPursuit(p, parentGoalId);
-    }
-    if (!progressed) {
-      for (const p of next) {
-        await createNewPursuit(p, null);
-      }
-      break;
-    }
-    pending = next;
+  for (const p of pursuits) {
+    if (p.existingGoalId) continue;
+    await createNewPursuit(p);
   }
 
   for (const mark of marks) {

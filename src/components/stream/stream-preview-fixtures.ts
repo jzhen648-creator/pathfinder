@@ -168,14 +168,6 @@ export function previewLayoutToApprovedItems(input: PreviewLayoutInput): Approve
       bloomStatus: p.bloomStatus ?? "ACTIVE",
     };
     if (p.clientKey) pursuit.clientKey = p.clientKey;
-    if (p.parentExistingGoalId) {
-      pursuit.parentRef = { kind: "existing", goalId: p.parentExistingGoalId };
-    } else if (p.parentQueueId) {
-      const parent = input.pursuits.find((x) => x.queueId === p.parentQueueId);
-      if (parent?.clientKey) {
-        pursuit.parentRef = { kind: "new", clientKey: parent.clientKey };
-      }
-    }
     return pursuit;
   });
 
