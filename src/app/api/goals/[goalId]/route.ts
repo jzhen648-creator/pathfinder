@@ -55,6 +55,8 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     bloomedAt?: Date | null;
     endedAt?: Date | null;
     endReason?: string | null;
+    mapGridQ?: number | null;
+    mapGridR?: number | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
   if (input.description !== undefined) data.description = input.description.trim();
@@ -79,6 +81,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     }
   }
   if (input.archived !== undefined) data.archived = input.archived;
+  if (input.mapGridQ !== undefined) data.mapGridQ = input.mapGridQ;
+  if (input.mapGridR !== undefined) data.mapGridR = input.mapGridR;
+
   if (input.bloomStatus !== undefined) {
     data.bloomStatus = input.bloomStatus;
     if (input.bloomStatus === "ON_HOLD") {

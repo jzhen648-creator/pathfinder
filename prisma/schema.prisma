@@ -441,6 +441,10 @@ model Goal {
   /// (same branch) to form the `sequencedNodes` list. Roadmap-root goals only; evolution children
   /// (`parentGoalId != null`) keep parent-anchored satellite layout and have no sequence position.
   sequencePosition Float?
+  /// Mobile map world-grid axial q — when set, layout pins this pursuit to the cell.
+  mapGridQ         Int?
+  /// Mobile map world-grid axial r — when set, layout pins this pursuit to the cell.
+  mapGridR         Int?
   significance     Int         @default(1)
   future           Boolean     @default(false)
   isTurningPoint   Boolean     @default(false)

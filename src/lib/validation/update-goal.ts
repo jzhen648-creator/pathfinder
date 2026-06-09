@@ -17,6 +17,10 @@ export const updateGoalPayloadSchema = z
     /** `false` revives a pursuit removed from the map. */
     archived: z.boolean().optional(),
     bloomStatus: z.enum(["ACTIVE", "ON_HOLD", "COMPLETE", "MAINTAINING"]).optional(),
+    /** World axial hex q on the mobile map lattice; `null` clears a pin. */
+    mapGridQ: z.number().int().nullable().optional(),
+    /** World axial hex r on the mobile map lattice; `null` clears a pin. */
+    mapGridR: z.number().int().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =
@@ -26,7 +30,9 @@ export const updateGoalPayloadSchema = z
       data.timelineStart !== undefined ||
       data.deadline !== undefined ||
       data.archived !== undefined ||
-      data.bloomStatus !== undefined;
+      data.bloomStatus !== undefined ||
+      data.mapGridQ !== undefined ||
+      data.mapGridR !== undefined;
     if (!hasField) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -62,6 +68,26 @@ export const updateGoalPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message: "Significance must be between 1 and 5",
         path: ["significance"],
+      });
+    }
+    const qSet = data.mapGridQ !== undefined;
+    const rSet = data.mapGridR !== undefined;
+    if (qSet !== rSet) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "mapGridQ and mapGridR must be updated together",
+      });
+    }
+    if (qSet && rSet && data.mapGridQ != null && data.mapGridR == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "mapGridQ and mapGridR must both be set or both null",
+      });
+    }
+    if (qSet && rSet && data.mapGridQ == null && data.mapGridR != null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "mapGridQ and mapGridR must both be set or both null",
       });
     }
   });

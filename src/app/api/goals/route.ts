@@ -146,6 +146,9 @@ export async function POST(request: Request) {
                 ...(unit ? { unit } : {}),
               }
             : {}),
+          ...(input.mapGridQ !== undefined && input.mapGridR !== undefined
+            ? { mapGridQ: input.mapGridQ, mapGridR: input.mapGridR }
+            : {}),
         },
       });
     });

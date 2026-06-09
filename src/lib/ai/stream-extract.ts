@@ -53,6 +53,8 @@ const STREAM_PURUIT_REVIEW_SCHEMA_FIELDS = [
 type StreamExtractContextOptions = {
   userContext?: string;
   mapContext?: FormattedMapContext;
+  /** When the user pre-selected a map hex before Stream (claim-tile flow). */
+  placementNote?: string;
 };
 
 /** Cross-theme routing for theme id `becoming` (display: Self & Mind). */
@@ -626,6 +628,14 @@ export function buildStreamExtractUserMessage(
     input.trim(),
     "This is the source of truth. Only extract items the user explicitly mentioned.",
     "",
+    ...(options.placementNote
+      ? [
+          "## MAP PLACEMENT — user pre-selected this hex",
+          options.placementNote,
+          "The user tapped a specific grid cell to build there. Prefer a new pursuit unless the input is clearly a life fact or event (mark).",
+          "",
+        ]
+      : []),
     ...(options.mapContext
       ? [
           "## MAP CONTEXT — use for structure and deduplication",

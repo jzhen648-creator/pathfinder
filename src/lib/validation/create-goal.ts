@@ -38,6 +38,9 @@ export const createGoalPayloadSchema = z
     generateRoadmap: z.boolean().optional(),
     /** Optional insert-and-reflow anchor — omit to append at the end of the branch line. */
     anchor: sequenceAnchorSchema,
+    /** World hex grid pin — both required when either is set. */
+    mapGridQ: z.number().int().optional(),
+    mapGridR: z.number().int().optional(),
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();
@@ -100,6 +103,16 @@ export const createGoalPayloadSchema = z
           path: ["targetAmount"],
         });
       }
+    }
+
+    const qSet = data.mapGridQ !== undefined;
+    const rSet = data.mapGridR !== undefined;
+    if (qSet !== rSet) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "mapGridQ and mapGridR must be provided together",
+        path: ["mapGridQ"],
+      });
     }
   });
 

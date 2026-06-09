@@ -204,7 +204,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { hubId, input } = reqParsed.data;
+    const { hubId, input, mapGridQ, mapGridR } = reqParsed.data;
 
     const branch = await prisma.branch.findFirst({
       where: { id: hubId, userId },
@@ -293,9 +293,14 @@ export async function POST(request: Request) {
         formatUserContext(userId),
         formatMapContext(userId, { themeId: branch.limbId, hubId: branch.id }),
       ]);
+      const placementNote =
+        mapGridQ !== undefined && mapGridR !== undefined
+          ? `User claimed grid cell q=${mapGridQ}, r=${mapGridR} on theme ${branch.limbId}, track "${hubLabel}".`
+          : undefined;
       const result = await runStreamExtract(hubContext, input, {
         userContext,
         mapContext,
+        placementNote,
       });
       let committedAmbiguousCount = 0;
       if (result.ambiguous.length > 0) {

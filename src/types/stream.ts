@@ -405,11 +405,25 @@ export const streamSessionCommitFieldsSchema = z.object({
 export type StreamSessionCommitFields = z.infer<typeof streamSessionCommitFieldsSchema>;
 
 /** Single-hub extract (legacy hub panel entry). */
-export const streamHubExtractRequestSchema = z.object({
-  hubId: z.string().min(1),
-  input: z.string().min(1).max(STREAM_EXTRACT_INPUT_MAX_LENGTH),
-  inputMode: z.enum(["text", "voice"]),
-});
+export const streamHubExtractRequestSchema = z
+  .object({
+    hubId: z.string().min(1),
+    input: z.string().min(1).max(STREAM_EXTRACT_INPUT_MAX_LENGTH),
+    inputMode: z.enum(["text", "voice"]),
+    mapGridQ: z.number().int().optional(),
+    mapGridR: z.number().int().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const qSet = data.mapGridQ !== undefined;
+    const rSet = data.mapGridR !== undefined;
+    if (qSet !== rSet) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "mapGridQ and mapGridR must be provided together",
+        path: ["mapGridQ"],
+      });
+    }
+  });
 
 export type StreamHubExtractRequest = z.infer<typeof streamHubExtractRequestSchema>;
 
