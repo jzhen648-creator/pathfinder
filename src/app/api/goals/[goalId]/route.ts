@@ -51,7 +51,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     month?: number | null;
     future?: boolean;
     archived?: boolean;
-    bloomStatus?: "ACTIVE" | "ON_HOLD" | "COMPLETE";
+    bloomStatus?: "ACTIVE" | "ON_HOLD" | "COMPLETE" | "MAINTAINING";
     bloomedAt?: Date | null;
     endedAt?: Date | null;
     endReason?: string | null;

@@ -336,6 +336,7 @@ export function normalizeShortLabelCandidate(
   raw: string,
   sourceTitle?: string,
   sourceDescription?: string | null,
+  maxWords: number = MAX_WORDS,
 ): string | null {
   let s = raw.trim();
   if (!s) return null;
@@ -350,13 +351,27 @@ export function normalizeShortLabelCandidate(
   s = s.replace(/\s+/g, " ").trim();
   if (!s) return null;
   const words = countWords(s);
-  if (words > MAX_WORDS) return null;
+  if (words > maxWords) return null;
   if (s.length > SHORT_LABEL_MAX_CHARS) return null;
 
   const title = sourceTitle?.trim() || "";
   const formatted = formatCanvasLabelForDisplay(s, title || undefined);
   if (title && !labelPreservesSalience(formatted, title, sourceDescription)) return null;
   return formatted;
+}
+
+/** AI canvas label with heuristic fallback when the model returns null or invalid output. */
+export function resolvePursuitShortLabel(
+  aiShortLabel: string | null | undefined,
+  title: string,
+  description?: string | null,
+): string | null {
+  const trimmedAi = typeof aiShortLabel === "string" ? aiShortLabel.trim() : "";
+  if (trimmedAi) {
+    const fromAi = normalizeShortLabelCandidate(trimmedAi, title, description, 3);
+    if (fromAi) return fromAi;
+  }
+  return generateGoalShortLabel(title, description);
 }
 
 /**

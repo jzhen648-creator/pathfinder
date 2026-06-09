@@ -4,7 +4,7 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
 import { getLifeArea } from "@/lib/life-areas";
-import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
+import { assignPursuitVisualsSafe } from "@/lib/ai/assign-pursuit-icon";
 import { prisma } from "@/lib/prisma";
 import { displayMarkTitleFromInput } from "@/lib/validation/marks-and-branches";
 import type { AmbiguousItem, StreamAmbiguousResolution } from "@/types/stream";
@@ -175,7 +175,7 @@ export async function resolveAmbiguousMark(
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
   const markDescription = mark.description?.trim() || "";
-  const iconName = await assignPursuitIconSafe({
+  const { iconName, shortLabel } = await assignPursuitVisualsSafe({
     title: mark.title,
     description: markDescription,
     lifeArea,
@@ -195,6 +195,7 @@ export async function resolveAmbiguousMark(
         title: mark.title,
         description: markDescription,
         iconName,
+        shortLabel,
         lifeArea,
         goalType: "project",
         bloomStatus: "ACTIVE",

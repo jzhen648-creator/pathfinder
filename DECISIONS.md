@@ -17,6 +17,16 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 - Mobile map: **3-3 symmetric canopy** (top: becoming | pleasures | finance; bottom: people | health | work). Theme colour `#FF9F6B` (warm apricot).
 - Stream extract: `STREAM_PLAY_LEISURE_THEME_BOUNDARIES`; Self & Mind boundaries narrowed (leisure → pleasures).
 
+## 2026-06-08 — Hidden tracks on mobile (UI only)
+
+**Tracks/hubs stay in DB** (`Branch`, `branchId` on `Goal`/`Mark`, taxonomy sync) but **never appear in mobile UI** — no track picker, no track section headers, no track subtitles on map labels.
+
+**Silent assignment:** `pathfinder-mobile/lib/map/default-branch.ts` → `defaultBranchIdForTheme(branches, themeId)` picks the canonical first taxonomy slot per theme (Income, Career, Purpose & Values, Family, Movement, Hobbies for pleasures). Used by add pursuit, add mark, and Stream creates.
+
+**UI changes:** `AddPursuitFlowSheet` is theme → form only; `ThemeDetailPanel` shows flat Pursuits + Life facts & events; pursuit labels have no track subtitle.
+
+**Unchanged:** `GET /api/branches` payload, edit-map reparent API, Stream extract hub routing for AI classification.
+
 ## 2026-06-08 — App simplification: one store, marks as theme context
 
 **Map is the single store.** Pursuits on the map surface; marks in theme detail panels as context (facts, events, people, skills). Optional mark dates (`Mark.date` nullable). Story/Insights read full mark text via `formatMapContext` theme-level `marks` arrays.

@@ -33,7 +33,7 @@ function milestonePayloadSummary(
 /**
  * Recomputes and persists goal bloom lifecycle (**ACTIVE** / **COMPLETE**).
  * Does not use continuation topology (`forkedGoals`).
- * Does not change ON_HOLD goals (user must clear ON_HOLD via a future flow if ever needed).
+ * Does not change ON_HOLD or MAINTAINING goals (user-set; never auto-computed).
  *
  * Lifecycle milestone semantics are delegated to {@link computeGoalLifecycleBloom} →
  * {@link milestoneDoneForSemantics} (explicit `completedAt` primary; subtask rollup only when subtasks exist).
@@ -60,8 +60,10 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     if (debugRecompute()) console.info(`${LOG} exit early: goal not found`, { goalId });
     return;
   }
-  if (goal.bloomStatus === "ON_HOLD") {
-    if (debugRecompute()) console.info(`${LOG} exit early: ON_HOLD`, { goalId });
+  if (goal.bloomStatus === "ON_HOLD" || goal.bloomStatus === "MAINTAINING") {
+    if (debugRecompute()) {
+      console.info(`${LOG} exit early: ${goal.bloomStatus}`, { goalId });
+    }
     return;
   }
 

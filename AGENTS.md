@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 **Active client:** `pathfinder-mobile/` — see workspace [`START-HERE.md`](../START-HERE.md). **Stream behaviour:** [`docs/STREAM.md`](./docs/STREAM.md). **Doc index:** [`docs/README.md`](./docs/README.md). **What shipped:** [`CHANGELOG.md`](./CHANGELOG.md) + [`DECISIONS.md`](./DECISIONS.md). Historical vision: [`docs/archive/VISION.md`](./docs/archive/VISION.md). Desktop UI frozen: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
 
-Canonical product words: **theme** (outer pillar — same ids as `LifeAreaId` / `limbId`) and **hub** (named track under a theme; goals and marks attach here). See [`GLOSSARY.md`](./GLOSSARY.md) and [`ONTOLOGY.md`](./ONTOLOGY.md) for full definitions and code vs copy.
+Canonical product words: **theme** (outer pillar — same ids as `LifeAreaId` / `limbId`), **pursuit** (`Goal`), **mark** (`Mark`). **Hub/track** (`Branch`, `branchId`) stays in DB and API for taxonomy — **hidden from mobile UI** since 2026-06; desktop legacy may still say hub. See [`GLOSSARY.md`](./GLOSSARY.md), [`ONTOLOGY.md`](./ONTOLOGY.md) *Product surfaces*, and [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md).
 
 Before changing tree, goals, branches, bloom, or continuation behavior, read [`ONTOLOGY.md`](./ONTOLOGY.md) and [`GLOSSARY.md`](./GLOSSARY.md). Do not extend desktop tree UI unless asked — [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
 

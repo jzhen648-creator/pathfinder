@@ -65,6 +65,7 @@ enum BloomStatus {
   ACTIVE
   ON_HOLD
   COMPLETE
+  MAINTAINING
 }
 
 enum BranchStatus {

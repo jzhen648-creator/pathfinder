@@ -1,4 +1,9 @@
 import type { BloomStatus, Prisma } from "@prisma/client";
+
+/** Stream must not overwrite terminal or user-set bloom states. */
+function isStreamProtectedBloom(status: BloomStatus): boolean {
+  return status === "COMPLETE" || status === "MAINTAINING";
+}
 import {
   applySequenceResolution,
   loadBranchSequencedNodes,
@@ -6,7 +11,6 @@ import {
 } from "@/lib/branch-sequence";
 import { getLifeArea } from "@/lib/life-areas";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
-import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { prisma } from "@/lib/prisma";
 import {
   buildHubBranchResolver,
@@ -23,7 +27,10 @@ import {
   recordStreamThemeSession,
 } from "@/lib/stream-theme-context";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
-import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
+import {
+  assignPursuitVisualsSafe,
+  persistPursuitVisualsForGoal,
+} from "@/lib/ai/assign-pursuit-icon";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import {
@@ -131,12 +138,12 @@ type OperationCommitCounts = {
   goalsNeedingShortLabel: Set<string>;
 };
 
-async function persistShortLabelsForGoals(goalIds: Iterable<string>): Promise<void> {
+async function persistVisualsForGoals(goalIds: Iterable<string>): Promise<void> {
   for (const goalId of goalIds) {
     try {
-      await persistGoalShortLabel(goalId);
+      await persistPursuitVisualsForGoal(goalId);
     } catch (e) {
-      console.error("[stream-commit] persistGoalShortLabel failed", goalId, e);
+      console.error("[stream-commit] persistPursuitVisualsForGoal failed", goalId, e);
     }
   }
 }
@@ -244,11 +251,11 @@ async function commitItemsToBranchInTx(
 
     const bloomStatus = p.bloomStatus as BloomStatus;
     const sequencePosition = await nextSequencePosition();
-    const iconName = await assignPursuitIconSafe({
-        title,
-        description,
-        lifeArea,
-      });
+    const { iconName, shortLabel } = await assignPursuitVisualsSafe({
+      title,
+      description,
+      lifeArea,
+    });
 
     const goal = await tx.goal.create({
       data: {
@@ -256,6 +263,7 @@ async function commitItemsToBranchInTx(
         title,
         description,
         iconName,
+        shortLabel,
         lifeArea,
         goalType: p.goalType,
         branchId: branch.id,
@@ -280,7 +288,6 @@ async function commitItemsToBranchInTx(
       clientKeyToGoalId.set(p.clientKey, goal.id);
     }
     hubGoalIds.add(goal.id);
-    goalsNeedingShortLabel.add(goal.id);
   };
 
   for (const p of pursuits) {
@@ -295,7 +302,7 @@ async function commitItemsToBranchInTx(
     } = {};
 
     const currentBloom = currentBloomByGoalId.get(goalId);
-    if (currentBloom === "ACTIVE" || currentBloom === "ON_HOLD") {
+    if (currentBloom && !isStreamProtectedBloom(currentBloom)) {
       if (p.bloomStatus === "COMPLETE") {
         updateData.bloomStatus = "COMPLETE";
         updateData.bloomedAt = new Date();
@@ -465,7 +472,7 @@ async function applyStreamOperationsInTx(
         archived: false,
         goalType: { notIn: ["moment", "event"] },
       },
-      select: { id: true },
+      select: { id: true, bloomStatus: true },
     });
     if (!goal) {
       throw new Error("Invalid pursuit operation target");
@@ -481,7 +488,7 @@ async function applyStreamOperationsInTx(
       data.title = op.title.trim();
       goalsNeedingShortLabel.add(op.goalId);
     }
-    if (op.bloomStatus) {
+    if (op.bloomStatus && !isStreamProtectedBloom(goal.bloomStatus)) {
       data.bloomStatus = op.bloomStatus as BloomStatus;
       data.bloomedAt = op.bloomStatus === "COMPLETE" ? new Date() : null;
     }
@@ -608,7 +615,7 @@ export async function commitStreamToHub(
       }
     }
 
-    await persistShortLabelsForGoals(goalsNeedingShortLabel);
+    await persistVisualsForGoals(goalsNeedingShortLabel);
 
     return {
       ok: true,
@@ -823,7 +830,7 @@ export async function commitStreamToTheme(
       }
     }
 
-    await persistShortLabelsForGoals(goalsNeedingShortLabel);
+    await persistVisualsForGoals(goalsNeedingShortLabel);
 
     await recordStreamThemeSession(prisma, userId, themeId, {
       inputText: payload.inputText,
@@ -976,7 +983,7 @@ export async function commitStreamGlobal(
       }
     }
 
-    await persistShortLabelsForGoals(goalsNeedingShortLabel);
+    await persistVisualsForGoals(goalsNeedingShortLabel);
 
     await recordStreamGlobalSession(prisma, userId, {
       inputText: payload.inputText,

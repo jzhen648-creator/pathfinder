@@ -10,7 +10,6 @@ import {
 } from "@/lib/milestone-generator";
 import { persistGeneratedRoadmapForGoal } from "@/lib/persist-generated-roadmap";
 import { prisma } from "@/lib/prisma";
-import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import {
   createGoalPayloadSchema,
   deadlineIsInFutureLocal,
@@ -22,7 +21,7 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-hubs";
-import { assignPursuitIconSafe } from "@/lib/ai/assign-pursuit-icon";
+import { assignPursuitVisualsSafe } from "@/lib/ai/assign-pursuit-icon";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -159,19 +158,16 @@ export async function POST(request: Request) {
 
     const goalId = goal.id;
     after(() => {
-      void persistGoalShortLabel(goalId).catch((err) =>
-        console.error("[POST /api/goals] persistGoalShortLabel failed", err),
-      );
-      void assignPursuitIconSafe({ title, description, lifeArea })
-        .then(async (iconName) => {
-          if (!iconName) return;
-          await prisma.goal.update({
-            where: { id: goalId },
-            data: { iconName },
-          });
+      void assignPursuitVisualsSafe({ title, description, lifeArea })
+        .then(async ({ iconName, shortLabel }) => {
+          const data: { iconName?: string; shortLabel?: string } = {};
+          if (iconName) data.iconName = iconName;
+          if (shortLabel) data.shortLabel = shortLabel;
+          if (Object.keys(data).length === 0) return;
+          await prisma.goal.update({ where: { id: goalId }, data });
         })
         .catch((err) =>
-          console.error("[POST /api/goals] assignPursuitIcon failed", err),
+          console.error("[POST /api/goals] assignPursuitVisuals failed", err),
         );
     });
 

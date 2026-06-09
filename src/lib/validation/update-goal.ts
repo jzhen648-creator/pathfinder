@@ -16,7 +16,7 @@ export const updateGoalPayloadSchema = z
     deadline: calendarDaySchema.nullable().optional(),
     /** `false` revives a pursuit removed from the map. */
     archived: z.boolean().optional(),
-    bloomStatus: z.enum(["ACTIVE", "ON_HOLD", "COMPLETE"]).optional(),
+    bloomStatus: z.enum(["ACTIVE", "ON_HOLD", "COMPLETE", "MAINTAINING"]).optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =

@@ -80,7 +80,7 @@ Bloom describes **maturity of one goal**, not graph shape.
 | Use | For |
 |-----|-----|
 | **Theme** | The outer pillar (Money & Finance, Work & Career, …); same ids as `LifeAreaId` / `limbId`. |
-| **Hub** | Named track under a theme; where goals and timeline notes “live” in the UI. |
+| **Hub** | Named track under a theme in DB/API; where goals and marks attach via `branchId`. **Hidden from mobile UI** (2026-06) — desktop legacy may still show hub labels. |
 | **Branch** | Prisma `Branch` row, `branchId` — **implementation** and migrations (legacy split columns may still exist on old rows). |
 | **Goal** | One pursuit (`Goal`) |
 | **Milestone** | Phase inside one goal only |

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "BloomStatus" ADD VALUE 'MAINTAINING';

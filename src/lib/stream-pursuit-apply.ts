@@ -1,6 +1,6 @@
 import type { BloomStatus, Prisma } from "@prisma/client";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
-import { persistGoalShortLabel } from "@/lib/goal-short-label";
+import { persistPursuitVisualsForGoal } from "@/lib/ai/assign-pursuit-icon";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-hubs";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
@@ -170,6 +170,7 @@ export async function applyPursuitStream(
   }
 
   const items: StreamRunAppliedItem[] = [];
+  const goalsNeedingVisuals = new Set<string>();
 
   const branchRow = await prisma.branch.findFirst({
     where: { id: ctx.branchId, userId },
@@ -201,7 +202,7 @@ export async function applyPursuitStream(
 
         if (update.title?.trim()) data.title = update.title.trim();
         if (update.description?.trim()) data.description = update.description.trim();
-        if (update.bloomStatus) {
+        if (update.bloomStatus && goalRow.bloomStatus !== "MAINTAINING") {
           data.bloomStatus = update.bloomStatus as BloomStatus;
           data.bloomedAt = update.bloomStatus === "COMPLETE" ? new Date() : null;
         }
@@ -229,7 +230,7 @@ export async function applyPursuitStream(
           });
         }
         if (data.title) {
-          void persistGoalShortLabel(pursuitId);
+          goalsNeedingVisuals.add(pursuitId);
         }
       }
 
@@ -310,6 +311,12 @@ export async function applyPursuitStream(
         items.push({ kind: "mark", markId: created.id, title: created.title });
       }
     });
+
+    for (const goalId of goalsNeedingVisuals) {
+      void persistPursuitVisualsForGoal(goalId).catch((e) => {
+        console.error("[applyPursuitStream] persistPursuitVisualsForGoal failed", goalId, e);
+      });
+    }
 
     await recomputeGoalBloomStatus(pursuitId).catch((e) => {
       console.error("[applyPursuitStream] recomputeGoalBloomStatus", e);
