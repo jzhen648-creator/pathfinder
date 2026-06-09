@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
+import { isInsightEligibleGoalType } from "@/lib/insights/merge-insight-cache";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 
@@ -122,7 +123,11 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     });
   }
 
-  refreshInsightsInBackground(userId);
+  if (isInsightEligibleGoalType(goal.goalType)) {
+    refreshInsightsInBackground(userId, { pursuitIds: [goal.id] });
+  } else {
+    refreshInsightsInBackground(userId);
+  }
 
   return NextResponse.json({ goal });
 }

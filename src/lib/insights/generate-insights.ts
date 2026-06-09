@@ -177,7 +177,7 @@ function filterMapContextForMissingNodes(
   return { themes };
 }
 
-const backfillInsightSchema = z.object({
+const nodeInsightGenerationSchema = z.object({
   themes: z.record(z.string(), insightLevelSchema).optional(),
   hubs: z.record(z.string(), insightLevelSchema).optional(),
   pursuits: z.record(z.string(), insightLevelSchema).optional(),
@@ -193,7 +193,117 @@ const BACKFILL_SYSTEM_PROMPT = [
   "If age OR location is unknown, set contextual to an empty string.",
 ].join("\n");
 
+export type GenerateNodeInsightsRequest = {
+  pursuitIds?: string[];
+  themeIds?: string[];
+  hubIds?: string[];
+};
+
+function expandNodeScopeFromMap(
+  mapContext: FormattedMapContext,
+  request: GenerateNodeInsightsRequest,
+): {
+  themeIds: Set<string>;
+  hubIds: Set<string>;
+  pursuitIds: Set<string>;
+} {
+  const pursuitIds = new Set(request.pursuitIds ?? []);
+  const themeIds = new Set(request.themeIds ?? []);
+  const hubIds = new Set(request.hubIds ?? []);
+
+  for (const theme of mapContext.themes) {
+    for (const hub of theme.hubs) {
+      for (const pursuit of hub.pursuits) {
+        if (pursuitIds.has(pursuit.id)) {
+          themeIds.add(theme.id);
+          hubIds.add(hub.id);
+        }
+      }
+    }
+  }
+
+  return { themeIds, hubIds, pursuitIds };
+}
+
+function emptyNodeInsightPatch(): Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits"> {
+  return { themes: {}, hubs: {}, pursuits: {} };
+}
+
+/** Focused node-level generation — one or more pursuits/themes/hubs without a full-map pass. */
+export async function generateNodeInsights(
+  userId: string,
+  request: GenerateNodeInsightsRequest,
+): Promise<Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">> {
+  if (!hasGeminiKey()) {
+    throw new GeminiNotConfiguredError();
+  }
+
+  const [mapContext, userContext] = await Promise.all([
+    formatMapContext(userId),
+    formatUserContext(userId),
+  ]);
+
+  const { themeIds, hubIds, pursuitIds } = expandNodeScopeFromMap(mapContext, request);
+  if (themeIds.size === 0 && hubIds.size === 0 && pursuitIds.size === 0) {
+    return emptyNodeInsightPatch();
+  }
+
+  const slimContext = filterMapContextForMissingNodes(
+    mapContext,
+    themeIds,
+    hubIds,
+    pursuitIds,
+  );
+
+  const raw = await generateJsonCompletion({
+    system: BACKFILL_SYSTEM_PROMPT,
+    user: [
+      userContext || "(No profile context yet.)",
+      "",
+      "Missing insight ids:",
+      `themes: ${[...themeIds].join(", ") || "(none)"}`,
+      `hubs: ${[...hubIds].join(", ") || "(none)"}`,
+      `pursuits: ${[...pursuitIds].join(", ") || "(none)"}`,
+      "",
+      "Relevant map JSON:",
+      JSON.stringify(slimContext, null, 2),
+    ].join("\n"),
+    maxTokens: 2048,
+  });
+
+  let json: unknown;
+  try {
+    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+  } catch (err) {
+    console.error("[insights] node insight generation returned invalid JSON", { err, raw });
+    throw new InsightGenerationResponseError(
+      "Insight generation returned incomplete JSON. Please try refreshing again.",
+      { cause: err },
+    );
+  }
+
+  const parsed = nodeInsightGenerationSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("[insights] node insight generation returned invalid shape", {
+      issues: parsed.error.issues,
+      raw,
+    });
+    throw new InsightGenerationResponseError(
+      `Insight generation returned an invalid response shape: ${
+        parsed.error.issues[0]?.message ?? "unknown"
+      }`,
+    );
+  }
+
+  return {
+    themes: parsed.data.themes ?? {},
+    hubs: parsed.data.hubs ?? {},
+    pursuits: parsed.data.pursuits ?? {},
+  };
+}
+
 async function backfillMissingNodeInsights(
+  userId: string,
   mapContext: FormattedMapContext,
   userContext: string,
   generated: InsightGenerationResult,
@@ -217,56 +327,28 @@ async function backfillMissingNodeInsights(
     pursuits: missingPursuitIds.size,
   });
 
-  const slimContext = filterMapContextForMissingNodes(
-    mapContext,
-    missingThemeIds,
-    missingHubIds,
-    missingPursuitIds,
-  );
-
-  const raw = await generateJsonCompletion({
-    system: BACKFILL_SYSTEM_PROMPT,
-    user: [
-      userContext || "(No profile context yet.)",
-      "",
-      "Missing insight ids:",
-      `themes: ${[...missingThemeIds].join(", ") || "(none)"}`,
-      `hubs: ${[...missingHubIds].join(", ") || "(none)"}`,
-      `pursuits: ${[...missingPursuitIds].join(", ") || "(none)"}`,
-      "",
-      "Relevant map JSON:",
-      JSON.stringify(slimContext, null, 2),
-    ].join("\n"),
-    maxTokens: 2048,
-  });
-
-  let json: unknown;
+  let patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">;
   try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
-  } catch (err) {
-    console.error("[insights] backfill returned invalid JSON", { err, raw });
-    return generated;
-  }
-
-  const parsed = backfillInsightSchema.safeParse(json);
-  if (!parsed.success) {
-    console.error("[insights] backfill returned invalid shape", {
-      issues: parsed.error.issues,
-      raw,
+    patch = await generateNodeInsights(userId, {
+      themeIds: [...missingThemeIds],
+      hubIds: [...missingHubIds],
+      pursuitIds: [...missingPursuitIds],
     });
+  } catch (err) {
+    console.error("[insights] backfill failed", err);
     return generated;
   }
 
   const mergeLevel = (
     base: Record<string, InsightLevelPayload>,
-    patch: Record<string, InsightLevelPayload> | undefined,
-  ) => ({ ...base, ...patch });
+    patchLevel: Record<string, InsightLevelPayload> | undefined,
+  ) => ({ ...base, ...patchLevel });
 
   return {
     global: generated.global,
-    themes: mergeLevel(generated.themes, parsed.data.themes),
-    hubs: mergeLevel(generated.hubs, parsed.data.hubs),
-    pursuits: mergeLevel(generated.pursuits, parsed.data.pursuits),
+    themes: mergeLevel(generated.themes, patch.themes),
+    hubs: mergeLevel(generated.hubs, patch.hubs),
+    pursuits: mergeLevel(generated.pursuits, patch.pursuits),
   };
 }
 
@@ -310,5 +392,5 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
     );
   }
 
-  return backfillMissingNodeInsights(mapContext, userContext, parsed.data);
+  return backfillMissingNodeInsights(userId, mapContext, userContext, parsed.data);
 }

@@ -16,7 +16,7 @@ import {
 
 
 
-function parseRecord(
+export function parseInsightLevelRecord(
 
   raw: unknown,
 
@@ -86,11 +86,11 @@ export function insightCacheToPayload(
 
     global,
 
-    themes: parseRecord(row.themeInsights, "theme"),
+    themes: parseInsightLevelRecord(row.themeInsights, "theme"),
 
-    hubs: parseRecord(row.hubInsights, "hub"),
+    hubs: parseInsightLevelRecord(row.hubInsights, "hub"),
 
-    pursuits: parseRecord(row.pursuitInsights, "pursuit"),
+    pursuits: parseInsightLevelRecord(row.pursuitInsights, "pursuit"),
 
     generatedAt: row.generatedAt.toISOString(),
 

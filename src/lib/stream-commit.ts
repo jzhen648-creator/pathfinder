@@ -128,6 +128,7 @@ type HubCommitCounts = {
   createdMilestones: number;
   goalsNeedingRecompute: Set<string>;
   goalsNeedingShortLabel: Set<string>;
+  touchedPursuitIds: Set<string>;
 };
 
 type OperationCommitCounts = {
@@ -137,6 +138,7 @@ type OperationCommitCounts = {
   deletedMilestones: number;
   goalsNeedingRecompute: Set<string>;
   goalsNeedingShortLabel: Set<string>;
+  touchedPursuitIds: Set<string>;
 };
 
 async function persistVisualsForGoals(goalIds: Iterable<string>): Promise<void> {
@@ -147,6 +149,15 @@ async function persistVisualsForGoals(goalIds: Iterable<string>): Promise<void> 
       console.error("[stream-commit] persistPursuitVisualsForGoal failed", goalId, e);
     }
   }
+}
+
+function refreshInsightsAfterStreamCommit(userId: string, touchedPursuitIds: Set<string>): void {
+  const pursuitIds = [...touchedPursuitIds];
+  if (pursuitIds.length > 0) {
+    refreshInsightsInBackground(userId, { pursuitIds });
+    return;
+  }
+  refreshInsightsInBackground(userId);
 }
 
 type CommitResult =
@@ -230,6 +241,7 @@ async function commitItemsToBranchInTx(
   const forceBloomedGoalIds = new Set<string>();
   const goalsNeedingRecompute = new Set<string>();
   const goalsNeedingShortLabel = new Set<string>();
+  const touchedPursuitIds = new Set<string>();
 
   let createdMarks = 0;
   let createdPursuits = 0;
@@ -282,6 +294,7 @@ async function commitItemsToBranchInTx(
     });
 
     createdPursuits += 1;
+    touchedPursuitIds.add(goal.id);
     if (bloomStatus === "COMPLETE") {
       forceBloomedGoalIds.add(goal.id);
     }
@@ -326,6 +339,7 @@ async function commitItemsToBranchInTx(
         where: { id: goalId },
         data: updateData,
       });
+      touchedPursuitIds.add(goalId);
     }
 
     if (p.bloomStatus === "ACTIVE" && !forceBloomedGoalIds.has(goalId)) {
@@ -417,6 +431,7 @@ async function commitItemsToBranchInTx(
     createdMilestones,
     goalsNeedingRecompute,
     goalsNeedingShortLabel,
+    touchedPursuitIds,
   };
 }
 
@@ -460,6 +475,7 @@ async function applyStreamOperationsInTx(
 ): Promise<OperationCommitCounts> {
   const goalsNeedingRecompute = new Set<string>();
   const goalsNeedingShortLabel = new Set<string>();
+  const touchedPursuitIds = new Set<string>();
   let updatedPursuits = 0;
   let updatedMilestones = 0;
   let completedMilestones = 0;
@@ -497,6 +513,7 @@ async function applyStreamOperationsInTx(
 
     await tx.goal.update({ where: { id: op.goalId }, data });
     updatedPursuits += 1;
+    touchedPursuitIds.add(op.goalId);
     if (op.bloomStatus === "ACTIVE") {
       goalsNeedingRecompute.add(op.goalId);
     }
@@ -535,6 +552,7 @@ async function applyStreamOperationsInTx(
     deletedMilestones,
     goalsNeedingRecompute,
     goalsNeedingShortLabel,
+    touchedPursuitIds,
   };
 }
 
@@ -579,6 +597,7 @@ export async function commitStreamToHub(
   const clientKeyToGoalId = new Map<string, string>();
   const goalsNeedingRecompute = new Set<string>();
   const goalsNeedingShortLabel = new Set<string>();
+  const touchedPursuitIds = new Set<string>();
 
   let createdMarks = 0;
   let createdPursuits = 0;
@@ -606,6 +625,9 @@ export async function commitStreamToHub(
       for (const id of counts.goalsNeedingShortLabel) {
         goalsNeedingShortLabel.add(id);
       }
+      for (const id of counts.touchedPursuitIds) {
+        touchedPursuitIds.add(id);
+      }
     });
 
     for (const goalId of goalsNeedingRecompute) {
@@ -618,7 +640,7 @@ export async function commitStreamToHub(
 
     await persistVisualsForGoals(goalsNeedingShortLabel);
 
-    refreshInsightsInBackground(userId);
+    refreshInsightsAfterStreamCommit(userId, touchedPursuitIds);
 
     return {
       ok: true,
@@ -793,6 +815,7 @@ export async function commitStreamToTheme(
   const clientKeyToGoalId = new Map<string, string>();
   const goalsNeedingRecompute = new Set<string>();
   const goalsNeedingShortLabel = new Set<string>();
+  const touchedPursuitIds = new Set<string>();
 
   let createdMarks = 0;
   let createdPursuits = 0;
@@ -822,6 +845,9 @@ export async function commitStreamToTheme(
         for (const id of counts.goalsNeedingShortLabel) {
           goalsNeedingShortLabel.add(id);
         }
+        for (const id of counts.touchedPursuitIds) {
+          touchedPursuitIds.add(id);
+        }
       }
     });
 
@@ -844,7 +870,7 @@ export async function commitStreamToTheme(
 
     queueMemoryUpdateAfterStream(userId, payload.inputText);
 
-    refreshInsightsInBackground(userId);
+    refreshInsightsAfterStreamCommit(userId, touchedPursuitIds);
 
     return {
       ok: true,
@@ -917,6 +943,7 @@ export async function commitStreamGlobal(
   const clientKeyToGoalId = new Map<string, string>();
   const goalsNeedingRecompute = new Set<string>();
   const goalsNeedingShortLabel = new Set<string>();
+  const touchedPursuitIds = new Set<string>();
 
   let createdMarks = 0;
   let createdPursuits = 0;
@@ -950,6 +977,9 @@ export async function commitStreamGlobal(
         for (const id of counts.goalsNeedingShortLabel) {
           goalsNeedingShortLabel.add(id);
         }
+        for (const id of counts.touchedPursuitIds) {
+          touchedPursuitIds.add(id);
+        }
       }
 
       if (createdMarks !== expectedMarks) {
@@ -978,6 +1008,9 @@ export async function commitStreamGlobal(
       for (const id of opCounts.goalsNeedingShortLabel) {
         goalsNeedingShortLabel.add(id);
       }
+      for (const id of opCounts.touchedPursuitIds) {
+        touchedPursuitIds.add(id);
+      }
     });
 
     for (const goalId of goalsNeedingRecompute) {
@@ -999,7 +1032,7 @@ export async function commitStreamGlobal(
 
     queueMemoryUpdateAfterStream(userId, payload.inputText);
 
-    refreshInsightsInBackground(userId);
+    refreshInsightsAfterStreamCommit(userId, touchedPursuitIds);
 
     return {
       ok: true,

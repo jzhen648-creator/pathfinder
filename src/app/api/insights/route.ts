@@ -17,6 +17,7 @@ import {
 } from "@/lib/insights/generate-insights";
 
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
+import { refreshPursuitInsights } from "@/lib/insights/merge-insight-cache";
 
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
@@ -29,9 +30,8 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 
 const refreshBodySchema = z.object({
-
   force: z.boolean().optional(),
-
+  pursuitIds: z.array(z.string().min(1)).optional(),
 });
 
 
@@ -181,12 +181,37 @@ export async function POST(request: Request) {
   const userId = session.user.id;
 
   const force = parsedBody.data.force === true;
+  const pursuitIds = parsedBody.data.pursuitIds ?? [];
 
   const { mapVersion, memoryVersion } = await resolveVersions(userId);
 
   const existing = await prisma.insightCache.findUnique({ where: { userId } });
 
-
+  if (pursuitIds.length > 0) {
+    try {
+      await refreshPursuitInsights(userId, pursuitIds);
+      const row = await prisma.insightCache.findUnique({ where: { userId } });
+      if (!row) {
+        return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
+      }
+      const payload = insightCacheToPayload(row, false);
+      if (!payload) {
+        return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
+      }
+      return NextResponse.json({ cache: payload, refreshed: true });
+    } catch (err) {
+      if (err instanceof GeminiNotConfiguredError) {
+        return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 503 });
+      }
+      if (err instanceof InsightGenerationResponseError) {
+        console.error("[insights] incremental generation rejected", err);
+        return NextResponse.json({ error: err.message }, { status: err.status });
+      }
+      console.error("[insights] incremental refresh failed", err);
+      const message = err instanceof Error ? err.message : "Insight generation failed";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
 
   if (existing && !force) {
 

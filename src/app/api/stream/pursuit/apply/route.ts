@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     );
   }
 
-  refreshInsightsInBackground(auth.userId);
+  refreshInsightsInBackground(auth.userId, { pursuitIds: [pursuitId] });
 
   return NextResponse.json({
     ok: true,
