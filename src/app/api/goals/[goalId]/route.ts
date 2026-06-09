@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
+import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 
@@ -121,6 +122,8 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     });
   }
 
+  refreshInsightsInBackground(userId);
+
   return NextResponse.json({ goal });
 }
 
@@ -141,5 +144,8 @@ export async function DELETE(request: Request, { params }: RouteProps) {
     where: { id: goalId },
     data: { archived: true },
   });
+
+  refreshInsightsInBackground(userId);
+
   return NextResponse.json({ ok: true });
 }

@@ -14,7 +14,7 @@ type MapContextFilter = {
 
   pursuitId?: string;
 
-  /** Omit ON_HOLD pursuits — use for insight generation only; Stream needs paused rows for dedup/resume. */
+  /** Omit ON_HOLD pursuits — e.g. Story scope; insights include paused pursuits. */
 
   excludeOnHold?: boolean;
 

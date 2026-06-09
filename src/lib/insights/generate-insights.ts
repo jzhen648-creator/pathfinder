@@ -1,10 +1,13 @@
-import { formatMapContext } from "@/lib/ai/format-map-context";
+import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
+import { z } from "zod";
 import {
   insightGenerationSchema,
+  insightLevelSchema,
   type InsightGenerationResult,
+  type InsightLevelPayload,
 } from "./insight-types";
 
 export class InsightGenerationResponseError extends Error {
@@ -62,12 +65,13 @@ const SYSTEM_PROMPT = [
   "",
   "tone field:",
   "- Default to encouraging. Use nudge only when map data shows a clear stall.",
+  "- For ON_HOLD pursuits, prefer encouraging — acknowledge the pause; do not nudge to resume.",
   "- Use celebratory only for COMPLETE pursuits — name the achievement plainly without hype; never for active or stalled pursuits.",
   "",
   "Pursuit status (status field in map context):",
   "- COMPLETE — acknowledge as a real achievement. Name the pursuit. Explain what completing this specific pursuit says about the person. Never treat completed pursuits as gaps, nudges, or suggestions.",
   "- ACTIVE — assess momentum from theme marks and milestone progress. Name the pursuit specifically.",
-  "- ON_HOLD — excluded from map context (filtered upstream). Do not reference, suggest, or invent paused pursuits.",
+  "- ON_HOLD — the pursuit is deliberately paused. Name it. Reflect why the pause may be intentional or what is waiting — warm, no pressure to resume. Do not treat as a gap, failure, or nudge to unpause.",
   "",
   "global (Now tab):",
   "- greeting must name at least one real pursuit by title immediately — not a generic observation.",
@@ -125,13 +129,154 @@ function stripMarkdownFence(raw: string): string {
   return m?.[1]?.trim() ?? t;
 }
 
+function collectMapNodeIds(mapContext: FormattedMapContext): {
+  themeIds: string[];
+  hubIds: string[];
+  pursuitIds: string[];
+} {
+  const themeIds: string[] = [];
+  const hubIds: string[] = [];
+  const pursuitIds: string[] = [];
+  for (const theme of mapContext.themes) {
+    themeIds.push(theme.id);
+    for (const hub of theme.hubs) {
+      hubIds.push(hub.id);
+      for (const pursuit of hub.pursuits) {
+        pursuitIds.push(pursuit.id);
+      }
+    }
+  }
+  return { themeIds, hubIds, pursuitIds };
+}
+
+function filterMapContextForMissingNodes(
+  mapContext: FormattedMapContext,
+  missingThemeIds: Set<string>,
+  missingHubIds: Set<string>,
+  missingPursuitIds: Set<string>,
+): FormattedMapContext {
+  const themes = mapContext.themes
+    .map((theme) => ({
+      ...theme,
+      hubs: theme.hubs
+        .map((hub) => ({
+          ...hub,
+          pursuits: hub.pursuits.filter((pursuit) => missingPursuitIds.has(pursuit.id)),
+        }))
+        .filter(
+          (hub) =>
+            missingHubIds.has(hub.id) ||
+            hub.pursuits.length > 0,
+        ),
+    }))
+    .filter(
+      (theme) =>
+        missingThemeIds.has(theme.id) ||
+        theme.hubs.length > 0,
+    );
+  return { themes };
+}
+
+const backfillInsightSchema = z.object({
+  themes: z.record(z.string(), insightLevelSchema).optional(),
+  hubs: z.record(z.string(), insightLevelSchema).optional(),
+  pursuits: z.record(z.string(), insightLevelSchema).optional(),
+});
+
+const BACKFILL_SYSTEM_PROMPT = [
+  "You generate missing node-level insights for Pathfinder.",
+  "Follow pathfinder/PROMPTS.md: every sentence must reference this person's actual map data.",
+  "Return ONLY valid JSON: { themes?, hubs?, pursuits? } — each a record of id -> insight object.",
+  "Include ONLY the ids listed in the user message — no extra keys.",
+  "Each insight object has: reflective, contextual, combined, tone (encouraging|nudge|celebratory), oneLiner.",
+  "Use the same voice and accuracy rules as the main insight generator.",
+  "If age OR location is unknown, set contextual to an empty string.",
+].join("\n");
+
+async function backfillMissingNodeInsights(
+  mapContext: FormattedMapContext,
+  userContext: string,
+  generated: InsightGenerationResult,
+): Promise<InsightGenerationResult> {
+  const { themeIds, hubIds, pursuitIds } = collectMapNodeIds(mapContext);
+  const missingThemeIds = new Set(themeIds.filter((id) => !generated.themes[id]));
+  const missingHubIds = new Set(hubIds.filter((id) => !generated.hubs[id]));
+  const missingPursuitIds = new Set(pursuitIds.filter((id) => !generated.pursuits[id]));
+
+  if (
+    missingThemeIds.size === 0 &&
+    missingHubIds.size === 0 &&
+    missingPursuitIds.size === 0
+  ) {
+    return generated;
+  }
+
+  console.warn("[insights] backfilling missing node insights", {
+    themes: missingThemeIds.size,
+    hubs: missingHubIds.size,
+    pursuits: missingPursuitIds.size,
+  });
+
+  const slimContext = filterMapContextForMissingNodes(
+    mapContext,
+    missingThemeIds,
+    missingHubIds,
+    missingPursuitIds,
+  );
+
+  const raw = await generateJsonCompletion({
+    system: BACKFILL_SYSTEM_PROMPT,
+    user: [
+      userContext || "(No profile context yet.)",
+      "",
+      "Missing insight ids:",
+      `themes: ${[...missingThemeIds].join(", ") || "(none)"}`,
+      `hubs: ${[...missingHubIds].join(", ") || "(none)"}`,
+      `pursuits: ${[...missingPursuitIds].join(", ") || "(none)"}`,
+      "",
+      "Relevant map JSON:",
+      JSON.stringify(slimContext, null, 2),
+    ].join("\n"),
+    maxTokens: 2048,
+  });
+
+  let json: unknown;
+  try {
+    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+  } catch (err) {
+    console.error("[insights] backfill returned invalid JSON", { err, raw });
+    return generated;
+  }
+
+  const parsed = backfillInsightSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("[insights] backfill returned invalid shape", {
+      issues: parsed.error.issues,
+      raw,
+    });
+    return generated;
+  }
+
+  const mergeLevel = (
+    base: Record<string, InsightLevelPayload>,
+    patch: Record<string, InsightLevelPayload> | undefined,
+  ) => ({ ...base, ...patch });
+
+  return {
+    global: generated.global,
+    themes: mergeLevel(generated.themes, parsed.data.themes),
+    hubs: mergeLevel(generated.hubs, parsed.data.hubs),
+    pursuits: mergeLevel(generated.pursuits, parsed.data.pursuits),
+  };
+}
+
 export async function generateInsights(userId: string): Promise<InsightGenerationResult> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId, { excludeOnHold: true }),
+    formatMapContext(userId),
     formatUserContext(userId),
   ]);
 
@@ -165,5 +310,5 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
     );
   }
 
-  return parsed.data;
+  return backfillMissingNodeInsights(mapContext, userContext, parsed.data);
 }

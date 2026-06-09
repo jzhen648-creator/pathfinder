@@ -22,6 +22,7 @@ import {
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-hubs";
 import { assignPursuitVisualsSafe } from "@/lib/ai/assign-pursuit-icon";
+import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -209,6 +210,8 @@ export async function POST(request: Request) {
     }
 
     const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
+
+    refreshInsightsInBackground(userId);
 
     return NextResponse.json(
       {

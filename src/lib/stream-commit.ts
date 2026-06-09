@@ -27,6 +27,7 @@ import {
   recordStreamThemeSession,
 } from "@/lib/stream-theme-context";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
+import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
 import {
   assignPursuitVisualsSafe,
   persistPursuitVisualsForGoal,
@@ -617,6 +618,8 @@ export async function commitStreamToHub(
 
     await persistVisualsForGoals(goalsNeedingShortLabel);
 
+    refreshInsightsInBackground(userId);
+
     return {
       ok: true,
       branchId: branch.id,
@@ -841,6 +844,8 @@ export async function commitStreamToTheme(
 
     queueMemoryUpdateAfterStream(userId, payload.inputText);
 
+    refreshInsightsInBackground(userId);
+
     return {
       ok: true,
       themeId,
@@ -993,6 +998,8 @@ export async function commitStreamGlobal(
     });
 
     queueMemoryUpdateAfterStream(userId, payload.inputText);
+
+    refreshInsightsInBackground(userId);
 
     return {
       ok: true,
