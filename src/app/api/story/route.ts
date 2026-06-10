@@ -129,9 +129,13 @@ export async function GET() {
 
 
   if (!row) {
-
-    return NextResponse.json({ story: null, mapVersion, memoryVersion });
-
+    return NextResponse.json({
+      story: null,
+      stale: true,
+      mapVersion,
+      memoryVersion,
+      canAutoRefresh: true,
+    });
   }
 
 
