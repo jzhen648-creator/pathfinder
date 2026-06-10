@@ -10,13 +10,14 @@ The product is **four categories**, not five competing information sets. Three u
 |---------|----------|--------------|-------------------|----------------|
 | **Map** | Store (structured) | Yes | Pursuits + marks + progress | Yes (via **+** and theme detail) |
 | **Settings** | Benchmark fields | Yes | Name, age, location only | Yes (direct) |
-| **Insights** (tab) | View — whole-map scope | Season read: no (regenerated). Ledger: derived from map | nothing | No |
+| **Insights** (tab) | View — whole-map scope | Season read: no (regenerated). Ledger: cached ✦ one-liners | nothing | No |
 | **Insight** (✦ sparkle) | View — node scope | No (regenerated) | nothing | No |
-| **Timeline** (tab) | View — chronological | No (derived from map) | nothing | No |
+| **Timeline** (tab) | View — chronological | No (derived from map + marks) | nothing | No |
 | **+** (add pursuit) | Input verb | No | nothing | n/a |
+| **Map browse sheet** | View — operational inventory | No (derived from map) | nothing | No |
 
 - **One store.** Map = structured truth: **pursuits** on the surface (what you're building) and **marks** in theme detail (facts, events, people, skills — theme context). Settings holds three benchmark fields for season read (name, age, location).
-- **Views at three scopes.** Insights tab = whole-map season read + pursuit ledger. Insight ✦ = per theme/pursuit sparkle. Timeline tab = date-span reading of pursuits.
+- **Views at three scopes.** Insights tab = whole-map season read + interpretive ledger (AI one-liners). Insight ✦ = per theme/pursuit sparkle. Timeline tab = one vertical spine (marks, deadlines, milestone completions — not per-pursuit Gantt bars). Map browse sheet = status inventory (Active / Maintaining / On hold / Completed).
 - **One input verb.** Centre **+** creates pursuits. Marks are added in theme detail panels. The map **Self node** is decorative only.
 
 **Decision test (check every new feature):**
