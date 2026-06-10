@@ -6,7 +6,7 @@ This document governs every AI-generated string shown to users in Pathfinder. Wh
 
 | Surface | Prompt location |
 |--------|------------------|
-| Insights sparkle + Now tab global | `src/lib/insights/generate-insights.ts` |
+| Insights sparkle + global cache | `src/lib/insights/generate-insights.ts` |
 | Stream interpretation + confirmation copy | `src/lib/ai/stream-extract.ts` (`STREAM_*_SYSTEM_PROMPT`, `STREAM_PURUIT_REVIEW_RULES`) |
 | Money tracker reflection | `src/app/api/finance/reflection/route.ts` |
 | Story (coach narrative) | `src/lib/story/generate-story.ts` (`STORY_SYSTEM_PROMPT`) |
@@ -89,7 +89,7 @@ Good comparison sentence shape:
 
 > For a [age]-year-old in [location], [specific observation about this pursuit/hub/theme] puts you [ahead of / behind / in line with] most peers at your life stage.
 
-**Story exception:** The live Story prompt in `generate-story.ts` is stricter — no peer comparison inside strength bodies; age, location, occupation, and life stage at most once per reading; comparison optional and omitted if already used in opening. Insights and Now tab still follow this section.
+**Story exception:** The live Story prompt in `generate-story.ts` is stricter — no peer comparison inside strength bodies; age, location, occupation, and life stage at most once per reading; comparison optional and omitted if already used in opening. Per-entity Insights (sparkle) still follow this section.
 
 ---
 
@@ -120,9 +120,9 @@ Never produce form-validation copy ("add a description to make this clearer"). T
 
 The sparkle modal shows all layers. Each must pass the specificity test independently.
 
-### Now tab global insight
+### Global insight (cache)
 
-Today's `global` insight (`greeting`, `sections`, optional `streamCta`) is a **daily compass**, not the full Story. It should still obey all rules above: name real pursuits, one suggestion max across the whole global block, no task lists, no obligation language.
+The `global` field (`greeting`, `sections`, optional `streamCta`) is a **whole-map compass** kept in the insight cache for API parity. **Story** is the live whole-map reading on mobile. Global generation should still obey all rules above: name real pursuits, one suggestion max across the whole global block, no task lists, no obligation language.
 
 Sections use short titles (e.g. MOMENTUM, ATTENTION). Bodies must be specific, not category weather reports.
 
