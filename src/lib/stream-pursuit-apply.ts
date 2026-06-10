@@ -19,6 +19,17 @@ import {
   isMarkDateInTheFuture,
   resolveMarkInputDate,
 } from "@/lib/validation/marks-and-branches";
+import {
+  generalizePursuitTitle,
+  mergePursuitContextDescription,
+  preferExistingMapTitle,
+  titleLooksOverSpecific,
+} from "@/lib/pursuit/pursuit-title";
+import { syncFinanceMetricsFromProse } from "@/lib/pursuit/pursuit-finance";
+import {
+  streamExtractFailureStatus,
+  streamExtractUserMessage,
+} from "@/lib/stream-extract-errors";
 import type {
   StreamExtractResponse,
   StreamPursuitUpdate,
@@ -67,6 +78,35 @@ function ensurePursuitContextUpdate(
   return existing ?? null;
 }
 
+function stabilizePursuitUpdate(
+  existingTitle: string,
+  existingDescription: string | null,
+  update: StreamPursuitUpdate,
+  rawInput: string,
+): StreamPursuitUpdate {
+  const next: StreamPursuitUpdate = { ...update };
+
+  if (next.title?.trim()) {
+    if (preferExistingMapTitle(existingTitle, next.title)) {
+      delete next.title;
+    } else if (titleLooksOverSpecific(next.title)) {
+      next.title = generalizePursuitTitle(next.title);
+    }
+  }
+
+  if (next.description?.trim()) {
+    next.description = mergePursuitContextDescription(existingDescription, next.description);
+  } else if (titleLooksOverSpecific(rawInput) || rawInput.trim().length > 20) {
+    next.description = mergePursuitContextDescription(existingDescription, rawInput.trim());
+  }
+
+  if (!next.title && titleLooksOverSpecific(existingTitle) && next.description?.trim()) {
+    next.title = generalizePursuitTitle(existingTitle);
+  }
+
+  return next;
+}
+
 export type PursuitStreamApplyResult =
   | {
       ok: true;
@@ -98,7 +138,7 @@ export async function applyPursuitStream(
 
   const goalRow = await prisma.goal.findFirst({
     where: { id: pursuitId, userId },
-    select: { description: true, bloomStatus: true, branchId: true },
+    select: { description: true, bloomStatus: true, branchId: true, title: true },
   });
   if (!goalRow?.branchId) {
     return { ok: false, streamRunId: "", rawInput: input, error: "Pursuit not found", status: 404 };
@@ -144,7 +184,8 @@ export async function applyPursuitStream(
   try {
     extraction = await runPursuitStreamExtract(userId, ctx, input);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Extract failed";
+    const status = streamExtractFailureStatus(err);
+    const message = streamExtractUserMessage(status);
     await prisma.streamRun.update({
       where: { id: run.id },
       data: { status: "failed", summaryJson: { error: message } },
@@ -154,7 +195,7 @@ export async function applyPursuitStream(
       streamRunId: run.id,
       rawInput: run.rawInput,
       error: message,
-      status: 503,
+      status,
     };
   }
 
@@ -191,13 +232,21 @@ export async function applyPursuitStream(
       });
       if (!branch) throw new Error("Hub not found");
 
-      for (const update of pursuitUpdates) {
+      for (const rawUpdate of pursuitUpdates) {
+        const update = stabilizePursuitUpdate(
+          goalRow.title,
+          run.previousDescription,
+          rawUpdate,
+          run.rawInput,
+        );
         const data: {
           title?: string;
           description?: string;
           bloomStatus?: BloomStatus;
           bloomedAt?: Date | null;
           sourceStreamRunId?: string;
+          currentAmount?: number;
+          unit?: string;
         } = { sourceStreamRunId: run.id };
 
         if (update.title?.trim()) data.title = update.title.trim();
@@ -205,6 +254,14 @@ export async function applyPursuitStream(
         if (update.bloomStatus && goalRow.bloomStatus !== "MAINTAINING") {
           data.bloomStatus = update.bloomStatus as BloomStatus;
           data.bloomedAt = update.bloomStatus === "COMPLETE" ? new Date() : null;
+        }
+
+        if (ctx.limbId === "finance" && data.description) {
+          const metrics = syncFinanceMetricsFromProse(data.description);
+          if (metrics) {
+            data.currentAmount = metrics.currentAmount;
+            data.unit = metrics.unit;
+          }
         }
 
         if (Object.keys(data).length <= 1) continue;

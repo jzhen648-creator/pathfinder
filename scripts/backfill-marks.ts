@@ -67,15 +67,19 @@ function inferJourneyBranchName(g: {
 }): string {
   const text = `${g.title ?? ""} ${g.description ?? ""}`.toLowerCase();
   if (g.limbId === "finance") {
-    if (/(debt|loan|paid off|mortgage|credit)/.test(text)) return "Liabilities";
-    if (/(salary|income|pay|profitable|revenue)/.test(text)) return "Income";
+    if (/(debt|loan|paid off|mortgage|credit)/.test(text)) return "Debts & obligations";
+    if (/(rent|rental|landlord|tenant|btl|buy-to-let|airbnb|hmo)/.test(text)) return "Rental & property income";
+    if (/(freelance|self[- ]?employed|sole trader|invoic|side business|consulting client)/.test(text)) {
+      return "Business & freelance income";
+    }
+    if (/(salary|payroll|bonus|commission|employer)/.test(text)) return "Employment income";
     if (/(insurance|emergency|runway|safety)/.test(text)) return "Safety net";
-    return "Assets";
+    return "Assets & investing";
   }
   if (g.limbId === "work") {
-    if (/(mentor|network|collaborat|peer|skill|learn|course|cert)/.test(text)) return "Skills";
-    if (/(project|ship|build|portfolio)/.test(text)) return "Builds & Launches";
-    return "Career";
+    if (/(mentor|network|collaborat|peer|skill|learn|course|cert)/.test(text)) return "Skills & learning";
+    if (/(project|ship|build|portfolio)/.test(text)) return "Projects & shipping";
+    return "Career & role";
   }
   if (g.limbId === "people") {
     if (/(dad|mum|family|parent|child)/.test(text)) return "Family";
@@ -84,9 +88,9 @@ function inferJourneyBranchName(g: {
     return "Friendships";
   }
   if (g.limbId === "health") {
-    if (/(burnout|sleep|rest|recovery|downtime)/.test(text)) return "Rest";
+    if (/(burnout|sleep|rest|recovery|downtime)/.test(text)) return "Rest & sleep";
     if (/(meal|nutrition|eat|food)/.test(text)) return "Nutrition";
-    if (/(teeth|hair|skin|invisalign|cosmetic|upgrade)/.test(text)) return "Appearance";
+    if (/(teeth|hair|skin|invisalign|cosmetic|upgrade)/.test(text)) return "Body & grooming";
     return "Movement";
   }
   if (g.limbId === "becoming") {
@@ -94,7 +98,7 @@ function inferJourneyBranchName(g: {
     if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Mind & Emotions";
     return "Purpose";
   }
-  return "Career";
+  return "Career & role";
 }
 
 async function main() {

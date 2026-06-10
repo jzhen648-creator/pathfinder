@@ -55,6 +55,8 @@ type StreamExtractContextOptions = {
   mapContext?: FormattedMapContext;
   /** When the user pre-selected a map hex before Stream (claim-tile flow). */
   placementNote?: string;
+  /** Serializes AI jobs per user when set. */
+  queueKey?: string;
 };
 
 /** Cross-theme routing for theme id `becoming` (display: Self & Mind). */
@@ -74,7 +76,7 @@ const STREAM_SELF_MIND_THEME_BOUNDARIES = [
   "- Physical fitness, diet, sleep, medical wellbeing, weight, strength, endurance, body projects → Health & Body hubs (unless the user is mainly discussing emotions or mindset around those issues)",
   "- Career ambition, job progress, professional skills, business, career qualifications, work output → Work & Career (unless mainly identity, confidence, values, or meaning)",
   "- Family, friendships, romance, dating, social life, communication with others, relationship repair → People & Relationships (unless primarily reflecting on own emotions or thoughts)",
-  "- Assets, debt, investing, property, mortgages, savings, tax, income → Money & Finance",
+  "- Assets, debt, investing, property, mortgages, savings, tax, income → Money & Finance (finance theme: employment income | rental & property income | business & freelance income | assets & investing | safety net | debts & obligations)",
   "",
   "Social fun with other people may → Friendships or Romance even when the activity is leisure.",
   "\"What's on my mind?\" is a Stream input placeholder, not a hub name.",
@@ -97,7 +99,7 @@ const STREAM_PLAY_LEISURE_THEME_BOUNDARIES = [
   "- Career skills, certifications, job progress, shipping work output → Work & Career",
   "- Family time, romance, friendship repair as the main point → People & Relationships",
   "- Fitness, nutrition, sleep, appearance projects → Health & Body",
-  "- Income, spending plans, investing → Money & Finance",
+  "- Income, spending plans, investing → Money & Finance (split income by source: salary → employment income; rental/landlord → rental & property income; freelance/business → business & freelance income)",
   "",
   "When unsure between Hobbies vs Culture: making/playing → hobbies; reading/watching/listening → culture; planning a trip/event → experiences.",
 ].join("\n");
@@ -326,12 +328,14 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "Pursuit titles are short summaries of the outcome the user cares about — how they would say it in conversation — not a transcript of every treatment, tool, or clause they mentioned.",
   "",
-  "- Good: \"Improve my teeth\", \"Move into Head of Product\", \"Build emergency fund\"",
+  "- Good: \"Improve my teeth\", \"Move into Head of Product\", \"Build emergency fund\", \"Rental income\"",
   "- Bad: \"Fix teeth with onlay, composite bonding, and orthodontics\"",
   "- Bad: \"Head of Product transition including mentor search and LinkedIn update\"",
+  "- Bad: \"£1,650 in rental income\" or any title led by amounts, dates, or monthly figures",
   "",
   "Rules:",
   "- Aim for ~3–8 words: the umbrella outcome or life theme.",
+  "- Map title = stable label on the hex. Amounts, targets, dates, and latest figures belong in pursuit description (updates) or hub marks — not in title.",
   "- Do NOT stack procedures, brands, modalities, or comma-separated methods in a pursuit title.",
   "- Put named treatments, tactics, appointments, providers, and sub-steps in milestones[] on the matching pursuit — never as separate peer pursuits for each method.",
   "- Marks and milestones may keep slightly more specific wording than the pursuit title; the pursuit title stays the simplest umbrella.",
@@ -745,6 +749,7 @@ export async function runStreamExtract(
     user: buildStreamExtractUserMessage(hub, input, options),
     maxTokens: 4000,
     temperature: 0.2,
+    queueKey: options.queueKey,
   });
 
   if (!raw) {
@@ -786,10 +791,11 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "## Hub routing (critical)",
   "",
-  "- Every mark, pursuit, and milestone MUST include hubId — the normalized slug from hub context (e.g. \"career\", \"skills\", \"builds & launches\" for Work & Career).",
-  "- Never use display labels (\"Career\", \"Skills\") as hubId — only the slug.",
+  "- Every mark, pursuit, and milestone MUST include hubId — the normalized slug from hub context (e.g. \"career & role\", \"skills & learning\", \"projects & shipping\" for Work & Career; \"employment income\", \"rental & property income\" for Money & Finance).",
+  "- Never use display labels (\"Career & role\", \"Employment income\") as hubId — only the slug.",
   "- Route each item to the hub whose catalog scope and AI routing note best fit the user's intent.",
-  "- Work & Career examples: promotions, roles, pivots → career; learning, credentials, mentors, deliberate practice → skills; shipping, portfolios, concrete deliverables → builds & launches.",
+  "- Work & Career examples: promotions, roles, pivots → career & role; learning, credentials, mentors, deliberate practice → skills & learning; shipping, portfolios, concrete deliverables → projects & shipping.",
+  "- Money & Finance examples: salary, bonus, employer pay → employment income; BTL, landlord, tenants, rental yield → rental & property income; freelance, invoicing, business revenue → business & freelance income; ISA, pension, investing → assets & investing.",
   "- When an item could fit two hubs, route it to the single most likely one and proceed; placement is low-stakes and the user can re-drag it later. Never defer or flag placement.",
   "",
   STREAM_SELF_MIND_THEME_BOUNDARIES,
@@ -1032,6 +1038,7 @@ export async function runStreamThemeExtract(
     user: buildStreamThemeExtractUserMessage(theme, input, options),
     maxTokens: STREAM_THEME_EXTRACT_MAX_TOKENS,
     temperature: 0.2,
+    queueKey: options.queueKey,
   });
 
   if (!raw) {
@@ -1088,8 +1095,8 @@ export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
   "Moral/spiritual identity language → Purpose & Values hub (becoming / Self & Mind theme), even when the paragraph also mentions politics or law:",
   '- "keep the ideal alive", moral core, dignity, hope, forgiveness, reconciliation, legacy, conscience → purpose & values',
   "",
-  "Career/work language → Career hub (work theme):",
-  '- legal practice, law firm, attorney, ANC leadership, election campaign, voter education → Career',
+  "Career/work language → Career & role hub (work theme):",
+  '- legal practice, law firm, attorney, ANC leadership, election campaign, voter education → career & role',
   "",
   STREAM_EXTRACT_TITLE_LENGTH_RULES,
   "",
@@ -1156,6 +1163,7 @@ export async function runStreamGlobalExtract(
     user: buildStreamGlobalExtractUserMessage(input, options),
     maxTokens: STREAM_THEME_EXTRACT_MAX_TOKENS,
     temperature: 0.2,
+    queueKey: options.queueKey,
   });
 
   if (!raw) {

@@ -2,15 +2,17 @@ import type { LifeAreaId } from "./types";
 import { normalizeHubLabelKey } from "./taxonomy";
 
 /**
- * Canonical Lucide kebab-case slugs for all 20 system hubs.
+ * Canonical Lucide kebab-case slugs for all system hub categories.
  * Single source of truth — mobile pursuit icons import this module.
  */
 export const HUB_LUCIDE_ICON_SLUGS = [
   "wallet",
+  "home",
+  "briefcase",
   "piggy-bank",
   "shield-check",
   "credit-card",
-  "briefcase",
+  "building-2",
   "graduation-cap",
   "rocket",
   "compass",
@@ -19,7 +21,6 @@ export const HUB_LUCIDE_ICON_SLUGS = [
   "palette",
   "book-open",
   "map-pin",
-  "home",
   "heart",
   "users",
   "dumbbell",
@@ -33,15 +34,17 @@ export type HubLucideIconSlug = (typeof HUB_LUCIDE_ICON_SLUGS)[number];
 /** Per-theme hub slot → Lucide slug (keys are `normalizeHubLabelKey(threadType)`). */
 export const HUB_LUCIDE_ICONS: Record<LifeAreaId, Record<string, HubLucideIconSlug>> = {
   finance: {
-    income: "wallet",
-    assets: "piggy-bank",
+    "employment income": "wallet",
+    "rental & property income": "home",
+    "business & freelance income": "briefcase",
+    "assets & investing": "piggy-bank",
     "safety net": "shield-check",
-    liabilities: "credit-card",
+    "debts & obligations": "credit-card",
   },
   work: {
-    career: "briefcase",
-    skills: "graduation-cap",
-    "builds & launches": "rocket",
+    "career & role": "building-2",
+    "skills & learning": "graduation-cap",
+    "projects & shipping": "rocket",
   },
   becoming: {
     "purpose & values": "compass",
@@ -61,15 +64,15 @@ export const HUB_LUCIDE_ICONS: Record<LifeAreaId, Record<string, HubLucideIconSl
   health: {
     movement: "dumbbell",
     nutrition: "apple",
-    appearance: "sparkles",
-    rest: "moon",
+    "body & grooming": "sparkles",
+    "rest & sleep": "moon",
   },
 };
 
 /** Slot-order fallback — mirrors `LOCKED_HUB_TEMPLATES` per theme. */
 export const HUB_LUCIDE_ICON_SLOT_ORDER: Record<LifeAreaId, readonly HubLucideIconSlug[]> = {
-  finance: ["wallet", "piggy-bank", "shield-check", "credit-card"],
-  work: ["briefcase", "graduation-cap", "rocket"],
+  finance: ["wallet", "home", "briefcase", "piggy-bank", "shield-check", "credit-card"],
+  work: ["building-2", "graduation-cap", "rocket"],
   becoming: ["compass", "eye", "sun"],
   pleasures: ["palette", "book-open", "map-pin"],
   people: ["home", "heart", "users"],

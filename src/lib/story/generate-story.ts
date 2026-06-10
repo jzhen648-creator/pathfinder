@@ -19,8 +19,8 @@ export class StoryGenerationResponseError extends Error {
 }
 
 export const STORY_SYSTEM_PROMPT = [
-  "You write Pathfinder Story — a short, whole-map reading. Panoramic interpretation only.",
-  "The app renders map-structure indicators, pursuit rows, and stats separately — do not duplicate them.",
+  "You write the Insights tab season read for Pathfinder — a short, whole-map reflection for the mobile Insights tab.",
+  "The app renders a pursuit ledger, timeline, and per-pursuit sparkle insights separately — do not duplicate them.",
   "Return ONLY valid JSON. No markdown.",
   "",
   "Theme labels:",
@@ -28,40 +28,20 @@ export const STORY_SYSTEM_PROMPT = [
   "- Theme id `becoming` is always **Self & Mind**. Never use Who I'm Becoming, Mind & Spirit, Personal Growth.",
   "",
   "GROUND TRUTH: Only use pursuits, hubs, themes, marks, milestones, and profile fields in context. Never invent facts.",
-  "- Marks are life facts and events that enrich each theme — people, skills, events, standing truths. Each theme includes a marks array.",
-  "- Only reference marks from other themes when they have a direct, specific connection to the theme or pursuit you are discussing. Do not force cross-references.",
-  "- Some pursuits include parentPursuitTitle — that pursuit grew from the named parent; acknowledge meaningful links between connected pursuits when they shape the map.",
+  "- Marks are life facts and events that enrich each theme. Each theme includes a marks array.",
+  "- Name at most 2–3 pursuits as examples of the overall shape — not an exhaustive list.",
   "",
-  "STORY vs GAPS:",
-  "- Structural gaps (missing dates, unresolved marks, broken chains) belong in the Gaps tab — do not enumerate them here.",
-  "- You MAY name pursuits under time pressure or with stalled momentum when the map data shows it — frame as narrative weight, not a fix list.",
-  "- Never name empty hubs/themes or prompt the user to fill structural gaps.",
-  "- Describe the shape of what IS on the map — concentration, phase, direction — while acknowledging real deadline pressure when present.",
+  "seasonRead (2–4 sentences, ~80–120 words):",
+  "- Reflective season read — where this person is in their life map right now. Calm, specific, not prescriptive.",
+  "- Weave in how career, finances, health, relationships, and personal themes interact on the map when data supports it.",
+  "- When age AND location are known in User context, weave in one holistic benchmark (typical patterns, life stage, not a separate section).",
+  "  Use name/age/location inside the logic — not as a decorative prefix.",
+  "  Use approximate language (roughly, typically, around). Omit benchmark clause if age OR location is unknown.",
+  "- Do not write per-pursuit sparkle insight copy. Do not produce task lists or chapter timelines.",
+  "- Do not repeat pursuit counts or milestone totals the UI shows elsewhere.",
+  "- No peer-comparison template filler (\"valued in a competitive market\") without a concrete fact.",
   "",
-  "STORY vs INSIGHTS:",
-  "- Do not write per-theme or per-pursuit insight copy. Sparkle owns node-level meaning.",
-  "- Name at most 2–3 pursuits as examples of the overall shape.",
-  "",
-  "NO PEER COMPARISON (critical):",
-  "- Never compare to peers, age cohorts, life stage averages, or \"others at your stage\".",
-  "- Never: ahead/behind peers, above average, for your age, well-aligned for growth, tracking well vs others.",
-  "- We have no cohort benchmark data — map interpretation only.",
-  "",
-  "NO GENERIC ADVICE:",
-  "- Never: \"keep building on your fitness goals\", \"your career path is well-defined\", \"financial strategy is well-aligned\".",
-  "- Every sentence must cite specific named pursuits, hubs, or map facts.",
-  "",
-  "opening (exactly 2–3 SHORT sentences, ~60 words max):",
-  "- One phase label woven in (e.g. foundation-building, expansion) based on map shape.",
-  "- Where the map's structure concentrates (themes/pursuit types) — comparative across themes OK; name overdue or stalled pursuits only when map data shows them.",
-  "- Plain, cohesive prose — not a report, not a persona label stack (do not open with age + city + job title).",
-  "- Do not repeat pursuit counts or milestone totals shown in the UI.",
-  "",
-  "focus (exactly 1 short sentence):",
-  "- One named pursuit from the map — a gentle lean-in tied to what is already there.",
-  "- Not a task list, not a gap fix, not generic coaching.",
-  "",
-  "Voice: calm, map-native (shape, structure, taking form, in motion). Warm but not flattery. No hedging, no poster copy.",
+  "Voice: direct, informed advisor — calm and map-native. Warm but not flattery. No hedging, no poster copy.",
 ].join("\n");
 
 function buildUserMessage(mapJson: string, userContext: string): string {
@@ -71,8 +51,8 @@ function buildUserMessage(mapJson: string, userContext: string): string {
     "Life map JSON:",
     mapJson,
     "",
-    `Return JSON: schemaVersion (\"${STORY_SCHEMA_VERSION}\"), opening, focus.`,
-    "Opening: max 3 short sentences. Total JSON under 800 output tokens.",
+    `Return JSON: schemaVersion (\"${STORY_SCHEMA_VERSION}\"), seasonRead.`,
+    "Total JSON under 800 output tokens.",
   ].join("\n");
 }
 
@@ -97,6 +77,7 @@ export async function generateStory(userId: string): Promise<StoryGenerationResu
     user: buildUserMessage(JSON.stringify(mapContext, null, 2), userContext),
     maxTokens: 2048,
     temperature: 0.5,
+    queueKey: userId,
   });
 
   let json: unknown;

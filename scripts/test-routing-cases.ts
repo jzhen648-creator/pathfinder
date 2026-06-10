@@ -3,7 +3,7 @@
  * using catalog-only mock contexts (no existing pursuits or marks).
  *
  * Tests whether hub catalog content alone is sufficient for correct routing.
- * All 8 cases target known boundary or ambiguity failures.
+ * All 9 cases target known boundary or ambiguity failures.
  *
  * Run: npx tsx scripts/test-routing-cases.ts
  * Requires: GEMINI_API_KEY in .env.local (no dev server, no login)
@@ -84,8 +84,8 @@ const CASES: RoutingCase[] = [
     id: "isa-assets",
     themeId: "finance",
     input: "My stocks and shares ISA hit £5,000",
-    expected: { kind: "hub", hubSlug: "assets" },
-    description: "Investment milestone — should land on Assets, not Safety net",
+    expected: { kind: "hub", hubSlug: "assets & investing" },
+    description: "Investment milestone — should land on Assets & investing, not Safety net",
   },
   {
     id: "spousal-visa-romance",
@@ -105,8 +105,8 @@ const CASES: RoutingCase[] = [
     id: "cemap-skills",
     themeId: "work",
     input: "Finished CeMAP module 1 last Tuesday",
-    expected: { kind: "hub", hubSlug: "skills" },
-    description: "Professional qualification — should land on Skills, not Career",
+    expected: { kind: "hub", hubSlug: "skills & learning" },
+    description: "Professional qualification — should land on Skills & learning, not Career & role",
   },
   {
     id: "retreat-purpose",
@@ -119,19 +119,26 @@ const CASES: RoutingCase[] = [
     id: "youtube-builds",
     themeId: "work",
     input: "I launched my YouTube channel on 3 April",
-    expected: { kind: "hub", hubSlug: "builds & launches" },
-    description: "Published channel launch — should land on Builds & Launches, not Career",
+    expected: { kind: "hub", hubSlug: "projects & shipping" },
+    description: "Published channel launch — should land on Projects & shipping, not Career & role",
   },
   {
     id: "acne-ambiguous",
     themeId: "health",
     input: "Booked a dermatologist for acne — I've been avoiding photos",
-    // Appearance catalog explicitly includes photo flinching / mirror avoidance signals,
-    // so a confident Appearance route is catalog-correct; ambiguity is also acceptable
-    // when the model emphasizes the Appearance / Inner life boundary.
-    expected: { kind: "hubOrAmbiguous", hubSlug: "appearance" },
+    // Body & grooming catalog explicitly includes photo flinching / mirror avoidance signals,
+    // so a confident Body & grooming route is catalog-correct; ambiguity is also acceptable
+    // when the model emphasizes the Body & grooming / Mind & Emotions boundary.
+    expected: { kind: "hubOrAmbiguous", hubSlug: "body & grooming" },
     description:
-      "Photo avoidance + cosmetic appointment — Appearance is acceptable; ambiguity is also acceptable",
+      "Photo avoidance + cosmetic appointment — Body & grooming is acceptable; ambiguity is also acceptable",
+  },
+  {
+    id: "rental-income-finance",
+    themeId: "finance",
+    input: "Rental income is £1,200pcm from the BTL flat after costs",
+    expected: { kind: "hub", hubSlug: "rental & property income" },
+    description: "Rental yield — should land on Rental & property income, not Employment income",
   },
 ];
 

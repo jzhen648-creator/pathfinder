@@ -28,39 +28,103 @@ export type HubCatalogEntry = {
 /** Locked default-hub copy — keyed by theme id + hub display name (`Branch.label` / `thread.type`). */
 const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> = {
   finance: {
-    Income: {
+    "Employment income": {
       about:
-        "Money you earn or control as cash flow — salary, freelance, business revenue, commissions, and raises. This hub is about bringing money in, not where you invest it or what you owe.",
-      why: "Income sets the ceiling for every other financial choice; naming it clearly stops money stuff from collapsing into one vague blob.",
+        "Pay from a job or employer — salary, bonus, commission, PAYE, and negotiated raises. Employment cash flow, not rental yields, business revenue, or investment returns.",
+      why: "Salary is the default income lane for most people; separating it from rental and business stops everything from collapsing into one vague 'money in' blob.",
       belongsHere: [
         "Negotiate a raise",
-        "Start freelance income",
-        "Stabilise monthly cash flow",
-      ],
-      doesNotBelongHere: [
-        "ISA contributions (→ Assets)",
-        "Emergency fund target (→ Safety net)",
-        "Pay off credit card (→ Liabilities)",
-      ],
-      aiRoutingNote:
-        "Route here when the item is about earning or cash inflow — salary, bonus, freelance, or side income. If money is being saved, invested, or moved into an account after it arrives, that's Assets or Safety net. Visa costs, rent, and living expenses are not income items unless the user is negotiating pay to cover them.",
-      examples: [
-        "Negotiate a raise",
-        "Start freelance income",
-        "Stabilise monthly cash flow",
-        "Land first mortgage broker role",
+        "Land mortgage advisor role",
         "Track commission ramp in year one",
       ],
+      doesNotBelongHere: [
+        "BTL rental yield target (→ Rental & property income)",
+        "Freelance invoicing system (→ Business & freelance income)",
+        "ISA contributions (→ Assets & investing)",
+      ],
+      aiRoutingNote:
+        "Route here for employment pay — salary, bonus, commission from a job, promotion pay, and employer-side negotiation. Rental income, landlord yields, and property tenants → Rental & property income. Freelance, sole-trader, invoicing, and business revenue → Business & freelance income. If money is saved or invested after it arrives, that's Assets & investing or Safety net — not income.",
+      examples: [
+        "Negotiate a raise",
+        "Land first mortgage broker role",
+        "Track commission ramp in year one",
+        "Stabilise monthly salary",
+        "Switch employer for better pay",
+      ],
       openingQuestions: [
-        "What does your income look like right now — is it where you want it to be?",
-        "Any conversation about pay or a new opportunity you've been putting off?",
-        "If you could change one thing about how money comes in, what would it be?",
+        "What does your pay look like right now — is it where you want it to be?",
+        "Any conversation about salary or a new role you've been putting off?",
+        "If you could change one thing about how your job pays, what would it be?",
       ],
       firstTimeQuestion:
-        "How's the money coming in — and is it where you want it to be?",
-      coachMarkHubInstruction: "Any income goals you're working toward?",
+        "How's your employment income — and is it where you want it to be?",
+      coachMarkHubInstruction: "Any pay or role income goals you're working toward?",
     },
-    Assets: {
+    "Rental & property income": {
+      about:
+        "Cash flow from property you own or let — buy-to-let, room lets, Airbnb, landlord yields, and rental portfolio income. Property as an income source, not mortgage payoff or equity building.",
+      why: "Rental income has different tax, risk, and benchmarking than salary; it deserves its own lane for Insights and routing.",
+      belongsHere: [
+        "Rental income",
+        "Grow BTL portfolio yield",
+        "Let spare room consistently",
+      ],
+      doesNotBelongHere: [
+        "Negotiate salary (→ Employment income)",
+        "Freelance consulting invoices (→ Business & freelance income)",
+        "Pay off buy-to-let mortgage (→ Debts & obligations)",
+      ],
+      aiRoutingNote:
+        "Route here when the user earns from property they own or let — rent, BTL, landlord, tenants, room let, Airbnb, HMO, property yield. Generic 'income' with rental cues wins here over Employment income. Mortgage balance payoff → Debts & obligations; building equity or investing sale proceeds → Assets & investing.",
+      examples: [
+        "Rental income",
+        "Grow BTL portfolio yield",
+        "Let spare room consistently",
+        "Stabilise tenant voids",
+        "Track net rental after costs",
+      ],
+      openingQuestions: [
+        "Do you earn from property — and is that income where you want it?",
+        "Any landlord or rental goal you've been circling?",
+        "What would make your property income feel stable or worth the hassle?",
+      ],
+      firstTimeQuestion:
+        "Any rental or property income you're building or relying on?",
+      coachMarkHubInstruction: "Rental or property income you're tracking?",
+    },
+    "Business & freelance income": {
+      about:
+        "Money you earn outside employment — freelance clients, sole-trader work, side business revenue, consulting, and invoicing. Your own business cash flow, not salary or rental yields.",
+      why: "Self-employed income behaves differently from payroll; separating it keeps freelance and business goals routable and benchmarkable.",
+      belongsHere: [
+        "Start freelance income",
+        "Grow consulting pipeline",
+        "Stabilise monthly business revenue",
+      ],
+      doesNotBelongHere: [
+        "Salary negotiation (→ Employment income)",
+        "BTL rental yield (→ Rental & property income)",
+        "Invest business profits in ISA (→ Assets & investing)",
+      ],
+      aiRoutingNote:
+        "Route here for freelance, self-employed, sole-trader, side business, consulting clients, invoicing, and business revenue — cash in from work you run, not from an employer or tenants. Commission from a brokerage job → Employment income. Rent from a flat you own → Rental & property income.",
+      examples: [
+        "Start freelance income",
+        "Grow consulting pipeline",
+        "Stabilise monthly business revenue",
+        "Raise day rate",
+        "First paid client milestone",
+      ],
+      openingQuestions: [
+        "Are you earning on your own — freelance or business — and how's that going?",
+        "Any client, rate, or pipeline goal you've been putting off?",
+        "What would make self-employed income feel stable?",
+      ],
+      firstTimeQuestion:
+        "Any freelance or business income you're building?",
+      coachMarkHubInstruction: "Freelance or business income goals?",
+    },
+    "Assets & investing": {
       about:
         "Wealth you grow and hold — pensions, index funds, property equity, brokerage accounts, and allocation decisions. Long-horizon building, not monthly paycheck or monthly bills.",
       why: "Compounding only shows up when investments are separated from day-to-day income and expenses.",
@@ -70,9 +134,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Rebalance portfolio allocation",
       ],
       doesNotBelongHere: [
-        "Salary negotiation (→ Income)",
+        "Salary negotiation (→ Employment income)",
         "Income protection insurance (→ Safety net)",
-        "Mortgage balance payoff (→ Liabilities)",
+        "Mortgage balance payoff (→ Debts & obligations)",
       ],
       aiRoutingNote:
         "Route here for building net worth — ISA contributions, investments, savings pots with a growth goal, and property equity. If the pot is purely for emergencies or downside protection (not growth), it's Safety net. If the user mentions a specific savings target tied to a life event (visa fund, rent buffer, travel), prefer Safety net unless they explicitly frame it as investing.",
@@ -102,9 +166,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Stress-test runway if income stops",
       ],
       doesNotBelongHere: [
-        "Stock market investing (→ Assets)",
-        "Credit card payoff (→ Liabilities)",
-        "Negotiate salary (→ Income)",
+        "Stock market investing (→ Assets & investing)",
+        "Credit card payoff (→ Debts & obligations)",
+        "Negotiate salary (→ Employment income)",
       ],
       aiRoutingNote:
         "Route here for buffers, emergency funds, insurance, and protection against specific life shocks — visa costs, rent pressure, redundancy cushion, medical cover. The key signal is fear of a bad outcome, not desire for growth. If the user mentions a named life risk (visa, rent spike, job loss), this hub almost always wins over Assets even if the mechanism is a savings pot.",
@@ -124,7 +188,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What's the financial thing you don't want to think about — but probably should?",
       coachMarkHubInstruction: "Any financial protection you want to put in place?",
     },
-    Liabilities: {
+    "Debts & obligations": {
       about:
         "Debts and obligations you must repay — mortgages, loans, credit cards, BNPL, and structured payoff plans. Not charitable giving or investing.",
       why: "Debt has its own psychology and math; tracking it separately keeps payoff plans honest.",
@@ -135,11 +199,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       doesNotBelongHere: [
         "Values-led charity or tithing (→ Purpose & Values)",
-        "Building investment portfolio (→ Assets)",
+        "Building investment portfolio (→ Assets & investing)",
         "Income protection policy (→ Safety net)",
       ],
       aiRoutingNote:
-        "Route here for money owed to creditors — credit cards, loans, overdrafts, buy-now-pay-later balances. The signal is a named debt with a balance or repayment plan. Do not route visa application fees, rent deposits, or one-off costs here — those are Safety net. Do not route mortgage equity building here — that is Assets.",
+        "Route here for money owed to creditors — credit cards, loans, overdrafts, buy-now-pay-later balances. The signal is a named debt with a balance or repayment plan. Do not route visa application fees, rent deposits, or one-off costs here — those are Safety net. Do not route mortgage equity building here — that is Assets & investing.",
       examples: [
         "Pay off credit card",
         "Refinance mortgage",
@@ -158,7 +222,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
     },
   },
   work: {
-    Career: {
+    "Career & role": {
       about:
         "Your professional trajectory — job titles, promotions, employer changes, industry pivots, and the story of what you do for a living. Strategy and position, not craft details or shipped artifacts.",
       why: "Career moves are high-stakes and infrequent; they deserve a hub that is not cluttered with every course or side repo.",
@@ -168,12 +232,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Scope industry pivot",
       ],
       doesNotBelongHere: [
-        "Complete AWS certification (→ Skills)",
-        "Ship portfolio website v1 (→ Builds & Launches)",
+        "Complete AWS certification (→ Skills & learning)",
+        "Ship portfolio website v1 (→ Projects & shipping)",
         "Close friendship with former colleague (→ Friendships)",
       ],
       aiRoutingNote:
-        "Route here for role, employer, promotion, redundancy, job search, and career direction — what the user does for work and where it's going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Skills. If they're shipping a portfolio piece or publishing content, that's Builds & Launches. Career covers the role itself; the other two cover the inputs and outputs. Extract all three when present in the same dump.",
+        "Route here for role, employer, promotion, redundancy, job search, and career direction — what the user does for work and where it's going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Skills & learning. If they're shipping a portfolio piece or publishing content, that's Projects & shipping. Career & role covers the role itself; the other two cover the inputs and outputs. Extract all three when present in the same dump.",
       examples: [
         "Land Head of Product role",
         "Plan promotion to director",
@@ -190,7 +254,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What are you doing for work right now, and where do you want it to take you?",
       coachMarkHubInstruction: "Where do you want your career to go from here?",
     },
-    Skills: {
+    "Skills & learning": {
       about:
         "Capabilities you are building — courses, certifications, deliberate practice, tools, mentors, and professional relationships that make you better at the craft. Networking for learning and career capital, not social life.",
       why: "Skills compound separately from any single job title or shipped project.",
@@ -200,8 +264,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Deepen SQL for analytics",
       ],
       doesNotBelongHere: [
-        "Ship side project MVP (→ Builds & Launches)",
-        "Ask for promotion (→ Career)",
+        "Ship side project MVP (→ Projects & shipping)",
+        "Ask for promotion (→ Career & role)",
         "Weekend trip with friends (→ Joy & Creativity)",
       ],
       aiRoutingNote:
@@ -222,7 +286,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "What's something you'd love to be great at — even if you're not there yet?",
       coachMarkHubInstruction: "Any skills or qualifications you're working toward?",
     },
-    "Builds & Launches": {
+    "Projects & shipping": {
       about:
         "Concrete work you ship — side projects, portfolio pieces, flagship builds, launches, and published artifacts with a done state. If it has a deliverable or release, it lives here.",
       why: "Shipping is a different muscle from climbing the ladder or taking a course; separating it keeps busy from done.",
@@ -232,8 +296,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Deliver Q3 product launch",
       ],
       doesNotBelongHere: [
-        "Promotion planning (→ Career)",
-        "Learn React course (→ Skills)",
+        "Promotion planning (→ Career & role)",
+        "Learn React course (→ Skills & learning)",
         "Hobby game dev with no ship goal (→ Joy & Creativity)",
       ],
       aiRoutingNote:
@@ -304,7 +368,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Run a 10k training plan (→ Movement)",
       ],
       aiRoutingNote:
-        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Purpose & Values), not career output (Career/Skills), not body presentation projects (Appearance). If the user mentions therapy by name, this hub wins over Purpose & Values. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
+        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Purpose & Values), not career output (Career & role / Skills & learning), not body presentation projects (Body & grooming). If the user mentions therapy by name, this hub wins over Purpose & Values. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
       examples: [
         "I feel overwhelmed and need to organise my thoughts",
         "I want to become more confident",
@@ -369,7 +433,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Therapy for burnout (→ Mind & Emotions)",
       ],
       aiRoutingNote:
-        "Route here for hobbies, crafts, gaming, collecting, making, and personal interests done for enjoyment. Active leisure and skill-for-fun belong here. Passive media consumption → Culture. Trips and events → Experiences. Work output with a deliverable → Builds & Launches.",
+        "Route here for hobbies, crafts, gaming, collecting, making, and personal interests done for enjoyment. Active leisure and skill-for-fun belong here. Passive media consumption → Culture. Trips and events → Experiences. Work output with a deliverable → Projects & shipping.",
       examples: [
         "Get back into painting",
         "Learn guitar for fun",
@@ -396,7 +460,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       doesNotBelongHere: [
         "Learn to play piano (→ Hobbies)",
         "Trip to Japan (→ Experiences)",
-        "Write a novel (→ Joy & Creativity or Builds & Launches if shipping)",
+        "Write a novel (→ Joy & Creativity or Projects & shipping if shipping)",
       ],
       aiRoutingNote:
         "Route here for reading, listening, watching, exhibitions, concerts, theatre, and media appreciation. Learning an instrument as a hobby → Hobbies. Travel and events → Experiences.",
@@ -516,7 +580,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "London Thai community",
       ],
       doesNotBelongHere: [
-        "LinkedIn outreach for job search (→ Skills)",
+        "LinkedIn outreach for job search (→ Skills & learning)",
         "Anniversary trip with partner (→ Romance)",
         "Family reunion (→ Family)",
       ],
@@ -550,8 +614,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       doesNotBelongHere: [
         "Meal prep system (→ Nutrition)",
-        "Sleep schedule (→ Rest)",
-        "Hair transplant (→ Appearance)",
+        "Sleep schedule (→ Rest & sleep)",
+        "Hair transplant (→ Body & grooming)",
       ],
       aiRoutingNote:
         "Route here for exercise, running, gym, sport, walking, and movement practice — physical activity for its own sake or for fitness. Couch-to-5k, 10k training, strength work all belong here. If the user mentions a completed run or workout as a moment of pride, extract it as a mark. When the input contains both Movement and Nutrition items in the same dump, extract both — do not collapse one into the other.",
@@ -582,8 +646,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       doesNotBelongHere: [
         "Couch-to-5k plan (→ Movement)",
-        "CPAP for sleep apnea (→ Rest)",
-        "Teeth whitening (→ Appearance)",
+        "CPAP for sleep apnea (→ Rest & sleep)",
+        "Teeth whitening (→ Body & grooming)",
       ],
       aiRoutingNote:
         "Route here for eating, drinking, food habits, and meal patterns — what the user puts in their body. If the input mentions meal prep, cutting takeaways, or food as comfort, this is Nutrition even if it appears inside a broader health dump. Do not suppress a Nutrition item just because Movement items appear in the same input — extract both.",
@@ -602,10 +666,10 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       firstTimeQuestion: "How's your eating going — fuelling you, or fighting you?",
       coachMarkHubInstruction: "Any eating habits you want to build or change?",
     },
-    Appearance: {
+    "Body & grooming": {
       about:
         "Body projects you choose for how you look or feel in your body — teeth, hair, skin, grooming, and cosmetic procedures.",
-      why: "Appearance goals are specific, often clinical or cosmetic, and should not absorb all self-improvement.",
+      why: "Body and grooming goals are specific, often clinical or cosmetic, and should not absorb all self-improvement.",
       belongsHere: [
         "Plan Invisalign",
         "Book dermatologist for acne",
@@ -617,7 +681,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "General fat loss via diet (→ Nutrition)",
       ],
       aiRoutingNote:
-        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, style, fitness, diet, sleep, and medical wellbeing when the focus is physical. The signal is presentation and how the user looks or trains their body. Photo flinching and grooming projects belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Appearance and Mind & Emotions flagged. Do not route general anxiety, values, or hobby goals here.",
+        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, and style when the focus is presentation. The signal is how the user looks or grooms their body. Photo flinching and grooming projects belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Body & grooming and Mind & Emotions flagged. Do not route general anxiety, values, or hobby goals here.",
       examples: [
         "Plan Invisalign",
         "Book dermatologist for acne",
@@ -634,7 +698,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Is there anything about how you show up — face, hair, style, body — you'd love to upgrade?",
       coachMarkHubInstruction: "Any body or grooming goals you want to track?",
     },
-    Rest: {
+    "Rest & sleep": {
       about:
         "Sleep and recovery as infrastructure — bedtime routines, sleep quality, naps, burnout recovery, and unstructured downtime that restores you. Not hobbies unless the goal is rest.",
       why: "Rest is the most underrated lever; giving it a hub stops I'm tired from living only as a vague mark.",
@@ -693,7 +757,7 @@ export function hubCatalogFallback(areaId: string, hubLabel: string): HubCatalog
     pleasures:
       "Hobbies, culture, and experiences you protect for joy — leisure that does not belong on Self & Mind, Work, or People.",
     people: "Relationships and the people who shape your story — named connections, not task lists.",
-    health: "Physical foundation — movement, fuel, appearance, and rest.",
+    health: "Physical foundation — movement, fuel, body & grooming, and rest & sleep.",
   };
   const themeLine = byTheme[areaId as LifeAreaId] ?? "this theme";
   const isPeople = areaId === "people";
@@ -753,7 +817,7 @@ export function canonicalHubDisplayLabel(areaId: string, hubLabel: string): stri
   return key ?? trimmed;
 }
 
-/** Parse redirect target hub name from a doesNotBelongHere line, e.g. "(→ Assets)". */
+/** Parse redirect target hub name from a doesNotBelongHere line, e.g. "(→ Assets & investing)". */
 export function parseHubRedirectTarget(line: string): string | null {
   const m = /\(→\s*([^)]+)\)\s*$/.exec(line.trim());
   return m?.[1]?.trim() ?? null;

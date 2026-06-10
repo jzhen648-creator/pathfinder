@@ -122,6 +122,7 @@ export async function POST(request: Request) {
         const result = await runStreamThemeExtract(themeContext, input, {
           userContext,
           mapContext,
+          queueKey: userId,
         });
         let committedAmbiguousCount = 0;
         const byBranch = new Map<
@@ -301,6 +302,7 @@ export async function POST(request: Request) {
         userContext,
         mapContext,
         placementNote,
+        queueKey: userId,
       });
       let committedAmbiguousCount = 0;
       if (result.ambiguous.length > 0) {

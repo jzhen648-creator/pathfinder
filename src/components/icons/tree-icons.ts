@@ -44,15 +44,17 @@ export const LIMB_ICONS: Record<LifeAreaId, TreeIconComponent> = {
 /** Locked hub label → icon (canonical names from `LOCKED_HUB_TEMPLATES`). */
 export const HUB_BRANCH_ICONS: Record<LifeAreaId, Record<string, TreeIconComponent>> = {
   finance: {
-    Income: BranchIncome,
-    Assets: BranchInvesting,
+    "Employment income": BranchIncome,
+    "Rental & property income": BranchIncome,
+    "Business & freelance income": BranchCareer,
+    "Assets & investing": BranchInvesting,
     "Safety net": BranchProtection,
-    Liabilities: BranchDebt,
+    "Debts & obligations": BranchDebt,
   },
   work: {
-    Career: BranchCareer,
-    Skills: BranchHammer,
-    "Builds & Launches": BranchProjects,
+    "Career & role": BranchCareer,
+    "Skills & learning": BranchHammer,
+    "Projects & shipping": BranchProjects,
   },
   becoming: {
     "Purpose & Values": BranchPurpose,
@@ -72,15 +74,15 @@ export const HUB_BRANCH_ICONS: Record<LifeAreaId, Record<string, TreeIconCompone
   health: {
     Movement: BranchMovement,
     Nutrition: BranchNutrition,
-    Appearance: BranchSkills,
-    Rest: BranchSleep,
+    "Body & grooming": BranchSkills,
+    "Rest & sleep": BranchSleep,
   },
 };
 
 /** Slot-order fallback — matches `LOCKED_HUB_TEMPLATES` per theme. */
 export const BRANCH_ICONS_BY_LIMB: Record<LifeAreaId, readonly TreeIconComponent[]> = {
   work: [BranchCareer, BranchHammer, BranchProjects],
-  finance: [BranchIncome, BranchInvesting, BranchProtection, BranchDebt],
+  finance: [BranchIncome, BranchIncome, BranchCareer, BranchInvesting, BranchProtection, BranchDebt],
   becoming: [BranchPurpose, BranchInnerWork, BranchExperiences],
   pleasures: [BranchHobbies, BranchCulture, BranchExperiences],
   people: [BranchFamily, BranchRomance, BranchFriendships],
@@ -89,7 +91,7 @@ export const BRANCH_ICONS_BY_LIMB: Record<LifeAreaId, readonly TreeIconComponent
 
 export const DEFAULT_HUB_SLOT_COUNT: Record<LifeAreaId, number> = {
   work: 3,
-  finance: 4,
+  finance: 6,
   becoming: 3,
   pleasures: 3,
   people: 3,

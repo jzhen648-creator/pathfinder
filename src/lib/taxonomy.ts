@@ -1,7 +1,7 @@
 import type { LifeAreaId } from "./types";
 
 /** Bump when locked theme/hub names change (sync + docs). */
-export const TAXONOMY_VERSION = "2026-06-08-v8-play-leisure" as const;
+export const TAXONOMY_VERSION = "2026-06-10-v9-finance-categories" as const;
 
 export const LIFE_AREA_IDS = [
   "becoming",
@@ -18,15 +18,17 @@ export type HubTemplate = {
   name: string;
 };
 
-/** Locked default root hubs — count varies by theme (20 total). */
+/** Locked default root hubs — AI routing categories (not map geometry). */
 export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
-  { limbId: "finance", threadType: "Income", name: "Income" },
-  { limbId: "finance", threadType: "Assets", name: "Assets" },
+  { limbId: "finance", threadType: "Employment income", name: "Employment income" },
+  { limbId: "finance", threadType: "Rental & property income", name: "Rental & property income" },
+  { limbId: "finance", threadType: "Business & freelance income", name: "Business & freelance income" },
+  { limbId: "finance", threadType: "Assets & investing", name: "Assets & investing" },
   { limbId: "finance", threadType: "Safety net", name: "Safety net" },
-  { limbId: "finance", threadType: "Liabilities", name: "Liabilities" },
-  { limbId: "work", threadType: "Career", name: "Career" },
-  { limbId: "work", threadType: "Skills", name: "Skills" },
-  { limbId: "work", threadType: "Builds & Launches", name: "Builds & Launches" },
+  { limbId: "finance", threadType: "Debts & obligations", name: "Debts & obligations" },
+  { limbId: "work", threadType: "Career & role", name: "Career & role" },
+  { limbId: "work", threadType: "Skills & learning", name: "Skills & learning" },
+  { limbId: "work", threadType: "Projects & shipping", name: "Projects & shipping" },
   { limbId: "becoming", threadType: "Purpose & Values", name: "Purpose & Values" },
   { limbId: "becoming", threadType: "Mind & Emotions", name: "Mind & Emotions" },
   { limbId: "becoming", threadType: "Joy & Creativity", name: "Joy & Creativity" },
@@ -38,12 +40,12 @@ export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "people", threadType: "Friendships", name: "Friendships" },
   { limbId: "health", threadType: "Movement", name: "Movement" },
   { limbId: "health", threadType: "Nutrition", name: "Nutrition" },
-  { limbId: "health", threadType: "Appearance", name: "Appearance" },
-  { limbId: "health", threadType: "Rest", name: "Rest" },
+  { limbId: "health", threadType: "Body & grooming", name: "Body & grooming" },
+  { limbId: "health", threadType: "Rest & sleep", name: "Rest & sleep" },
 ] as const;
 
 /** @deprecated Prefer {@link hubsForTheme}. Maximum hubs on any single theme. */
-export const HUBS_PER_THEME = 4;
+export const HUBS_PER_THEME = 6;
 
 /** Legacy hub labels → normalized key for matching template slots (lowercase). */
 export const HUB_LABEL_ALIASES: Record<string, string> = {
@@ -56,21 +58,41 @@ export const HUB_LABEL_ALIASES: Record<string, string> = {
   reflection: "mind & emotions",
   habits: "mind & emotions",
   joy: "joy & creativity",
-  projects: "builds & launches",
+  projects: "projects & shipping",
+  "builds & launches": "projects & shipping",
+  career: "career & role",
+  skills: "skills & learning",
+  income: "employment income",
+  salary: "employment income",
+  payroll: "employment income",
+  rental: "rental & property income",
+  "rental income": "rental & property income",
+  "property income": "rental & property income",
+  landlord: "rental & property income",
+  btl: "rental & property income",
+  "buy to let": "rental & property income",
+  freelance: "business & freelance income",
+  "self-employed": "business & freelance income",
+  "self employed": "business & freelance income",
+  business: "business & freelance income",
+  assets: "assets & investing",
+  investing: "assets & investing",
+  investments: "assets & investing",
   protection: "safety net",
-  giving: "liabilities",
-  network: "skills",
+  giving: "debts & obligations",
+  liabilities: "debts & obligations",
+  debt: "debts & obligations",
+  "debt & obligations": "debts & obligations",
+  network: "skills & learning",
   community: "friendships",
   play: "hobbies",
-  downtime: "rest",
-  recovery: "rest",
-  upgrades: "appearance",
-  energy: "appearance",
-  investing: "assets",
-  investments: "assets",
-  sleep: "rest",
-  debt: "liabilities",
-  "debt & obligations": "liabilities",
+  downtime: "rest & sleep",
+  recovery: "rest & sleep",
+  sleep: "rest & sleep",
+  rest: "rest & sleep",
+  upgrades: "body & grooming",
+  energy: "body & grooming",
+  appearance: "body & grooming",
 };
 
 /** Legacy DB root labels → current theme + hub display name (sync migration). */
@@ -79,31 +101,38 @@ export const LEGACY_HUB_MIGRATIONS: Record<string, { limbId: LifeAreaId; label: 
   spirituality: { limbId: "becoming", label: "Purpose & Values" },
   meaning: { limbId: "becoming", label: "Purpose & Values" },
   "inner life": { limbId: "becoming", label: "Mind & Emotions" },
-  projects: { limbId: "work", label: "Builds & Launches" },
+  projects: { limbId: "work", label: "Projects & shipping" },
+  "builds & launches": { limbId: "work", label: "Projects & shipping" },
+  career: { limbId: "work", label: "Career & role" },
+  skills: { limbId: "work", label: "Skills & learning" },
   mind: { limbId: "becoming", label: "Mind & Emotions" },
   "inner work": { limbId: "becoming", label: "Mind & Emotions" },
   reflection: { limbId: "becoming", label: "Mind & Emotions" },
   habits: { limbId: "becoming", label: "Mind & Emotions" },
   protection: { limbId: "finance", label: "Safety net" },
-  giving: { limbId: "finance", label: "Liabilities" },
-  network: { limbId: "work", label: "Skills" },
+  giving: { limbId: "finance", label: "Debts & obligations" },
+  income: { limbId: "finance", label: "Employment income" },
+  assets: { limbId: "finance", label: "Assets & investing" },
+  investing: { limbId: "finance", label: "Assets & investing" },
+  investments: { limbId: "finance", label: "Assets & investing" },
+  liabilities: { limbId: "finance", label: "Debts & obligations" },
+  debt: { limbId: "finance", label: "Debts & obligations" },
+  "debt & obligations": { limbId: "finance", label: "Debts & obligations" },
+  network: { limbId: "work", label: "Skills & learning" },
   community: { limbId: "people", label: "Friendships" },
   joy: { limbId: "becoming", label: "Joy & Creativity" },
-  /** Legacy rows already on becoming/Joy stay put — no retroactive move to pleasures. */
   hobbies: { limbId: "becoming", label: "Joy & Creativity" },
   culture: { limbId: "becoming", label: "Joy & Creativity" },
   experiences: { limbId: "becoming", label: "Joy & Creativity" },
   creativity: { limbId: "becoming", label: "Joy & Creativity" },
-  downtime: { limbId: "health", label: "Rest" },
-  recovery: { limbId: "health", label: "Rest" },
-  upgrades: { limbId: "health", label: "Appearance" },
-  investing: { limbId: "finance", label: "Assets" },
-  investments: { limbId: "finance", label: "Assets" },
-  sleep: { limbId: "health", label: "Rest" },
-  rest: { limbId: "health", label: "Rest" },
+  downtime: { limbId: "health", label: "Rest & sleep" },
+  recovery: { limbId: "health", label: "Rest & sleep" },
+  sleep: { limbId: "health", label: "Rest & sleep" },
+  rest: { limbId: "health", label: "Rest & sleep" },
   play: { limbId: "becoming", label: "Joy & Creativity" },
-  debt: { limbId: "finance", label: "Liabilities" },
-  "debt & obligations": { limbId: "finance", label: "Liabilities" },
+  upgrades: { limbId: "health", label: "Body & grooming" },
+  energy: { limbId: "health", label: "Body & grooming" },
+  appearance: { limbId: "health", label: "Body & grooming" },
 };
 
 export function normalizeHubLabelKey(label: string): string {

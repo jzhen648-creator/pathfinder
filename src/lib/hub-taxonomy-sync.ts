@@ -13,6 +13,54 @@ export type EnsureHubTaxonomyCurrentResult = {
   updates: number;
 };
 
+const RENTAL_INCOME_RE =
+  /\b(rent|rental|landlord|tenant|btl|buy-to-let|buy to let|property income|room let|airbnb|hmo)\b/i;
+const BUSINESS_INCOME_RE =
+  /\b(freelance|self[- ]?employed|sole trader|ltd|invoic|side business|consulting client|my business)\b/i;
+
+/** Reassign pursuits from legacy Employment income bucket using title/description cues. */
+async function migrateFinanceIncomeCategories(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<number> {
+  const roots = await prisma.branch.findMany({
+    where: { userId, parentBranchId: null, limbId: "finance" },
+    select: { id: true, label: true, name: true },
+  });
+
+  const branchByKey = new Map(
+    roots.map((b) => [systemHubKey(b.limbId, b.label ?? b.name), b.id]),
+  );
+
+  const employmentId = branchByKey.get(systemHubKey("finance", "Employment income"));
+  const rentalId = branchByKey.get(systemHubKey("finance", "Rental & property income"));
+  const businessId = branchByKey.get(systemHubKey("finance", "Business & freelance income"));
+  if (!employmentId || !rentalId || !businessId) return 0;
+
+  const goals = await prisma.goal.findMany({
+    where: { userId, branchId: employmentId, archived: false },
+    select: { id: true, title: true, description: true },
+  });
+
+  let updates = 0;
+  for (const goal of goals) {
+    const text = `${goal.title} ${goal.description ?? ""}`;
+    let target = employmentId;
+    if (RENTAL_INCOME_RE.test(text)) {
+      target = rentalId;
+    } else if (BUSINESS_INCOME_RE.test(text)) {
+      target = businessId;
+    }
+    if (target === employmentId) continue;
+    await prisma.goal.update({
+      where: { id: goal.id },
+      data: { branchId: target },
+    });
+    updates += 1;
+  }
+  return updates;
+}
+
 /** Runs full hub sync when {@link User.hubTaxonomyVersion} !== {@link TAXONOMY_VERSION}; stamps on success. */
 export async function ensureHubTaxonomyCurrent(
   prisma: PrismaClient,
@@ -79,14 +127,14 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
       label = "Joy & Creativity";
       name = "Joy & Creativity";
     } else if (raw === "mind" && limbId === "health") {
-      label = "Appearance";
-      name = "Appearance";
+      label = "Body & grooming";
+      name = "Body & grooming";
     } else if (raw === "mind" && limbId === "becoming") {
       label = "Mind & Emotions";
       name = "Mind & Emotions";
     } else if (raw === "energy" && limbId === "health") {
-      label = "Appearance";
-      name = "Appearance";
+      label = "Body & grooming";
+      name = "Body & grooming";
     }
 
     const template = LOCKED_HUB_TEMPLATES.find(
@@ -146,6 +194,7 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
   }
 
   updates += await ensureSystemHubsForUser(prisma, userId);
+  updates += await migrateFinanceIncomeCategories(prisma, userId);
 
   return updates;
 }

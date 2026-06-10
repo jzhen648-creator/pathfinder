@@ -80,6 +80,12 @@ export type FormattedMapContext = {
 
         parentPursuitTitle?: string;
 
+        /** Structured progress — when set, insights can benchmark without parsing prose. */
+        targetAmount?: number;
+        currentAmount?: number;
+        unit?: string;
+        deadline?: string;
+
       }>;
 
     }>;
@@ -176,6 +182,14 @@ export async function formatMapContext(
           bloomStatus: true,
 
           parentGoalId: true,
+
+          targetAmount: true,
+
+          currentAmount: true,
+
+          unit: true,
+
+          deadline: true,
 
           milestones: {
 
@@ -319,7 +333,10 @@ export async function formatMapContext(
 
         }
 
-
+        if (goal.targetAmount != null) pursuit.targetAmount = goal.targetAmount;
+        if (goal.currentAmount != null) pursuit.currentAmount = goal.currentAmount;
+        if (goal.unit?.trim()) pursuit.unit = goal.unit.trim();
+        if (goal.deadline) pursuit.deadline = goal.deadline.toISOString().slice(0, 10);
 
         return pursuit;
 

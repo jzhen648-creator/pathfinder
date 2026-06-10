@@ -210,7 +210,13 @@ export async function runPursuitStreamExtract(
       : ["- (none yet)"]),
     "",
     "Rules for this submission:",
-    "- Rewrite or extend the target pursuit context in pursuitUpdates[] with goalId and description (specific, action-oriented).",
+    "- Map title stays a stable label (e.g. \"Rental income\") — not amounts or monthly figures.",
+    "- Put £ amounts, targets, dates, and latest numbers in pursuitUpdates[].description or a hub mark.",
+    "- REPLACE the target pursuit description with a polished **living context** block (2–4 short sentences) — not the raw transcript.",
+    "- Lead with key figures the user gave (£/month, yield %, purchase price, hours/week) when present.",
+    "- Include deal context Insights needs for benchmarks: cadence (monthly vs annual), asset type, location if mentioned.",
+    "- Example shape: \"Monthly rent: £1,650 from the flat. Gross yield roughly 5% on purchase price. Tenant in place since 2024.\"",
+    "- Change title only to generalize an over-specific title or when the user clearly renames the pursuit.",
     "- Add milestones only for this pursuit (pursuitExistingGoalId = target goalId).",
     "- Optionally add one hub mark for a distinct timeline moment.",
     "- Do NOT create new pursuits. Do NOT delete or archive anything.",
@@ -228,6 +234,7 @@ export async function runPursuitStreamExtract(
   const result = await runStreamExtract(hubContext, pursuitFocus, {
     userContext,
     mapContext,
+    queueKey: userId,
   });
 
   return filterPursuitStreamExtraction(result, ctx.goalId, input);

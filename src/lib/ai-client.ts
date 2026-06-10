@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { runSerializedAiJob } from "@/lib/ai/ai-job-queue";
 
 type AiProvider = "gemini" | "groq" | "deepseek";
 
@@ -93,7 +94,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function withRateLimitRetry<T>(operation: () => Promise<T>): Promise<T> {
-  const delaysMs = [900, 2200];
+  const delaysMs = [1_500, 4_000, 10_000];
   let lastError: unknown;
   for (let attempt = 0; attempt <= delaysMs.length; attempt += 1) {
     try {
@@ -186,23 +187,28 @@ export async function generateJsonCompletion(input: {
   user: string;
   maxTokens?: number;
   temperature?: number;
+  /** Per-user queue key — serializes concurrent AI jobs for one account. */
+  queueKey?: string | null;
 }): Promise<string> {
-  const { client, config } = getAiClient();
-  const completion = await withRateLimitRetry(() =>
-    client.chat.completions.create({
-      model: config.model,
-      ...withGeminiReasoningEffort(config),
-      temperature: input.temperature ?? 0.2,
-      max_tokens: input.maxTokens ?? 1024,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: input.system },
-        { role: "user", content: input.user },
-      ],
-    }),
-  );
+  const { queueKey, ...completionInput } = input;
+  return runSerializedAiJob(queueKey, async () => {
+    const { client, config } = getAiClient();
+    const completion = await withRateLimitRetry(() =>
+      client.chat.completions.create({
+        model: config.model,
+        ...withGeminiReasoningEffort(config),
+        temperature: completionInput.temperature ?? 0.2,
+        max_tokens: completionInput.maxTokens ?? 1024,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: completionInput.system },
+          { role: "user", content: completionInput.user },
+        ],
+      }),
+    );
 
-  return completion.choices[0]?.message?.content?.trim() ?? "";
+    return completion.choices[0]?.message?.content?.trim() ?? "";
+  });
 }
 
 export async function generateStructured<T = unknown>(input: {
@@ -215,7 +221,8 @@ export async function generateStructured<T = unknown>(input: {
 }): Promise<T> {
   const { client, config } = getAiClient();
 
-  const completion = await client.chat.completions.create({
+  const completion = await withRateLimitRetry(() =>
+    client.chat.completions.create({
     model: config.model,
     ...withGeminiReasoningEffort(config),
     temperature: 0.2,
@@ -236,7 +243,8 @@ export async function generateStructured<T = unknown>(input: {
         ].join("\n"),
       },
     ],
-  });
+    }),
+  );
 
   const content = completion.choices[0]?.message?.content?.trim();
   if (!content) {

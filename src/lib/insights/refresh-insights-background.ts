@@ -110,10 +110,9 @@ function queueRefresh(userId: string, scope?: InsightRefreshScope): void {
   scheduleInsightRefresh(userId);
 }
 
-/** Fire-and-forget insight regen after map changes; debounced per user. */
-export function refreshInsightsInBackground(userId: string, scope?: InsightRefreshScope): void {
-  if (!hasGeminiKey()) return;
-  queueRefresh(userId, scope);
+/** Fire-and-forget hook after map edits — caches invalidate via mapVersion on read; no AI here. */
+export function refreshInsightsInBackground(_userId: string, _scope?: InsightRefreshScope): void {
+  // Lazy regen: mobile/server refresh endpoints run AI only when the user opens Insights or ✦.
 }
 
 /** Incremental pursuit insight refresh — merges into existing cache. */

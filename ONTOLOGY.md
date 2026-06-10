@@ -10,21 +10,22 @@ The product is **four categories**, not five competing information sets. Three u
 |---------|----------|--------------|-------------------|----------------|
 | **Map** | Store (structured) | Yes | Pursuits + marks + progress | Yes (via **+** and theme detail) |
 | **Settings** | Benchmark fields | Yes | Name, age, location only | Yes (direct) |
-| **Story** | View — whole-map scope | No (regenerated) | nothing | No |
-| **Insights** | View — node scope | No (regenerated) | nothing | No |
+| **Insights** (tab) | View — whole-map scope | Season read: no (regenerated). Ledger: derived from map | nothing | No |
+| **Insight** (✦ sparkle) | View — node scope | No (regenerated) | nothing | No |
+| **Timeline** (tab) | View — chronological | No (derived from map) | nothing | No |
 | **+** (add pursuit) | Input verb | No | nothing | n/a |
 
-- **One store.** Map = structured truth: **pursuits** on the surface (what you're building) and **marks** in theme detail (facts, events, people, skills — theme context). Settings holds three benchmark fields for Story (name, age, location).
-- **One view, at two scopes.** Story reads map + settings at whole-map scope. Insights is the same view scoped to a theme or pursuit.
+- **One store.** Map = structured truth: **pursuits** on the surface (what you're building) and **marks** in theme detail (facts, events, people, skills — theme context). Settings holds three benchmark fields for season read (name, age, location).
+- **Views at three scopes.** Insights tab = whole-map season read + pursuit ledger. Insight ✦ = per theme/pursuit sparkle. Timeline tab = date-span reading of pursuits.
 - **One input verb.** Centre **+** creates pursuits. Marks are added in theme detail panels. The map **Self node** is decorative only.
 
 **Decision test (check every new feature):**
 
 1. Can the user edit it? → map store (pursuits, marks) or settings (name/age/location).
-2. Does it regenerate from data? → view (Story or Insights).
+2. Does it regenerate from data? → view (Insights tab, Insight ✦, or Timeline).
 3. Nothing originates in a view.
 
-**Retired (2026-06):** Profile tab and `UserMemory` blob — Story no longer reads a prose identity summary; map marks + settings fields replace that layer.
+**Retired (2026-06):** Profile tab and `UserMemory` blob; **Story** tab name (route redirects to Insights). Season read no longer uses a prose identity summary; map marks + settings fields replace that layer.
 
 ## Core entities
 

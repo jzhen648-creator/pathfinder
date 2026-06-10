@@ -76,18 +76,15 @@ Tone labels like `encouraging`, `nudge`, and `celebratory` describe delivery war
 
 ## Comparison and benchmark rules
 
-Peer comparison is a core Pathfinder differentiator when profile context allows it.
+External benchmarks are a core Pathfinder differentiator when profile context allows it (`contextual` field on sparkle insights).
 
-- **Always include at least one peer comparison** when age and location are known (from `formatUserContext`).
-- **Use approximate language** — "ahead of most peers your age", "roughly in line with typical patterns in the UK". Never fabricate percentages or statistics unless genuinely sourced.
-- **Frame comparisons honestly** — positive where true, neutral or direct where not. Never fabricate good news.
-- **Tie the comparison to a specific pursuit**, not just the theme. "Most 29-year-olds in London aren't targeting a £500k ISA" beats "your finance theme is strong".
+- **Fill `contextual` when age and location are known** (from `formatUserContext`). Use name, age, and location **inside** the benchmark logic — not as a prefix decoration.
+- **Deliver real benchmark information** — typical salary ranges, qualification timelines, milestone prevalence at that age/location. Concrete approximate numbers when defensible.
+- **Use approximate language** — "roughly £45–55k", "typically 2–3 years", "fewer than half of…". Omit if unsure; never invented precision.
+- **Frame honestly** — positive where true, neutral or direct where not. Never generic filler ("valued in a competitive market").
+- **Tie benchmarks to this pursuit**, not theme-level hand-waving.
 
-When age **or** location is unknown, omit the comparison entirely. Do not guess, placeholder, or use "someone your age" without data.
-
-Good comparison sentence shape:
-
-> For a [age]-year-old in [location], [specific observation about this pursuit/hub/theme] puts you [ahead of / behind / in line with] most peers at your life stage.
+When age **or** location is unknown, set `contextual` to an empty string. Do not guess or use "someone your age" without data.
 
 **Story exception:** The live Story prompt in `generate-story.ts` is stricter — no peer comparison inside strength bodies; age, location, occupation, and life stage at most once per reading; comparison optional and omitted if already used in opening. Per-entity Insights (sparkle) still follow this section.
 
@@ -95,30 +92,34 @@ Good comparison sentence shape:
 
 ## What each surface should do
 
-### Story (whole-map reading)
+### Insights tab season read (whole-map)
 
-*Live prompt: `src/lib/story/generate-story.ts`. Panoramic map interpretation — not diagnostics (Review), not per-entity insight (sparkle). Mobile renders map-structure maturity labels and pursuit rows separately.*
+*Live prompt: `src/lib/story/generate-story.ts`. Powers the mobile **Insights** tab season block — not per-pursuit sparkle (`generate-insights.ts`), not the pursuit ledger (deterministic).*
 
 | Field | Job |
 |--------|-----|
-| **opening** | Exactly 2–3 **short** sentences (~60 words max). Map phase + where structure concentrates. No peer comparison, no gap prompts, no persona stack. |
-| **focus** | One short sentence — named pursuit, gentle lean-in. Not gap repair. |
+| **seasonRead** | 2–4 sentences (~80–120 words). Reflective season read for the whole map. Benchmark woven in when age **and** location known — holistic (career + finances + life stage), not a separate section. |
 
-**Hard bans:** peer/age/stage comparison; empty-hub callouts; generic theme advice; Review-style "consider filling X".
+**Hard bans:** task lists; chapter timeline; per-pursuit sparkle copy; peer-comparison prefix filler; pursuit count stats.
 
-Schema: `schemaVersion`, `opening`, `focus`.
+Schema: `schemaVersion`, `seasonRead`.
 
 ### Insights sparkle (per hub / theme / pursuit)
 
-Shown via ✨ on map panels. Schema: `reflective`, `contextual`, `combined`, `tone`, `oneLiner` (`insight-types.ts`). Story map-shape uses separate deterministic `buildMapMetrics` — not insight fields.
+Shown via ✨ on map panels. Schema: `oneLiner`, `reflective`, `contextual`, `combined`, `tone` (`insight-types.ts`). Story map-shape uses separate deterministic `buildMapMetrics` — not insight fields.
 
-- **`contextual`:** Exactly one sentence — the peer comparison benchmark, specific to this entity and a named pursuit where possible.
-- **`combined` / `oneLiner`:** Must reference the actual pursuit or hub name and something specific about it (status, target, recent activity, gap).
-- **`reflective`:** Map-grounded observation that explains *why*, not a field summary.
+**Non-duplication rule:** If content could be inferred from the pursuit title alone, cut or replace. Each field must add information the user could not derive by looking at their map. Do not repeat the same idea across fields. 2–4 sentences per field.
+
+| Field | UI label | Job |
+|--------|----------|-----|
+| **`oneLiner`** | Headline (bold) | Verdict — well-sequenced? fast/slow for age? smart given rest of map? Judgment, not description. |
+| **`reflective`** | From your map | Cross-map reasoning — name other pursuits/marks; build on, tension, leverage. |
+| **`contextual`** | Comparison | External benchmarks — salary bands, timelines, milestone prevalence; approximate numbers when grounded. Empty if age or location unknown. |
+| **`combined`** | What this opens | Forward-looking — job titles, certs, income thresholds, logical next pursuit. |
 
 Never produce form-validation copy ("add a description to make this clearer"). That is UI validation, not insight.
 
-The sparkle modal shows all layers. Each must pass the specificity test independently.
+Tone: direct, informed advisor — not a hype coach.
 
 ### Global insight (cache)
 
@@ -135,6 +136,27 @@ The `narrativeSentence` and optional pursuit `description` on the confirmation c
 - **Good (listening):** "You're working toward fixing your teeth before the wedding — that's going on your map."
 
 Pursuit `description` (1–2 sentences) should reassure through specificity: what success means for this person, using their framing. Not a JSON field summary.
+
+**Map title vs living context (pursuit organization):**
+
+- **Title** (hex label): stable category or outcome — e.g. `Rental income`, `Build emergency fund`. ~3–8 words. No £ amounts, monthly figures, or dates in the title.
+- **Description** (Update / pursuit context): latest integrated summary — amounts, targets, progress, nuance. Rewritten on each Update, not appended as duplicate paragraphs.
+- **Marks**: one-off timeline moments on the hub; recurring figure changes belong in description unless it's a distinct event.
+
+When the user streams an update with new numbers, **keep or generalize the title** and put the figures in `pursuitUpdates[].description`.
+
+On **Money & Finance** pursuits, Stream Update also syncs `currentAmount` + `unit` from the polished description (e.g. `1650` + `GBP/month`) so Insights reads structured numbers — not just prose. `formatMapContext` passes these fields to every insight/story prompt.
+
+**Three layers (canonical):**
+
+| Layer | Field | Example |
+|-------|--------|---------|
+| Map label | `title` | Rental income |
+| Living context | `description` | Monthly rent £1,650; ~5% gross yield; tenant in place |
+| Structured metrics | `currentAmount`, `unit`, `targetAmount` | 1650, GBP/month |
+| Timeline moments | hub `marks` | Rent review — raised to £1,700 (Jun 2026) |
+
+Raw brain-dump text is never stored on the goal — one Stream pass produces the polished context block.
 
 `reviewNote` when needed: direct, names the likely correction ("I think you mean DipPFS — Dip FPS doesn't match anything on your map").
 
@@ -180,7 +202,7 @@ Use this when adding or editing any user-facing AI prompt:
 3. Does it require **honest gaps** when data shows stall or emptiness?
 4. Does it forbid **hedging** and **motivational poster** language?
 5. Does it cap **suggestions at one** per surface?
-6. Does it require **peer comparison** when age + location are known?
+6. Does sparkle **`contextual`** require **external benchmarks** when age + location are known?
 7. Does it forbid **fabricated stats** and require **approximate language**?
 8. Does it connect to **identity**, not only productivity?
 9. Does it include **negative examples** for the most common failure mode of that surface?
