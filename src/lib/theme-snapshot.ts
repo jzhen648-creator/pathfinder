@@ -59,7 +59,8 @@ export function buildThemeSnapshot(area: AreaData): ThemeSnapshot {
   const goalsByBloom: Record<GoalBloomStatus, number> = {
     ACTIVE: 0,
     MAINTAINING: 0,
-    ON_HOLD: 0,
+    PAUSED: 0,
+    ABANDONED: 0,
     COMPLETE: 0,
   };
   for (const g of allGoals) {

@@ -78,11 +78,12 @@ const EXPLICIT_HOLD =
 export function allowPursuitBloomStatus(
   rawInput: string,
   status: string | undefined,
-): "ACTIVE" | "ON_HOLD" | "COMPLETE" | undefined {
+): "ACTIVE" | "PAUSED" | "COMPLETE" | undefined {
   if (!status) return undefined;
-  if (status === "COMPLETE" && !EXPLICIT_COMPLETE.test(rawInput)) return undefined;
-  if (status === "ON_HOLD" && !EXPLICIT_HOLD.test(rawInput)) return undefined;
-  return status as "ACTIVE" | "ON_HOLD" | "COMPLETE";
+  const normalized = status === "ON_HOLD" ? "PAUSED" : status;
+  if (normalized === "COMPLETE" && !EXPLICIT_COMPLETE.test(rawInput)) return undefined;
+  if (normalized === "PAUSED" && !EXPLICIT_HOLD.test(rawInput)) return undefined;
+  return normalized as "ACTIVE" | "PAUSED" | "COMPLETE";
 }
 
 /** Keep only updates for this pursuit; never create/archive/delete pursuits. */

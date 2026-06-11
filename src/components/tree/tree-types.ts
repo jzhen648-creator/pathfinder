@@ -25,7 +25,7 @@ export type MomentNode = {
   needsResolution?: boolean;
 };
 
-export type GoalBloomStatus = "ACTIVE" | "MAINTAINING" | "COMPLETE" | "ON_HOLD";
+export type GoalBloomStatus = "ACTIVE" | "MAINTAINING" | "COMPLETE" | "PAUSED" | "ABANDONED";
 
 export type TreeMilestoneNode = {
   id: string;

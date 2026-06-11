@@ -279,6 +279,7 @@ async function commitItemsToBranchInTx(
       title,
       description,
       lifeArea,
+      queueKey: userId,
     });
 
     const goal = await tx.goal.create({
@@ -333,8 +334,8 @@ async function commitItemsToBranchInTx(
         updateData.bloomedAt = new Date();
         forceBloomedGoalIds.add(goalId);
         bloomedPursuits += 1;
-      } else if (p.bloomStatus === "ON_HOLD") {
-        updateData.bloomStatus = "ON_HOLD";
+      } else if (p.bloomStatus === "PAUSED") {
+        updateData.bloomStatus = "PAUSED";
       } else if (p.bloomStatus === "MAINTAINING") {
         updateData.bloomStatus = "MAINTAINING";
       } else if (p.bloomStatus === "ACTIVE") {

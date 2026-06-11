@@ -1115,7 +1115,7 @@ function TreeViewInner({
         timelineStartIso?: string | null;
         deadlineIso?: string | null;
         archived?: boolean;
-        bloomStatus?: "ACTIVE" | "MAINTAINING" | "ON_HOLD" | "COMPLETE";
+        bloomStatus?: "ACTIVE" | "MAINTAINING" | "PAUSED" | "ABANDONED" | "COMPLETE";
       },
     ) => {
       try {
@@ -1599,9 +1599,9 @@ function TreeViewInner({
           label: "Put On Hold",
           icon: <ContextMenuIconPause />,
           warning: true,
-          disabled: goal.bloomStatus === "ON_HOLD",
+          disabled: goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED",
           onSelect: wrap(async () => {
-            const result = await handlePanelUpdateGoal(goal.id, { bloomStatus: "ON_HOLD" });
+            const result = await handlePanelUpdateGoal(goal.id, { bloomStatus: "PAUSED" });
             if (!result.ok) showTreeToast(result.error ?? "Could not update pursuit.", "#e85d5d");
           }),
         },

@@ -157,14 +157,14 @@ export function TreeGoalNodeSvg({
   const sealCy = cy - Math.SQRT1_2 * sealArm;
   /** Soft accent rim — dimmer when ended, baseline otherwise. */
   const rimStrokeOpacity =
-    status === "ON_HOLD" ? 0.62 : status === "ACTIVE" ? (hovered ? 1 : 0.88) : 0.98;
+    status === "PAUSED" || status === "ABANDONED" ? 0.62 : status === "ACTIVE" ? (hovered ? 1 : 0.88) : 0.98;
   const activeGlowFillOpacity = hovered ? 0.32 : 0.18;
-  const glyphAlphaBase = status === "ON_HOLD" ? 0.72 : status === "COMPLETE" ? 1 : 0.98;
+  const glyphAlphaBase = status === "PAUSED" || status === "ABANDONED" ? 0.72 : status === "COMPLETE" ? 1 : 0.98;
   const glyphAlpha = Math.min(0.97, glyphAlphaBase + (mv?.intensities.coreGlyphOpacityBoost ?? 0));
 
   /** Two ENDED hatch lines centered in the core — semantic "closed" cue, not bloom geometry. */
   const endedHatch =
-    status === "ON_HOLD" ? (
+    status === "PAUSED" || status === "ABANDONED" ? (
       <>
         <line
           x1={cx - GOAL_CORE_R * 0.42}
@@ -365,7 +365,7 @@ export function TreeGoalNodeSvg({
                 stroke={limbPaint}
                 strokeWidth={selected ? 1.7 : 1.35}
                 strokeOpacity={rimStrokeOpacity}
-                strokeDasharray={status === "ON_HOLD" ? "2 2" : undefined}
+                strokeDasharray={status === "PAUSED" || status === "ABANDONED" ? "2 2" : undefined}
                 className="tree-goal-hover-stroke"
                 pointerEvents="none"
               />

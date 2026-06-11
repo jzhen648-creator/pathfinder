@@ -30,6 +30,8 @@ export type AssignPursuitIconInput = {
   sectionLabel?: string | null;
   status?: string | null;
   siblingPursuitTitles?: string[];
+  /** Per-user queue key — serializes with Stream and insights for one account. */
+  queueKey?: string | null;
 };
 
 export type AssignPursuitVisualsResult = {
@@ -70,6 +72,7 @@ async function pickVisualsWithAi(
     user,
     maxTokens: 128,
     temperature: 0.1,
+    queueKey: input.queueKey,
   });
 
   let parsed: unknown;
@@ -151,6 +154,7 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
     where: { id: goalId },
     select: {
       id: true,
+      userId: true,
       title: true,
       description: true,
       lifeArea: true,
@@ -176,6 +180,7 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
     lifeArea: row.lifeArea ?? themeId,
     sectionLabel,
     status: row.bloomStatus,
+    queueKey: row.userId,
   });
 
   const data: { iconName?: string; shortLabel?: string } = {};

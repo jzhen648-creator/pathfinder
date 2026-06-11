@@ -1,3 +1,4 @@
+import type { BloomStatus } from "@prisma/client";
 import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { canonicalRootHubRows } from "@/lib/hub-dedupe";
@@ -144,8 +145,8 @@ function buildPursuitRow(
 function pursuitStatusWhere(filter: MapContextFilter) {
   const excludePaused = filter.excludePaused ?? filter.excludeOnHold ?? false;
   const excludeAbandoned = filter.excludeAbandoned ?? false;
-  const notIn: string[] = [];
-  if (excludePaused) notIn.push("PAUSED", "ON_HOLD");
+  const notIn: BloomStatus[] = [];
+  if (excludePaused) notIn.push("PAUSED");
   if (excludeAbandoned) notIn.push("ABANDONED");
   if (notIn.length === 0) return {};
   return { bloomStatus: { notIn } };

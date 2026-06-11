@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
+import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
 import { formatPursuitContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
-import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
+import { generateJsonCompletion, hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 
 type RouteProps = { params: Promise<{ goalId: string }> };
@@ -37,19 +38,6 @@ function normalizeSuggestions(raw: string[], existingLower: Set<string>): string
     if (out.length >= 7) break;
   }
   return out;
-}
-
-function errorDetails(err: unknown) {
-  if (err instanceof Error) {
-    const maybeProvider = err as Error & { status?: number; requestID?: string; error?: unknown };
-    return {
-      message: maybeProvider.message,
-      status: maybeProvider.status ?? null,
-      requestId: maybeProvider.requestID ?? null,
-      providerError: maybeProvider.error ?? null,
-    };
-  }
-  return { message: String(err), status: null, requestId: null, providerError: null };
 }
 
 export async function POST(request: Request, props: RouteProps) {
@@ -152,6 +140,7 @@ export async function POST(request: Request, props: RouteProps) {
       user,
       maxTokens: 512,
       temperature: 0.45,
+      queueKey: userId,
     });
 
     if (!raw) {
@@ -177,14 +166,6 @@ export async function POST(request: Request, props: RouteProps) {
     const suggestions = normalizeSuggestions(responseParsed.data, existingLower);
     return NextResponse.json({ suggestions });
   } catch (err) {
-    if (err instanceof GeminiNotConfiguredError) {
-      return NextResponse.json({ error: err.message }, { status: 503 });
-    }
-    const details = errorDetails(err);
-    console.error("[POST /api/goals/[goalId]/suggest-milestones] Gemini failed", details, err);
-    return NextResponse.json(
-      { error: `Suggest unavailable: ${details.message}` },
-      { status: 502 },
-    );
+    return aiRouteErrorResponse(err, "[POST /api/goals/[goalId]/suggest-milestones]");
   }
 }

@@ -163,7 +163,7 @@ export async function POST(request: Request) {
 
     const goalId = goal.id;
     after(() => {
-      void assignPursuitVisualsSafe({ title, description, lifeArea })
+      void assignPursuitVisualsSafe({ title, description, lifeArea, queueKey: userId })
         .then(async ({ iconName, shortLabel }) => {
           const existing = await prisma.goal.findUnique({
             where: { id: goalId },

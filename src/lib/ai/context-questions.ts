@@ -36,6 +36,7 @@ function stripJsonFence(raw: string): string {
 export async function generateContextQuestions(
   pursuitContext: FormattedPursuitContext,
   userContext: string,
+  queueKey?: string | null,
 ): Promise<string[]> {
   const user = [
     userContext ? `User profile:\n${userContext}` : "(No profile context yet.)",
@@ -51,6 +52,7 @@ export async function generateContextQuestions(
     user,
     maxTokens: 256,
     temperature: 0.55,
+    queueKey,
   });
 
   let parsed: unknown;

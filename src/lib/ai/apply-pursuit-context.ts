@@ -30,6 +30,7 @@ export async function applyPursuitContextNote(input: {
   existingDescription: string | null;
   goalId: string;
   themeId: string;
+  queueKey?: string | null;
 }): Promise<string> {
   const user = [
     input.userContext ? `User profile:\n${input.userContext}` : "",
@@ -54,6 +55,7 @@ export async function applyPursuitContextNote(input: {
     user,
     maxTokens: 512,
     temperature: 0.35,
+    queueKey: input.queueKey,
   });
 
   let parsed: unknown;

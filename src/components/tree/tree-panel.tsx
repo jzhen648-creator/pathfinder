@@ -107,7 +107,7 @@ function PursuitHexGlyph({
   bloomStatus: TreeGoalNode["bloomStatus"];
 }) {
   const complete = bloomStatus === "COMPLETE";
-  const onHold = bloomStatus === "ON_HOLD";
+  const onHold = bloomStatus === "PAUSED" || bloomStatus === "ABANDONED";
   return (
     <svg width={13} height={13} viewBox="-7.5 -7.5 15 15" style={{ flexShrink: 0 }} aria-hidden>
       <path
@@ -214,7 +214,7 @@ function PursuitSignificanceBar({ value, color }: { value: number; color: string
 
 const PURSUIT_STATUS_TABS: Array<{ value: TreeGoalNode["bloomStatus"]; label: string }> = [
   { value: "ACTIVE", label: "Active" },
-  { value: "ON_HOLD", label: "On hold" },
+  { value: "PAUSED", label: "Paused" },
   { value: "COMPLETE", label: "Complete" },
 ];
 
@@ -414,7 +414,7 @@ function renderHubPursuitCard(
     const titleClass =
       goal.bloomStatus === "COMPLETE"
         ? "pf-tree-rail-pursuit-title is-complete"
-        : goal.bloomStatus === "ON_HOLD"
+        : goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED"
           ? "pf-tree-rail-pursuit-title is-on-hold"
           : "pf-tree-rail-pursuit-title";
     return (
@@ -426,7 +426,7 @@ function renderHubPursuitCard(
       >
         <PursuitHexGlyph color={area.color} bloomStatus={goal.bloomStatus} />
         <span className={titleClass}>{goal.title}</span>
-        {goal.bloomStatus === "ON_HOLD" ? (
+        {goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED" ? (
           <span className="pf-tree-rail-pursuit-badge">on hold</span>
         ) : null}
         {goal.bloomStatus === "COMPLETE" ? (
@@ -1122,7 +1122,7 @@ export function TreePanel({
     const hubGoals = thread.goals;
     const hubActiveGoals = hubGoals.filter((g) => g.bloomStatus === "ACTIVE");
     const hubInactiveGoals = hubGoals.filter(
-      (g) => g.bloomStatus === "ON_HOLD" || g.bloomStatus === "COMPLETE",
+      (g) => g.bloomStatus === "PAUSED" || g.bloomStatus === "ABANDONED" || g.bloomStatus === "COMPLETE",
     );
     const hubRail = panelPresentation === "rail";
     const momentCount = thread.moments.filter((m) => m.synthetic !== true).length;
@@ -1671,7 +1671,7 @@ export function TreePanel({
     const thread = area.branches.find((t) => t.id === goal.branchId);
     const hubLabel = canonicalHubDisplayLabel(area.id, thread?.type.trim() || "Hub");
     const isComplete = goal.bloomStatus === "COMPLETE";
-    const isOnHold = goal.bloomStatus === "ON_HOLD";
+    const isOnHold = goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED";
     const provenance = goal as TreeGoalNode & {
       streamSourceText?: string | null;
       sourceText?: string | null;
@@ -2149,7 +2149,7 @@ export function TreePanel({
                             return n;
                           });
                           if (!result.ok) setMilestoneError(result.error ?? "Could not update milestone.");
-                          else if (goal.bloomStatus === "ON_HOLD" && next) {
+                          else if ((goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED") && next) {
                             setMilestoneNotice("Milestone saved — status updates when pursuit is reactivated.");
                           }
                         }}

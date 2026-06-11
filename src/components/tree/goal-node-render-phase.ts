@@ -38,7 +38,8 @@ function noMilestonesCoreGlow(status: GoalBloomStatus): number {
       return 1;
     case "ACTIVE":
       return 0.48;
-    case "ON_HOLD":
+    case "PAUSED":
+    case "ABANDONED":
       return 0.08;
     default:
       return 0.22;
@@ -54,7 +55,7 @@ export function deriveGoalNodeRenderState(args: {
   const progress01 = visibleCount === 0 ? 0 : completedCount / visibleCount;
 
   let visualPhase: GoalNodeVisualPhase;
-  if (args.bloomStatus === "ON_HOLD") {
+  if (args.bloomStatus === "PAUSED" || args.bloomStatus === "ABANDONED") {
     visualPhase = "ON_HOLD";
   } else if (args.bloomStatus === "COMPLETE") {
     visualPhase = "COMPLETE";

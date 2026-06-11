@@ -88,7 +88,7 @@ function buildNextStepsGoalsFromAreas(areas: AreaData[]): NextStepsGoalDTO[] {
   });
 
   return goals
-    .filter(({ goal }) => goal.bloomStatus !== "COMPLETE" && goal.bloomStatus !== "ON_HOLD")
+    .filter(({ goal }) => goal.bloomStatus !== "COMPLETE" && goal.bloomStatus !== "PAUSED" && goal.bloomStatus !== "ABANDONED")
     .filter(({ goal }) => goal.milestones.length > 0)
     .sort((a, b) => {
       const at = a.goal.deadlineIso ? Date.parse(a.goal.deadlineIso) : Number.MAX_SAFE_INTEGER;

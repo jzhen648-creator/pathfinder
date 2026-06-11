@@ -51,7 +51,7 @@ function goalPassesDensity(goal: TreeGoalNode, level: Exclude<DensityLevel, "EXT
   }
 
   if (goal.bloomStatus === "ACTIVE") return true;
-  return (goal.bloomStatus === "ON_HOLD" || goal.bloomStatus === "COMPLETE") && recent;
+  return (goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED" || goal.bloomStatus === "COMPLETE") && recent;
 }
 
 function momentPassesDensity(moment: MomentNode, level: Exclude<DensityLevel, "EXTENSIVE">, nowMs: number): boolean {

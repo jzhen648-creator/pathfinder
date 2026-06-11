@@ -60,9 +60,10 @@ export function normalizeGoalBloomForDisplay(
   goal: { goalType: string; future: boolean; year: number | null; bloomStatus: string },
   milestones: MilestoneLifecycleInput[],
   options?: NormalizeGoalBloomDisplayOptions,
-): "ACTIVE" | "COMPLETE" | "ON_HOLD" | "MAINTAINING" {
+): "ACTIVE" | "COMPLETE" | "PAUSED" | "MAINTAINING" | "ABANDONED" {
   const normalized = normalizeLegacyBloomStatus(goal.bloomStatus) ?? "ACTIVE";
-  if (normalized === "ON_HOLD") return "ON_HOLD";
+  if (normalized === "PAUSED") return "PAUSED";
+  if (normalized === "ABANDONED") return "ABANDONED";
   if (normalized === "MAINTAINING") return "MAINTAINING";
   if (normalized === "COMPLETE") return "COMPLETE";
 

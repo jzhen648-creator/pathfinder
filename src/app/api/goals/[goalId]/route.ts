@@ -53,7 +53,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     month?: number | null;
     future?: boolean;
     archived?: boolean;
-    bloomStatus?: "ACTIVE" | "ON_HOLD" | "COMPLETE" | "MAINTAINING";
+    bloomStatus?: "ACTIVE" | "PAUSED" | "COMPLETE" | "MAINTAINING" | "ABANDONED";
     bloomedAt?: Date | null;
     endedAt?: Date | null;
     endReason?: string | null;
@@ -93,7 +93,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   if (input.bloomStatus !== undefined) {
     data.bloomStatus = input.bloomStatus;
-    if (input.bloomStatus === "ON_HOLD") {
+    if (input.bloomStatus === "PAUSED" || input.bloomStatus === "ABANDONED") {
       data.endedAt = new Date();
     } else if (input.bloomStatus === "COMPLETE") {
       data.bloomedAt = new Date();

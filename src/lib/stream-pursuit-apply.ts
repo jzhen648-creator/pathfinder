@@ -283,8 +283,8 @@ export async function applyPursuitStream(
             kind: "status",
             goalId: pursuitId,
             previousBloomStatus:
-              (run.previousBloomStatus as "ACTIVE" | "ON_HOLD" | "COMPLETE") ?? "ACTIVE",
-            newBloomStatus: data.bloomStatus as "ACTIVE" | "ON_HOLD" | "COMPLETE",
+              (run.previousBloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE") ?? "ACTIVE",
+            newBloomStatus: data.bloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE",
           });
         }
         if (data.title) {

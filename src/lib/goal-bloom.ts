@@ -60,7 +60,7 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     if (debugRecompute()) console.info(`${LOG} exit early: goal not found`, { goalId });
     return;
   }
-  if (goal.bloomStatus === "ON_HOLD" || goal.bloomStatus === "MAINTAINING") {
+  if (goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED" || goal.bloomStatus === "MAINTAINING") {
     if (debugRecompute()) {
       console.info(`${LOG} exit early: ${goal.bloomStatus}`, { goalId });
     }

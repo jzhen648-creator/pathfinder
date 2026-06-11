@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { formatUserContext } from "@/lib/ai/format-user-context";
-import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
+import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
+import { generateJsonCompletion, hasGeminiKey } from "@/lib/gemini";
 
 const requestSchema = z.object({
   goalTitle: z.string().trim().min(1, "goalTitle is required"),
@@ -83,19 +84,6 @@ function buildUserMessage(input: {
   return lines.join("\n");
 }
 
-function getErrorDetails(err: unknown) {
-  if (err instanceof Error) {
-    const e = err as Error & { status?: number; requestID?: string; error?: unknown };
-    return {
-      message: e.message,
-      status: e.status ?? null,
-      requestId: e.requestID ?? null,
-      providerError: e.error ?? null,
-    };
-  }
-  return { message: String(err), status: null, requestId: null, providerError: null };
-}
-
 function stripJsonFence(raw: string): string {
   const t = raw.trim();
   const m = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(t);
@@ -142,7 +130,8 @@ export async function POST(request: Request) {
 
   const { goalTitle, existing, goalDescription, themeName, hubName } = reqParsed.data;
   const existingLower = new Set(existing.map((t) => t.trim().toLowerCase()).filter(Boolean));
-  const userContext = await formatUserContext(session.user.id);
+  const userId = session.user.id;
+  const userContext = await formatUserContext(userId);
 
   const userMessage = buildUserMessage({
     goalTitle,
@@ -159,6 +148,7 @@ export async function POST(request: Request) {
       user: userMessage,
       maxTokens: 512,
       temperature: 0.35,
+      queueKey: userId,
     });
 
     if (!raw) {
@@ -185,14 +175,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ suggestions });
   } catch (err) {
-    if (err instanceof GeminiNotConfiguredError) {
-      return NextResponse.json({ error: err.message }, { status: 503 });
-    }
-    const details = getErrorDetails(err);
-    console.error("[POST /api/goals/suggest-milestones] Gemini failed", details, err);
-    return NextResponse.json(
-      { error: `Suggest unavailable: ${details.message}` },
-      { status: 502 },
-    );
+    return aiRouteErrorResponse(err, "[POST /api/goals/suggest-milestones]");
   }
 }

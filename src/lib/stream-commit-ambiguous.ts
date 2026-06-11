@@ -179,6 +179,7 @@ export async function resolveAmbiguousMark(
     title: mark.title,
     description: markDescription,
     lifeArea,
+    queueKey: userId,
   });
 
   await prisma.$transaction(async (tx) => {
