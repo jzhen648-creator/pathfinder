@@ -21,6 +21,37 @@ export function resolveBranchIdFromBody(body: {
   return String(body.categoryId ?? body.branchId ?? "").trim();
 }
 
+/** Hub-scoped Stream extract/commit — `categoryId` is the Branch row id (same as legacy `hubId`). */
+export function resolveStreamHubBranchIdFromBody(body: {
+  hubId?: string | null;
+  categoryId?: string | null;
+}): string {
+  return String(body.categoryId ?? body.hubId ?? "").trim();
+}
+
+export function hasStreamHubScopeInBody(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const record = body as Record<string, unknown>;
+  return (
+    (typeof record.hubId === "string" && record.hubId.trim().length > 0) ||
+    (typeof record.categoryId === "string" && record.categoryId.trim().length > 0)
+  );
+}
+
+/** Coalesce hub-scoped Stream body fields before validation. */
+export function normalizeStreamHubScopeInBody(body: unknown): unknown {
+  if (!body || typeof body !== "object") return body;
+  const record = { ...(body as Record<string, unknown>) };
+  const branchId = resolveStreamHubBranchIdFromBody(
+    record as { hubId?: string; categoryId?: string },
+  );
+  if (branchId) {
+    record.hubId = branchId;
+    record.categoryId = branchId;
+  }
+  return record;
+}
+
 export type WithHubSlug = { hubId?: string | null; categorySlug?: string | null };
 
 /** Normalize Stream slug fields — `categorySlug` is the preferred name; `hubId` kept for compat. */
@@ -58,6 +89,10 @@ export function normalizeHubSlugInBody(body: unknown): unknown {
 
 /** Coalesce routing slug on Stream commit items before validation. */
 export function normalizeStreamCommitBody(body: unknown): unknown {
+  return normalizeStreamHubScopeInBody(normalizeStreamCommitItemSlugs(body));
+}
+
+function normalizeStreamCommitItemSlugs(body: unknown): unknown {
   if (!body || typeof body !== "object") return body;
   const record = { ...(body as Record<string, unknown>) };
   for (const key of ["marks", "pursuits", "milestones"] as const) {

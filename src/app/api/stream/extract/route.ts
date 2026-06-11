@@ -18,7 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStreamThemeContextInput } from "@/lib/stream-theme-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
-import { mirrorStreamExtractResponse } from "@/lib/category-id";
+import { mirrorStreamExtractResponse, hasStreamHubScopeInBody } from "@/lib/category-id";
 import { streamExtractFailureStatus } from "@/lib/stream-extract-errors";
 import {
   streamExtractRequestSchema,
@@ -41,7 +41,7 @@ function isThemeExtractBody(body: unknown): body is { themeId: string } {
     body !== null &&
     "themeId" in body &&
     typeof (body as { themeId: unknown }).themeId === "string" &&
-    !("hubId" in body)
+    !hasStreamHubScopeInBody(body)
   );
 }
 
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!("hubId" in body)) {
+    if (!hasStreamHubScopeInBody(body)) {
       const reqParsed = streamGlobalExtractRequestSchema.safeParse(body);
       if (!reqParsed.success) {
         const issue = reqParsed.error.issues[0];
@@ -329,7 +329,9 @@ export async function POST(request: Request) {
         );
         committedAmbiguousCount = committed;
       }
-      return NextResponse.json({ ...result, committedAmbiguousCount });
+      return NextResponse.json(
+        mirrorStreamExtractResponse({ ...result, committedAmbiguousCount }),
+      );
     } catch (err) {
       if (err instanceof GeminiNotConfiguredError) {
         return NextResponse.json({ error: err.message }, { status: 503 });

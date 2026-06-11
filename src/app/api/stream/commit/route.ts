@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { normalizeStreamCommitBody } from "@/lib/category-id";
+import { hasStreamHubScopeInBody, normalizeStreamCommitBody } from "@/lib/category-id";
 import { commitStreamGlobal, commitStreamToHub, commitStreamToTheme } from "@/lib/stream-commit";
 import {
   streamCommitPayloadSchema,
@@ -15,7 +15,7 @@ function isThemeCommitBody(body: unknown): body is { themeId: string } {
     body !== null &&
     "themeId" in body &&
     typeof (body as { themeId: unknown }).themeId === "string" &&
-    !("hubId" in body)
+    !hasStreamHubScopeInBody(body)
   );
 }
 
@@ -57,11 +57,7 @@ export async function POST(request: Request) {
     });
   }
 
-  if (
-    typeof normalizedBody === "object" &&
-    normalizedBody !== null &&
-    !("hubId" in normalizedBody)
-  ) {
+  if (!hasStreamHubScopeInBody(normalizedBody)) {
     const parsed = streamGlobalCommitPayloadSchema.safeParse(normalizedBody);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];

@@ -418,16 +418,25 @@ export const streamSessionCommitFieldsSchema = z.object({
 
 export type StreamSessionCommitFields = z.infer<typeof streamSessionCommitFieldsSchema>;
 
-/** Single-hub extract (legacy hub panel entry). `hubId` is the branch row id, not a category slug. */
+/** Single-hub extract. `categoryId` / `hubId` are the Branch row id, not a category slug. */
 export const streamHubExtractRequestSchema = z
   .object({
-    hubId: z.string().min(1),
+    /** @deprecated Prefer `categoryId`. */
+    hubId: z.string().min(1).optional(),
+    categoryId: z.string().min(1).optional(),
     input: z.string().min(1).max(STREAM_EXTRACT_INPUT_MAX_LENGTH),
     inputMode: z.enum(["text", "voice"]),
     mapGridQ: z.number().int().optional(),
     mapGridR: z.number().int().optional(),
   })
   .superRefine((data, ctx) => {
+    if (!(data.categoryId ?? data.hubId)?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "categoryId or hubId required",
+        path: ["categoryId"],
+      });
+    }
     const qSet = data.mapGridQ !== undefined;
     const rSet = data.mapGridR !== undefined;
     if (qSet !== rSet) {
@@ -437,6 +446,10 @@ export const streamHubExtractRequestSchema = z
         path: ["mapGridQ"],
       });
     }
+  })
+  .transform((data) => {
+    const branchId = (data.categoryId ?? data.hubId ?? "").trim();
+    return { ...data, hubId: branchId, categoryId: branchId };
   });
 
 export type StreamHubExtractRequest = z.infer<typeof streamHubExtractRequestSchema>;
@@ -454,6 +467,7 @@ export const streamGlobalExtractRequestSchema = z.object({
   inputMode: z.enum(["text", "voice"]),
   themeId: z.never().optional(),
   hubId: z.never().optional(),
+  categoryId: z.never().optional(),
 });
 
 export type StreamGlobalExtractRequest = z.infer<typeof streamGlobalExtractRequestSchema>;
@@ -576,17 +590,33 @@ export const streamGlobalCommitPayloadSchema = z
 export type StreamGlobalCommitPayload = z.infer<typeof streamGlobalCommitPayloadSchema>;
 
 /** @deprecated Single-hub commit — theme Stream uses {@link streamThemeCommitPayloadSchema}. */
-export const streamCommitPayloadSchema = z.object({
-  hubId: z.string().min(1),
-  marks: z.array(extractedMarkSchema),
-  pursuits: z.array(extractedPursuitSchema),
-  milestones: z.array(extractedMilestoneSchema),
-  resolvedAmbiguous: z.array(resolvedAmbiguousSchema).default([]),
-  inputText: z.string().max(8000).default(""),
-  inputMode: z.enum(["text", "voice"]).default("text"),
-  itemsAdded: z.number().int().min(0).default(0),
-  itemsSkipped: z.number().int().min(0).default(0),
-});
+export const streamCommitPayloadSchema = z
+  .object({
+    /** @deprecated Prefer `categoryId`. */
+    hubId: z.string().min(1).optional(),
+    categoryId: z.string().min(1).optional(),
+    marks: z.array(extractedMarkSchema),
+    pursuits: z.array(extractedPursuitSchema),
+    milestones: z.array(extractedMilestoneSchema),
+    resolvedAmbiguous: z.array(resolvedAmbiguousSchema).default([]),
+    inputText: z.string().max(8000).default(""),
+    inputMode: z.enum(["text", "voice"]).default("text"),
+    itemsAdded: z.number().int().min(0).default(0),
+    itemsSkipped: z.number().int().min(0).default(0),
+  })
+  .superRefine((data, ctx) => {
+    if (!(data.categoryId ?? data.hubId)?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "categoryId or hubId required",
+        path: ["categoryId"],
+      });
+    }
+  })
+  .transform((data) => {
+    const branchId = (data.categoryId ?? data.hubId ?? "").trim();
+    return { ...data, hubId: branchId, categoryId: branchId };
+  });
 
 export type StreamCommitPayload = z.infer<typeof streamCommitPayloadSchema>;
 
