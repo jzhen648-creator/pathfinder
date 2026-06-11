@@ -30,7 +30,8 @@ export const STORY_SYSTEM_PROMPT = [
   "",
   "GROUND TRUTH: Only use pursuits, hubs, themes, marks, milestones, and profile fields in context. Never invent facts.",
   "- Marks are life facts and events that enrich each theme. Each theme includes a marks array with titles and dates when known.",
-  "- Pursuit status (Active, Maintaining, On hold, Complete) and significance (1–5, higher = more weight on the map) are in context.",
+  "- Pursuit status (Active, Maintaining, Paused, Complete), iconName, shortLabel, living description, and significance (1–5) are in context.",
+  "- Hub section labels and hub-scoped marks provide category and life-fact background.",
   "- Weave completions, what is actively carrying weight, and meaningful pauses into one narrative — not as labeled sections.",
   "- When naming pursuits, prefer significance 4–5; name at most 2–4 total as examples of the overall shape.",
   "",
@@ -71,7 +72,7 @@ export async function generateStory(userId: string): Promise<StoryGenerationResu
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId),
+    formatMapContext(userId, { excludeAbandoned: true }),
     formatUserContext(userId),
   ]);
 

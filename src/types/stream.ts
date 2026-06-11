@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { STREAM_INGEST_GOAL_TYPE_VALUES } from "@/lib/goal-type";
 
-export const STREAM_BLOOM_VALUES = ["ACTIVE", "MAINTAINING", "ON_HOLD", "COMPLETE"] as const;
+export const STREAM_BLOOM_VALUES = ["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE"] as const;
 export type StreamBloomStatus = (typeof STREAM_BLOOM_VALUES)[number];
 
 export const STREAM_AMBIGUOUS_RESOLUTION_VALUES = ["done", "in_progress", "not_started"] as const;
@@ -347,6 +347,9 @@ export type StreamHubContextInput = {
     goalType: string;
     bloomStatus: string;
     parentGoalId: string | null;
+    description?: string;
+    deadline?: string;
+    iconName?: string;
   }>;
   existingMarks: Array<{ title: string; date?: string }>;
   /** Removed from map (hidden) — dedup only, not active tree context. */
@@ -378,6 +381,9 @@ export type StreamThemeHubContextInput = {
     goalType: string;
     bloomStatus: string;
     parentGoalId: string | null;
+    description?: string;
+    deadline?: string;
+    iconName?: string;
   }>;
   existingMarks: Array<{ title: string; date?: string }>;
   /** Removed from map on this hub — dedup only. */

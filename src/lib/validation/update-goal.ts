@@ -17,7 +17,7 @@ export const updateGoalPayloadSchema = z
     deadline: calendarDaySchema.nullable().optional(),
     /** `false` revives a pursuit removed from the map. */
     archived: z.boolean().optional(),
-    bloomStatus: z.enum(["ACTIVE", "ON_HOLD", "COMPLETE", "MAINTAINING"]).optional(),
+    bloomStatus: z.enum(["ACTIVE", "PAUSED", "COMPLETE", "MAINTAINING", "ABANDONED"]).optional(),
     /** World axial hex q on the mobile map lattice; `null` clears a pin. */
     mapGridQ: z.number().int().nullable().optional(),
     /** World axial hex r on the mobile map lattice; `null` clears a pin. */

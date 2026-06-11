@@ -28,6 +28,7 @@ export async function runStreamEnrich(input: {
   hubLabel?: string | null;
   themeLabel?: string | null;
   additionalContext: string;
+  pursuitContextJson?: string | null;
 }): Promise<{ title: string; description: string }> {
   const placement =
     input.hubLabel && input.themeLabel
@@ -42,10 +43,16 @@ export async function runStreamEnrich(input: {
     `Item type: ${input.itemType}`,
     placement,
     `Current title: ${input.currentTitle.trim()}`,
+    input.pursuitContextJson
+      ? ["", "Pursuit map context (use for specificity; do not invent beyond it):", input.pursuitContextJson]
+          .join("\n")
+      : null,
     "",
     "User's additional context:",
     input.additionalContext.trim(),
-  ].join("\n");
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 
   const raw = await generateJsonCompletion({
     system: ENRICH_SYSTEM_PROMPT,

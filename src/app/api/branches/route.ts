@@ -19,11 +19,17 @@ const createBranchSchema = z
   })
   .strict();
 
-export async function GET() {
+function parseExcludeAbandoned(request: Request): boolean {
+  const raw = new URL(request.url).searchParams.get("excludeAbandoned");
+  return raw === "true" || raw === "1";
+}
+
+export async function GET(request: Request) {
   try {
     const auth = await requireApiSessionUserId();
     if (!auth.ok) return auth.response;
     const userId = auth.userId;
+    const excludeAbandoned = parseExcludeAbandoned(request);
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -65,7 +71,11 @@ export async function GET() {
     };
     const [goals, archivedGoals, marks] = await Promise.all([
       prisma.goal.findMany({
-        where: { userId, archived: false },
+        where: {
+          userId,
+          archived: false,
+          ...(excludeAbandoned ? { bloomStatus: { not: "ABANDONED" } } : {}),
+        },
         orderBy: { createdAt: "asc" },
         include: goalInclude,
       }),

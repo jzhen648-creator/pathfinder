@@ -32,7 +32,7 @@ export const createGoalPayloadSchema = z
     /** Phase 2 alias for `branchId` (taxonomy category row id). */
     categoryId: z.string().optional(),
     goalType: z.enum(GOAL_TYPE_VALUES),
-    bloomStatus: z.enum(["ACTIVE", "MAINTAINING", "ON_HOLD", "COMPLETE"]).optional(),
+    bloomStatus: z.enum(["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE", "ABANDONED"]).optional(),
     deadline: z.string(),
     significance: z.coerce.number().int(),
     hasMeasurableTarget: z.boolean(),

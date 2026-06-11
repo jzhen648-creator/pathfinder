@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { formatPursuitContext } from "@/lib/ai/format-map-context";
 import { runStreamEnrich } from "@/lib/ai/stream-enrich";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { getLifeArea } from "@/lib/life-areas";
@@ -89,12 +90,14 @@ export async function POST(request: Request) {
       (goal.branch?.label ?? goal.branch?.name ?? "").trim() || goal.lifeArea || "Hub";
     const themeLabel =
       getLifeArea(goal.limbId ?? goal.branch?.limbId ?? goal.lifeArea)?.label ?? "Life";
+    const pursuitCtx = await formatPursuitContext(userId, goal.id);
     const { title, description } = await runStreamEnrich({
       itemType: "pursuit",
       currentTitle: goal.title,
       hubLabel,
       themeLabel,
       additionalContext,
+      pursuitContextJson: pursuitCtx ? JSON.stringify(pursuitCtx, null, 2) : null,
     });
 
     const updated = await prisma.goal.update({

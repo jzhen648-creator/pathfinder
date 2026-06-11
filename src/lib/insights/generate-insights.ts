@@ -400,7 +400,7 @@ export async function generateNodeInsights(
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId),
+    formatMapContext(userId, { excludeAbandoned: true }),
     formatUserContext(userId),
   ]);
 
@@ -479,7 +479,7 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId),
+    formatMapContext(userId, { excludeAbandoned: true }),
     formatUserContext(userId),
   ]);
 

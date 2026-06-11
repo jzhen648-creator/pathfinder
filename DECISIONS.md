@@ -840,3 +840,16 @@ Separated **intake entry points** so centre FAB and Self node never share a door
 
 **Also shipped:** Map tab re-press while focused returns to overview (exits edit-map if open). Profile screen uses `ScreenHeader` (no back chevron on tab root). Settings Profile link row removed (redundant with tab).
 
+## 2026-06-11 — Layered context, Context section, status split
+
+**Layered AI context:** `formatMapContext` / new `formatPursuitContext` pass theme, section, title, status, deadline, significance, icon, shortLabel, milestones, description, hub marks, and sibling pursuits to Story, Insights, Stream extract/enrich, icon assignment, milestone suggest, and context-questions.
+
+**Context section (mobile):** Pursuit detail **Context** replaces “Heard first”. Empty state lazy-loads `POST /api/goals/[goalId]/context-questions` (conversational 2–3 questions). **Add context** / **Edit** opens paste/voice sheet → `POST /api/goals/[goalId]/apply-context` (description only, no milestones).
+
+**Status:** `ON_HOLD` → **`PAUSED`**; new **`ABANDONED`** (off map, on Timeline). Long-press **Abandon pursuit** with inline confirm. `GET /api/branches?excludeAbandoned=1` for map clients; mobile also filters abandoned hexes client-side.
+
+**Deferred (post-TestFlight):**
+- Nudge query: `description IS NULL AND createdAt < 48h AND bloomStatus IN (ACTIVE, PAUSED)` → Need attention
+- Onboarding proud-achievement tutorial (first map node is a win)
+- Context prompt chips under questions
+

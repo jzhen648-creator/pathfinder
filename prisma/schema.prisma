@@ -63,9 +63,10 @@ model User {
 /// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation.
 enum BloomStatus {
   ACTIVE
-  ON_HOLD
+  PAUSED
   COMPLETE
   MAINTAINING
+  ABANDONED
 }
 
 enum BranchStatus {

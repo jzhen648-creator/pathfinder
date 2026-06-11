@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
 import { generateJsonCompletion } from "@/lib/gemini";
 import { generateGoalShortLabel, resolvePursuitShortLabel } from "@/lib/goal-short-label";
 import { getLucideInstalledSlugs, isValidLucideSlug } from "@/lib/icons/enumerate-lucide-slugs";
@@ -26,6 +27,9 @@ export type AssignPursuitIconInput = {
   title: string;
   description?: string | null;
   lifeArea?: string | null;
+  sectionLabel?: string | null;
+  status?: string | null;
+  siblingPursuitTitles?: string[];
 };
 
 export type AssignPursuitVisualsResult = {
@@ -47,8 +51,13 @@ async function pickVisualsWithAi(
   const slugs = getLucideInstalledSlugs();
   const user = [
     input.lifeArea ? `Theme: ${input.lifeArea}` : null,
+    input.sectionLabel?.trim() ? `Section: ${input.sectionLabel.trim()}` : null,
+    input.status?.trim() ? `Status: ${input.status.trim()}` : null,
     `Title: ${input.title.trim()}`,
     input.description?.trim() ? `Description: ${input.description.trim()}` : null,
+    input.siblingPursuitTitles?.length
+      ? `Other pursuits in this theme: ${input.siblingPursuitTitles.join("; ")}`
+      : null,
     "",
     "Allowed icon slugs (pick one or null):",
     slugs.join(", "),
@@ -145,17 +154,28 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
       title: true,
       description: true,
       lifeArea: true,
+      limbId: true,
       goalType: true,
       iconName: true,
+      bloomStatus: true,
+      branch: { select: { label: true, name: true, limbId: true } },
     },
   });
   if (!row) return;
   if (row.goalType === "moment" || row.goalType === "event") return;
 
+  const themeId = row.limbId ?? row.branch?.limbId ?? row.lifeArea;
+  const hubLabel = row.branch?.label ?? row.branch?.name ?? "";
+  const sectionLabel = themeId
+    ? canonicalHubDisplayLabel(themeId, hubLabel)
+    : hubLabel;
+
   const { iconName, shortLabel } = await assignPursuitVisualsSafe({
     title: row.title,
     description: row.description,
-    lifeArea: row.lifeArea,
+    lifeArea: row.lifeArea ?? themeId,
+    sectionLabel,
+    status: row.bloomStatus,
   });
 
   const data: { iconName?: string; shortLabel?: string } = {};

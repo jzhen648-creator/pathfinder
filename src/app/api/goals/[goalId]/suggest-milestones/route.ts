@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
+import { formatPursuitContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +16,7 @@ const requestSchema = z.object({
   hubName: z.string().trim().min(1, "hubName is required"),
 });
 
-const responseSchema = z.array(z.string()).min(1).max(5);
+const responseSchema = z.array(z.string()).min(1).max(7);
 
 function stripJsonFence(raw: string): string {
   const trimmed = raw.trim();
@@ -33,7 +34,7 @@ function normalizeSuggestions(raw: string[], existingLower: Set<string>): string
     if (existingLower.has(key) || seen.has(key)) continue;
     seen.add(key);
     out.push(title);
-    if (out.length >= 5) break;
+    if (out.length >= 7) break;
   }
   return out;
 }
@@ -91,16 +92,19 @@ export async function POST(request: Request, props: RouteProps) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const title = parsed.data.title || goal.title;
-  const description = parsed.data.description ?? goal.description ?? "";
-  const themeId = parsed.data.themeId || goal.branch?.limbId || "";
-  const hubName = parsed.data.hubName || goal.branch?.label || goal.branch?.name || "";
   const existingLower = new Set(goal.milestones.map((m) => m.title.trim().toLowerCase()).filter(Boolean));
-  const userContext = await formatUserContext(userId);
+  const [pursuitContext, userContext] = await Promise.all([
+    formatPursuitContext(userId, goalId),
+    formatUserContext(userId),
+  ]);
+
+  if (!pursuitContext) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const system = [
     "You suggest milestone titles for a personal pursuit.",
-    "Return ONLY a JSON array of 3 to 5 title strings.",
+    "Return ONLY a JSON array of title strings (typically 3–6; up to 7 for complex pursuits).",
     "No markdown, no object wrapper, no numbering, no explanation.",
     "Do not repeat existing milestone titles (case-insensitive).",
     "",
@@ -121,31 +125,23 @@ export async function POST(request: Request, props: RouteProps) {
     'BAD framing (do not use): "Do X", "Complete X task", "Research X",',
     '"Apply to N things", or anything starting with an instruction verb (Submit, Schedule, Draft, Log, Run).',
     "",
-    "Order the 3–5 titles as a story arc from earliest to final.",
+    "Order titles chronologically as a story arc from earliest to final.",
     "Title length: 3–8 words.",
+    "If pursuit context (description) names specific facts, reflect THOSE in milestones — not generic steps.",
+    "If status is ON_HOLD or PAUSED: include reassess/resume waypoints where appropriate.",
+    "If status is MAINTAINING: focus on sustaining routines, not reaching a final endpoint.",
   ].join("\n");
 
   const user = [
-    `Given this pursuit: ${title}`,
-    `Theme area of life: ${themeId}`,
-    `Hub: ${hubName}`,
-    description ? `Description: ${description}` : null,
-    userContext
-      ? [
-          "",
-          "User context (subtle calibration only):",
-          userContext,
-          "",
-          "Use this only to remove milestones that would be irrelevant for this person.",
-          "Do NOT add location, age, or demographic assumptions into milestone titles.",
-          "Profile context never drives milestone content; the pursuit itself does.",
-        ].join("\n")
-      : null,
+    userContext ? `User profile (calibration only — do not put age/location in titles):\n${userContext}` : "",
+    "",
+    "Full pursuit context JSON:",
+    JSON.stringify(pursuitContext, null, 2),
     "",
     "Existing milestone titles:",
     goal.milestones.length ? goal.milestones.map((m) => `- ${m.title}`).join("\n") : "(none)",
     "",
-    "Suggest 3-5 milestones as a story arc of meaningful waypoints. Return only a JSON array of title strings.",
+    "Suggest an appropriate number of milestones (typically 3–6) as a chronological story arc. Return only a JSON array of title strings.",
   ]
     .filter(Boolean)
     .join("\n");
