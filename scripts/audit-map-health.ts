@@ -1,7 +1,7 @@
 /**
  * Map data-quality audit across users (or one user via --email).
  * Run: npm run audit:map-health
- *      npx tsx scripts/audit-map-health.ts --email fulltree@pathfinder.test
+ *      npx tsx scripts/audit-map-health.ts --email mygoals@pathfinder.test
  */
 import { PrismaClient } from "@prisma/client";
 import { LIFE_AREA_IDS } from "../src/lib/taxonomy";

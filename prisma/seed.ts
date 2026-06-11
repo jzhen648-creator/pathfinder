@@ -71,7 +71,7 @@ async function main() {
   console.log("Created mobile account: test-mobile@pathfinder.com");
 
   console.log("");
-  console.log("Seeding complete. Tree data: npm run seed:tree (profiles 1 & 2 — fulltree@ / mygoals@ pathfinder.test / password123).");
+  console.log("Seeding complete. Empty canvas: npm run seed:tree (mygoals@pathfinder.test / password123).");
   console.log("");
   console.log("Test accounts:");
   console.log("  test-empty@pathfinder.com / pathfinder123");

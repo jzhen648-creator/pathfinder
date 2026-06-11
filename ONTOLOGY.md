@@ -32,13 +32,13 @@ The product is **four categories**, not five competing information sets. Three u
 
 | Concept | Implementation | Notes |
 |--------|------------------|--------|
-| **Theme** | Fixed ids (`finance`, `work`, `becoming`, `pleasures`, `people`, `health`); legacy DB column name `limbId`; code type `LifeAreaId` | Big pillar of the map — **catalog slice of life**, not a table. Older docs said **life area**. **Play & Leisure** (`pleasures`) holds hobbies, culture, and experiences. |
-| **Taxonomy category** | Root `Branch` row under a theme (`branchId` on goals / `Mark`) | Named routing slot (e.g. Family, Skills). **Hidden from mobile UI** — Stream + silent `branchId` only. Legacy words: hub, track. |
-| **Branch** | Prisma `Branch` | Persisted taxonomy row (category slot); owns timeline notes (`Mark`) and goals via `branchId`. **`parentBranchId` / `turningPointId`** exist for **legacy** split rows only — **creating new splits from the tree is removed** (2026-05). |
+| **Theme** | Fixed ids (`finance`, `work`, `becoming`, `pleasures`, `people`, `health`); DB column `themeId` (legacy name `limbId` in JSON mirrors); code type `LifeAreaId` | Big pillar of the map — **catalog slice of life**, not a table. **Play & Leisure** (`pleasures`) holds hobbies, culture, and experiences. |
+| **Taxonomy category** | Prisma `ThemeCategory` root row under a theme; FK `categoryId` on `Goal` / `Mark` (JSON may mirror `branchId`) | Named slot under a theme (e.g. Job, Family). **Shown in mobile UI** — theme detail group headers, pursuit eyebrow, Build here picker, long-press menu. Legacy words: hub, track, section. |
+| **ThemeCategory** | Prisma `ThemeCategory` (`@@map("Branch")` on table until optional tail rename) | Persisted taxonomy row (category slot); owns marks and goals via `categoryId`. **`parentCategoryId` / `turningPointId`** exist for **legacy** split rows only — **creating new splits from the tree is removed** (2026-05). |
 | **Goal evolution (legacy data)** | `Goal.parentGoalId` → predecessor; `forkedGoals` relation | Longitudinal **next chapter** rows may still exist. **Fork / Evolve APIs removed (May 2026)** — Stream adds new pursuits. **Not** milestone nesting. |
 | **Goal** | Prisma `Goal` | One transformational pursuit. Types include roadmap projects and timeline-style `moment` / `event`. |
 | **Milestone** | Prisma `Milestone` | Roadmap **phase within a single goal** only; never models goal-to-goal evolution. |
-| **Mark** | Prisma `Mark` | Theme context: facts, events, people, skills. Persisted with `branchId` (category routing) and denormalized `limbId` (theme). **Not** on map surface — listed in theme detail panel. `date` optional (undated facts). `Mark.kind` ∈ {`mark`, `stream`}. `needsResolution` = Stream ambiguous item awaiting user resolution. |
+| **Mark** | Prisma `Mark` | Theme context: facts, events, people, skills. Persisted with `categoryId` (category routing) and denormalized `themeId`. **Not** on map surface — listed in theme detail panel. `date` optional (undated facts). `Mark.kind` ∈ {`mark`, `stream`}. `needsResolution` = legacy extract ambiguous item awaiting user resolution. |
 | **Branch sequence** | `Goal.sequencePosition`, `Mark.sequencePosition` | Explicit linear order along the parent hub's branch line. Co-sorted across both tables to form `DomainHubData.sequencedNodes`. Roadmap-root goals only — continuation children (`parentGoalId != null`) keep parent-anchored satellite layout and have **no** sequence position. Fractional `Float?` with reindex when min gap < `1e-3` (`src/lib/branch-sequence.ts`). |
 | **Soft delete** | `Goal.archived`, `Mark.archived` | Hidden from tree assembly; revive via PATCH. |
 | **Map reorganize** | `POST /api/goals/[goalId]/reorganize` | `moveToHub` (theme-scoped) or `reparent`; edit-map UI in `tree-view.tsx`. |
@@ -69,7 +69,7 @@ Bloom describes **maturity of one goal**, not graph shape.
 | Term | Ambiguity |
 |------|-----------|
 | **Fork** | SVG layout fork vs **removed** goal-evolution fork API vs legacy **branch split** data. Qualify: **layout fork**, **legacy split row**. |
-| **Branch** | Prisma `Branch` vs generic English. In **mobile UI copy**, use **theme** — never hub/track/category names. Use **Branch** / **taxonomy category** in code and migrations. |
+| **Branch** | Prisma `Branch` vs generic English. In **mobile UI copy**, use **theme** and **category** — never hub/track. Use **ThemeCategory** / **taxonomy category** in code and migrations. |
 | **Hub** / **track** | Legacy synonyms for **taxonomy category**. Desktop legacy UI only; not mobile product language. |
 | **Theme** vs **`LifeAreaId` / `limbId`** | Same ids — **theme** is the product word; code symbols stay until an optional rename pass. |
 | **Child** | `TreeGoalNode.childGoals` = successor goals for layout (goal evolution); not “subtasks.” |
@@ -82,8 +82,8 @@ Bloom describes **maturity of one goal**, not graph shape.
 | Use | For |
 |-----|-----|
 | **Theme** | The outer pillar (Money & Finance, Work & Career, …); same ids as `LifeAreaId` / `limbId`. |
-| **Taxonomy category** | Named slot under a theme in DB/API (`branchId`). **Hidden from mobile UI** (2026-06). |
-| **Branch** | Prisma `Branch` row, `branchId` — **implementation** and migrations (legacy split columns may still exist on old rows). |
+| **Category** | Named slot under a theme in DB/API (`categoryId`; JSON mirror `branchId`). **Shown in mobile UI** — theme detail groups, pursuit eyebrow, create/move pickers (2026-06-11). |
+| **ThemeCategory** | Prisma `ThemeCategory` row (`@@map("Branch")` on SQL table until optional tail rename) — **implementation** and migrations (legacy split columns may still exist on old rows). |
 | **Goal** | One pursuit (`Goal`) |
 | **Milestone** | Phase inside one goal only |
 | **Goal evolution (data)** | `parentGoalId` chain (older prose: **continuation**); new work via **Stream** |

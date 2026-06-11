@@ -7,13 +7,11 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001";
-const profileNeedle = process.argv[2] ?? "3";
+const profileNeedle = process.argv[2] ?? "1";
 const PROFILE_EMAILS = {
-  "1": "fulltree@pathfinder.test",
-  "2": "mygoals@pathfinder.test",
-  "3": "jeremy@pathfinder.test",
+  "1": "mygoals@pathfinder.test",
 };
-const EMAIL = process.env.E2E_EMAIL ?? PROFILE_EMAILS[profileNeedle] ?? "jeremy@pathfinder.test";
+const EMAIL = process.env.E2E_EMAIL ?? PROFILE_EMAILS[profileNeedle] ?? "mygoals@pathfinder.test";
 const PASSWORD = process.env.E2E_PASSWORD ?? "password123";
 
 async function login(page) {

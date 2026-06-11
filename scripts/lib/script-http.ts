@@ -151,7 +151,7 @@ export async function apiFetchFollowRedirects(
 
 export function defaultScriptCredentials(): { email: string; password: string } {
   return {
-    email: process.env.SMOKE_EMAIL ?? "fulltree@pathfinder.test",
+    email: process.env.SMOKE_EMAIL ?? "mygoals@pathfinder.test",
     password: process.env.SMOKE_PASSWORD ?? "password123",
   };
 }

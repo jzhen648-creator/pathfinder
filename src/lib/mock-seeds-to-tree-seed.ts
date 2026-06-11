@@ -70,13 +70,13 @@ export type TreeGoalSeed = {
 };
 
 /** “Today” for Jeremy’s 2026 narrative — marks after this render as future. */
-const JEREMY_TREE_NOW = new Date("2026-05-15T12:00:00.000Z");
+const DEFAULT_TREE_NOW = new Date("2026-05-15T12:00:00.000Z");
 
 export function mockHubSeedsToTreeSeeds(
   hubs: MockHubSeed[],
   options?: { now?: Date },
 ): { branchSeeds: TreeBranchSeed[]; markSeeds: TreeMarkSeed[] } {
-  const now = options?.now ?? JEREMY_TREE_NOW;
+  const now = options?.now ?? DEFAULT_TREE_NOW;
 
   const branchSeeds: TreeBranchSeed[] = hubs.map((hub) => ({
     limbId: hub.limbId,
@@ -117,7 +117,7 @@ export function mockHubSeedsToTreeSeeds(
 
 /** Roadmap goals (tree hex nodes) — one per hub with goal text, milestones from timeline events. */
 export function mockHubSeedsToGoalSeeds(hubs: MockHubSeed[], options?: { now?: Date }): TreeGoalSeed[] {
-  const now = options?.now ?? JEREMY_TREE_NOW;
+  const now = options?.now ?? DEFAULT_TREE_NOW;
 
   return hubs
     .filter((hub) => (hub.goal ?? "").trim().length > 0)

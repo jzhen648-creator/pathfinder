@@ -65,10 +65,8 @@ const sectionBox: CSSProperties = {
 };
 
 const DEV_ACCOUNTS = [
-  "jeremy@pathfinder.test",
-  "alex.carter@pathfinder.test",
+  "mygoals@pathfinder.test",
   "nelson.mandela@pathfinder.test",
-  "fulltree@pathfinder.test",
 ] as const;
 
 const DEV_ACCOUNT_PASSWORD = "password123";

@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { seedAllTreeTestProfiles } from "../src/lib/tree-test-profiles-seed";
 
 /**
- * Dev tree fixtures for `*.@pathfinder.test`.
+ * Empty-canvas dev account: mygoals@pathfinder.test / password123
  * @see src/lib/tree-test-profiles-seed.ts
  */
 const prisma = new PrismaClient();

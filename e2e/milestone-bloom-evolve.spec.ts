@@ -10,7 +10,7 @@ import {
  *
  * Credentials: `E2E_EMAIL` + `E2E_PASSWORD` (onboarded user with session auth).
  * Example:
- *   E2E_EMAIL=fulltree@pathfinder.test E2E_PASSWORD=password123 npm run test:e2e -- milestone-bloom-evolve
+ *   E2E_EMAIL=mygoals@pathfinder.test E2E_PASSWORD=password123 npm run test:e2e -- milestone-bloom-evolve
  */
 
 type BranchesPayload = {

@@ -5,11 +5,11 @@ const prisma = new PrismaClient();
 
 async function main() {
   const user = await prisma.user.findFirst({
-    where: { email: "fulltree@pathfinder.test" },
+    where: { email: "mygoals@pathfinder.test" },
     select: { id: true },
   });
   if (!user) {
-    console.log("no fulltree user");
+    console.log("no mygoals user");
     return;
   }
 

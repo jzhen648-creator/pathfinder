@@ -10,7 +10,7 @@ import path from "node:path";
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3013";
 const mode = process.argv[2] ?? "both";
-const EMAIL = process.env.E2E_EMAIL ?? "jeremy@pathfinder.test";
+const EMAIL = process.env.E2E_EMAIL ?? "mygoals@pathfinder.test";
 const PASSWORD = process.env.E2E_PASSWORD ?? "password123";
 
 async function login(page) {

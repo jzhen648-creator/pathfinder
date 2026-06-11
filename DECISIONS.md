@@ -54,11 +54,13 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-11 — Taxonomy Phase 2 slice 1 (aliases, no migration)
 
+> **Superseded** by **2026-06-11 — Taxonomy Phases 2–3** and **Physical SQL rename** below. Kept for history.
+
 **API:** `GET /api/branches` returns `categories[]` (duplicate of `branches[]`). `GET /api/map-data` aliases the same handler.
 
 **Mobile:** `TaxonomyCategory` type, `default-category.ts`, `taxonomy-categories.ts` re-exports; `geometry.ts` no longer emits mark map nodes (marks stay in theme detail only).
 
-**Unchanged:** `branchId`, Prisma `Branch`, `useBranches` hook name — opt-in migration later.
+**Unchanged at slice time:** `branchId`, Prisma `Branch`, `useBranches` hook name — all since migrated.
 
 ## 2026-06-11 — Retire goalType from product model (supersedes identity in practice decision)
 
@@ -80,13 +82,14 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-11 — Taxonomy language lock (Phase 1)
 
-**User-facing model:** theme · pursuit · mark only. **Taxonomy category** is the doc word for the hidden routing layer (22 slots under six themes).
+> **Partially superseded:** categories are **visible in mobile UI** as of **Work category Job rename + category UI lock** (same day). Phase 1 “hidden category” rule applied only before category pickers shipped.
+
+**User-facing model:** theme · pursuit · mark. **Category** is the doc word for taxonomy slots under a theme (22 locked templates).
 
 **Rules:**
 - Mobile UI copy source of truth: `pathfinder-mobile/TERMINOLOGY.md`.
-- Do not show hub, track, branch, or category names in mobile UI (search, stream headers, attention cards, ambiguous-mark resolve → theme picker).
-- Code/API unchanged in Phase 1: `Branch`, `branchId`, Stream `hubId`, `mode: "hub"`. Prompts may say **category** while JSON keeps `hubId`.
-- Phases 2–3 (aliases, Prisma `ThemeCategory`, `categoryId`) deferred — see root `TAXONOMY-CLEANUP.md`.
+- Do not show hub, track, or branch in mobile UI copy.
+- Phases 2–3 shipped 2026-06-11 — see `TAXONOMY-CLEANUP.md` *Shipped state*.
 
 ## 2026-06-08 — Taxonomy v8: Play & Leisure theme restored (`2026-06-08-v8-play-leisure`)
 
@@ -103,13 +106,11 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-08 — Hidden tracks on mobile (UI only)
 
-**Tracks/hubs stay in DB** (`Branch`, `branchId` on `Goal`/`Mark`, taxonomy sync) but **never appear in mobile UI** — no track picker, no track section headers, no track subtitles on map labels.
+> **Superseded** by **2026-06-11 — Work category Job rename + category UI lock**. Categories are now visible (group headers, pursuit eyebrow, pickers). Hub/track **words** remain banned in UI.
 
-**Silent assignment:** `defaultCategoryIdForTheme()` in `pathfinder-mobile/lib/map/default-category.ts` (was `default-branch.ts`) picks the canonical first taxonomy slot per theme (Income, Career, Purpose & Values, Family, Movement, Hobbies for pleasures). Used by add pursuit, add mark, and Stream creates.
+**Historical (2026-06-08):** Tracks/hubs were silent-assigned only — no picker, flat theme detail, no track subtitle on map labels.
 
-**UI changes:** `AddPursuitFlowSheet` is theme → form only; `ThemeDetailPanel` shows flat Pursuits + Life facts & events; pursuit labels have no track subtitle.
-
-**Unchanged:** `GET /api/branches` payload, edit-map reparent API, Stream extract hub routing for AI classification.
+**Silent assignment (still used when user picks theme only):** `defaultCategoryIdForTheme()` in `pathfinder-mobile/lib/map/default-category.ts`.
 
 ## 2026-06-08 — App simplification: one store, marks as theme context
 

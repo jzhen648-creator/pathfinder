@@ -12,7 +12,7 @@ const KEEP_EMAIL = "jzhen648@gmail.com";
 
 const EMAILS_TO_DELETE = [
   "fulltree@pathfinder.test",
-  "mygoals@pathfinder.test",
+  "alex.carter@pathfinder.test",
   "jeremy@pathfinder.test",
   "roadmap-demo@pathfinder.com",
   "test-sparse@pathfinder.com",
