@@ -4,7 +4,7 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
-## 2026-06-12 — Insights auto-reading on tab focus (first visit + stale refresh)
+## 2026-06-11 — Insights auto-reading on tab focus (first visit + stale refresh)
 
 **Product:** Opening **Insights** auto-runs **Update readings** when (a) the user has pursuits but **no whole-map reading yet**, or (b) the story API reports `canAutoRefresh` (map changed since last reading). **Not** a background sync on every tab switch — one attempt per focus; manual button remains for forced refresh.
 

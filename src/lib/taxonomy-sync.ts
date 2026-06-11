@@ -141,7 +141,7 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
       (t) => t.limbId === limbId && normLabel(t.threadType) === normLabel(label),
     );
     const patch: {
-      limbId?: LifeAreaId;
+      themeId?: LifeAreaId;
       label?: string;
       name?: string;
       isSystemCategory?: boolean;
@@ -151,7 +151,7 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
       name = template.name;
       patch.isSystemCategory = true;
     }
-    if (limbId !== branch.themeId) patch.limbId = limbId;
+    if (limbId !== branch.themeId) patch.themeId = limbId;
     if (label !== (branch.label ?? "")) patch.label = label;
     if (name !== (branch.name ?? "")) patch.name = name;
 
