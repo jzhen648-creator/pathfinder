@@ -4,6 +4,29 @@ import type { NextRequest } from "next/server";
 
 const PUBLIC_FILE = /\.(?:ico|png|jpg|jpeg|svg|gif|webp|woff2?|ttf|eot|txt|webmanifest)$/i;
 
+/** Expo web (localhost:8081) and LAN dev clients call /api cross-origin. */
+const CORS_ORIGIN_PATTERN =
+  /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
+
+function isAllowedCorsOrigin(origin: string | null): boolean {
+  return Boolean(origin && CORS_ORIGIN_PATTERN.test(origin));
+}
+
+function withCors(req: NextRequest, res: NextResponse): NextResponse {
+  const origin = req.headers.get("origin");
+  if (!isAllowedCorsOrigin(origin) || !origin) return res;
+  res.headers.set("Access-Control-Allow-Origin", origin);
+  res.headers.set("Access-Control-Allow-Credentials", "true");
+  res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.headers.append("Vary", "Origin");
+  return res;
+}
+
+function finishApi(req: NextRequest, res: NextResponse): NextResponse {
+  return withCors(req, res);
+}
+
 const LOGIN_PATHS = ["/login"];
 const PUBLIC_PATHS = ["/reset-password"];
 const ONBOARDING_PATH = "/onboarding";
@@ -50,13 +73,18 @@ function withBearerCookieForwarded(req: NextRequest): NextResponse | null {
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isApi = pathname.startsWith("/api/");
 
   if (PUBLIC_FILE.test(pathname)) {
     return NextResponse.next();
   }
 
+  if (isApi && req.method === "OPTIONS") {
+    return finishApi(req, new NextResponse(null, { status: 204 }));
+  }
+
   if (pathname.startsWith("/api/auth")) {
-    return NextResponse.next();
+    return finishApi(req, NextResponse.next());
   }
 
   const secret = process.env.NEXTAUTH_SECRET;
@@ -68,9 +96,9 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return finishApi(req, NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
     }
-    return withBearerCookieForwarded(req) ?? NextResponse.next();
+    return finishApi(req, withBearerCookieForwarded(req) ?? NextResponse.next());
   }
 
   if (isLoginPath(pathname)) {
