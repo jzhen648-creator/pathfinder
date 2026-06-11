@@ -1,7 +1,9 @@
 import { z } from "zod";
+import { resolveBranchIdFromBody } from "@/lib/category-id";
+import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
 
-export const GOAL_TYPE_VALUES = ["project", "practice", "identity"] as const;
-export type CreateGoalGoalType = (typeof GOAL_TYPE_VALUES)[number];
+export { GOAL_TYPE_VALUES };
+export type CreateGoalGoalType = GoalType;
 
 /**
  * Optional anchor for insert-and-reflow on the branch line. When omitted the goal is appended.
@@ -26,8 +28,11 @@ export const createGoalPayloadSchema = z
   .object({
     title: z.string(),
     description: z.string(),
-    branchId: z.string(),
+    branchId: z.string().optional(),
+    /** Phase 2 alias for `branchId` (taxonomy category row id). */
+    categoryId: z.string().optional(),
     goalType: z.enum(GOAL_TYPE_VALUES),
+    bloomStatus: z.enum(["ACTIVE", "MAINTAINING", "ON_HOLD", "COMPLETE"]).optional(),
     deadline: z.string(),
     significance: z.coerce.number().int(),
     hasMeasurableTarget: z.boolean(),
@@ -66,10 +71,11 @@ export const createGoalPayloadSchema = z
       });
     }
 
-    if (!data.branchId.trim()) {
+    const branchId = resolveBranchIdFromBody(data);
+    if (!branchId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Branch is required",
+        message: "Category is required (branchId or categoryId)",
         path: ["branchId"],
       });
     }
@@ -114,7 +120,11 @@ export const createGoalPayloadSchema = z
         path: ["mapGridQ"],
       });
     }
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    branchId: resolveBranchIdFromBody(data),
+  }));
 
 export type CreateGoalPayloadInput = z.input<typeof createGoalPayloadSchema>;
 export type CreateGoalPayload = z.infer<typeof createGoalPayloadSchema>;

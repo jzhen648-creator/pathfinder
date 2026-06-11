@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { dedupeDuplicateRootHubs } from "@/lib/hub-dedupe";
 import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
+import { withCategoryIdMirrors } from "@/lib/category-id";
 import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
 /** Root hub rows + goals for tree/roadmap. Read-only; taxonomy sync on register, onboarding, activate, or backfill. */
@@ -97,11 +98,22 @@ export async function GET() {
       }),
     ]);
     const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), branches);
-    return NextResponse.json({ branches, goals, archivedGoals, marks, unlockedLimbIds });
+    return NextResponse.json({
+      branches,
+      /** Phase 2 alias — same rows as `branches` (taxonomy categories). */
+      categories: branches,
+      goals: withCategoryIdMirrors(goals),
+      archivedGoals: withCategoryIdMirrors(archivedGoals),
+      marks: withCategoryIdMirrors(marks),
+      unlockedLimbIds,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load branches";
     console.error("[GET /api/branches]", err);
-    return NextResponse.json({ error: message, branches: [], goals: [] }, { status: 500 });
+    return NextResponse.json(
+      { error: message, branches: [], categories: [], goals: [] },
+      { status: 500 },
+    );
   }
 }
 

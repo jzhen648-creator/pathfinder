@@ -133,7 +133,7 @@ export async function POST(request: Request) {
           limbId: branchRecord.limbId,
           deadline,
           significance,
-          bloomStatus: "ACTIVE",
+          bloomStatus: input.bloomStatus ?? "ACTIVE",
           aiGenerated: false,
           future,
           year,
@@ -165,8 +165,12 @@ export async function POST(request: Request) {
     after(() => {
       void assignPursuitVisualsSafe({ title, description, lifeArea })
         .then(async ({ iconName, shortLabel }) => {
+          const existing = await prisma.goal.findUnique({
+            where: { id: goalId },
+            select: { iconName: true },
+          });
           const data: { iconName?: string; shortLabel?: string } = {};
-          if (iconName) data.iconName = iconName;
+          if (!existing?.iconName && iconName) data.iconName = iconName;
           if (shortLabel) data.shortLabel = shortLabel;
           if (Object.keys(data).length === 0) return;
           await prisma.goal.update({ where: { id: goalId }, data });
@@ -176,7 +180,11 @@ export async function POST(request: Request) {
         );
     });
 
-    if (shouldGenerateRoadmap(input.generateRoadmap)) {
+    if (
+      shouldGenerateRoadmap(input.generateRoadmap) &&
+      input.bloomStatus !== "MAINTAINING" &&
+      input.goalType !== "identity"
+    ) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { onboardingProfileText: true },

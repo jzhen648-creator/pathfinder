@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveBranchIdFromBody } from "@/lib/category-id";
 import { zodErrorMessage } from "@/lib/validation/zod-helpers";
 
 export { zodErrorMessage };
@@ -88,7 +89,9 @@ const markSequenceAnchorSchema = z
 
 const createMarkBaseFields = {
   limbId: z.string().min(1, "Theme (limbId) is required."),
-  branchId: z.string().min(1, "Branch is required."),
+  branchId: z.string().min(1, "Category is required.").optional(),
+  /** Phase 2 alias for `branchId` (taxonomy category row id). */
+  categoryId: z.string().min(1).optional(),
   title: z
     .string()
     .max(MARK_TITLE_MAX, `Title must be at most ${MARK_TITLE_MAX} characters.`)
@@ -117,6 +120,14 @@ const createMarkBaseFields = {
 export const createMarkBodySchema = z
   .object(createMarkBaseFields)
   .superRefine((data, ctx) => {
+    const branchId = resolveBranchIdFromBody(data);
+    if (!branchId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Category is required (branchId or categoryId).",
+        path: ["branchId"],
+      });
+    }
     const t = (data.title ?? "").trim();
     const l = (data.label ?? "").trim();
     if (!t && !l) {
@@ -144,10 +155,15 @@ export const createMarkBodySchema = z
         path: ["date"],
       });
     }
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    branchId: resolveBranchIdFromBody(data),
+  }));
 
 const updateMarkFieldShape = {
   branchId: z.string().min(1).optional(),
+  categoryId: z.string().min(1).optional(),
   limbId: z.string().min(1).optional(),
   title: z
     .string()
@@ -200,6 +216,10 @@ export const updateMarkBodySchema = z
         });
       }
     }
+  })
+  .transform((data) => {
+    const branchId = resolveBranchIdFromBody(data);
+    return branchId ? { ...data, branchId } : data;
   });
 
 export const createBranchBodySchema = z

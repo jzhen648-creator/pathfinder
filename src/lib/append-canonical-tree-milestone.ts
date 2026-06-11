@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 
 function maxMilestonePosition(milestones: { position: number }[]): number {
   return milestones.reduce((acc, m) => Math.max(acc, m.position), -1);
@@ -20,12 +21,12 @@ export async function appendCanonicalTreeMilestoneForGoal(
     await prisma.$transaction(async (tx) => {
       const goal = await tx.goal.findFirst({
         where: { id: goalId, userId },
-        select: { id: true, goalType: true },
+        select: { id: true, goalType: true, bloomStatus: true },
       });
       if (!goal) {
         throw Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" });
       }
-      if (goal.goalType === "moment" || goal.goalType === "event") {
+      if (!goalAllowsStreamMilestones(goal)) {
         throw Object.assign(new Error("GOAL_TYPE"), { code: "GOAL_TYPE" });
       }
 

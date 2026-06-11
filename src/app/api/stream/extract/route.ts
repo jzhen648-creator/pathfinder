@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStreamThemeContextInput } from "@/lib/stream-theme-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
+import { mirrorStreamExtractResponse } from "@/lib/category-id";
 import { streamExtractFailureStatus } from "@/lib/stream-extract-errors";
 import {
   streamExtractRequestSchema,
@@ -153,7 +154,9 @@ export async function POST(request: Request) {
           );
           committedAmbiguousCount += committed;
         }
-        return NextResponse.json({ ...result, committedAmbiguousCount });
+        return NextResponse.json(
+          mirrorStreamExtractResponse({ ...result, committedAmbiguousCount }),
+        );
       } catch (err) {
         if (err instanceof GeminiNotConfiguredError) {
           return NextResponse.json({ error: err.message }, { status: 503 });
@@ -181,7 +184,9 @@ export async function POST(request: Request) {
           formatMapContext(userId),
         ]);
         const result = await runStreamGlobalExtract(input, { userContext, mapContext });
-        return NextResponse.json({ ...result, committedAmbiguousCount: 0 });
+        return NextResponse.json(
+          mirrorStreamExtractResponse({ ...result, committedAmbiguousCount: 0 }),
+        );
       } catch (err) {
         if (err instanceof GeminiNotConfiguredError) {
           return NextResponse.json({ error: err.message }, { status: 503 });

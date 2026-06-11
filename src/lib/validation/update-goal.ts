@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidLucideSlug } from "@/lib/icons/enumerate-lucide-slugs";
 
 /** PATCH `/api/goals/[goalId]` — at least one field required. */
 const calendarDaySchema = z
@@ -21,6 +22,8 @@ export const updateGoalPayloadSchema = z
     mapGridQ: z.number().int().nullable().optional(),
     /** World axial hex r on the mobile map lattice; `null` clears a pin. */
     mapGridR: z.number().int().nullable().optional(),
+    /** Lucide kebab-case slug; `null` clears stored icon (hub / auto fallback at render). */
+    iconName: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =
@@ -32,7 +35,8 @@ export const updateGoalPayloadSchema = z
       data.archived !== undefined ||
       data.bloomStatus !== undefined ||
       data.mapGridQ !== undefined ||
-      data.mapGridR !== undefined;
+      data.mapGridR !== undefined ||
+      data.iconName !== undefined;
     if (!hasField) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -89,6 +93,16 @@ export const updateGoalPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message: "mapGridQ and mapGridR must both be set or both null",
       });
+    }
+    if (data.iconName !== undefined && data.iconName != null) {
+      const slug = data.iconName.trim().toLowerCase();
+      if (!slug || !isValidLucideSlug(slug)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "iconName must be a valid Lucide slug or null",
+          path: ["iconName"],
+        });
+      }
     }
   });
 

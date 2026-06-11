@@ -4,6 +4,34 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-11 — Taxonomy Phase 2 slice 1 (aliases, no migration)
+
+**API:** `GET /api/branches` returns `categories[]` (duplicate of `branches[]`). `GET /api/map-data` aliases the same handler.
+
+**Mobile:** `TaxonomyCategory` type, `default-category.ts`, `taxonomy-categories.ts` re-exports; `geometry.ts` no longer emits mark map nodes (marks stay in theme detail only).
+
+**Unchanged:** `branchId`, Prisma `Branch`, `useBranches` hook name — opt-in migration later.
+
+## 2026-06-11 — Retire `practice` goalType (use Maintaining status)
+
+**Product model:** pursuit + status only. Ongoing habits / maintenance rhythms use `goalType: project` + `bloomStatus: MAINTAINING`. **`identity`** stays for “who I'm becoming” pursuits (no milestones).
+
+**Stream:** prompts emit `project|identity` and `MAINTAINING` in bloomStatus; legacy `practice` in extract JSON is normalized on commit to `project` + `MAINTAINING`.
+
+**Milestones:** suppressed for `identity`, `MAINTAINING`, and legacy `practice` rows (`goalAllowsStreamMilestones`).
+
+**Backfill:** `npm run backfill:retire-practice` in `pathfinder/` migrates existing `practice` goals.
+
+## 2026-06-11 — Taxonomy language lock (Phase 1)
+
+**User-facing model:** theme · pursuit · mark only. **Taxonomy category** is the doc word for the hidden routing layer (22 slots under six themes).
+
+**Rules:**
+- Mobile UI copy source of truth: `pathfinder-mobile/TERMINOLOGY.md`.
+- Do not show hub, track, branch, or category names in mobile UI (search, stream headers, attention cards, ambiguous-mark resolve → theme picker).
+- Code/API unchanged in Phase 1: `Branch`, `branchId`, Stream `hubId`, `mode: "hub"`. Prompts may say **category** while JSON keeps `hubId`.
+- Phases 2–3 (aliases, Prisma `ThemeCategory`, `categoryId`) deferred — see root `TAXONOMY-CLEANUP.md`.
+
 ## 2026-06-08 — Taxonomy v8: Play & Leisure theme restored (`2026-06-08-v8-play-leisure`)
 
 **Status:** Frozen taxonomy change. `TAXONOMY_VERSION` → `2026-06-08-v8-play-leisure`. Six themes, **20** system hubs (was 17).

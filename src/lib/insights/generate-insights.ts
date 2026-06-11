@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   insightGenerationSchema,
   insightLevelSchema,
+  pursuitInsightSchema,
   type InsightGenerationResult,
   type InsightLevelPayload,
 } from "./insight-types";
@@ -18,6 +19,61 @@ export class InsightGenerationResponseError extends Error {
     this.name = "InsightGenerationResponseError";
   }
 }
+
+const PURSUIT_INSIGHT_RULES = [
+  "You generate a short personal insight for a single pursuit on the user's life map.",
+  "",
+  "You receive:",
+  "- The target pursuit (title, status, milestones, theme)",
+  "- ALL other pursuits on the map (titles, statuses, themes)",
+  "- User context (name, age, location — may be partial)",
+  "",
+  "RULES — every rule is mandatory, not aspirational:",
+  "",
+  "1. HEADLINE: One sentence, under 100 characters. This is a VERDICT — what's smart, what's risky, what's notable about this pursuit given everything else on the map. Not a description.",
+  '   Good: "Your qualifications are running ahead of the job search — that\'s leverage."',
+  '   Good: "£500k ISA at 29 is top-decile ambition — the question is contribution rate."',
+  '   Good: "Training for a half marathon while juggling a career switch takes real scheduling."',
+  '   Bad: "This is an exciting goal that reflects your aspirations!"',
+  '   Bad: "Jeremy, pursuing a Porsche 981 is an exciting goal!"',
+  '   Bad: "This half marathon goal is a testament to your endurance."',
+  "",
+  "2. BODY: 2-4 sentences, under 500 characters total. Single prose paragraph — no headers, no labels, no bullet points. Must satisfy AT LEAST TWO of these three:",
+  "   a) NAME another pursuit on the map and explain how it connects, conflicts with, or supports this one",
+  "   b) STATE a concrete benchmark — a number, percentage, typical timeline, salary range, or cost estimate grounded in real-world knowledge for someone of this age/location. If you cannot provide a concrete benchmark, skip this — do NOT write vague sentences like \"many people your age are working towards similar goals\"",
+  "   c) IDENTIFY one specific next step, risk, or opportunity that the user likely hasn't considered",
+  "",
+  "3. NEVER DO ANY OF THESE:",
+  "   - Restate the pursuit title in full — use a short reference (\"the ISA\", \"this role\", \"the marathon\")",
+  "   - Use the user's name more than once across headline + body combined",
+  "   - Write a sentence that could apply to ANY pursuit if you swapped the title (\"this is an ambitious goal that demonstrates commitment\")",
+  "   - Repeat the same idea in different words — if you've said it, move on",
+  "   - Use \"exciting\", \"ambitious\", \"significant\", \"forward-thinking\", \"proactive\", \"demonstrates dedication\" — these are filler words that carry zero information",
+  "   - Fill space when you have nothing useful to say — a 2-sentence insight that says something real is better than 4 sentences of padding",
+  "",
+  "4. TONE TAG: Choose the tone that matches reality, not positivity bias.",
+  "   - \"celebratory\" — only if real progress has been made (milestones completed, status COMPLETE)",
+  "   - \"encouraging\" — active pursuit with visible momentum",
+  "   - \"nudge\" — active pursuit with stalled milestones or no recent progress",
+  "   - \"reality_check\" — pursuit that conflicts with other map evidence or has structural issues",
+  "   - \"informational\" — factual benchmark or context, no emotional framing needed",
+  "",
+  "5. CROSS-MAP AWARENESS: You can see every pursuit on the map. USE THIS. The most valuable thing you can do is connect pursuits the user might not have linked themselves. If a finance pursuit and a career pursuit are clearly related, say so. If two pursuits compete for the same time/resources, flag it.",
+  "",
+  "REMEMBER: The user can already see their own pursuit title and status. They gain ZERO value from you restating it. Every sentence must add information or reasoning they couldn't get from looking at their map.",
+].join("\n");
+
+const PURSUIT_INSIGHT_SYSTEM_PROMPT = [
+  PURSUIT_INSIGHT_RULES,
+  "",
+  "GROUND TRUTH:",
+  "- Return ONLY valid JSON matching the requested schema.",
+  "- Only use pursuits, themes, marks, milestones, and profile fields in context. Never invent facts, pursuits, or progress.",
+  "- Pursuits may include currentAmount, targetAmount, unit, deadline — prefer these structured fields over re-parsing description when benchmarking finance or measurable goals.",
+  "- Some pursuits include parentPursuitTitle — that pursuit grew from the named parent; the parent link is relevant context.",
+  "- If the map is sparse, say so honestly — do not invent pursuits or imply activity that is not in context.",
+  "- Follow pathfinder/PROMPTS.md: every sentence must be specific to this person's actual map data.",
+].join("\n");
 
 const SYSTEM_PROMPT = [
   "You generate personal life-map insights for Pathfinder.",
@@ -37,12 +93,12 @@ const SYSTEM_PROMPT = [
   "- global: whole-map compass in insight cache (greeting + 2–3 short sections + optional streamCta). Story is the live whole-map reading on mobile — global still generated for cache parity. No checklists, no tasks, no obligation.",
   "- themes: one entry per theme id in the map context (finance, work, becoming, people, health).",
   "- hubs: one entry per hub id in the map context.",
-  "- pursuits: one entry per pursuit id in the map context.",
+  "- pursuits: one entry per pursuit id in the map context — use the pursuit schema below (NOT the theme/hub schema).",
   "",
-  "Each theme/hub/pursuit entry has: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
-  "Mobile UI maps fields to: Headline (oneLiner), FROM YOUR MAP (reflective), COMPARISON (contextual), WHAT THIS OPENS (combined).",
+  "Theme and hub entries have: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
+  "Mobile UI maps theme/hub fields to: Headline (oneLiner), FROM YOUR MAP (reflective), COMPARISON (contextual), WHAT THIS OPENS (combined).",
   "",
-  "NON-DUPLICATION RULE (every prose field):",
+  "NON-DUPLICATION RULE (theme/hub prose fields):",
   "- If the content could be inferred from the pursuit title alone, cut or replace it.",
   "- Do not restate the pursuit title or describe what the user already sees on screen.",
   "- Each field must add information the user could not derive by looking at their own map.",
@@ -77,15 +133,18 @@ const SYSTEM_PROMPT = [
   "- Not a repeat of the verdict (oneLiner) or external benchmark (contextual).",
   "- At most one concrete next step or unlock — not a list.",
   "",
-  "tone field:",
+  "tone field (theme/hub):",
   "- Default to encouraging. Use nudge only when map data shows a clear stall.",
   "- For ON_HOLD pursuits, prefer encouraging — acknowledge the pause; do not nudge to resume.",
   "- Use celebratory only for COMPLETE pursuits — name the achievement plainly without hype; never for active or stalled pursuits.",
   "",
+  "--- Pursuit entries (schema: tone, headline, body) ---",
+  PURSUIT_INSIGHT_RULES,
+  "",
   "Pursuit status (status field in map context):",
-  "- COMPLETE — acknowledge as a real achievement. Name the pursuit. Explain what completing this specific pursuit says about the person. Never treat completed pursuits as gaps, nudges, or suggestions.",
-  "- ACTIVE — assess momentum from theme marks and milestone progress. Name the pursuit specifically.",
-  "- ON_HOLD — the pursuit is deliberately paused. Name it. Reflect why the pause may be intentional or what is waiting — warm, no pressure to resume. Do not treat as a gap, failure, or nudge to unpause.",
+  "- COMPLETE — acknowledge as a real achievement. Explain what completing this specific pursuit says about the person. Never treat completed pursuits as gaps, nudges, or suggestions.",
+  "- ACTIVE — assess momentum from theme marks and milestone progress.",
+  "- ON_HOLD — the pursuit is deliberately paused. Reflect why the pause may be intentional or what is waiting — warm, no pressure to resume. Do not treat as a gap, failure, or nudge to unpause.",
   "",
   "global (whole-map cache):",
   "- greeting must name at least one real pursuit by title immediately — not a generic observation.",
@@ -98,26 +157,10 @@ const SYSTEM_PROMPT = [
   "- streamCta: optional warm invitation to capture progress — not a task list. Do not use bare \"Stream\" as a destination label.",
   "",
   "Length limits:",
-  "- Each theme/hub/pursuit field (oneLiner, reflective, contextual, combined): 2–4 sentences max.",
+  "- Theme/hub fields (oneLiner, reflective, contextual, combined): 2–4 sentences max.",
+  "- Pursuit headline: under 100 characters. Pursuit body: under 500 characters, single paragraph.",
   "- Global: 4 sentences maximum across greeting, sections, and streamCta.",
-  "- Use compact strings. No paragraphs. No markdown.",
-  "",
-  "Negative examples — never produce copy like the Bad lines:",
-  '- Bad: repeating the pursuit title three ways across headline, FROM YOUR MAP, and COMPARISON.',
-  '- Bad: "Your finance pursuits show ambition" → Good cross-map: "Build £500k ISA runs alongside Clear £10,000 credit card debt — building and clearing simultaneously is deliberate sequencing, not contradiction."',
-  '- Bad: "Add a description to make this clearer" → form validation, never insight copy.',
-  '- Bad: "Consider adding milestones to keep this moving" → too generic; name the pursuit and one specific next step instead.',
-  '- Bad: treating a COMPLETE pursuit as still needing attention.',
-  '- Bad: suggesting milestones for a COMPLETE pursuit.',
-  "",
-  "ACCURACY RULES — never violate:",
-  "1. contextual benchmarks: use widely known public norms (salary bands, qualification timelines, milestone prevalence) with approximate language — never invented precision.",
-  "2. Use nearest meaningful real benchmarks; omit contextual entirely if unsure.",
-  "3. Use approximate language: around, roughly, approximately, about.",
-  "4. Use profile location for geographic context (UK vs Singapore vs universal).",
-  "5. Apply age context when age is known.",
-  "6. When uncertain → omit; never guess.",
-  "7. Would this survive a Google search? If no → remove.",
+  "- Use compact strings. No paragraphs in theme/hub fields. No markdown.",
   "",
   "Voice: direct, informed advisor — calm and map-native. Not a hype coach. Never shame or pressure.",
   "If the map is sparse, say so honestly and invite capture rather than inventing pursuits.",
@@ -133,6 +176,7 @@ function buildUserMessage(mapJson: string, userContext: string): string {
     "",
     `Include theme keys only for ids present in the map (${themeIds}).`,
     "Include every hub id and every pursuit id from the map in hubs and pursuits objects.",
+    "Pursuit entries use { tone, headline, body } — not the theme/hub four-field schema.",
     "global.sections: use short ALL-CAPS titles like MOMENTUM, ATTENTION, INTERESTING.",
     "Keep every string short enough that the whole JSON response stays under 3000 output tokens.",
   ].join("\n");
@@ -192,21 +236,32 @@ function filterMapContextForMissingNodes(
   return { themes };
 }
 
-const nodeInsightGenerationSchema = z.object({
+const themeHubNodeInsightSchema = z.object({
   themes: z.record(z.string(), insightLevelSchema).optional(),
   hubs: z.record(z.string(), insightLevelSchema).optional(),
-  pursuits: z.record(z.string(), insightLevelSchema).optional(),
+});
+
+const pursuitNodeInsightSchema = z.object({
+  pursuits: z.record(z.string(), pursuitInsightSchema).optional(),
 });
 
 const BACKFILL_SYSTEM_PROMPT = [
-  "You generate missing node-level insights for Pathfinder.",
+  "You generate missing theme/hub insights for Pathfinder.",
   "Follow pathfinder/PROMPTS.md and the main insight generator in generate-insights.ts.",
-  "Return ONLY valid JSON: { themes?, hubs?, pursuits? } — each a record of id -> insight object.",
+  "Return ONLY valid JSON: { themes?, hubs? } — each a record of id -> insight object.",
   "Include ONLY the ids listed in the user message — no extra keys.",
   "Each insight object has: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
   "Field jobs: oneLiner = verdict; reflective = cross-map (FROM YOUR MAP); contextual = external benchmarks (COMPARISON); combined = forward-looking (WHAT THIS OPENS).",
   "Each field must pass the non-duplication rule: nothing inferable from the pursuit title alone.",
   "If age OR location is unknown, set contextual to an empty string.",
+].join("\n");
+
+const PURSUIT_BACKFILL_SYSTEM_PROMPT = [
+  PURSUIT_INSIGHT_SYSTEM_PROMPT,
+  "",
+  "Return ONLY valid JSON: { pursuits?: Record<pursuitId, { tone, headline, body }> }.",
+  "Include ONLY the pursuit ids listed in the user message — no extra keys.",
+  "The life map JSON includes ALL pursuits — use them for cross-map connections even though you only output insights for the listed ids.",
 ].join("\n");
 
 export type GenerateNodeInsightsRequest = {
@@ -215,34 +270,124 @@ export type GenerateNodeInsightsRequest = {
   hubIds?: string[];
 };
 
-function expandNodeScopeFromMap(
-  mapContext: FormattedMapContext,
-  request: GenerateNodeInsightsRequest,
-): {
-  themeIds: Set<string>;
-  hubIds: Set<string>;
-  pursuitIds: Set<string>;
-} {
-  const pursuitIds = new Set(request.pursuitIds ?? []);
-  const themeIds = new Set(request.themeIds ?? []);
-  const hubIds = new Set(request.hubIds ?? []);
-
-  for (const theme of mapContext.themes) {
-    for (const hub of theme.hubs) {
-      for (const pursuit of hub.pursuits) {
-        if (pursuitIds.has(pursuit.id)) {
-          themeIds.add(theme.id);
-          hubIds.add(hub.id);
-        }
-      }
-    }
-  }
-
-  return { themeIds, hubIds, pursuitIds };
-}
-
 function emptyNodeInsightPatch(): Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits"> {
   return { themes: {}, hubs: {}, pursuits: {} };
+}
+
+async function generateThemeHubNodeInsights(
+  userId: string,
+  mapContext: FormattedMapContext,
+  userContext: string,
+  themeIds: Set<string>,
+  hubIds: Set<string>,
+): Promise<Pick<InsightGenerationResult, "themes" | "hubs">> {
+  if (themeIds.size === 0 && hubIds.size === 0) {
+    return { themes: {}, hubs: {} };
+  }
+
+  const slimContext = filterMapContextForMissingNodes(
+    mapContext,
+    themeIds,
+    hubIds,
+    new Set(),
+  );
+
+  const raw = await generateJsonCompletion({
+    system: BACKFILL_SYSTEM_PROMPT,
+    user: [
+      userContext || "(No profile context yet.)",
+      "",
+      "Missing insight ids:",
+      `themes: ${[...themeIds].join(", ") || "(none)"}`,
+      `hubs: ${[...hubIds].join(", ") || "(none)"}`,
+      "",
+      "Relevant map JSON:",
+      JSON.stringify(slimContext, null, 2),
+    ].join("\n"),
+    maxTokens: 2048,
+    queueKey: userId,
+  });
+
+  let json: unknown;
+  try {
+    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+  } catch (err) {
+    console.error("[insights] theme/hub insight generation returned invalid JSON", { err, raw });
+    throw new InsightGenerationResponseError(
+      "Insight generation returned incomplete JSON. Please try refreshing again.",
+      { cause: err },
+    );
+  }
+
+  const parsed = themeHubNodeInsightSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("[insights] theme/hub insight generation returned invalid shape", {
+      issues: parsed.error.issues,
+      raw,
+    });
+    throw new InsightGenerationResponseError(
+      `Insight generation returned an invalid response shape: ${
+        parsed.error.issues[0]?.message ?? "unknown"
+      }`,
+    );
+  }
+
+  return {
+    themes: parsed.data.themes ?? {},
+    hubs: parsed.data.hubs ?? {},
+  };
+}
+
+async function generatePursuitNodeInsights(
+  userId: string,
+  mapContext: FormattedMapContext,
+  userContext: string,
+  pursuitIds: Set<string>,
+): Promise<Pick<InsightGenerationResult, "pursuits">> {
+  if (pursuitIds.size === 0) {
+    return { pursuits: {} };
+  }
+
+  const raw = await generateJsonCompletion({
+    system: PURSUIT_BACKFILL_SYSTEM_PROMPT,
+    user: [
+      userContext || "(No profile context yet.)",
+      "",
+      "Generate insights for these pursuit ids:",
+      [...pursuitIds].join(", "),
+      "",
+      "Full life map JSON (all pursuits — use for cross-map connections):",
+      JSON.stringify(mapContext, null, 2),
+    ].join("\n"),
+    maxTokens: 2048,
+    queueKey: userId,
+  });
+
+  let json: unknown;
+  try {
+    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+  } catch (err) {
+    console.error("[insights] pursuit insight generation returned invalid JSON", { err, raw });
+    throw new InsightGenerationResponseError(
+      "Insight generation returned incomplete JSON. Please try refreshing again.",
+      { cause: err },
+    );
+  }
+
+  const parsed = pursuitNodeInsightSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("[insights] pursuit insight generation returned invalid shape", {
+      issues: parsed.error.issues,
+      raw,
+    });
+    throw new InsightGenerationResponseError(
+      `Insight generation returned an invalid response shape: ${
+        parsed.error.issues[0]?.message ?? "unknown"
+      }`,
+    );
+  }
+
+  return { pursuits: parsed.data.pursuits ?? {} };
 }
 
 /** Focused node-level generation — one or more pursuits/themes/hubs without a full-map pass. */
@@ -259,70 +404,29 @@ export async function generateNodeInsights(
     formatUserContext(userId),
   ]);
 
-  const { themeIds, hubIds, pursuitIds } = expandNodeScopeFromMap(mapContext, request);
+  const themeIds = new Set(request.themeIds ?? []);
+  const hubIds = new Set(request.hubIds ?? []);
+  const pursuitIds = new Set(request.pursuitIds ?? []);
   if (themeIds.size === 0 && hubIds.size === 0 && pursuitIds.size === 0) {
     return emptyNodeInsightPatch();
   }
 
-  const slimContext = filterMapContextForMissingNodes(
-    mapContext,
-    themeIds,
-    hubIds,
-    pursuitIds,
-  );
-
-  const raw = await generateJsonCompletion({
-    system: BACKFILL_SYSTEM_PROMPT,
-    user: [
-      userContext || "(No profile context yet.)",
-      "",
-      "Missing insight ids:",
-      `themes: ${[...themeIds].join(", ") || "(none)"}`,
-      `hubs: ${[...hubIds].join(", ") || "(none)"}`,
-      `pursuits: ${[...pursuitIds].join(", ") || "(none)"}`,
-      "",
-      "Relevant map JSON:",
-      JSON.stringify(slimContext, null, 2),
-    ].join("\n"),
-    maxTokens: 2048,
-    queueKey: userId,
-  });
-
-  let json: unknown;
-  try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
-  } catch (err) {
-    console.error("[insights] node insight generation returned invalid JSON", { err, raw });
-    throw new InsightGenerationResponseError(
-      "Insight generation returned incomplete JSON. Please try refreshing again.",
-      { cause: err },
-    );
-  }
-
-  const parsed = nodeInsightGenerationSchema.safeParse(json);
-  if (!parsed.success) {
-    console.error("[insights] node insight generation returned invalid shape", {
-      issues: parsed.error.issues,
-      raw,
-    });
-    throw new InsightGenerationResponseError(
-      `Insight generation returned an invalid response shape: ${
-        parsed.error.issues[0]?.message ?? "unknown"
-      }`,
-    );
-  }
+  const [themeHubPatch, pursuitPatch] = await Promise.all([
+    generateThemeHubNodeInsights(userId, mapContext, userContext, themeIds, hubIds),
+    generatePursuitNodeInsights(userId, mapContext, userContext, pursuitIds),
+  ]);
 
   return {
-    themes: parsed.data.themes ?? {},
-    hubs: parsed.data.hubs ?? {},
-    pursuits: parsed.data.pursuits ?? {},
+    themes: themeHubPatch.themes,
+    hubs: themeHubPatch.hubs,
+    pursuits: pursuitPatch.pursuits,
   };
 }
 
 async function backfillMissingNodeInsights(
   userId: string,
   mapContext: FormattedMapContext,
-  userContext: string,
+  _userContext: string,
   generated: InsightGenerationResult,
 ): Promise<InsightGenerationResult> {
   const { themeIds, hubIds, pursuitIds } = collectMapNodeIds(mapContext);
@@ -356,9 +460,9 @@ async function backfillMissingNodeInsights(
     return generated;
   }
 
-  const mergeLevel = (
-    base: Record<string, InsightLevelPayload>,
-    patchLevel: Record<string, InsightLevelPayload> | undefined,
+  const mergeLevel = <T extends Record<string, unknown>>(
+    base: Record<string, T>,
+    patchLevel: Record<string, T> | undefined,
   ) => ({ ...base, ...patchLevel });
 
   return {

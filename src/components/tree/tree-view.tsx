@@ -1115,7 +1115,7 @@ function TreeViewInner({
         timelineStartIso?: string | null;
         deadlineIso?: string | null;
         archived?: boolean;
-        bloomStatus?: "ACTIVE" | "ON_HOLD" | "COMPLETE";
+        bloomStatus?: "ACTIVE" | "MAINTAINING" | "ON_HOLD" | "COMPLETE";
       },
     ) => {
       try {

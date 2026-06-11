@@ -66,6 +66,9 @@ export type FormattedMapContext = {
 
         status: string;
 
+        /** 1–5; higher = more weight on the map. */
+        significance: number;
+
         milestones: Array<{
 
           id: string;
@@ -180,6 +183,8 @@ export async function formatMapContext(
           description: true,
 
           bloomStatus: true,
+
+          significance: true,
 
           parentGoalId: true,
 
@@ -306,6 +311,8 @@ export async function formatMapContext(
           description: goal.description?.trim() ?? "",
 
           status: goal.bloomStatus,
+
+          significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
 
           milestones: goal.milestones.map((milestone) => ({
 

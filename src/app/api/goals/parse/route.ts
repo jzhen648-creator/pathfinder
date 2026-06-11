@@ -11,7 +11,7 @@ const PARSE_SYSTEM_PROMPT = [
   "You parse life goal statements into structured JSON.",
   "Return ONLY a valid JSON object with exactly these fields:",
   "title (string, cleaned goal title),",
-  "type (milestone = clear endpoint, practice = ongoing habit),",
+  "type (milestone = clear endpoint, practice = ongoing habit → stored as project + Maintaining),",
   "targetDate (ISO date string if mentioned, otherwise null),",
   "significance (integer 1-5, infer from language intensity and life impact),",
   "confidence (float 0-1, how clearly input maps to a goal),",

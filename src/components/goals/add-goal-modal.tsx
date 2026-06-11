@@ -22,8 +22,7 @@ export type AddGoalBranchOption = {
 };
 
 const GOAL_LABELS: Record<CreateGoalGoalType, string> = {
-  project: "Project (has an end date)",
-  practice: "Practice (ongoing commitment)",
+  project: "Project (deliverable or ongoing pursuit)",
   identity: "Identity (who I'm becoming)",
 };
 
@@ -39,7 +38,7 @@ const defaultValues: FormValues = {
   title: "",
   description: "",
   branchId: "",
-  goalType: "practice",
+  goalType: "project",
   deadline: "",
   significance: 3,
   hasMeasurableTarget: false,
@@ -96,7 +95,7 @@ export function AddGoalModal({
     reValidateMode: "onChange",
   });
 
-  const goalType = useWatch({ control: form.control, name: "goalType", defaultValue: "practice" });
+  const goalType = useWatch({ control: form.control, name: "goalType", defaultValue: "project" });
   const hasMeasurableTarget = useWatch({
     control: form.control,
     name: "hasMeasurableTarget",
@@ -129,7 +128,7 @@ export function AddGoalModal({
           body: JSON.stringify({
             title: values.title.trim(),
             description: values.description,
-            branchId: values.branchId.trim(),
+            branchId: (values.branchId ?? "").trim(),
             goalType: values.goalType,
             deadline: deadlineTrim,
             significance: values.significance,

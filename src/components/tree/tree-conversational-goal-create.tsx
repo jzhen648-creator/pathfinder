@@ -8,8 +8,8 @@ import type { AddGoalHubContext } from "./tree-view-types";
 
 type Phase = "input" | "confirm" | "adjust";
 
-function parseTypeToGoalType(t: "milestone" | "practice"): "project" | "practice" {
-  return t === "milestone" ? "project" : "practice";
+function parseTypeToGoalType(_t: "milestone" | "practice"): "project" {
+  return "project";
 }
 
 function normalizeDeadlineForApi(targetDate: string | null, parseType: "milestone" | "practice"): string {
@@ -164,6 +164,7 @@ export function TreeConversationalGoalCreate({
       setError(null);
       const goalType = parseTypeToGoalType(input.parseType);
       const deadline = normalizeDeadlineForApi(input.targetDate, input.parseType);
+      const bloomStatus = input.parseType === "practice" ? "MAINTAINING" : "ACTIVE";
       try {
         const res = await fetch("/api/goals", {
           method: "POST",
@@ -173,13 +174,14 @@ export function TreeConversationalGoalCreate({
             description: "",
             branchId: input.branchId.trim(),
             goalType,
-            deadline: goalType === "project" ? deadline : "",
+            bloomStatus,
+            deadline: input.parseType === "milestone" ? deadline : "",
             significance: clampSig(input.significance),
             hasMeasurableTarget: false,
             targetAmount: "",
             currentAmount: "",
             unit: "",
-            generateRoadmap: true,
+            generateRoadmap: input.parseType === "milestone",
             ...(context.sequenceAnchor != null ? { anchor: context.sequenceAnchor } : {}),
           }),
         });
@@ -381,16 +383,21 @@ export function TreeConversationalGoalCreate({
         <div style={{ display: "grid", gap: 6, marginBottom: 8 }}>
           <span style={{ fontSize: 13, color: muted.color }}>Type</span>
           <div style={{ display: "flex", gap: 8 }}>
-            {(["milestone", "practice"] as const).map((t) => (
-              <label key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: busy ? "wait" : "pointer" }}>
+            {(
+              [
+                { value: "milestone" as const, label: "Project (target date)" },
+                { value: "practice" as const, label: "Ongoing (maintaining)" },
+              ] as const
+            ).map(({ value, label }) => (
+              <label key={value} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: busy ? "wait" : "pointer" }}>
                 <input
                   type="radio"
                   name="cg-type"
-                  checked={adjType === t}
+                  checked={adjType === value}
                   disabled={busy}
-                  onChange={() => setAdjType(t)}
+                  onChange={() => setAdjType(value)}
                 />
-                {t}
+                {label}
               </label>
             ))}
           </div>

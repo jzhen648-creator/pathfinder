@@ -92,9 +92,15 @@ export async function assignPursuitVisuals(
   if (!title) return { iconName: null, shortLabel: null };
 
   const override = matchPreferredOverrideIconSlug(title, input.description);
-  const ai = await pickVisualsWithAi(input);
+  if (override) {
+    return {
+      iconName: override,
+      shortLabel: resolvePursuitShortLabel(null, title, input.description),
+    };
+  }
 
-  const iconName = override ?? ai.iconName;
+  const ai = await pickVisualsWithAi(input);
+  const iconName = ai.iconName;
   const shortLabel = resolvePursuitShortLabel(ai.shortLabelRaw, title, input.description);
 
   return { iconName, shortLabel };
@@ -134,7 +140,14 @@ export async function assignPursuitIconSafe(
 export async function persistPursuitVisualsForGoal(goalId: string): Promise<void> {
   const row = await prisma.goal.findFirst({
     where: { id: goalId },
-    select: { id: true, title: true, description: true, lifeArea: true, goalType: true },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      lifeArea: true,
+      goalType: true,
+      iconName: true,
+    },
   });
   if (!row) return;
   if (row.goalType === "moment" || row.goalType === "event") return;
@@ -146,7 +159,7 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
   });
 
   const data: { iconName?: string; shortLabel?: string } = {};
-  if (iconName) data.iconName = iconName;
+  if (!row.iconName && iconName) data.iconName = iconName;
   if (shortLabel) data.shortLabel = shortLabel;
   if (Object.keys(data).length === 0) return;
 

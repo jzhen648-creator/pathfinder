@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-/** Bump when Insights season-read payload shape or rules change materially. */
-export const STORY_SCHEMA_VERSION = "2026-06-10-insights-season" as const;
+/** Bump when Insights reading payload shape or rules change materially. */
+export const STORY_SCHEMA_VERSION = "2026-06-11-insights-reading" as const;
 
 /** Previous Story tab schema — parsed for one-release cache migration. */
 export const LEGACY_STORY_SCHEMA_VERSION = "2026-06-05-v3-map-shape" as const;

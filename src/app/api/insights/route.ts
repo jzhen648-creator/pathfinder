@@ -194,7 +194,10 @@ export async function POST(request: Request) {
       if (!row) {
         return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
       }
-      const payload = insightCacheToPayload(row, false);
+      const payload = insightCacheToPayload(
+        row,
+        isCacheStale(row, mapVersion, memoryVersion),
+      );
       if (!payload) {
         return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
       }

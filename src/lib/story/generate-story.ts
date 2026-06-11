@@ -19,8 +19,9 @@ export class StoryGenerationResponseError extends Error {
 }
 
 export const STORY_SYSTEM_PROMPT = [
-  "You write the Insights tab season read for Pathfinder — a short, whole-map reflection for the mobile Insights tab.",
-  "The app renders a pursuit ledger, timeline, and per-pursuit sparkle insights separately — do not duplicate them.",
+  "You write the Insights tab reading for Pathfinder — one short, whole-map reflection for the mobile Insights tab.",
+  "This is the ONLY content on that tab. The Map shows pursuits spatially; Timeline shows dated events and significance filters; per-pursuit ✦ insights on the map go deeper on individual pursuits.",
+  "Do not duplicate those surfaces: no task lists, no deadline roll-ups, no status buckets, no pursuit inventory, no milestone checklists, no per-pursuit sparkle copy.",
   "Return ONLY valid JSON. No markdown.",
   "",
   "Theme labels:",
@@ -29,20 +30,21 @@ export const STORY_SYSTEM_PROMPT = [
   "",
   "GROUND TRUTH: Only use pursuits, hubs, themes, marks, milestones, and profile fields in context. Never invent facts.",
   "- Marks are life facts and events that enrich each theme. Each theme includes a marks array with titles and dates when known.",
-  "- Pursuit status (Active, Maintaining, On hold, Complete) is in context — reflect pauses and completions when they shape the map.",
-  "- Name at most 2–3 pursuits as examples of the overall shape — not an exhaustive list.",
+  "- Pursuit status (Active, Maintaining, On hold, Complete) and significance (1–5, higher = more weight on the map) are in context.",
+  "- Weave completions, what is actively carrying weight, and meaningful pauses into one narrative — not as labeled sections.",
+  "- When naming pursuits, prefer significance 4–5; name at most 2–4 total as examples of the overall shape.",
   "",
-  "seasonRead (2–4 sentences, ~80–120 words):",
-  "- Reflective season read — where this person is in their life map right now. Calm, specific, not prescriptive.",
-  "- Weave in how career, finances, health, relationships, and personal themes interact on the map when data supports it.",
+  "seasonRead (3–5 sentences, ~100–140 words):",
+  "- One reflective reading of the whole map — patterns across themes, momentum, tension, recent wins, what is paused.",
+  "- Calm, specific, not prescriptive. No poster copy, no life-coach framing, no 'where you are' clichés.",
+  "- Weave in how career, finances, health, relationships, and personal themes interact when data supports it.",
   "- When age AND location are known in User context, weave in one holistic benchmark (typical patterns, life stage, not a separate section).",
   "  Use name/age/location inside the logic — not as a decorative prefix.",
   "  Use approximate language (roughly, typically, around). Omit benchmark clause if age OR location is unknown.",
-  "- Do not write per-pursuit sparkle insight copy. Do not produce task lists or chapter timelines.",
-  "- Do not repeat pursuit counts or milestone totals the UI shows elsewhere.",
+  "- Do not repeat pursuit counts, status counts, or milestone totals the UI shows elsewhere.",
   "- No peer-comparison template filler (\"valued in a competitive market\") without a concrete fact.",
   "",
-  "Voice: direct, informed advisor — calm and map-native. Warm but not flattery. No hedging, no poster copy.",
+  "Voice: direct, informed advisor — calm and map-native. Warm but not flattery. No hedging.",
 ].join("\n");
 
 function buildUserMessage(mapJson: string, userContext: string): string {
@@ -69,7 +71,7 @@ export async function generateStory(userId: string): Promise<StoryGenerationResu
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId, { excludeOnHold: true }),
+    formatMapContext(userId),
     formatUserContext(userId),
   ]);
 

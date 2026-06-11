@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { GOAL_TYPE_VALUES } from "@/lib/validation/create-goal";
+import { STREAM_INGEST_GOAL_TYPE_VALUES } from "@/lib/goal-type";
 
-export const STREAM_BLOOM_VALUES = ["ACTIVE", "ON_HOLD", "COMPLETE"] as const;
+export const STREAM_BLOOM_VALUES = ["ACTIVE", "MAINTAINING", "ON_HOLD", "COMPLETE"] as const;
 export type StreamBloomStatus = (typeof STREAM_BLOOM_VALUES)[number];
 
 export const STREAM_AMBIGUOUS_RESOLUTION_VALUES = ["done", "in_progress", "not_started"] as const;
@@ -33,13 +33,15 @@ export const extractedMarkSchema = z.object({
   date: z.union([z.string(), z.null()]),
   /** Theme routing — required for theme-level extract/commit; optional during hub-scoped migration. */
   hubId: streamHubSlugSchema.optional(),
+  /** Phase 2 alias for `hubId` (taxonomy category slug). */
+  categorySlug: streamHubSlugSchema.optional(),
 });
 
 export const extractedPursuitSchema = z.object({
   title: z.string().min(1).max(100),
   /** Short summary shown on confirmation and saved as Goal.description. */
   description: z.string().max(500).nullable().optional(),
-  goalType: z.enum(GOAL_TYPE_VALUES),
+  goalType: z.enum(STREAM_INGEST_GOAL_TYPE_VALUES),
   bloomStatus: z.enum(STREAM_BLOOM_VALUES),
   existingGoalId: z.string().min(1).nullable().optional(),
   clientKey: z.string().min(1).optional(),
@@ -56,12 +58,16 @@ export const extractedPursuitSchema = z.object({
   /** Cautious public-event context without live lookup; confirmation UI only. */
   eventContext: z.string().max(280).nullable().optional(),
   hubId: streamHubSlugSchema.optional(),
+  /** Phase 2 alias for `hubId` (taxonomy category slug). */
+  categorySlug: streamHubSlugSchema.optional(),
 });
 
 export const extractedMilestoneSchema = z.object({
   title: z.string().min(1).max(100),
   pursuitRef: pursuitRefSchema,
   hubId: streamHubSlugSchema.optional(),
+  /** Phase 2 alias for `hubId` (taxonomy category slug). */
+  categorySlug: streamHubSlugSchema.optional(),
 });
 
 export const streamPursuitUpdateSchema = z.object({
@@ -71,6 +77,8 @@ export const streamPursuitUpdateSchema = z.object({
   description: z.string().max(2000).optional(),
   bloomStatus: z.enum(STREAM_BLOOM_VALUES).optional(),
 });
+
+export { normalizeIngestedPursuitType } from "@/lib/goal-type";
 
 export const streamPursuitApplyRequestSchema = z.object({
   pursuitId: z.string().min(1),
@@ -404,7 +412,7 @@ export const streamSessionCommitFieldsSchema = z.object({
 
 export type StreamSessionCommitFields = z.infer<typeof streamSessionCommitFieldsSchema>;
 
-/** Single-hub extract (legacy hub panel entry). */
+/** Single-hub extract (legacy hub panel entry). `hubId` is the branch row id, not a category slug. */
 export const streamHubExtractRequestSchema = z
   .object({
     hubId: z.string().min(1),
@@ -474,12 +482,12 @@ export const streamThemeCommitPayloadSchema = z
   })
   .merge(streamSessionCommitFieldsSchema)
   .superRefine((data, ctx) => {
-    const check = (items: Array<{ hubId?: string }>, path: string) => {
+    const check = (items: Array<{ hubId?: string; categorySlug?: string }>, path: string) => {
       items.forEach((item, index) => {
-        if (!item.hubId?.trim()) {
+        if (!(item.categorySlug ?? item.hubId)?.trim()) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "hubId required",
+            message: "categorySlug or hubId required",
             path: [path, index, "hubId"],
           });
         }
@@ -488,7 +496,25 @@ export const streamThemeCommitPayloadSchema = z
     check(data.marks, "marks");
     check(data.pursuits, "pursuits");
     check(data.milestones, "milestones");
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    marks: data.marks.map((item) => ({
+      ...item,
+      hubId: (item.categorySlug ?? item.hubId ?? "").trim(),
+      categorySlug: (item.categorySlug ?? item.hubId ?? "").trim(),
+    })),
+    pursuits: data.pursuits.map((item) => ({
+      ...item,
+      hubId: (item.categorySlug ?? item.hubId ?? "").trim(),
+      categorySlug: (item.categorySlug ?? item.hubId ?? "").trim(),
+    })),
+    milestones: data.milestones.map((item) => ({
+      ...item,
+      hubId: (item.categorySlug ?? item.hubId ?? "").trim(),
+      categorySlug: (item.categorySlug ?? item.hubId ?? "").trim(),
+    })),
+  }));
 
 export type StreamThemeCommitPayload = z.infer<typeof streamThemeCommitPayloadSchema>;
 
@@ -507,12 +533,12 @@ export const streamGlobalCommitPayloadSchema = z
   })
   .merge(streamSessionCommitFieldsSchema)
   .superRefine((data, ctx) => {
-    const check = (items: Array<{ hubId?: string }>, path: string) => {
+    const check = (items: Array<{ hubId?: string; categorySlug?: string }>, path: string) => {
       items.forEach((item, index) => {
-        if (!item.hubId?.trim()) {
+        if (!(item.categorySlug ?? item.hubId)?.trim()) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "hubId required",
+            message: "categorySlug or hubId required",
             path: [path, index, "hubId"],
           });
         }
@@ -521,7 +547,25 @@ export const streamGlobalCommitPayloadSchema = z
     check(data.marks, "marks");
     check(data.pursuits, "pursuits");
     check(data.milestones, "milestones");
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    marks: data.marks.map((item) => ({
+      ...item,
+      hubId: (item.categorySlug ?? item.hubId ?? "").trim(),
+      categorySlug: (item.categorySlug ?? item.hubId ?? "").trim(),
+    })),
+    pursuits: data.pursuits.map((item) => ({
+      ...item,
+      hubId: (item.categorySlug ?? item.hubId ?? "").trim(),
+      categorySlug: (item.categorySlug ?? item.hubId ?? "").trim(),
+    })),
+    milestones: data.milestones.map((item) => ({
+      ...item,
+      hubId: (item.categorySlug ?? item.hubId ?? "").trim(),
+      categorySlug: (item.categorySlug ?? item.hubId ?? "").trim(),
+    })),
+  }));
 
 export type StreamGlobalCommitPayload = z.infer<typeof streamGlobalCommitPayloadSchema>;
 

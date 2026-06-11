@@ -40,7 +40,7 @@ const goalPayloadSchema = z.object({
   kind: z.literal("goal"),
   title: z.string().min(1).max(100),
   description: z.string().max(500).default(""),
-  goalType: z.enum(["project", "practice", "identity"]).default("project"),
+  goalType: z.enum(["project", "identity"]).default("project"),
   deadline: z.string().optional(),
   significance: z.coerce.number().int().min(1).max(5).default(3),
 });

@@ -27,6 +27,7 @@
     "clear-goals": "npx tsx scripts/clear-all-goals.ts",
     "backfill:tree-milestones": "npx tsx scripts/backfill-tree-milestones-to-relational.ts",
     "backfill:goal-bloom": "npx tsx scripts/backfill-goal-bloom.ts",
+    "backfill:retire-practice": "npx tsx scripts/backfill-retire-practice-goal-type.ts",
     "backfill:hub-taxonomy": "npx tsx scripts/backfill-hub-taxonomy.ts",
     "backfill:short-labels": "npx tsx scripts/backfill-short-labels.ts",
     "backfill:node-sequence": "npx tsx scripts/backfill-node-sequence.ts",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { normalizeStreamCommitBody } from "@/lib/category-id";
 import { commitStreamGlobal, commitStreamToHub, commitStreamToTheme } from "@/lib/stream-commit";
 import {
   streamCommitPayloadSchema,
@@ -31,8 +32,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON body required" }, { status: 400 });
   }
 
-  if (isThemeCommitBody(body)) {
-    const parsed = streamThemeCommitPayloadSchema.safeParse(body);
+  const normalizedBody = normalizeStreamCommitBody(body);
+
+  if (isThemeCommitBody(normalizedBody)) {
+    const parsed = streamThemeCommitPayloadSchema.safeParse(normalizedBody);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
@@ -55,11 +58,11 @@ export async function POST(request: Request) {
   }
 
   if (
-    typeof body === "object" &&
-    body !== null &&
-    !("hubId" in body)
+    typeof normalizedBody === "object" &&
+    normalizedBody !== null &&
+    !("hubId" in normalizedBody)
   ) {
-    const parsed = streamGlobalCommitPayloadSchema.safeParse(body);
+    const parsed = streamGlobalCommitPayloadSchema.safeParse(normalizedBody);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
@@ -73,7 +76,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   }
 
-  const parsed = streamCommitPayloadSchema.safeParse(body);
+  const parsed = streamCommitPayloadSchema.safeParse(normalizedBody);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });

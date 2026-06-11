@@ -186,7 +186,7 @@ export type TreePanelProps = {
       title?: string;
       timelineStartIso?: string | null;
       deadlineIso?: string | null;
-      bloomStatus?: "ACTIVE" | "ON_HOLD" | "COMPLETE";
+      bloomStatus?: "ACTIVE" | "MAINTAINING" | "ON_HOLD" | "COMPLETE";
     },
   ) => Promise<{ ok: boolean; error?: string }>;
   onMoveGoalToHub: (

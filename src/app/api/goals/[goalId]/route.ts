@@ -59,6 +59,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     endReason?: string | null;
     mapGridQ?: number | null;
     mapGridR?: number | null;
+    iconName?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
   if (input.description !== undefined) data.description = input.description.trim();
@@ -85,6 +86,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (input.archived !== undefined) data.archived = input.archived;
   if (input.mapGridQ !== undefined) data.mapGridQ = input.mapGridQ;
   if (input.mapGridR !== undefined) data.mapGridR = input.mapGridR;
+  if (input.iconName !== undefined) {
+    data.iconName =
+      input.iconName == null ? null : input.iconName.trim().toLowerCase() || null;
+  }
 
   if (input.bloomStatus !== undefined) {
     data.bloomStatus = input.bloomStatus;
@@ -112,6 +117,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       branchId: true,
       goalType: true,
       bloomStatus: true,
+      iconName: true,
     },
   });
 

@@ -1,5 +1,6 @@
 import type { BloomStatus, Prisma } from "@prisma/client";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 import { persistPursuitVisualsForGoal } from "@/lib/ai/assign-pursuit-icon";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-hubs";
@@ -297,9 +298,9 @@ export async function applyPursuitStream(
 
         const goal = await tx.goal.findFirst({
           where: { id: pursuitId, userId, branchId: branch.id },
-          select: { id: true, goalType: true },
+          select: { id: true, goalType: true, bloomStatus: true },
         });
-        if (!goal || goal.goalType === "practice" || goal.goalType === "identity") continue;
+        if (!goal || !goalAllowsStreamMilestones(goal)) continue;
 
         const rows = await tx.milestone.findMany({
           where: { goalId: pursuitId },

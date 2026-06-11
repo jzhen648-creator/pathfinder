@@ -14,7 +14,7 @@ This document governs every AI-generated string shown to users in Pathfinder. Wh
 | Milestone suggestions (structural, not insight) | `src/lib/milestone-generator.ts`, `src/app/api/goals/*/suggest-milestones/` |
 | Dashboard message | `src/lib/dashboard-message.ts` |
 
-Structured extraction prompts (Stream JSON schema, deduplication, hub routing) are engineering constraints. This document governs the **human-facing prose** those calls produce: narratives, insights, reflections, and confirmation descriptions.
+Structured extraction prompts (Stream JSON schema, deduplication, taxonomy category routing via `hubId`) are engineering constraints. This document governs the **human-facing prose** those calls produce: narratives, insights, reflections, and confirmation descriptions.
 
 ---
 
@@ -36,12 +36,12 @@ When map data is sparse, say that honestly and point to Stream capture. Do not i
 
 ### 1. Name it
 
-Always reference the actual pursuit, hub, or theme by name.
+Always reference the actual pursuit or theme by name (not hidden taxonomy category labels).
 
 - **Bad:** "Your finance pursuits show ambition."
 - **Good:** "Build £500k Stocks and Shares ISA and Clear £10,000 credit card debt."
 
-Never collapse a hub or theme into a category label when specific pursuit titles exist in context.
+Never collapse a theme into a generic category label when specific pursuit titles exist in context.
 
 ### 2. Explain why
 
@@ -57,7 +57,7 @@ Observations should answer *so what?* for this person, not *what is on the map?*
 Vague encouragement is worse than silence.
 
 - If a pursuit is stalled, name it, note how long it has been inactive if known, and say why that matters.
-- If a theme or hub is empty, name it directly.
+- If a theme is empty, name it directly.
 - If momentum exists, name the recent mark or milestone that proves it.
 
 ---
@@ -92,38 +92,33 @@ When age **or** location is unknown, set `contextual` to an empty string. Do not
 
 ## What each surface should do
 
-### Insights tab season read (whole-map)
+### Insights tab reading (whole-map)
 
-*Live prompt: `src/lib/story/generate-story.ts`. Powers the mobile **Insights** tab season block — not per-pursuit sparkle (`generate-insights.ts`), not the pursuit ledger (deterministic).*
+*Live prompt: `src/lib/story/generate-story.ts`. Powers the mobile **Insights** tab — not per-pursuit sparkle (`generate-insights.ts`).*
 
 | Field | Job |
 |--------|-----|
-| **seasonRead** | 2–4 sentences (~80–120 words). Reflective season read for the whole map. Benchmark woven in when age **and** location known — holistic (career + finances + life stage), not a separate section. |
+| **seasonRead** | 3–5 sentences (~100–140 words). One reflective **reading** of the whole map — patterns, momentum, completions, pauses. Weave high-significance pursuits when relevant. Benchmark woven in when age **and** location known — holistic (career + finances + life stage), not a separate section. |
 
-**Hard bans:** task lists; chapter timeline; per-pursuit sparkle copy; peer-comparison prefix filler; pursuit count stats.
+**Hard bans:** task lists; status buckets; pursuit inventory; chapter timeline; per-pursuit sparkle copy; peer-comparison prefix filler; pursuit count stats; duplicating Map (spatial) or Timeline (dated spine).
 
-Schema: `schemaVersion`, `seasonRead`.
+Schema: `schemaVersion` (`2026-06-11-insights-reading`), `seasonRead`.
 
 ### Insights sparkle (per hub / theme / pursuit)
 
-Shown via ✨ on map panels. Schema: `oneLiner`, `reflective`, `contextual`, `combined`, `tone` (`insight-types.ts`). Story map-shape uses separate deterministic `buildMapMetrics` — not insight fields.
+Shown via ✦ on map panels.
 
-**Non-duplication rule:** If content could be inferred from the pursuit title alone, cut or replace. Each field must add information the user could not derive by looking at their map. Do not repeat the same idea across fields. 2–4 sentences per field.
+**Pursuit ✦** (`insight-types.ts` — `pursuitInsightSchema`): `tone`, `headline`, `body`. Mobile UI: tone pill + bold headline + body. Cross-map links; do not repeat the title; full map JSON in context.
 
-| Field | UI label | Job |
-|--------|----------|-----|
-| **`oneLiner`** | Headline (bold) | Verdict — well-sequenced? fast/slow for age? smart given rest of map? Judgment, not description. |
-| **`reflective`** | From your map | Cross-map reasoning — name other pursuits/marks; build on, tension, leverage. |
-| **`contextual`** | Comparison | External benchmarks — salary bands, timelines, milestone prevalence; approximate numbers when grounded. Empty if age or location unknown. |
-| **`combined`** | What this opens | Forward-looking — job titles, certs, income thresholds, logical next pursuit. |
+**Theme / hub ✦** (legacy four-field schema): `oneLiner`, `reflective`, `contextual`, `combined`, `tone`.
 
-Never produce form-validation copy ("add a description to make this clearer"). That is UI validation, not insight.
+**Non-duplication rule:** If content could be inferred from the pursuit title alone, cut or replace. Each field must add information the user could not derive by looking at their map.
 
 Tone: direct, informed advisor — not a hype coach.
 
 ### Global insight (cache)
 
-The `global` field (`greeting`, `sections`, optional `streamCta`) is a **whole-map compass** kept in the insight cache for API parity. **Story** is the live whole-map reading on mobile. Global generation should still obey all rules above: name real pursuits, one suggestion max across the whole global block, no task lists, no obligation language.
+The `global` field (`greeting`, `sections`, optional `streamCta`) is a **whole-map compass** kept in the insight cache for API parity. The Insights tab **reading** (`/api/story`) is the live whole-map prose on mobile.
 
 Sections use short titles (e.g. MOMENTUM, ATTENTION). Bodies must be specific, not category weather reports.
 

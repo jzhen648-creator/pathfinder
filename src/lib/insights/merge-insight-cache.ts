@@ -1,13 +1,13 @@
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { generateInsights, generateNodeInsights } from "@/lib/insights/generate-insights";
-import { parseInsightLevelRecord } from "@/lib/insights/parse-insight-cache";
+import {
+  parseInsightLevelRecord,
+  parsePursuitInsightRecord,
+} from "@/lib/insights/parse-insight-cache";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
 import { prisma } from "@/lib/prisma";
 
-function mergeLevelRecords(
-  base: Record<string, InsightGenerationResult["pursuits"][string]>,
-  patch: Record<string, InsightGenerationResult["pursuits"][string]>,
-) {
+function mergeLevelRecords<T extends Record<string, unknown>>(base: Record<string, T>, patch: Record<string, T>) {
   return { ...base, ...patch };
 }
 
@@ -15,11 +15,14 @@ function mergeLevelRecords(
 export async function mergeNodeInsightsIntoCache(
   userId: string,
   patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">,
+  options?: { stampMapVersion?: boolean },
 ): Promise<void> {
   const [mapVersion, memoryVersion] = await Promise.all([
     computeMapVersion(userId),
     getMemoryVersion(userId),
   ]);
+
+  const stampMapVersion = options?.stampMapVersion !== false;
 
   const existing = await prisma.insightCache.findUnique({ where: { userId } });
   if (!existing) {
@@ -47,9 +50,37 @@ export async function mergeNodeInsightsIntoCache(
     patch.hubs,
   );
   const pursuits = mergeLevelRecords(
-    parseInsightLevelRecord(existing.pursuitInsights, "pursuit"),
+    parsePursuitInsightRecord(existing.pursuitInsights, "pursuit"),
     patch.pursuits,
   );
+
+  const pursuitOnlyPatch =
+    Object.keys(patch.themes).length === 0 &&
+    Object.keys(patch.hubs).length === 0 &&
+    Object.keys(patch.pursuits).length > 0;
+
+  let nextMapVersion = existing.mapVersion;
+  let nextMemoryVersion = existing.memoryVersion;
+  if (stampMapVersion && !pursuitOnlyPatch) {
+    nextMapVersion = mapVersion;
+    nextMemoryVersion = memoryVersion;
+  } else if (stampMapVersion && pursuitOnlyPatch) {
+    const eligibleGoals = await prisma.goal.findMany({
+      where: {
+        userId,
+        archived: false,
+        goalType: { notIn: ["moment", "event"] },
+      },
+      select: { id: true },
+    });
+    const allPursuitsCached = eligibleGoals.every(
+      (goal) => Boolean(pursuits[goal.id]?.headline?.trim()),
+    );
+    if (allPursuitsCached) {
+      nextMapVersion = mapVersion;
+      nextMemoryVersion = memoryVersion;
+    }
+  }
 
   await prisma.insightCache.update({
     where: { userId },
@@ -58,8 +89,8 @@ export async function mergeNodeInsightsIntoCache(
       hubInsights: hubs,
       pursuitInsights: pursuits,
       generatedAt: new Date(),
-      mapVersion,
-      memoryVersion,
+      mapVersion: nextMapVersion,
+      memoryVersion: nextMemoryVersion,
     },
   });
 }
@@ -70,7 +101,7 @@ export async function refreshPursuitInsights(userId: string, pursuitIds: string[
   if (uniqueIds.length === 0) return;
 
   const generated = await generateNodeInsights(userId, { pursuitIds: uniqueIds });
-  await mergeNodeInsightsIntoCache(userId, generated);
+  await mergeNodeInsightsIntoCache(userId, generated, { stampMapVersion: true });
 }
 
 export function isInsightEligibleGoalType(goalType: string): boolean {

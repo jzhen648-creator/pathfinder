@@ -1,10 +1,10 @@
 # Pathfinder terminology
 
-Canonical vocabulary for the product, tree view, roadmap, and database. Prefer these names in new **user-facing copy** and product documentation.
+**Backend and persistence vocabulary.** For **mobile UI copy**, [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) is the source of truth.
 
-**Mental model (mobile):** Self → **theme** → **pursuits** (+ **marks** in theme detail). Tracks/hubs (`Branch`, `branchId`) remain in the database for taxonomy and AI routing but are **hidden from mobile UI** — pursuits and marks appear to belong directly to themes.
+**Mental model (mobile):** Self → **theme** → **pursuits** (+ **marks** in theme detail). **Taxonomy categories** (legacy code: hub, track, `Branch`, `branchId`) route Stream and DB rows but are **never shown** in mobile UI.
 
-**Mental model (desktop legacy):** Self → **theme** → **hub** → goals and timeline notes. See [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
+**Mental model (desktop legacy):** Self → **theme** → **hub** → goals and timeline notes. See [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). Desktop hub vocabulary is **legacy** — do not copy into mobile.
 
 For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md).
 
@@ -14,12 +14,13 @@ For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINO
 |------|--------|
 | **Self** | The user / center of the life map (conceptual). |
 | **Theme** | One of six fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Self & Mind** `becoming`, **Play & Leisure** `pleasures`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (**20** system hubs total, taxonomy v8). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
-| **Hub** | A **named track under a theme** (e.g. Family, Skills, Hobbies) — where goals and marks attach in the **database** (`branchId`). **Hidden from mobile UI** (2026-06); AI/Stream uses hub taxonomy for silent assignment. **Desktop / legacy UI** still says **hub** when that UI resumes. |
-| **Track** | **Deprecated in mobile user-facing copy** (2026-06). Same concept as **hub** / root **`Branch`**. Remains in code (`branchId`, Stream `mode: "hub"`) and desktop docs. Mobile: see [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md). |
+| **Taxonomy category** | Preferred **doc/comment** word for a named slot under a theme (e.g. Family, Skills, Hobbies). Persisted as root **`Branch`** + `branchId` on goals/marks. **Hidden from mobile UI** (2026-06). Stream JSON still uses `hubId` (category slug) until Phase 2. |
+| **Hub** | **Legacy** synonym for taxonomy category — code, desktop UI, and old docs only. Do not use in new mobile copy. |
+| **Track** | **Legacy** synonym for taxonomy category — deprecated in mobile UI (2026-06). Same row as **hub** / root **`Branch`**. |
 | **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Self & Mind"** in UI. Legacy labels **Who I'm Becoming**, **Mind & Spirit**, and **Personal Growth** map to `becoming` in serializers only — do not use them in new copy. |
 | **Branch** | A persisted **`Branch`** row: the database anchor for a **hub**; owns **timeline notes** (`Mark`) and goals via `branchId`. **Not** the same as **goal evolution** (`Goal.parentGoalId`). Columns `parentBranchId` / `turningPointId` remain for legacy rows; **new hub splits from the timeline are disabled** (2026-05). |
 | **Goal evolution (legacy)** | Successor goal linked via `Goal.parentGoalId` / `forkedGoals`. Fork API removed; **Stream** adds new pursuits. Older docs: **continuation**. |
-| **Goal** | Roadmap item (`Goal` model): types such as project, practice, identity; may include timeline-style `moment` / `event` goals. Carries **bloom** lifecycle for that pursuit alone. |
+| **Goal** | Roadmap item (`Goal` model): types **project** or **identity** (`practice` retired → project + **Maintaining** status). May include legacy `moment` / `event` rows. Carries **bloom** lifecycle for that pursuit alone. |
 | **Timeline note** (`Mark`) | Dated item on a **hub** (`Mark` via `branchId`) — **not** on a pursuit. Displayed in the hub panel and on the tree; created through Stream, not direct panel buttons. Product word: **timeline note**; Prisma model **`Mark`**. `Mark.kind` ∈ {`mark`, `stream`}. |
 | **Unresolved mark** | `Mark.needsResolution` after Stream `ambiguous[]` auto-commit. Dashed **`?`** on tree; resolve on hover card or `POST /api/stream/resolve-ambiguous`. |
 | **Archived** | `Goal.archived` / `Mark.archived` — hidden from tree; revivable from hub **Archive** section (`PATCH` `archived: false`). |

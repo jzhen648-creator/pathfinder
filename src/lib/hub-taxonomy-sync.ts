@@ -25,7 +25,7 @@ async function migrateFinanceIncomeCategories(
 ): Promise<number> {
   const roots = await prisma.branch.findMany({
     where: { userId, parentBranchId: null, limbId: "finance" },
-    select: { id: true, label: true, name: true },
+    select: { id: true, label: true, name: true, limbId: true },
   });
 
   const branchByKey = new Map(
@@ -45,7 +45,7 @@ async function migrateFinanceIncomeCategories(
   let updates = 0;
   for (const goal of goals) {
     const text = `${goal.title} ${goal.description ?? ""}`;
-    let target = employmentId;
+    let target: string = employmentId;
     if (RENTAL_INCOME_RE.test(text)) {
       target = rentalId;
     } else if (BUSINESS_INCOME_RE.test(text)) {

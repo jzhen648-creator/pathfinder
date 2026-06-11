@@ -11,6 +11,7 @@ import {
 } from "@/lib/branch-sequence";
 import { getLifeArea } from "@/lib/life-areas";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { goalAllowsStreamMilestones, normalizeIngestedPursuitType } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
 import {
   buildHubBranchResolver,
@@ -207,6 +208,15 @@ async function commitItemsToBranchInTx(
   milestones: ExtractedMilestone[],
   clientKeyToGoalId: Map<string, string>,
 ): Promise<HubCommitCounts> {
+  pursuits = pursuits.map((p) => {
+    const normalized = normalizeIngestedPursuitType(p);
+    return {
+      ...p,
+      goalType: normalized.goalType,
+      bloomStatus: normalized.bloomStatus as ExtractedPursuit["bloomStatus"],
+    };
+  });
+
   const hubGoals = await tx.goal.findMany({
     where: {
       userId,
@@ -262,7 +272,8 @@ async function commitItemsToBranchInTx(
     if (!title) return;
     const description = p.description?.trim() ?? "";
 
-    const bloomStatus = p.bloomStatus as BloomStatus;
+    const { goalType, bloomStatus: normalizedBloom } = normalizeIngestedPursuitType(p);
+    const bloomStatus = normalizedBloom as BloomStatus;
     const sequencePosition = await nextSequencePosition();
     const { iconName, shortLabel } = await assignPursuitVisualsSafe({
       title,
@@ -278,12 +289,12 @@ async function commitItemsToBranchInTx(
         iconName,
         shortLabel,
         lifeArea,
-        goalType: p.goalType,
+        goalType,
         branchId: branch.id,
         limbId: branch.limbId,
         deadline: parsePursuitDeadline(p.deadline),
         significance: 3,
-        bloomStatus: bloomStatus === "COMPLETE" ? "COMPLETE" : "ACTIVE",
+        bloomStatus,
         aiGenerated: false,
         future: true,
         year: defaultYear,
@@ -324,6 +335,8 @@ async function commitItemsToBranchInTx(
         bloomedPursuits += 1;
       } else if (p.bloomStatus === "ON_HOLD") {
         updateData.bloomStatus = "ON_HOLD";
+      } else if (p.bloomStatus === "MAINTAINING") {
+        updateData.bloomStatus = "MAINTAINING";
       } else if (p.bloomStatus === "ACTIVE") {
         updateData.bloomStatus = "ACTIVE";
       }
@@ -399,10 +412,9 @@ async function commitItemsToBranchInTx(
 
     const goal = await tx.goal.findFirst({
       where: { id: goalId, userId, branchId: branch.id },
-      select: { id: true, goalType: true },
+      select: { id: true, goalType: true, bloomStatus: true },
     });
-    if (!goal || goal.goalType === "moment" || goal.goalType === "event") continue;
-    if (goal.goalType === "practice" || goal.goalType === "identity") continue;
+    if (!goal || !goalAllowsStreamMilestones(goal)) continue;
 
     const rows = await tx.milestone.findMany({
       where: { goalId },
