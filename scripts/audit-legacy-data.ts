@@ -104,10 +104,10 @@ async function auditUser(userId: string, email: string) {
     prisma.mark.count({ where: { userId, archived: false } }),
     prisma.mark.count({ where: { userId, archived: true } }),
     prisma.mark.count({ where: { userId, archived: false, needsResolution: true } }),
-    prisma.branch.count({ where: { userId, isSystemHub: true } }),
-    prisma.branch.count({ where: { userId, isSystemHub: false } }),
-    prisma.branch.count({ where: { userId, parentBranchId: { not: null } } }),
-    prisma.branch.count({
+    prisma.themeCategory.count({ where: { userId, isSystemHub: true } }),
+    prisma.themeCategory.count({ where: { userId, isSystemHub: false } }),
+    prisma.themeCategory.count({ where: { userId, parentBranchId: { not: null } } }),
+    prisma.themeCategory.count({
       where: {
         userId,
         isSystemHub: false,
@@ -222,7 +222,7 @@ async function auditUser(userId: string, email: string) {
   if (goalsMomentEvent > 0) {
     const samples = await prisma.goal.findMany({
       where: { userId, archived: false, goalType: { in: ["moment", "event"] } },
-      select: { id: true, title: true, goalType: true, branchId: true },
+      select: { id: true, title: true, goalType: true, categoryId: true },
       take: 5,
       orderBy: { updatedAt: "desc" },
     });

@@ -18,7 +18,7 @@ async function main() {
   console.log("sync ms", Date.now() - t0);
 
   const t1 = Date.now();
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "asc" },
   });

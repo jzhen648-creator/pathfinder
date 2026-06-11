@@ -139,9 +139,9 @@ export async function applyPursuitStream(
 
   const goalRow = await prisma.goal.findFirst({
     where: { id: pursuitId, userId },
-    select: { description: true, bloomStatus: true, branchId: true, title: true },
+    select: { description: true, status: true, categoryId: true, title: true },
   });
-  if (!goalRow?.branchId) {
+  if (!goalRow?.categoryId) {
     return { ok: false, streamRunId: "", rawInput: input, error: "Pursuit not found", status: 404 };
   }
 
@@ -163,7 +163,7 @@ export async function applyPursuitStream(
         inputMode,
         status: "pending",
         previousDescription: goalRow.description,
-        previousBloomStatus: goalRow.bloomStatus,
+        previousBloomStatus: goalRow.status,
         expiresAt,
       },
     });
@@ -214,7 +214,7 @@ export async function applyPursuitStream(
   const items: StreamRunAppliedItem[] = [];
   const goalsNeedingVisuals = new Set<string>();
 
-  const branchRow = await prisma.branch.findFirst({
+  const branchRow = await prisma.themeCategory.findFirst({
     where: { id: ctx.branchId, userId },
     select: { id: true, isActive: true },
   });
@@ -227,7 +227,7 @@ export async function applyPursuitStream(
 
   try {
     await prisma.$transaction(async (tx) => {
-      const branch = await tx.branch.findFirst({
+      const branch = await tx.themeCategory.findFirst({
         where: { id: ctx.branchId, userId },
         select: { id: true, limbId: true, isActive: true },
       });
@@ -243,7 +243,7 @@ export async function applyPursuitStream(
         const data: {
           title?: string;
           description?: string;
-          bloomStatus?: BloomStatus;
+          status?: BloomStatus;
           bloomedAt?: Date | null;
           sourceStreamRunId?: string;
           currentAmount?: number;
@@ -252,8 +252,8 @@ export async function applyPursuitStream(
 
         if (update.title?.trim()) data.title = update.title.trim();
         if (update.description?.trim()) data.description = update.description.trim();
-        if (update.bloomStatus && goalRow.bloomStatus !== "MAINTAINING") {
-          data.bloomStatus = update.bloomStatus as BloomStatus;
+        if (update.bloomStatus && goalRow.status !== "MAINTAINING") {
+          data.status = update.bloomStatus as BloomStatus;
           data.bloomedAt = update.bloomStatus === "COMPLETE" ? new Date() : null;
         }
 
@@ -278,13 +278,13 @@ export async function applyPursuitStream(
             newDescription: data.description,
           });
         }
-        if (data.bloomStatus && data.bloomStatus !== run.previousBloomStatus) {
+        if (data.status && data.status !== run.previousBloomStatus) {
           items.push({
             kind: "status",
             goalId: pursuitId,
             previousBloomStatus:
               (run.previousBloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE") ?? "ACTIVE",
-            newBloomStatus: data.bloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE",
+            newBloomStatus: data.status as "ACTIVE" | "PAUSED" | "COMPLETE",
           });
         }
         if (data.title) {
@@ -297,8 +297,8 @@ export async function applyPursuitStream(
         if (!title) continue;
 
         const goal = await tx.goal.findFirst({
-          where: { id: pursuitId, userId, branchId: branch.id },
-          select: { id: true, goalType: true, bloomStatus: true },
+          where: { id: pursuitId, userId, categoryId: branch.id },
+          select: { id: true, goalType: true, status: true },
         });
         if (!goal || !goalAllowsStreamMilestones(goal)) continue;
 
@@ -351,7 +351,7 @@ export async function applyPursuitStream(
         const created = await tx.mark.create({
           data: {
             userId,
-            branchId: branch.id,
+            categoryId: branch.id,
             limbId: branch.limbId,
             title,
             description: null,
@@ -465,12 +465,12 @@ export async function undoPursuitStreamRun(
       } else {
         const goal = await tx.goal.findFirst({
           where: { id: run.goalId, userId },
-          select: { id: true, bloomStatus: true },
+          select: { id: true, status: true },
         });
         if (goal) {
           const data: {
             description?: string;
-            bloomStatus?: BloomStatus;
+            status?: BloomStatus;
             bloomedAt?: Date | null;
             sourceStreamRunId?: null;
           } = { sourceStreamRunId: null };
@@ -479,7 +479,7 @@ export async function undoPursuitStreamRun(
             data.description = run.previousDescription;
           }
           if (run.previousBloomStatus != null) {
-            data.bloomStatus = run.previousBloomStatus;
+            data.status = run.previousBloomStatus;
             data.bloomedAt = run.previousBloomStatus === "COMPLETE" ? new Date() : null;
           }
 

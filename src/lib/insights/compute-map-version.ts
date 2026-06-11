@@ -18,7 +18,7 @@ export async function computeMapVersion(userId: string): Promise<string> {
       _count: { id: true },
       _max: { updatedAt: true },
     }),
-    prisma.branch.aggregate({
+    prisma.themeCategory.aggregate({
       where: { userId, isActive: true },
       _count: { id: true },
       _max: { updatedAt: true },

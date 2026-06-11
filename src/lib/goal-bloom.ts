@@ -60,9 +60,9 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     if (debugRecompute()) console.info(`${LOG} exit early: goal not found`, { goalId });
     return;
   }
-  if (goal.bloomStatus === "PAUSED" || goal.bloomStatus === "ABANDONED" || goal.bloomStatus === "MAINTAINING") {
+  if (goal.status === "PAUSED" || goal.status === "ABANDONED" || goal.status === "MAINTAINING") {
     if (debugRecompute()) {
-      console.info(`${LOG} exit early: ${goal.bloomStatus}`, { goalId });
+      console.info(`${LOG} exit early: ${goal.status}`, { goalId });
     }
     return;
   }
@@ -76,7 +76,7 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
       goalType: goal.goalType,
       future: goal.future,
       year: goal.year,
-      persistedBloom: goal.bloomStatus,
+      persistedBloom: goal.status,
       milestoneCount: milestones.length,
       milestones: milestonePayloadSummary(milestones),
     });
@@ -101,13 +101,13 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
   }
 
   let bloomedAt = goal.bloomedAt;
-  if (next === "COMPLETE" && goal.bloomStatus !== "COMPLETE") {
+  if (next === "COMPLETE" && goal.status !== "COMPLETE") {
     bloomedAt = new Date();
   } else if (next === "ACTIVE") {
     bloomedAt = null;
   }
 
-  const bloomChanged = next !== goal.bloomStatus;
+  const bloomChanged = next !== goal.status;
   const bloomedAtChanged = bloomedAt?.getTime() !== goal.bloomedAt?.getTime();
 
   if (debugRecompute()) {
@@ -116,7 +116,7 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
       next,
       bloomChanged,
       bloomedAtChanged,
-      prismaGoalUpdate: bloomChanged || bloomedAtChanged ? { bloomStatus: next, bloomedAt } : "(skip no-op)",
+      prismaGoalUpdate: bloomChanged || bloomedAtChanged ? { status: next, bloomedAt } : "(skip no-op)",
     });
   }
 
@@ -128,7 +128,7 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     await prisma.goal.update({
       where: { id: goalId },
       data: {
-        bloomStatus: next,
+        status: next,
         bloomedAt,
       },
     });
@@ -136,7 +136,7 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
     const err = e instanceof Error ? e : new Error(String(e));
     console.error(`${LOG} prisma.goal.update FAILED`, {
       goalId,
-      data: { bloomStatus: next, bloomedAt },
+      data: { status: next, bloomedAt },
       message: err.message,
       stack: err.stack,
     });
@@ -146,7 +146,7 @@ export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
   if (debugRecompute()) {
     const verify = await prisma.goal.findUnique({
       where: { id: goalId },
-      select: { bloomStatus: true, bloomedAt: true },
+      select: { status: true, bloomedAt: true },
     });
     console.info(`${LOG} prisma.goal.update OK`, {
       goalId,

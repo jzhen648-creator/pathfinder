@@ -180,9 +180,9 @@ type DogfoodReport = {
 type MapGoal = {
   id: string;
   title: string;
-  branchId: string | null;
+  categoryId: string | null;
   limbId: string;
-  bloomStatus: string;
+  status: string;
   parentGoalId: string | null;
   hubSlug: string | null;
 };
@@ -197,7 +197,7 @@ type MapSnapshot = {
     hubSlug: string;
   }>;
   goals: MapGoal[];
-  marks: Array<{ id: string; title: string; branchId: string | null; limbId: string }>;
+  marks: Array<{ id: string; title: string; categoryId: string | null; limbId: string }>;
   titleByRef: Map<string, string>;
   branchByThemeHub: Map<string, string>;
 };
@@ -211,7 +211,7 @@ async function loadMap(): Promise<MapSnapshot> {
     throw new Error(`Dev user not found: ${DEV_EMAIL}`);
   }
 
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     where: { userId: user.id, parentBranchId: null },
     select: { id: true, limbId: true, label: true, name: true, isActive: true },
     orderBy: { order: "asc" },
@@ -238,25 +238,25 @@ async function loadMap(): Promise<MapSnapshot> {
     select: {
       id: true,
       title: true,
-      branchId: true,
-      bloomStatus: true,
+      categoryId: true,
+      status: true,
       parentGoalId: true,
-      branch: { select: { limbId: true, label: true, name: true } },
+      themeCategory: { select: { limbId: true, label: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   const goals: MapGoal[] = goalsRaw.map((g) => {
-    const limbId = g.branch?.limbId ?? "work";
+    const limbId = g.themeCategory?. ?? "work";
     const hubSlug = g.branch
-      ? systemHubKey(limbId, g.branch.label ?? g.branch.name).split("::")[1] ?? null
+      ? systemHubKey(limbId, g.themeCategory. ?? g.themeCategory.).split("::")[1] ?? null
       : null;
     return {
       id: g.id,
       title: g.title,
-      branchId: g.branchId,
+      categoryId: g.categoryId,
       limbId,
-      bloomStatus: g.bloomStatus,
+      status: g.status,
       parentGoalId: g.parentGoalId,
       hubSlug,
     };
@@ -264,7 +264,7 @@ async function loadMap(): Promise<MapSnapshot> {
 
   const marks = await prisma.mark.findMany({
     where: { userId: user.id, archived: false },
-    select: { id: true, title: true, branchId: true, limbId: true },
+    select: { id: true, title: true, categoryId: true, limbId: true },
     orderBy: { date: "desc" },
     take: 200,
   });
@@ -785,7 +785,7 @@ const richDogfoodCases: DogfoodCase[] = [
       maxStructured: 8,
       kinds: ["mark", "pursuit"],
       hubSlugs: ["career", "skills"],
-      bloomStatus: "PAUSED",
+      status: "PAUSED",
       continuation: true,
     },
   ),
@@ -800,7 +800,7 @@ const richDogfoodCases: DogfoodCase[] = [
       maxStructured: 8,
       kinds: ["mark", "pursuit"],
       hubSlugs: ["assets", "safety net"],
-      bloomStatus: "PAUSED",
+      status: "PAUSED",
       continuation: true,
     },
   ),
@@ -1602,7 +1602,7 @@ function _buildMilestoneStatusCases(): DogfoodCase[] {
       "Status — credit card paid off",
       "finance",
       "Paid off the credit card on 31 August 2026, cleared the full £3k balance and it feels amazing. That's the Barclaycard debt goal done, not a brand new money project.",
-      { minStructured: 1, kinds: ["mark"], hubSlug: "liabilities", forbidNewPursuit: true, bloomStatus: "COMPLETE" },
+      { minStructured: 1, kinds: ["mark"], hubSlug: "liabilities", forbidNewPursuit: true, status: "COMPLETE" },
     ),
     themeCase(
       "milestone-status",
@@ -1663,7 +1663,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — mortgage broking to CFP",
       "work",
       "Actually I've been thinking and I don't think mortgage broking is right for me anymore. Since 14 July 2026 I'm more interested in financial planning, maybe the CFP qualification instead, so the mortgage broker pursuit should probably go on hold rather than duplicate.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["career", "skills"], continuation: true, bloomStatus: "PAUSED" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["career", "skills"], continuation: true, status: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1671,7 +1671,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — London flat deposit to flexibility",
       "finance",
       "I might pause the London flat deposit idea, honestly. With my girlfriend, the visa and possible international roles, locking everything into a Zone 2 flat by 2029 feels less right. I'd rather keep the ISA and emergency fund flexible for now.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["assets", "safety net"], bloomStatus: "PAUSED" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["assets", "safety net"], status: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1679,7 +1679,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — 10k run to strength",
       "health",
       "I'm putting the 10k idea on hold after my knee twinged on 12 July 2026. I still want to be fit, but the next thing should be strength training twice a week and sorting my back properly, not forcing another running target.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlug: "movement", bloomStatus: "PAUSED" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlug: "movement", status: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1687,7 +1687,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — weekly YouTube to seasons",
       "work",
       "The weekly YouTube schedule is too much with CEMAP and visa stuff. I don't want to quit the channel, but from August 2026 I want to pause weekly uploads and do eight-video seasons instead.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlug: "builds & launches", bloomStatus: "PAUSED" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlug: "builds & launches", status: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1695,7 +1695,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — spousal visa timing",
       "people",
       "We've decided not to rush the spousal visa for February 2027. After her July visit, it feels wiser to pause that timeline and plan another three-month visit first, probably April 2027, before we commit to marriage paperwork.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlug: "romance", bloomStatus: "PAUSED" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlug: "romance", status: "PAUSED" },
     ),
   ];
 }
@@ -1783,7 +1783,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
 
   const activeGoal = findGoal(
     map,
-    (g) => g.bloomStatus === "ACTIVE" && g.title.length > 8,
+    (g) => g.status === "ACTIVE" && g.title.length > 8,
   );
   if (activeGoal) {
     fixturesUsed.push(`status-complete: ${activeGoal.title} (${activeGoal.id})`);
@@ -1796,14 +1796,14 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
       input: `Finished "${activeGoal.title}" — done and dusted.`,
       expect: {
         existingGoalId: activeGoal.id,
-        bloomStatus: "COMPLETE",
+        status: "COMPLETE",
       },
     });
   }
 
   const onHoldCandidate = findGoal(
     map,
-    (g) => g.bloomStatus === "ACTIVE" && g.id !== activeGoal?.id,
+    (g) => g.status === "ACTIVE" && g.id !== activeGoal?.id,
   );
   if (onHoldCandidate) {
     fixturesUsed.push(`status-hold: ${onHoldCandidate.title} (${onHoldCandidate.id})`);
@@ -1816,7 +1816,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
       input: `Pausing "${onHoldCandidate.title}" for now — taking a break.`,
       expect: {
         existingGoalId: onHoldCandidate.id,
-        bloomStatus: "PAUSED",
+        status: "PAUSED",
       },
     });
   }
@@ -2157,13 +2157,13 @@ function scoreCase(
     }
   }
 
-  if (expect.bloomStatus && !expect.existingGoalId) {
-    const match = extraction.pursuits.some((p) => p.bloomStatus === expect.bloomStatus);
+  if (expect.status && !expect.existingGoalId) {
+    const match = extraction.pursuits.some((p) => p.status === expect.status);
     if (!match) {
       anomalies.push({
         code: "wrong_bloom_status",
         severity: "critical",
-        message: `Expected at least one pursuit with bloomStatus ${expect.bloomStatus}`,
+        message: `Expected at least one pursuit with bloomStatus ${expect.status}`,
       });
     }
   }
@@ -2176,13 +2176,13 @@ function scoreCase(
         severity: "critical",
         message: `Expected existingGoalId ${expect.existingGoalId}`,
       });
-    } else if (expect.bloomStatus) {
+    } else if (expect.status) {
       const row = extraction.pursuits.find((p) => p.existingGoalId === expect.existingGoalId);
-      if (row && row.bloomStatus !== expect.bloomStatus) {
+      if (row && row.status !== expect.status) {
         anomalies.push({
           code: "wrong_bloom_status",
           severity: "critical",
-          message: `Expected bloomStatus ${expect.bloomStatus}, got ${row.bloomStatus}`,
+          message: `Expected bloomStatus ${expect.status}, got ${row.status}`,
         });
       }
     }

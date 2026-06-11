@@ -14,7 +14,7 @@ const sequenceAnchorSchema = z.union([
 export const goalReorganizeBodySchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("moveToHub"),
-    branchId: z.string().min(1),
+    categoryId: z.string().min(1),
     sequenceAnchor: sequenceAnchorSchema.optional(),
   }),
   z.object({

@@ -10,17 +10,17 @@ async function main() {
     select: {
       id: true,
       title: true,
-      branchId: true,
+      categoryId: true,
       parentGoalId: true,
       goalType: true,
       future: true,
-      bloomStatus: true,
+      status: true,
     },
   });
   console.log("GOALS:");
   console.log(JSON.stringify(goals, null, 2));
 
-  const branchIds = [...new Set(goals.map((g) => g.branchId))];
+  const branchIds = [...new Set(goals.map((g) => g.categoryId))];
   const branches = await p.branch.findMany({
     where: { id: { in: branchIds } },
     select: {
@@ -55,12 +55,12 @@ async function main() {
     select: {
       id: true,
       title: true,
-      branchId: true,
+      categoryId: true,
       parentGoalId: true,
       goalType: true,
       future: true,
-      bloomStatus: true,
-      branch: { select: { name: true, createdAt: true } },
+      status: true,
+      themeCategory: { select: { name: true, createdAt: true } },
     },
   });
   console.log("ALL GOALS ON people limb:");

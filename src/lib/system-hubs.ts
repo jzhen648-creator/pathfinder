@@ -1,4 +1,4 @@
-import type { Branch, PrismaClient } from "@prisma/client";
+import type { ThemeCategory, PrismaClient } from "@prisma/client";
 import type { LifeAreaId } from "@/lib/types";
 import { LOCKED_HUB_TEMPLATES, normalizeHubLabelKey } from "@/lib/taxonomy";
 
@@ -10,7 +10,7 @@ export function systemHubKey(limbId: string, label: string | null | undefined): 
   return `${limbId}::${normalizeHubLabelKey(label ?? "")}`;
 }
 
-export function isLockedSystemHub(branch: Pick<Branch, "isSystemHub">): boolean {
+export function isLockedSystemHub(branch: Pick<ThemeCategory, "isSystemHub">): boolean {
   return branch.isSystemHub === true;
 }
 
@@ -32,12 +32,12 @@ export async function ensureSystemHubsForUser(
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
   if (!user) return 0;
 
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null },
     orderBy: { createdAt: "asc" },
   });
 
-  const present = new Map<string, Branch>();
+  const present = new Map<string, ThemeCategory>();
   for (const b of roots) {
     const key = systemHubKey(b.limbId, b.label ?? b.name);
     const existing = present.get(key);
@@ -54,7 +54,7 @@ export async function ensureSystemHubsForUser(
     const key = systemHubKey(t.limbId, t.threadType);
     if (present.has(key)) continue;
 
-    await prisma.branch.create({
+    await prisma.themeCategory.create({
       data: {
         userId,
         limbId: t.limbId,
@@ -76,7 +76,7 @@ export async function ensureSystemHubsForUser(
   for (const b of roots) {
     if (b.isSystemHub) continue;
     if (!matchesTemplate(b.limbId, b.label ?? b.name)) continue;
-    await prisma.branch.update({
+    await prisma.themeCategory.update({
       where: { id: b.id },
       data: { isSystemHub: true },
     });
@@ -92,7 +92,7 @@ export async function activateLimbsForUser(
   limbIds: readonly LifeAreaId[],
 ): Promise<number> {
   if (limbIds.length === 0) return 0;
-  const result = await prisma.branch.updateMany({
+  const result = await prisma.themeCategory.updateMany({
     where: {
       userId,
       parentBranchId: null,
@@ -108,15 +108,15 @@ export async function activateLimbsForUser(
 export async function activateHubForUser(
   prisma: PrismaClient,
   userId: string,
-  branchId: string,
+  categoryId: string,
 ): Promise<boolean> {
-  const branch = await prisma.branch.findFirst({
-    where: { id: branchId, userId },
+  const branch = await prisma.themeCategory.findFirst({
+    where: { id: categoryId, userId },
     select: { id: true, isActive: true },
   });
   if (!branch) return false;
   if (branch.isActive) return true;
-  await prisma.branch.update({
+  await prisma.themeCategory.update({
     where: { id: branch.id },
     data: { isActive: true },
   });
@@ -128,7 +128,7 @@ export async function listSystemHubKeysForUser(
   prisma: PrismaClient,
   userId: string,
 ): Promise<string[]> {
-  const rows = await prisma.branch.findMany({
+  const rows = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null, isSystemHub: true },
     select: { limbId: true, label: true, name: true },
   });

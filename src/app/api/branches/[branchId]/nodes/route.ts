@@ -73,7 +73,7 @@ export async function POST(request: Request, { params }: RouteProps) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { branchId } = await params;
 
-  const branch = await prisma.branch.findFirst({
+  const branch = await prisma.themeCategory.findFirst({
     where: { id: branchId, userId },
     select: { id: true, limbId: true },
   });
@@ -109,14 +109,14 @@ export async function POST(request: Request, { params }: RouteProps) {
       return tx.goal.create({
         data: {
           userId,
-          branchId,
+          categoryId: branchId,
           limbId: branch.limbId,
           title: input.title.trim(),
           description: input.description,
           goalType: input.goalType,
           deadline,
           significance: input.significance,
-          bloomStatus: "ACTIVE",
+          status: "ACTIVE",
           aiGenerated: false,
           future,
           year,
@@ -145,7 +145,7 @@ export async function POST(request: Request, { params }: RouteProps) {
     return tx.mark.create({
       data: {
         userId,
-        branchId,
+        categoryId: branchId,
         limbId: branch.limbId,
         title,
         description: input.description ?? null,

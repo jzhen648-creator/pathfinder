@@ -1,4 +1,4 @@
-/** Phase 2 mirror — `status` is canonical JSON; `bloomStatus` kept until Prisma rename. */
+/** Phase 3 — Prisma uses `status`; JSON mirrors legacy `bloomStatus` for mobile compat. */
 
 export const PURSUIT_STATUS_VALUES = [
   "ACTIVE",
@@ -10,7 +10,10 @@ export const PURSUIT_STATUS_VALUES = [
 
 export type PursuitStatusValue = (typeof PURSUIT_STATUS_VALUES)[number];
 
-export type WithBloomStatus = { bloomStatus?: string | null };
+export type WithPursuitStatus = { status?: string | null };
+
+/** @deprecated Use WithPursuitStatus */
+export type WithBloomStatus = WithPursuitStatus;
 
 export function normalizePursuitStatusValue(raw: unknown): PursuitStatusValue | null {
   if (typeof raw !== "string" || !raw.trim()) return null;
@@ -22,18 +25,23 @@ export function normalizePursuitStatusValue(raw: unknown): PursuitStatusValue | 
   return null;
 }
 
-export function withPursuitStatusMirror<T extends WithBloomStatus>(
+export function withBloomStatusMirror<T extends WithPursuitStatus>(
   row: T,
-): T & { status: PursuitStatusValue | string | null } {
-  const normalized = normalizePursuitStatusValue(row.bloomStatus);
-  return { ...row, status: normalized ?? row.bloomStatus ?? "ACTIVE" };
+): T & { bloomStatus: PursuitStatusValue | string | null } {
+  const normalized = normalizePursuitStatusValue(row.status);
+  return { ...row, bloomStatus: normalized ?? row.status ?? "ACTIVE" };
 }
 
-export function withPursuitStatusMirrors<T extends WithBloomStatus>(
+export function withBloomStatusMirrors<T extends WithPursuitStatus>(
   rows: T[],
-): Array<T & { status: PursuitStatusValue | string | null }> {
-  return rows.map(withPursuitStatusMirror);
+): Array<T & { bloomStatus: PursuitStatusValue | string | null }> {
+  return rows.map(withBloomStatusMirror);
 }
+
+/** @deprecated Use withBloomStatusMirror */
+export const withPursuitStatusMirror = withBloomStatusMirror;
+
+export const withPursuitStatusMirrors = withBloomStatusMirrors;
 
 export function resolvePursuitStatusFromBody(body: {
   status?: unknown;

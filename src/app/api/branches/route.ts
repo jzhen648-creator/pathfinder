@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const branches = await prisma.branch.findMany({
+    const branches = await prisma.themeCategory.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
     });
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
         where: {
           userId,
           archived: false,
-          ...(excludeAbandoned ? { bloomStatus: { not: "ABANDONED" } } : {}),
+          ...(excludeAbandoned ? { status: { not: "ABANDONED" } } : {}),
         },
         orderBy: { createdAt: "asc" },
         include: goalInclude,
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
       prisma.goal.findMany({
         where: { userId, archived: true },
         orderBy: { updatedAt: "desc" },
-        select: { id: true, title: true, branchId: true, updatedAt: true },
+        select: { id: true, title: true, categoryId: true, updatedAt: true },
       }),
       prisma.mark.findMany({
         where: { userId, archived: false },
@@ -92,7 +92,7 @@ export async function GET(request: Request) {
           id: true,
           title: true,
           description: true,
-          branchId: true,
+          categoryId: true,
           limbId: true,
           date: true,
           year: true,
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data;
-  const branch = await prisma.branch.create({
+  const branch = await prisma.themeCategory.create({
     data: {
       userId,
       limbId: input.limbId,

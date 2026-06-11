@@ -19,7 +19,7 @@ async function main() {
   const first = await ensureSystemHubsForUser(prisma, user.id);
   const second = await ensureSystemHubsForUser(prisma, user.id);
   const keys = await listSystemHubKeysForUser(prisma, user.id);
-  const count = await prisma.branch.count({
+  const count = await prisma.themeCategory.count({
     where: { userId: user.id, isSystemHub: true, parentBranchId: null },
   });
 

@@ -23,7 +23,7 @@ async function migrateFinanceIncomeCategories(
   prisma: PrismaClient,
   userId: string,
 ): Promise<number> {
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null, limbId: "finance" },
     select: { id: true, label: true, name: true, limbId: true },
   });
@@ -38,7 +38,7 @@ async function migrateFinanceIncomeCategories(
   if (!employmentId || !rentalId || !businessId) return 0;
 
   const goals = await prisma.goal.findMany({
-    where: { userId, branchId: employmentId, archived: false },
+    where: { userId, categoryId: employmentId, archived: false },
     select: { id: true, title: true, description: true },
   });
 
@@ -54,7 +54,7 @@ async function migrateFinanceIncomeCategories(
     if (target === employmentId) continue;
     await prisma.goal.update({
       where: { id: goal.id },
-      data: { branchId: target },
+      data: { categoryId: target },
     });
     updates += 1;
   }
@@ -99,7 +99,7 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
 
   updates += await ensureSystemHubsForUser(prisma, userId);
 
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null },
     orderBy: { createdAt: "asc" },
   });
@@ -156,7 +156,7 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
     if (name !== (branch.name ?? "")) patch.name = name;
 
     if (Object.keys(patch).length > 0) {
-      await prisma.branch.update({
+      await prisma.themeCategory.update({
         where: { id: branch.id },
         data: patch,
       });
@@ -166,7 +166,7 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
 
   updates += await dedupeDuplicateRootHubs(prisma, userId);
 
-  const afterDedupe = await prisma.branch.findMany({
+  const afterDedupe = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null },
     orderBy: { createdAt: "asc" },
   });
@@ -184,11 +184,11 @@ export async function syncHubTaxonomyForUser(prisma: PrismaClient, userId: strin
     const valid = validHubKeysByLimb.get(branch.limbId);
     if (!labelKey || !valid || valid.has(labelKey)) continue;
     const [goalCount, markCount] = await Promise.all([
-      prisma.goal.count({ where: { branchId: branch.id } }),
-      prisma.mark.count({ where: { branchId: branch.id } }),
+      prisma.goal.count({ where: { categoryId: branch.id } }),
+      prisma.mark.count({ where: { categoryId: branch.id } }),
     ]);
     if (goalCount === 0 && markCount === 0) {
-      await prisma.branch.delete({ where: { id: branch.id } });
+      await prisma.themeCategory.delete({ where: { id: branch.id } });
       updates += 1;
     }
   }

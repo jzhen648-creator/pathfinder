@@ -57,11 +57,11 @@ export type NormalizeGoalBloomDisplayOptions = {
  *   `computeGoalLifecycleBloom` so the tree matches milestone ontology without trusting stale persistence.
  */
 export function normalizeGoalBloomForDisplay(
-  goal: { goalType: string; future: boolean; year: number | null; bloomStatus: string },
+  goal: { goalType: string; future: boolean; year: number | null; status: string },
   milestones: MilestoneLifecycleInput[],
   options?: NormalizeGoalBloomDisplayOptions,
 ): "ACTIVE" | "COMPLETE" | "PAUSED" | "MAINTAINING" | "ABANDONED" {
-  const normalized = normalizeLegacyBloomStatus(goal.bloomStatus) ?? "ACTIVE";
+  const normalized = normalizeLegacyBloomStatus(goal.status) ?? "ACTIVE";
   if (normalized === "PAUSED") return "PAUSED";
   if (normalized === "ABANDONED") return "ABANDONED";
   if (normalized === "MAINTAINING") return "MAINTAINING";
@@ -74,7 +74,7 @@ export function normalizeGoalBloomForDisplay(
       if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
         console.warn("[pathfinder/bloom] stale ACTIVE with completed milestones", {
           goalId: options?.goalId ?? "(unknown)",
-          persistedBloom: goal.bloomStatus,
+          persistedBloom: goal.status,
           computedBloom: computed,
           milestoneCount: milestones.length,
         });

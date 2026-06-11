@@ -7,7 +7,7 @@ import { activateHubForUser } from "@/lib/system-hubs";
 import { isLifeAreaId, mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
 const bodySchema = z.object({
-  branchId: z.string().min(1),
+  categoryId: z.string().min(1),
 });
 
 export async function POST(request: Request) {
@@ -32,8 +32,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const branch = await prisma.branch.findFirst({
-    where: { id: parsed.data.branchId, userId, parentBranchId: null },
+  const branch = await prisma.themeCategory.findFirst({
+    where: { id: parsed.data.categoryId, userId, parentBranchId: null },
     select: { id: true, limbId: true },
   });
   if (!branch) {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       where: { id: userId },
       select: { unlockedLimbIds: true },
     }),
-    prisma.branch.findMany({
+    prisma.themeCategory.findMany({
       where: { userId, parentBranchId: null },
       select: { limbId: true, parentBranchId: true, isActive: true },
     }),

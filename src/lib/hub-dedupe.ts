@@ -1,4 +1,4 @@
-import type { Branch, PrismaClient } from "@prisma/client";
+import type { ThemeCategory, PrismaClient } from "@prisma/client";
 import { LOCKED_HUB_TEMPLATES, normalizeHubLabelKey } from "@/lib/taxonomy";
 import { isLockedSystemHub, systemHubKey } from "@/lib/system-hubs";
 
@@ -10,7 +10,7 @@ function matchesTemplate(limbId: string, label: string | null | undefined): bool
 }
 
 /** Prefer canonical template label, then system hub, then oldest row. */
-export function pickKeeperHub(list: readonly Branch[]): Branch {
+export function pickKeeperHub(list: readonly ThemeCategory[]): ThemeCategory {
   return [...list].sort((a, b) => {
     const aTemplate = matchesTemplate(a.limbId, a.label ?? a.name) ? 0 : 1;
     const bTemplate = matchesTemplate(b.limbId, b.label ?? b.name) ? 0 : 1;
@@ -32,12 +32,12 @@ export async function dedupeDuplicateRootHubs(
 ): Promise<number> {
   let updates = 0;
 
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null },
     orderBy: { createdAt: "asc" },
   });
 
-  const groups = new Map<string, Branch[]>();
+  const groups = new Map<string, ThemeCategory[]>();
   for (const branch of roots) {
     const key = systemHubKey(branch.limbId, branch.label ?? branch.name);
     const list = groups.get(key) ?? [];
@@ -50,10 +50,10 @@ export async function dedupeDuplicateRootHubs(
     const keeper = pickKeeperHub(list);
     const dupes = list.filter((b) => b.id !== keeper.id);
     for (const dup of dupes) {
-      await prisma.goal.updateMany({ where: { branchId: dup.id }, data: { branchId: keeper.id } });
-      await prisma.mark.updateMany({ where: { branchId: dup.id }, data: { branchId: keeper.id } });
+      await prisma.goal.updateMany({ where: { categoryId: dup.id }, data: { categoryId: keeper.id } });
+      await prisma.mark.updateMany({ where: { categoryId: dup.id }, data: { categoryId: keeper.id } });
       if (!keeper.isSystemHub && dup.isSystemHub) {
-        await prisma.branch.update({
+        await prisma.themeCategory.update({
           where: { id: keeper.id },
           data: { isSystemHub: true, isActive: keeper.isActive || dup.isActive },
         });
@@ -63,12 +63,12 @@ export async function dedupeDuplicateRootHubs(
         (t) => t.limbId === keeper.limbId && normalizeHubLabelKey(t.threadType) === canonicalKey,
       );
       if (template && (keeper.label !== template.threadType || keeper.name !== template.name)) {
-        await prisma.branch.update({
+        await prisma.themeCategory.update({
           where: { id: keeper.id },
           data: { label: template.threadType, name: template.name, isSystemHub: true },
         });
       }
-      await prisma.branch.delete({ where: { id: dup.id } });
+      await prisma.themeCategory.delete({ where: { id: dup.id } });
       updates += 1;
     }
   }
@@ -76,7 +76,7 @@ export async function dedupeDuplicateRootHubs(
   return updates;
 }
 
-type RootHubRow = Pick<Branch, "id" | "limbId" | "label" | "name" | "isSystemHub" | "createdAt">;
+type RootHubRow = Pick<ThemeCategory, "id" | "limbId" | "label" | "name" | "isSystemHub" | "createdAt">;
 
 /** Read-only: one row per canonical hub slot (for map context / Stream resolver). */
 export function canonicalRootHubRows<T extends RootHubRow>(roots: readonly T[]): T[] {

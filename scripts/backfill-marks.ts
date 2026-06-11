@@ -28,12 +28,12 @@ async function ensureDefaultBranchesForUsers(
     for (const limbId of limbIds) {
       const templates = BRANCH_TEMPLATES.filter((t) => t.limbId === limbId);
       for (const template of templates) {
-        const existingByName = await prisma.branch.findFirst({
+        const existingByName = await prisma.themeCategory.findFirst({
           where: { userId, limbId, OR: [{ name: template.name }, { label: template.name }] },
           select: { id: true },
         });
         if (existingByName) continue;
-        await prisma.branch.create({
+        await prisma.themeCategory.create({
           data: {
             userId,
             limbId,
@@ -47,7 +47,7 @@ async function ensureDefaultBranchesForUsers(
           },
         });
       }
-      const primary = await prisma.branch.findFirst({
+      const primary = await prisma.themeCategory.findFirst({
         where: { userId, limbId, OR: [{ name: templates[0]?.name }, { label: templates[0]?.name }] },
         select: { id: true },
       });
@@ -120,7 +120,7 @@ async function main() {
     const limbId = g.limbId;
     if (limbId == null) continue;
     const targetBranchName = inferJourneyBranchName({ limbId, title: g.title, description: g.description });
-    const target = await prisma.branch.findFirst({
+    const target = await prisma.themeCategory.findFirst({
       where: {
         userId: g.userId,
         limbId,

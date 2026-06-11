@@ -37,26 +37,26 @@ export async function loadPursuitStreamContext(
       id: true,
       title: true,
       description: true,
-      branchId: true,
+      categoryId: true,
       limbId: true,
       milestones: {
         select: { id: true, title: true, completedAt: true },
         orderBy: { position: "asc" },
       },
-      branch: { select: { id: true, label: true, name: true, limbId: true } },
+      themeCategory: { select: { id: true, label: true, name: true, limbId: true } },
     },
   });
-  if (!goal?.branchId) return null;
+  if (!goal?.categoryId) return null;
 
-  const limbId = goal.limbId ?? goal.branch?.limbId ?? "becoming";
+  const limbId = goal.limbId ?? goal.themeCategory?.limbId ?? "becoming";
   const hubLabel = canonicalHubDisplayLabel(
     limbId,
-    goal.branch?.label ?? goal.branch?.name ?? goal.branchId,
+    goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId,
   );
 
   return {
     goalId: goal.id,
-    branchId: goal.branchId,
+    branchId: goal.categoryId,
     limbId,
     pursuitTitle: goal.title,
     pursuitDescription: goal.description?.trim() ?? "",
@@ -129,7 +129,7 @@ export async function runPursuitStreamExtract(
   ctx: PursuitStreamContext,
   input: string,
 ): Promise<StreamExtractResponse> {
-  const branch = await prisma.branch.findFirst({
+  const branch = await prisma.themeCategory.findFirst({
     where: { id: ctx.branchId, userId },
     select: { id: true, limbId: true, label: true },
   });
@@ -139,7 +139,7 @@ export async function runPursuitStreamExtract(
     prisma.goal.findMany({
       where: {
         userId,
-        branchId: branch.id,
+        categoryId: branch.id,
         archived: false,
         goalType: { notIn: ["moment", "event"] },
       },
@@ -147,28 +147,28 @@ export async function runPursuitStreamExtract(
         id: true,
         title: true,
         goalType: true,
-        bloomStatus: true,
+        status: true,
         parentGoalId: true,
       },
       orderBy: { createdAt: "asc" },
     }),
     prisma.goal.findMany({
-      where: { userId, branchId: branch.id, archived: true, goalType: { notIn: ["moment", "event"] } },
+      where: { userId, categoryId: branch.id, archived: true, goalType: { notIn: ["moment", "event"] } },
       select: { title: true },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: branch.id, archived: false },
+      where: { userId, categoryId: branch.id, archived: false },
       select: { title: true, date: true },
       orderBy: { date: "asc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: branch.id, archived: true },
+      where: { userId, categoryId: branch.id, archived: true },
       select: { title: true, date: true },
       orderBy: { date: "desc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: branch.id, archived: false, kind: "stream" },
+      where: { userId, categoryId: branch.id, archived: false, kind: "stream" },
       select: { title: true },
       orderBy: { createdAt: "desc" },
       take: 3,
@@ -183,7 +183,7 @@ export async function runPursuitStreamExtract(
       goalId: g.id,
       title: g.title,
       goalType: g.goalType,
-      bloomStatus: g.bloomStatus,
+      bloomStatus: g.status,
       parentGoalId: g.parentGoalId ?? null,
     })),
     existingMarks: marks.map((m) => ({

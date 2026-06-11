@@ -42,7 +42,7 @@ function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
       belongsHere: copy.belongsHere,
       doesNotBelongHere: copy.doesNotBelongHere,
       examples: copy.examples,
-      branchId: mockBranchId(),
+      categoryId: mockBranchId(),
       existingPursuits: [],
       existingMarks: [],
       removedPursuits: [],

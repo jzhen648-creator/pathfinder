@@ -20,7 +20,7 @@ type CareerGoalRow = {
   id: string;
   title: string;
   parentGoalId: string | null;
-  branchId: string | null;
+  categoryId: string | null;
   limbId: string | null;
 };
 
@@ -42,7 +42,7 @@ function pickGoal(
 }
 
 async function main() {
-  const branch = await prisma.branch.findUnique({
+  const branch = await prisma.themeCategory.findUnique({
     where: { id: CAREER_BRANCH_ID },
     select: { id: true, label: true, name: true, limbId: true },
   });
@@ -54,7 +54,7 @@ async function main() {
 
   const goals = await prisma.goal.findMany({
     where: {
-      branchId: CAREER_BRANCH_ID,
+      categoryId: CAREER_BRANCH_ID,
       archived: false,
       goalType: { notIn: ["moment", "event"] },
     },
@@ -63,7 +63,7 @@ async function main() {
       title: true,
       parentGoalId: true,
       sequencePosition: true,
-      branchId: true,
+      categoryId: true,
       limbId: true,
     },
     orderBy: { title: "asc" },
@@ -113,7 +113,7 @@ async function main() {
         data: {
           parentGoalId: u.parentGoalId,
           sequencePosition: null,
-          branchId: mortgage.branchId,
+          categoryId: mortgage.categoryId,
           limbId: mortgage.limbId ?? goals.find((g) => g.id === u.id)?.limbId,
         },
       });

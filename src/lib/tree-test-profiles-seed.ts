@@ -142,7 +142,7 @@ const extraTemplateMomentsFullTree: MarkSeed[] = branchSeedsFullTreeShowcase.fla
       value: null,
       isTurningPoint: false,
       future: false,
-      bloomStatus: "COMPLETE",
+      status: "COMPLETE",
     },
     {
       branchThreadType: branch.threadType,
@@ -157,7 +157,7 @@ const extraTemplateMomentsFullTree: MarkSeed[] = branchSeedsFullTreeShowcase.fla
       value: null,
       isTurningPoint: false,
       future: reflectionYear >= 2025,
-      bloomStatus: reflectionYear >= 2025 ? "ACTIVE" : "COMPLETE",
+      status: reflectionYear >= 2025 ? "ACTIVE" : "COMPLETE",
     },
   ];
 });
@@ -214,16 +214,16 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
         select: { id: true },
       });
 
-  const existingBranchIds = await prisma.branch.findMany({
+  const existingBranchIds = await prisma.themeCategory.findMany({
     where: { userId: user.id },
     select: { id: true },
   });
   const branchIds = existingBranchIds.map((b) => b.id);
   await prisma.goal.deleteMany({ where: { userId: user.id } });
   if (branchIds.length > 0) {
-    await prisma.mark.deleteMany({ where: { branchId: { in: branchIds } } });
+    await prisma.mark.deleteMany({ where: { categoryId: { in: branchIds } } });
   }
-  await prisma.branch.deleteMany({ where: { userId: user.id } });
+  await prisma.themeCategory.deleteMany({ where: { userId: user.id } });
 
   const createdBranches = [];
   const createdByThreadType = new Map<string, { id: string }>();
@@ -239,7 +239,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
       pending.push(branchSeed);
       continue;
     }
-    const branch = await prisma.branch.create({
+    const branch = await prisma.themeCategory.create({
       data: {
         userId: user.id,
         limbId: branchSeed.limbId,
@@ -272,7 +272,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
     await prisma.mark.create({
       data: {
         userId: user.id,
-        branchId: branch.id,
+        categoryId: branch.id,
         limbId: markSeed.limbId,
         title: markSeed.title,
         description: markSeed.description,
@@ -299,7 +299,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
     await prisma.goal.create({
       data: {
         userId: user.id,
-        branchId: branch.id,
+        categoryId: branch.id,
         limbId: goalSeed.limbId,
         title: goalSeed.title,
         description: goalSeed.description,
@@ -308,7 +308,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
         targetAmount: goalSeed.targetAmount,
         currentAmount: goalSeed.currentAmount,
         unit: goalSeed.unit,
-        bloomStatus: goalSeed.bloomStatus,
+        status: goalSeed.bloomStatus,
         significance: goalSeed.significance,
         future: goalSeed.future,
         year: goalSeed.year,

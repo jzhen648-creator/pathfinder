@@ -41,7 +41,7 @@ type GoalSeed = {
   title: string;
   description: string;
   goalType: string;
-  bloomStatus: BloomStatus;
+  status: BloomStatus;
   year: number;
   shortLabel?: string;
   parentKey?: string;
@@ -72,7 +72,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Organise legal, public, and civic pressure into a disciplined movement capable of challenging apartheid at national scale.",
     goalType: "project",
-    bloomStatus: "COMPLETE",
+    status: "COMPLETE",
     year: 1952,
     shortLabel: "Defiance Campaign",
     milestones: [
@@ -92,7 +92,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Help turn scattered grievances into a shared constitutional vision for a non-racial and democratic South Africa.",
     goalType: "identity",
-    bloomStatus: "COMPLETE",
+    status: "COMPLETE",
     year: 1955,
     shortLabel: "Freedom Charter",
     milestones: [
@@ -112,7 +112,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Use confinement as a long school of self-command, collective morale, and strategic preparation for eventual negotiations.",
     goalType: "identity",
-    bloomStatus: "COMPLETE",
+    status: "COMPLETE",
     year: 1964,
     shortLabel: "Robben Island",
     milestones: [
@@ -134,7 +134,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Move from prisoner and banned leader to national negotiator while holding together principle, pressure, and compromise.",
     goalType: "project",
-    bloomStatus: "COMPLETE",
+    status: "COMPLETE",
     year: 1994,
     shortLabel: "Transition",
     parentKey: "defiance-campaign",
@@ -155,7 +155,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Use the presidency to stabilise democracy, legitimise new institutions, and model restraint after victory.",
     goalType: "project",
-    bloomStatus: "COMPLETE",
+    status: "COMPLETE",
     year: 1995,
     shortLabel: "Presidency",
     parentKey: "negotiated-transition",
@@ -176,7 +176,7 @@ const GOALS: GoalSeed[] = [
     description:
       "After office, lend moral authority to peace, public health, and democratic causes without clinging to formal power.",
     goalType: "project",
-    bloomStatus: "ACTIVE",
+    status: "ACTIVE",
     year: 2007,
     shortLabel: "Eldership",
     parentKey: "presidency",
@@ -197,7 +197,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Hold the private cost of public leadership with honesty while rebuilding presence across children, grandchildren, and kin.",
     goalType: "relationship",
-    bloomStatus: "PAUSED",
+    status: "PAUSED",
     year: 1998,
     shortLabel: "Family bonds",
     milestones: [
@@ -217,7 +217,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Turn personal legacy into durable civic infrastructure for archives, dialogue, education, and democratic culture.",
     goalType: "project",
-    bloomStatus: "ACTIVE",
+    status: "ACTIVE",
     year: 2004,
     shortLabel: "Dialogue centre",
     milestones: [
@@ -247,7 +247,7 @@ const MARKS: MarkSeed[] = [
 ];
 
 async function resolveHub(userId: string, limbId: string, label: HubLabel) {
-  const branch = await prisma.branch.findFirst({
+  const branch = await prisma.themeCategory.findFirst({
     where: { userId, limbId, isSystemHub: true, label },
     select: { id: true },
   });
@@ -276,14 +276,14 @@ async function main() {
     select: { id: true },
   });
 
-  await prisma.branch.createMany({
+  await prisma.themeCategory.createMany({
     data: HUBS.map((hub, order) => ({
       userId: user.id,
       limbId: hub.limbId,
       label: hub.label,
       name: hub.name,
       status: "active",
-      bloomStatus: "ACTIVE",
+      status: "ACTIVE",
       isSystemHub: true,
       isActive: true,
       order,
@@ -300,7 +300,7 @@ async function main() {
   await prisma.mark.createMany({
     data: MARKS.map((mark, index) => ({
       userId: user.id,
-      branchId: branches.get(`${mark.limbId}:${mark.hub}`)!,
+      categoryId: branches.get(`${mark.limbId}:${mark.hub}`)!,
       limbId: mark.limbId,
       title: mark.title,
       date: mark.date,
@@ -320,7 +320,7 @@ async function main() {
     const created = await prisma.goal.create({
       data: {
         userId: user.id,
-        branchId: branches.get(`${goal.limbId}:${goal.hub}`)!,
+        categoryId: branches.get(`${goal.limbId}:${goal.hub}`)!,
         limbId: goal.limbId,
         parentGoalId,
         title: goal.title,
@@ -328,7 +328,7 @@ async function main() {
         description: goal.description,
         lifeArea: LIFE_AREA_BY_LIMB[goal.limbId] ?? "Other",
         goalType: goal.goalType,
-        bloomStatus: goal.bloomStatus,
+        status: goal.status,
         year: goal.year,
         aiGenerated: false,
         significance: 3,

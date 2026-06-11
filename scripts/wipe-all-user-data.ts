@@ -38,11 +38,11 @@ async function wipeAllUserData(): Promise<void> {
   const marks = await prisma.mark.deleteMany({});
   const caches = await prisma.goalEvaluationCache.deleteMany({});
   const goals = await prisma.goal.deleteMany({});
-  const customBranches = await prisma.branch.deleteMany({ where: { isSystemHub: false } });
+  const customBranches = await prisma.themeCategory.deleteMany({ where: { isSystemHub: false } });
   const trunkEntries = await prisma.trunkEntry.deleteMany({});
   const trunkSegments = await prisma.trunkSegment.deleteMany({});
 
-  const hubReset = await prisma.branch.updateMany({
+  const hubReset = await prisma.themeCategory.updateMany({
     where: { isSystemHub: true },
     data: { isActive: false },
   });

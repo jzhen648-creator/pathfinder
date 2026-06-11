@@ -19,8 +19,8 @@ async function main() {
   await prisma.goalEvaluationCache.deleteMany({ where: { userId: user.id } });
   await prisma.goal.deleteMany({ where: { userId: user.id } });
   await prisma.mark.deleteMany({ where: { userId: user.id } });
-  await prisma.branch.deleteMany({ where: { userId: user.id, isSystemHub: false } });
-  await prisma.branch.updateMany({
+  await prisma.themeCategory.deleteMany({ where: { userId: user.id, isSystemHub: false } });
+  await prisma.themeCategory.updateMany({
     where: { userId: user.id, isSystemHub: true },
     data: { isActive: false },
   });
@@ -47,7 +47,7 @@ async function main() {
   });
 
   const created = await ensureSystemHubsForUser(prisma, user.id);
-  const dormant = await prisma.branch.count({
+  const dormant = await prisma.themeCategory.count({
     where: { userId: user.id, isSystemHub: true, isActive: false },
   });
 

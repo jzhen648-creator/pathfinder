@@ -53,9 +53,9 @@ function continuationDepths(goals: { id: string; parentGoalId: string | null }[]
 }
 
 async function auditUser(userId: string, email: string) {
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     where: { userId },
-    select: { id: true, limbId: true, label: true, name: true, bloomStatus: true },
+    select: { id: true, limbId: true, label: true, name: true, status: true },
     orderBy: [{ limbId: "asc" }, { label: "asc" }],
   });
   const goals = await prisma.goal.findMany({
@@ -63,16 +63,16 @@ async function auditUser(userId: string, email: string) {
     select: {
       id: true,
       title: true,
-      branchId: true,
+      categoryId: true,
       parentGoalId: true,
-      bloomStatus: true,
+      status: true,
       goalType: true,
       shortLabel: true,
     },
   });
   const marks = await prisma.mark.findMany({
     where: { userId, archived: false },
-    select: { id: true, branchId: true },
+    select: { id: true, categoryId: true },
   });
   const milestones = await prisma.milestone.findMany({
     where: { goal: { userId, archived: false } },
@@ -85,13 +85,13 @@ async function auditUser(userId: string, email: string) {
   const milestonesByBranch = new Map<string, number>();
 
   for (const g of goals) {
-    if (!g.branchId) continue;
-    goalsByBranch.set(g.branchId, (goalsByBranch.get(g.branchId) ?? 0) + 1);
+    if (!g.categoryId) continue;
+    goalsByBranch.set(g.categoryId, (goalsByBranch.get(g.categoryId) ?? 0) + 1);
   }
   for (const m of marks) {
-    marksByBranch.set(m.branchId, (marksByBranch.get(m.branchId) ?? 0) + 1);
+    marksByBranch.set(m.categoryId, (marksByBranch.get(m.categoryId) ?? 0) + 1);
   }
-  const goalToBranch = new Map(goals.map((g) => [g.id, g.branchId]));
+  const goalToBranch = new Map(goals.map((g) => [g.id, g.categoryId]));
   for (const ms of milestones) {
     const branchId = goalToBranch.get(ms.goalId);
     if (!branchId) continue;
@@ -111,17 +111,17 @@ async function auditUser(userId: string, email: string) {
   const goalBloom: Record<string, number> = {};
   const branchBloom: Record<string, number> = {};
   for (const g of goals) {
-    goalBloom[g.bloomStatus] = (goalBloom[g.bloomStatus] ?? 0) + 1;
+    goalBloom[g.status] = (goalBloom[g.status] ?? 0) + 1;
   }
   for (const b of branches) {
-    branchBloom[b.bloomStatus] = (branchBloom[b.bloomStatus] ?? 0) + 1;
+    branchBloom[b.status] = (branchBloom[b.status] ?? 0) + 1;
   }
 
   const goalIds = new Set(goals.map((g) => g.id));
   const orphanedGoals = goals.filter(
     (g) =>
-      g.branchId == null ||
-      !branchIds.has(g.branchId) ||
+      g.categoryId == null ||
+      !branchIds.has(g.categoryId) ||
       (g.parentGoalId != null && !goalIds.has(g.parentGoalId)),
   );
 

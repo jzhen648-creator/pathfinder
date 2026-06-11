@@ -75,7 +75,7 @@ try {
       g.title !== m.label ||
       Number(g.year) !== Number(m.year) ||
       monthG !== monthM ||
-      norm(g.branchId) !== norm(m.branchId) ||
+      norm(g.categoryId) !== norm(m.categoryId) ||
       norm(g.limbId) !== norm(m.limbId) ||
       norm(g.parentGoalId) !== norm(m.parentMomentId) ||
       !!g.future !== !!m.future ||

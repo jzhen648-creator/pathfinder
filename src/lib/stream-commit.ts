@@ -220,14 +220,14 @@ async function commitItemsToBranchInTx(
   const hubGoals = await tx.goal.findMany({
     where: {
       userId,
-      branchId: branch.id,
+      categoryId: branch.id,
       archived: false,
       goalType: { notIn: ["moment", "event"] },
     },
-    select: { id: true, goalType: true, bloomStatus: true },
+    select: { id: true, goalType: true, status: true },
   });
   const hubGoalIds = new Set(hubGoals.map((g) => g.id));
-  const currentBloomByGoalId = new Map(hubGoals.map((g) => [g.id, g.bloomStatus]));
+  const currentBloomByGoalId = new Map(hubGoals.map((g) => [g.id, g.status]));
 
   for (const p of pursuits) {
     if (p.existingGoalId && !hubGoalIds.has(p.existingGoalId)) {
@@ -291,11 +291,11 @@ async function commitItemsToBranchInTx(
         shortLabel,
         lifeArea,
         goalType,
-        branchId: branch.id,
+        categoryId: branch.id,
         limbId: branch.limbId,
         deadline: parsePursuitDeadline(p.deadline),
         significance: 3,
-        bloomStatus,
+        status: bloomStatus,
         aiGenerated: false,
         future: true,
         year: defaultYear,
@@ -323,23 +323,23 @@ async function commitItemsToBranchInTx(
     const title = p.title.trim();
     const updateData: {
       title?: string;
-      bloomStatus?: BloomStatus;
+      status?: BloomStatus;
       bloomedAt?: Date;
     } = {};
 
     const currentBloom = currentBloomByGoalId.get(goalId);
     if (currentBloom && !isStreamProtectedBloom(currentBloom)) {
       if (p.bloomStatus === "COMPLETE") {
-        updateData.bloomStatus = "COMPLETE";
+        updateData.status = "COMPLETE";
         updateData.bloomedAt = new Date();
         forceBloomedGoalIds.add(goalId);
         bloomedPursuits += 1;
       } else if (p.bloomStatus === "PAUSED") {
-        updateData.bloomStatus = "PAUSED";
+        updateData.status = "PAUSED";
       } else if (p.bloomStatus === "MAINTAINING") {
-        updateData.bloomStatus = "MAINTAINING";
+        updateData.status = "MAINTAINING";
       } else if (p.bloomStatus === "ACTIVE") {
-        updateData.bloomStatus = "ACTIVE";
+        updateData.status = "ACTIVE";
       }
     }
 
@@ -383,7 +383,7 @@ async function commitItemsToBranchInTx(
     await tx.mark.create({
       data: {
         userId,
-        branchId: branch.id,
+        categoryId: branch.id,
         limbId: branch.limbId,
         title,
         description: null,
@@ -412,8 +412,8 @@ async function commitItemsToBranchInTx(
     if (!goalId) continue;
 
     const goal = await tx.goal.findFirst({
-      where: { id: goalId, userId, branchId: branch.id },
-      select: { id: true, goalType: true, bloomStatus: true },
+      where: { id: goalId, userId, categoryId: branch.id },
+      select: { id: true, goalType: true, status: true },
     });
     if (!goal || !goalAllowsStreamMilestones(goal)) continue;
 
@@ -502,7 +502,7 @@ async function applyStreamOperationsInTx(
         archived: false,
         goalType: { notIn: ["moment", "event"] },
       },
-      select: { id: true, bloomStatus: true },
+      select: { id: true, status: true },
     });
     if (!goal) {
       throw new Error("Invalid pursuit operation target");
@@ -511,15 +511,15 @@ async function applyStreamOperationsInTx(
     const data: {
       title?: string;
       description?: string;
-      bloomStatus?: BloomStatus;
+      status?: BloomStatus;
       bloomedAt?: Date | null;
     } = {};
     if (op.title?.trim()) {
       data.title = op.title.trim();
       goalsNeedingShortLabel.add(op.goalId);
     }
-    if (op.bloomStatus && !isStreamProtectedBloom(goal.bloomStatus)) {
-      data.bloomStatus = op.bloomStatus as BloomStatus;
+    if (op.bloomStatus && !isStreamProtectedBloom(goal.status)) {
+      data.status = op.bloomStatus as BloomStatus;
       data.bloomedAt = op.bloomStatus === "COMPLETE" ? new Date() : null;
     }
     if (Object.keys(data).length === 0) continue;
@@ -580,7 +580,7 @@ export async function commitStreamToHub(
     return { ok: false, error: "Hub not found", status: 404 };
   }
 
-  const branch = await prisma.branch.findFirst({
+  const branch = await prisma.themeCategory.findFirst({
     where: { id: hubId, userId },
     select: { id: true, limbId: true, isActive: true },
   });
@@ -749,12 +749,12 @@ async function alignThemeMilestoneHubIds(
 
   const goals = await prisma.goal.findMany({
     where: { userId, id: { in: existingGoalIds } },
-    select: { id: true, branchId: true },
+    select: { id: true, categoryId: true },
   });
   const hubBranches = await resolveAllHubBranchesForTheme(prisma, userId, themeId);
-  const slugByBranchId = new Map(hubBranches.map((h) => [h.branchId, h.hubSlug]));
+  const slugByBranchId = new Map(hubBranches.map((h) => [h.categoryId, h.hubSlug]));
   const hubByGoalId = new Map(
-    goals.map((g) => [g.id, g.branchId ? slugByBranchId.get(g.branchId) : undefined]),
+    goals.map((g) => [g.id, g.categoryId ? slugByBranchId.get(g.categoryId) : undefined]),
   );
 
   return milestones.map((ms) => {
@@ -803,20 +803,20 @@ export async function commitStreamToTheme(
     const resolvedId = resolver.resolve(slug, targetThemeId);
     const resolved =
       resolvedId != null
-        ? { branchId: resolvedId, limbId: targetThemeId }
+        ? { categoryId: resolvedId, limbId: targetThemeId }
         : await resolveBranchForHub(prisma, userId, targetThemeId, slug);
     if (!resolved) {
       return { ok: false, error: `Hub branch not found for "${slug}"`, status: 404 };
     }
     branchBySlug.set(slug, {
-      id: resolved.branchId,
+      id: resolved.categoryId,
       limbId: resolved.limbId,
       isActive: true,
     });
   }
 
   for (const branch of branchBySlug.values()) {
-    const row = await prisma.branch.findFirst({
+    const row = await prisma.themeCategory.findFirst({
       where: { id: branch.id, userId },
       select: { isActive: true },
     });
@@ -936,7 +936,7 @@ export async function commitStreamGlobal(
     ...milestonesByBranch.keys(),
   ]);
 
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     where: { id: { in: [...allBranchIds] }, userId },
     select: { id: true, limbId: true, isActive: true },
   });

@@ -23,7 +23,7 @@ const branchesSchema = z.object({
 
 const marksSchema = z.object({
   user: z.object({ email: z.string() }),
-  marks: z.array(z.object({ id: z.string(), branchId: z.string() })),
+  marks: z.array(z.object({ id: z.string(), categoryId: z.string() })),
 });
 
 const streamExtractSchema = z.object({

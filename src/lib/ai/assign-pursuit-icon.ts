@@ -161,15 +161,15 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
       limbId: true,
       goalType: true,
       iconName: true,
-      bloomStatus: true,
-      branch: { select: { label: true, name: true, limbId: true } },
+      status: true,
+      themeCategory: { select: { label: true, name: true, limbId: true } },
     },
   });
   if (!row) return;
   if (row.goalType === "moment" || row.goalType === "event") return;
 
-  const themeId = row.limbId ?? row.branch?.limbId ?? row.lifeArea;
-  const hubLabel = row.branch?.label ?? row.branch?.name ?? "";
+  const themeId = row.limbId ?? row.themeCategory?.limbId ?? row.lifeArea;
+  const hubLabel = row.themeCategory?.label ?? row.themeCategory?.name ?? "";
   const sectionLabel = themeId
     ? canonicalHubDisplayLabel(themeId, hubLabel)
     : hubLabel;
@@ -179,7 +179,7 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
     description: row.description,
     lifeArea: row.lifeArea ?? themeId,
     sectionLabel,
-    status: row.bloomStatus,
+    status: row.status,
     queueKey: row.userId,
   });
 

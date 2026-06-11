@@ -181,7 +181,7 @@ export async function buildStreamThemeContextInput(
     inferredHubSlugs.size > 0
       ? resolved.filter((h) => inferredHubSlugs.has(h.hubSlug))
       : fallbackRecentThemeHubs(resolved);
-  const branchIds = scopedResolved.map((h) => h.branchId);
+  const branchIds = scopedResolved.map((h) => h.categoryId);
 
   const streamSession = getStreamSessionDelegate(prisma);
 
@@ -203,16 +203,16 @@ export async function buildStreamThemeContextInput(
     prisma.goal.findMany({
       where: {
         userId,
-        branchId: { in: branchIds },
+        categoryId: { in: branchIds },
         archived: false,
         goalType: { notIn: ["moment", "event"] },
       },
       select: {
         id: true,
-        branchId: true,
+        categoryId: true,
         title: true,
         goalType: true,
-        bloomStatus: true,
+        status: true,
         parentGoalId: true,
       },
       orderBy: { createdAt: "asc" },
@@ -220,21 +220,21 @@ export async function buildStreamThemeContextInput(
     prisma.goal.findMany({
       where: {
         userId,
-        branchId: { in: branchIds },
+        categoryId: { in: branchIds },
         archived: true,
         goalType: { notIn: ["moment", "event"] },
       },
-      select: { branchId: true, title: true },
+      select: { categoryId: true, title: true },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: { in: branchIds }, archived: false },
-      select: { branchId: true, title: true, date: true },
+      where: { userId, categoryId: { in: branchIds }, archived: false },
+      select: { categoryId: true, title: true, date: true },
       orderBy: { date: "asc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: { in: branchIds }, archived: true },
-      select: { branchId: true, title: true, date: true },
+      where: { userId, categoryId: { in: branchIds }, archived: true },
+      select: { categoryId: true, title: true, date: true },
       orderBy: { date: "desc" },
     }),
     sessionQuery,
@@ -247,18 +247,18 @@ export async function buildStreamThemeContextInput(
     removedGoalsByBranch.set(id, []);
   }
   for (const g of goals) {
-    if (!g.branchId) continue;
-    goalsByBranch.get(g.branchId)?.push({
+    if (!g.categoryId) continue;
+    goalsByBranch.get(g.categoryId)?.push({
       goalId: g.id,
       title: g.title,
       goalType: g.goalType,
-      bloomStatus: g.bloomStatus,
+      bloomStatus: g.status,
       parentGoalId: g.parentGoalId ?? null,
     });
   }
   for (const g of archivedGoals) {
-    if (!g.branchId) continue;
-    removedGoalsByBranch.get(g.branchId)?.push({ title: g.title });
+    if (!g.categoryId) continue;
+    removedGoalsByBranch.get(g.categoryId)?.push({ title: g.title });
   }
 
   const marksByBranch = new Map<string, StreamThemeHubContextInput["existingMarks"]>();
@@ -268,13 +268,13 @@ export async function buildStreamThemeContextInput(
     removedMarksByBranch.set(id, []);
   }
   for (const m of marks) {
-    marksByBranch.get(m.branchId)?.push({
+    marksByBranch.get(m.categoryId)?.push({
       title: m.title,
       ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
     });
   }
   for (const m of archivedMarks) {
-    removedMarksByBranch.get(m.branchId)?.push({
+    removedMarksByBranch.get(m.categoryId)?.push({
       title: m.title,
       ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
     });
@@ -290,11 +290,11 @@ export async function buildStreamThemeContextInput(
       belongsHere: copy.belongsHere,
       doesNotBelongHere: copy.doesNotBelongHere,
       examples: copy.examples,
-      branchId: h.branchId,
-      existingPursuits: goalsByBranch.get(h.branchId) ?? [],
-      existingMarks: marksByBranch.get(h.branchId) ?? [],
-      removedPursuits: removedGoalsByBranch.get(h.branchId) ?? [],
-      removedMarks: removedMarksByBranch.get(h.branchId) ?? [],
+      branchId: h.categoryId,
+      existingPursuits: goalsByBranch.get(h.categoryId) ?? [],
+      existingMarks: marksByBranch.get(h.categoryId) ?? [],
+      removedPursuits: removedGoalsByBranch.get(h.categoryId) ?? [],
+      removedMarks: removedMarksByBranch.get(h.categoryId) ?? [],
     };
   });
 

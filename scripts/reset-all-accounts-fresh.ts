@@ -19,8 +19,8 @@ async function wipeUserTreeData(prisma: PrismaClient, userId: string): Promise<v
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
   await prisma.mark.deleteMany({ where: { userId } });
-  await prisma.branch.deleteMany({ where: { userId, isSystemHub: false } });
-  await prisma.branch.updateMany({
+  await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.updateMany({
     where: { userId, isSystemHub: true },
     data: { isActive: false },
   });

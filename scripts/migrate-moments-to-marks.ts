@@ -13,12 +13,12 @@ async function main() {
   let skipped = 0;
 
   for (const g of timelineGoals) {
-    if (!g.branchId || !g.limbId) {
+    if (!g.categoryId || !g.limbId) {
       skipped += 1;
       continue;
     }
     const existing = await prisma.mark.findFirst({
-      where: { branchId: g.branchId, title: g.title },
+      where: { categoryId: g.categoryId, title: g.title },
       select: { id: true },
     });
     if (existing) {
@@ -44,7 +44,7 @@ async function main() {
         year: g.year,
         month: g.month,
         limbId: g.limbId,
-        branchId: g.branchId,
+        categoryId: g.categoryId,
         userId: g.userId,
         sentiment: "neutral",
         archived: false,

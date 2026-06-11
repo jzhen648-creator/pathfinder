@@ -8,7 +8,7 @@ const bodySchema = z.object({
   markId: z.string().min(1),
   resolution: z.enum(STREAM_AMBIGUOUS_RESOLUTION_VALUES),
   targetBranchId: z.string().min(1).optional(),
-  branchId: z.string().min(1).optional(),
+  categoryId: z.string().min(1).optional(),
 });
 
 export async function POST(request: Request) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     auth.userId,
     parsed.data.markId,
     parsed.data.resolution,
-    parsed.data.targetBranchId ?? parsed.data.branchId,
+    parsed.data.targetBranchId ?? parsed.data.categoryId,
   );
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });

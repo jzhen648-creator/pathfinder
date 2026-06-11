@@ -141,9 +141,9 @@ export async function POST(request: Request) {
             amb.hubId,
           );
           if (!resolved) continue;
-          const entry = byBranch.get(resolved.branchId) ?? { limbId: targetThemeId, items: [] };
+          const entry = byBranch.get(resolved.categoryId) ?? { limbId: targetThemeId, items: [] };
           entry.items.push(amb);
-          byBranch.set(resolved.branchId, entry);
+          byBranch.set(resolved.categoryId, entry);
         }
         for (const [branchId, entry] of byBranch) {
           const { committed } = await commitAmbiguousItemsToBranch(
@@ -216,7 +216,7 @@ export async function POST(request: Request) {
 
     const { hubId, input, mapGridQ, mapGridR } = reqParsed.data;
 
-    const branch = await prisma.branch.findFirst({
+    const branch = await prisma.themeCategory.findFirst({
       where: { id: hubId, userId },
       select: { id: true, limbId: true, label: true },
     });
@@ -230,7 +230,7 @@ export async function POST(request: Request) {
       prisma.goal.findMany({
         where: {
           userId,
-          branchId: branch.id,
+          categoryId: branch.id,
           archived: false,
           goalType: { notIn: ["moment", "event"] },
         },
@@ -238,7 +238,7 @@ export async function POST(request: Request) {
           id: true,
           title: true,
           goalType: true,
-          bloomStatus: true,
+          status: true,
           parentGoalId: true,
           description: true,
           deadline: true,
@@ -249,7 +249,7 @@ export async function POST(request: Request) {
       prisma.goal.findMany({
         where: {
           userId,
-          branchId: branch.id,
+          categoryId: branch.id,
           archived: true,
           goalType: { notIn: ["moment", "event"] },
         },
@@ -257,17 +257,17 @@ export async function POST(request: Request) {
         orderBy: { updatedAt: "desc" },
       }),
       prisma.mark.findMany({
-        where: { userId, branchId: branch.id, archived: false },
+        where: { userId, categoryId: branch.id, archived: false },
         select: { title: true, date: true },
         orderBy: { date: "asc" },
       }),
       prisma.mark.findMany({
-        where: { userId, branchId: branch.id, archived: true },
+        where: { userId, categoryId: branch.id, archived: true },
         select: { title: true, date: true },
         orderBy: { date: "desc" },
       }),
       prisma.mark.findMany({
-        where: { userId, branchId: branch.id, archived: false, kind: "stream" },
+        where: { userId, categoryId: branch.id, archived: false, kind: "stream" },
         select: { title: true },
         orderBy: { createdAt: "desc" },
         take: 3,
@@ -286,7 +286,7 @@ export async function POST(request: Request) {
         goalId: g.id,
         title: g.title,
         goalType: g.goalType,
-        bloomStatus: g.bloomStatus,
+        bloomStatus: g.status,
         parentGoalId: g.parentGoalId ?? null,
         ...(g.description?.trim() ? { description: g.description.trim() } : {}),
         ...(g.deadline ? { deadline: g.deadline.toISOString().slice(0, 10) } : {}),

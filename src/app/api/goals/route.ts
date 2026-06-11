@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data;
-  const branchRecord = await prisma.branch.findFirst({
+  const branchRecord = await prisma.themeCategory.findFirst({
     where: { id: input.branchId.trim(), userId },
     select: { id: true, limbId: true, name: true, label: true, isActive: true },
   });
@@ -129,11 +129,11 @@ export async function POST(request: Request) {
           iconName: null,
           lifeArea,
           goalType: input.goalType,
-          branchId: branchRecord.id,
+          categoryId: branchRecord.id,
           limbId: branchRecord.limbId,
           deadline,
           significance,
-          bloomStatus: input.bloomStatus ?? "ACTIVE",
+          status: input.bloomStatus ?? "ACTIVE",
           aiGenerated: false,
           future,
           year,

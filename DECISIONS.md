@@ -18,6 +18,14 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Unchanged:** `branchId`, Prisma `Branch`, `useBranches` hook name — opt-in migration later.
 
+## 2026-06-11 — Retire goalType from product model (supersedes identity in practice decision)
+
+**Product model:** pursuit + **status** only — no project/identity/practice subtypes in UI or Stream prompts. All creates and Stream commits persist `goalType: project`. Ongoing rhythms use `bloomStatus: MAINTAINING`.
+
+**Stream:** extract JSON omits `goalType` (optional legacy ingest values normalize on commit). Milestone suppression uses **MAINTAINING** status only.
+
+**Backfill:** `npm run backfill:retire-identity` migrates existing `identity` rows to `project` (preserves bloomStatus).
+
 ## 2026-06-11 — Retire `practice` goalType (use Maintaining status)
 
 **Product model:** pursuit + status only. Ongoing habits / maintenance rhythms use `goalType: project` + `bloomStatus: MAINTAINING`. **`identity`** stays for “who I'm becoming” pursuits (no milestones).

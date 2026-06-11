@@ -10,7 +10,7 @@ import {
 import { systemHubKey } from "@/lib/system-hubs";
 
 export type ResolvedHubBranch = {
-  branchId: string;
+  categoryId: string;
   hubSlug: string;
   hubLabel: string;
   limbId: LifeAreaId;
@@ -51,7 +51,7 @@ export async function resolveBranchForHub(
   const template = resolveHubTemplateForSlug(themeId, hubSlugNorm);
   if (!template) return null;
 
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, limbId: themeId, parentBranchId: null },
     select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
   });
@@ -62,7 +62,7 @@ export async function resolveBranchForHub(
   if (!match) return null;
 
   return {
-    branchId: match.id,
+    categoryId: match.id,
     hubSlug: hubSlugNorm,
     hubLabel: template.threadType,
     limbId: themeId,
@@ -77,7 +77,7 @@ export async function resolveAllHubBranchesForTheme(
   themeId: LifeAreaId,
 ): Promise<ResolvedHubBranch[]> {
   const templates = hubsForTheme(themeId);
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, limbId: themeId, parentBranchId: null },
     select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
   });
@@ -93,7 +93,7 @@ export async function resolveAllHubBranchesForTheme(
     const branch = byKey.get(key);
     if (!branch) continue;
     out.push({
-      branchId: branch.id,
+      categoryId: branch.id,
       hubSlug: normalizeHubLabelKey(t.threadType),
       hubLabel: t.threadType,
       limbId: themeId,
@@ -114,7 +114,7 @@ export async function buildHubBranchResolver(
   prisma: PrismaClient,
   userId: string,
 ): Promise<HubBranchResolver> {
-  const roots = await prisma.branch.findMany({
+  const roots = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null },
     select: {
       id: true,

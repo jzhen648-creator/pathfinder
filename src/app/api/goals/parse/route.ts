@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
   const { text, branchId, areaId } = reqParsed.data;
   const userMessage = [
-    `Provided branchId: ${branchId}`,
+    `Provided categoryId: ${branchId}`,
     `Provided areaId: ${areaId}`,
     "",
     "User goal statement:",

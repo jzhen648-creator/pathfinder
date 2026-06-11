@@ -77,7 +77,7 @@ const withNullParentRef = preprocessStreamExtractJson({
     {
       title: "Ship v1",
       goalType: "project",
-      bloomStatus: "ACTIVE",
+      status: "ACTIVE",
       clientKey: null,
       hubId: null,
     },

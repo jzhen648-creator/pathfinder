@@ -1,7 +1,7 @@
 /**
- * Retire goalType `practice` → `project` with bloomStatus MAINTAINING (unless COMPLETE / PAUSED).
+ * Retire goalType `identity` → `project` (preserve bloomStatus).
  *
- * Run from pathfinder/: npm run backfill:retire-practice
+ * Run from pathfinder/: npm run backfill:retire-identity
  */
 import { PrismaClient } from "@prisma/client";
 
@@ -9,24 +9,20 @@ const prisma = new PrismaClient();
 
 async function main() {
   const rows = await prisma.goal.findMany({
-    where: { goalType: "practice" },
+    where: { goalType: "identity" },
     select: { id: true, status: true },
   });
 
   let updated = 0;
   for (const row of rows) {
-    const bloomStatus =
-      row.status === "COMPLETE" || row.status === "PAUSED"
-        ? row.status
-        : "MAINTAINING";
     await prisma.goal.update({
       where: { id: row.id },
-      data: { goalType: "project", bloomStatus },
+      data: { goalType: "project" },
     });
     updated += 1;
   }
 
-  console.log(`Backfill complete: migrated ${updated} practice goal(s) to project.`);
+  console.log(`Backfill complete: migrated ${updated} identity goal(s) to project.`);
 }
 
 main()

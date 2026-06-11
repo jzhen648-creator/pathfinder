@@ -53,8 +53,8 @@ async function wipeUserTreeData(userId: string): Promise<{ goals: number; marks:
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   const goals = await prisma.goal.deleteMany({ where: { userId } });
   const marks = await prisma.mark.deleteMany({ where: { userId } });
-  const branches = await prisma.branch.deleteMany({ where: { userId, isSystemHub: false } });
-  await prisma.branch.updateMany({
+  const branches = await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.updateMany({
     where: { userId, isSystemHub: true },
     data: { isActive: false },
   });
@@ -116,7 +116,7 @@ async function main() {
 
   console.log("\nStep 2/4: Ensuring 17 system hubs…");
   await syncHubTaxonomyForUser(prisma, user.id);
-  const hubCount = await prisma.branch.count({
+  const hubCount = await prisma.themeCategory.count({
     where: { userId: user.id, parentBranchId: null, isSystemHub: true },
   });
   console.log(`  system hubs present: ${hubCount}`);

@@ -15,9 +15,9 @@ async function main() {
       id: true,
       title: true,
       parentGoalId: true,
-      branchId: true,
+      categoryId: true,
       goalType: true,
-      bloomStatus: true,
+      status: true,
       sequencePosition: true,
       userId: true,
       parentGoal: { select: { id: true, title: true } },
@@ -39,7 +39,7 @@ async function main() {
         id: true,
         title: true,
         parentGoalId: true,
-        branchId: true,
+        categoryId: true,
         sequencePosition: true,
         parentGoal: { select: { id: true, title: true } },
       },
@@ -52,13 +52,13 @@ async function main() {
   for (const g of goals) {
     console.log(`title: ${g.title}`);
     console.log(`  id: ${g.id}`);
-    console.log(`  branchId: ${g.branchId}`);
+    console.log(`  categoryId: ${g.categoryId}`);
     console.log(`  parentGoalId: ${g.parentGoalId ?? "(null)"}`);
     console.log(
       `  parent title: ${g.parentGoal?.title ?? "(none)"} (${g.parentGoal?.id ?? "—"})`,
     );
     console.log(`  sequencePosition: ${g.sequencePosition ?? "(null)"}`);
-    console.log(`  bloomStatus: ${g.bloomStatus}`);
+    console.log(`  status: ${g.status}`);
     if (g.forkedGoals.length > 0) {
       console.log(`  forkedGoals (continuations): ${g.forkedGoals.map((f) => f.title).join("; ")}`);
     }
@@ -66,14 +66,14 @@ async function main() {
   }
 
   const careerBranchId = "cmp8wfcok0009vnu8aolonp5p";
-  const branch = await prisma.branch.findUnique({
+  const branch = await prisma.themeCategory.findUnique({
     where: { id: careerBranchId },
     select: { id: true, label: true, name: true, limbId: true },
   });
   console.log("=== Career branch (cmp8wfcok0009vnu8aolonp5p) ===\n");
   console.log(JSON.stringify(branch, null, 2));
   const branchGoals = await prisma.goal.findMany({
-    where: { branchId: careerBranchId, goalType: { notIn: ["moment", "event"] } },
+    where: { categoryId: careerBranchId, goalType: { notIn: ["moment", "event"] } },
     select: {
       id: true,
       title: true,
@@ -92,7 +92,7 @@ async function main() {
   console.log("");
 
   const head = goals.find(
-    (g) => g.title === "Become Head of Product" && g.branchId === careerBranchId,
+    (g) => g.title === "Become Head of Product" && g.categoryId === careerBranchId,
   );
   if (head) {
     const children = await prisma.goal.findMany({
@@ -102,7 +102,7 @@ async function main() {
         title: true,
         parentGoalId: true,
         sequencePosition: true,
-        branchId: true,
+        categoryId: true,
       },
       orderBy: { title: "asc" },
     });
@@ -114,7 +114,7 @@ async function main() {
         console.log(`  - ${c.title}`);
         console.log(`      id: ${c.id}`);
         console.log(`      sequencePosition: ${c.sequencePosition ?? "(null)"}`);
-        console.log(`      branchId: ${c.branchId}`);
+        console.log(`      categoryId: ${c.categoryId}`);
       }
       console.log("");
     }

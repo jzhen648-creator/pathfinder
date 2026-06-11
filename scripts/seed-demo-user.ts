@@ -29,7 +29,7 @@ const PROTECTED_EMAILS = new Set([
 const DEMO_PASSWORD = "password123";
 
 async function seedContinuationChains(userId: string) {
-  const careerBranch = await prisma.branch.findFirst({
+  const careerBranch = await prisma.themeCategory.findFirst({
     where: { userId, limbId: "work", label: "Career" },
     select: { id: true },
   });
@@ -41,7 +41,7 @@ async function seedContinuationChains(userId: string) {
   const root = await prisma.goal.findFirst({
     where: {
       userId,
-      branchId: careerBranch.id,
+      categoryId: careerBranch.id,
       parentGoalId: null,
       archived: false,
       goalType: { notIn: ["moment", "event"] },
@@ -68,7 +68,7 @@ async function seedContinuationChains(userId: string) {
   const chapter2 = await prisma.goal.create({
     data: {
       userId,
-      branchId: careerBranch.id,
+      categoryId: careerBranch.id,
       limbId: "work",
       parentGoalId: root.id,
       title: "Lead payments platform through Series B scale-up",
@@ -76,7 +76,7 @@ async function seedContinuationChains(userId: string) {
         "Continuation after owning squad discovery-to-delivery — broader org impact and hiring bar.",
       lifeArea,
       goalType: "project",
-      bloomStatus: "ACTIVE",
+      status: "ACTIVE",
       year: 2027,
       deadline: new Date("2027-12-31"),
       aiGenerated: false,
@@ -101,21 +101,21 @@ async function seedContinuationChains(userId: string) {
   await prisma.goal.create({
     data: {
       userId,
-      branchId: careerBranch.id,
+      categoryId: careerBranch.id,
       limbId: "work",
       parentGoalId: chapter2.id,
       title: "Director of Product track — first panel loop",
       description: "Third chapter: begin informal DP conversations after platform outcomes land.",
       lifeArea,
       goalType: "identity",
-      bloomStatus: "ACTIVE",
+      status: "ACTIVE",
       year: 2028,
       aiGenerated: false,
       shortLabel: "DP track",
     },
   });
 
-  const assetsBranch = await prisma.branch.findFirst({
+  const assetsBranch = await prisma.themeCategory.findFirst({
     where: { userId, limbId: "finance", label: "Assets" },
     select: { id: true },
   });
@@ -123,7 +123,7 @@ async function seedContinuationChains(userId: string) {
     const depositRoot = await prisma.goal.findFirst({
       where: {
         userId,
-        branchId: assetsBranch.id,
+        categoryId: assetsBranch.id,
         parentGoalId: null,
         title: { contains: "deposit" },
       },
@@ -138,7 +138,7 @@ async function seedContinuationChains(userId: string) {
         await prisma.goal.create({
           data: {
             userId,
-            branchId: assetsBranch.id,
+            categoryId: assetsBranch.id,
             limbId: "finance",
             parentGoalId: depositRoot.id,
             title: "Save £55k deposit fund by 2028 (stretch)",
@@ -148,7 +148,7 @@ async function seedContinuationChains(userId: string) {
             targetAmount: 55000,
             currentAmount: 18500,
             unit: "£",
-            bloomStatus: "ACTIVE",
+            status: "ACTIVE",
             year: 2028,
             aiGenerated: false,
           },
@@ -193,7 +193,7 @@ async function main() {
   await seedContinuationChains(user.id);
 
   const counts = await Promise.all([
-    prisma.branch.count({ where: { userId: user.id } }),
+    prisma.themeCategory.count({ where: { userId: user.id } }),
     prisma.mark.count({ where: { userId: user.id } }),
     prisma.goal.count({ where: { userId: user.id } }),
     prisma.milestone.count({ where: { goal: { userId: user.id } } }),

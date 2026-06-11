@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         where: { userId, ...(includeArchived ? {} : { archived: false }) },
         orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
       }),
-      prisma.branch.findMany({
+      prisma.themeCategory.findMany({
         where: { userId },
         select: { id: true, goalValue: true, currentValue: true },
       }),
@@ -57,9 +57,9 @@ export async function GET(request: Request) {
     const branchById = Object.fromEntries(branches.map((b) => [b.id, b]));
     const byBranch = new Map<string, typeof marks>();
     for (const mark of marks) {
-      const arr = byBranch.get(mark.branchId) ?? [];
+      const arr = byBranch.get(mark.categoryId) ?? [];
       arr.push(mark);
-      byBranch.set(mark.branchId, arr);
+      byBranch.set(mark.categoryId, arr);
     }
     const contextById = new Map<
       string,
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: zodErrorMessage(parsed.error) }, { status: 400 });
   }
   const input = parsed.data;
-  const branch = await prisma.branch.findFirst({
+  const branch = await prisma.themeCategory.findFirst({
     where: { id: input.branchId, userId },
     select: { id: true, limbId: true, isActive: true },
   });
@@ -194,7 +194,7 @@ export async function POST(request: Request) {
     return tx.mark.create({
       data: {
         userId,
-        branchId: input.branchId,
+        categoryId: input.branchId,
         limbId: input.limbId,
         title,
         description: input.description ?? null,

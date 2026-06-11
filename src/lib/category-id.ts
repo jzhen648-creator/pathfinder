@@ -1,18 +1,26 @@
-/** Phase 2 mirror — `categoryId` duplicates `branchId` on JSON until Phase 3 rename. */
+/** Phase 3 — Prisma uses `categoryId`; JSON mirrors legacy `branchId` for mobile compat. */
 
-export type WithBranchId = { branchId: string | null };
+export type WithCategoryId = { categoryId: string | null };
 
-export function withCategoryIdMirror<T extends WithBranchId>(
+/** @deprecated Use WithCategoryId */
+export type WithBranchId = WithCategoryId;
+
+export function withBranchIdMirror<T extends WithCategoryId>(
   row: T,
-): T & { categoryId: string | null } {
-  return { ...row, categoryId: row.branchId };
+): T & { branchId: string | null } {
+  return { ...row, branchId: row.categoryId };
 }
 
-export function withCategoryIdMirrors<T extends WithBranchId>(
+export function withBranchIdMirrors<T extends WithCategoryId>(
   rows: T[],
-): Array<T & { categoryId: string | null }> {
-  return rows.map(withCategoryIdMirror);
+): Array<T & { branchId: string | null }> {
+  return rows.map(withBranchIdMirror);
 }
+
+/** @deprecated Use withBranchIdMirror — kept for call sites during migration */
+export const withCategoryIdMirror = withBranchIdMirror;
+
+export const withCategoryIdMirrors = withBranchIdMirrors;
 
 export function resolveBranchIdFromBody(body: {
   branchId?: string | null;
@@ -21,7 +29,7 @@ export function resolveBranchIdFromBody(body: {
   return String(body.categoryId ?? body.branchId ?? "").trim();
 }
 
-/** Hub-scoped Stream extract/commit — `categoryId` is the Branch row id (same as legacy `hubId`). */
+/** Hub-scoped Stream extract/commit — `categoryId` is the ThemeCategory row id (same as legacy `hubId`). */
 export function resolveStreamHubBranchIdFromBody(body: {
   hubId?: string | null;
   categoryId?: string | null;
@@ -72,8 +80,10 @@ export function withCategorySlugMirrors<T extends WithHubSlug>(
 export function normalizeCategoryIdInBody(body: unknown): unknown {
   if (!body || typeof body !== "object") return body;
   const record = { ...(body as Record<string, unknown>) };
-  if (!record.branchId && record.categoryId) {
-    record.branchId = record.categoryId;
+  const resolved = resolveBranchIdFromBody(record as { branchId?: string; categoryId?: string });
+  if (resolved) {
+    record.categoryId = resolved;
+    record.branchId = resolved;
   }
   return record;
 }

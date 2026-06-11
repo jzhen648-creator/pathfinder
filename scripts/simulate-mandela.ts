@@ -211,7 +211,7 @@ type BranchRow = {
 type GoalRow = {
   id: string;
   title: string;
-  branchId: string | null;
+  categoryId: string | null;
   limbId: string | null;
   goalType?: string | null;
 };
@@ -314,7 +314,7 @@ type CreatedPursuitRecord = {
   id: string;
   title: string;
   hubLabel: string;
-  branchId: string;
+  categoryId: string;
   limbId: LifeAreaId;
   sourceBrainDumpId: string;
 };
@@ -323,7 +323,7 @@ type MarkRecord = {
   title: string;
   hubLabel: string;
   limbId: LifeAreaId;
-  branchId: string;
+  categoryId: string;
   date: string;
 };
 
@@ -939,7 +939,7 @@ const STRONG_THEME_SCORE = 6;
 
 type HubIndexEntry = {
   branch: BranchRow;
-  branchId: string;
+  categoryId: string;
   name: string;
   label: string;
   normalizedName: string;
@@ -977,7 +977,7 @@ function buildHubIndex(branches: BranchRow[]): HubIndex {
 
     const entry: HubIndexEntry = {
       branch,
-      branchId: branch.id,
+      categoryId: branch.id,
       name,
       label,
       normalizedName,
@@ -1153,7 +1153,7 @@ function resolveHubForExtractedItem(
       pickHubWithinTheme("people", combined, index) ?? pickDefaultHubForTheme("people", index);
     if (familyHub) {
       return {
-        hubId: familyHub.branchId,
+        hubId: familyHub.categoryId,
         hubLabel: familyHub.label,
         themeId: familyHub.themeId,
         confidence: "keyword",
@@ -1170,7 +1170,7 @@ function resolveHubForExtractedItem(
       pickHubWithinTheme("becoming", itemTitle, index) ?? pickDefaultHubForTheme("becoming", index);
     if (purposeHub) {
       return {
-        hubId: purposeHub.branchId,
+        hubId: purposeHub.categoryId,
         hubLabel: purposeHub.label,
         themeId: purposeHub.themeId,
         confidence: "keyword",
@@ -1193,7 +1193,7 @@ function resolveHubForExtractedItem(
     if (!contentWins && (!top.strong || !top.theme || extractedScore + 2 >= top.score)) {
       const viaBranchId = index.byId.has(extractedRaw);
       return {
-        hubId: extractedEntry.branchId,
+        hubId: extractedEntry.categoryId,
         hubLabel: extractedEntry.label,
         themeId: extractedEntry.themeId,
         confidence: viaBranchId ? "exact" : "alias",
@@ -1225,7 +1225,7 @@ function resolveHubForExtractedItem(
     const within = pickHubWithinTheme(chosenTheme, combined, index);
     if (within) {
       return {
-        hubId: within.branchId,
+        hubId: within.categoryId,
         hubLabel: within.label,
         themeId: within.themeId,
         confidence: conflictOverride ? "keyword" : top.strong ? "keyword" : "fallback",
@@ -1241,7 +1241,7 @@ function resolveHubForExtractedItem(
     const themeDefault = pickDefaultHubForTheme(chosenTheme, index);
     if (themeDefault) {
       return {
-        hubId: themeDefault.branchId,
+        hubId: themeDefault.categoryId,
         hubLabel: themeDefault.label,
         themeId: themeDefault.themeId,
         confidence: conflictOverride ? "keyword" : "theme-default",
@@ -2038,12 +2038,12 @@ async function phase2StreamSessions(
           const { goals: goalsAfter, branchById: branchesAfter } = await fetchBranchMap(token);
           const newGoals = goalsAfter.filter((g) => isRoadmapGoal(g) && !idsBefore.has(g.id));
           for (const goal of newGoals) {
-            const branch = goal.branchId ? branchesAfter.get(goal.branchId) : undefined;
+            const branch = goal.categoryId ? branchesAfter.get(goal.categoryId) : undefined;
             const record: CreatedPursuitRecord = {
               id: goal.id,
               title: goal.title,
               hubLabel: hubLabelFromBranch(branch),
-              branchId: goal.branchId ?? "",
+              categoryId: goal.categoryId ?? "",
               limbId: (goal.limbId ?? branch?.limbId ?? "work") as LifeAreaId,
               sourceBrainDumpId: dump.id,
             };
@@ -2147,7 +2147,7 @@ async function phase3Marks(token: string, results: SimulationResults): Promise<v
       {
         method: "POST",
         body: JSON.stringify({
-          branchId: hub.id,
+          categoryId: hub.id,
           limbId: spec.limbId,
           title: spec.title,
           date: spec.date,
@@ -2161,7 +2161,7 @@ async function phase3Marks(token: string, results: SimulationResults): Promise<v
       title: spec.title,
       hubLabel: spec.hub,
       limbId: spec.limbId,
-      branchId: hub.id,
+      categoryId: hub.id,
       date: spec.date,
     });
     console.log(`  Mark: ${spec.title} → ${spec.hub}`);

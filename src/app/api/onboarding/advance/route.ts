@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     const themeRoots =
       parsed.data.themeId || hubSlugKey
-        ? await prisma.branch.findMany({
+        ? await prisma.themeCategory.findMany({
             where: {
               userId,
               parentBranchId: null,

@@ -21,7 +21,7 @@ export async function appendCanonicalTreeMilestoneForGoal(
     await prisma.$transaction(async (tx) => {
       const goal = await tx.goal.findFirst({
         where: { id: goalId, userId },
-        select: { id: true, goalType: true, bloomStatus: true },
+        select: { id: true, goalType: true, status: true },
       });
       if (!goal) {
         throw Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" });

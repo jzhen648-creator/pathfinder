@@ -10,16 +10,16 @@ async function main() {
   }
   console.log("user", user.email);
 
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     where: { userId: user.id, parentBranchId: null },
-    select: { id: true, limbId: true, label: true, isActive: true, bloomStatus: true },
+    select: { id: true, limbId: true, label: true, isActive: true, status: true },
   });
   const active = branches.filter((b) => b.isActive);
   console.log("root branches", branches.length, "active", active.length);
 
   const goals = await prisma.goal.findMany({
     where: { userId: user.id },
-    select: { id: true, bloomStatus: true, branchId: true },
+    select: { id: true, status: true, categoryId: true },
     take: 5,
   });
   console.log("goals sample", goals);

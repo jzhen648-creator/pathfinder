@@ -10,7 +10,7 @@ type RouteProps = {
 
 const updateMomentSchema = z.object({
   limbId: z.string().min(1).optional(),
-  branchId: z.string().min(1).optional(),
+  categoryId: z.string().min(1).optional(),
   label: z.string().min(1).max(200).optional(),
   description: z.string().nullable().optional(),
   year: z.number().int().min(1900).max(2100).optional(),
@@ -30,7 +30,7 @@ function goalToLegacyMomentJson(g: {
   title: string;
   description: string;
   limbId: string | null;
-  branchId: string | null;
+  categoryId: string | null;
   parentGoalId: string | null;
   year: number;
   month: number | null;
@@ -49,7 +49,7 @@ function goalToLegacyMomentJson(g: {
     label: g.title,
     description: g.description,
     limbId: g.limbId,
-    branchId: g.branchId,
+    categoryId: g.categoryId,
     parentMomentId: g.parentGoalId,
     year: g.year,
     month: g.month,
@@ -91,7 +91,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     where: { id },
     data: {
       limbId: input.limbId ?? undefined,
-      branchId: input.branchId ?? undefined,
+      categoryId: input.categoryId ?? undefined,
       title: input.label ? input.label.trim().split(/\s+/).slice(0, 5).join(" ") : undefined,
       description: input.description !== undefined ? (input.description ?? "") : undefined,
       year: input.year,

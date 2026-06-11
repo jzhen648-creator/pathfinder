@@ -63,7 +63,7 @@ export async function reorganizeGoalForUser(
     where: { id: goalId, userId, archived: false },
     select: {
       id: true,
-      branchId: true,
+      categoryId: true,
       limbId: true,
       parentGoalId: true,
     },
@@ -71,8 +71,8 @@ export async function reorganizeGoalForUser(
   if (!goal) throw new ReorganizeError("Goal not found", 404);
 
   if (body.op === "moveToHub") {
-    const branch = await prisma.branch.findFirst({
-      where: { id: body.branchId, userId },
+    const branch = await prisma.themeCategory.findFirst({
+      where: { id: body.categoryId, userId },
       select: { id: true, limbId: true },
     });
     if (!branch) throw new ReorganizeError("Branch not found", 404);
@@ -88,7 +88,7 @@ export async function reorganizeGoalForUser(
       await tx.goal.update({
         where: { id: goalId },
         data: {
-          branchId: branch.id,
+          categoryId: branch.id,
           limbId: branch.limbId,
           lifeArea,
           parentGoalId: null,
@@ -100,7 +100,7 @@ export async function reorganizeGoalForUser(
       if (descendantIds.length > 0) {
         await tx.goal.updateMany({
           where: { id: { in: descendantIds } },
-          data: { branchId: branch.id, limbId: branch.limbId, lifeArea },
+          data: { categoryId: branch.id, limbId: branch.limbId, lifeArea },
         });
       }
     });
@@ -109,7 +109,7 @@ export async function reorganizeGoalForUser(
 
   const parent = await prisma.goal.findFirst({
     where: { id: body.parentGoalId, userId, archived: false },
-    select: { id: true, branchId: true, limbId: true, parentGoalId: true },
+    select: { id: true, categoryId: true, limbId: true, parentGoalId: true },
   });
   if (!parent) throw new ReorganizeError("Parent pursuit not found", 404);
   if (goal.limbId && parent.limbId && parent.limbId !== goal.limbId) {
@@ -140,16 +140,16 @@ export async function reorganizeGoalForUser(
     data: {
       parentGoalId: body.parentGoalId,
       sequencePosition: null,
-      branchId: parent.branchId,
+      categoryId: parent.categoryId,
       limbId: parent.limbId,
     },
   });
 
   const descendantIds = await collectDescendantGoalIds(prisma, goalId);
-  if (descendantIds.length > 0 && parent.branchId) {
+  if (descendantIds.length > 0 && parent.categoryId) {
     await prisma.goal.updateMany({
       where: { id: { in: descendantIds } },
-      data: { branchId: parent.branchId, limbId: parent.limbId },
+      data: { categoryId: parent.categoryId, limbId: parent.limbId },
     });
   }
 

@@ -37,7 +37,7 @@ function sortKey(a: SortRow, b: SortRow): number {
 }
 
 async function main() {
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     select: { id: true, userId: true, limbId: true },
   });
   console.log(
@@ -51,7 +51,7 @@ async function main() {
   for (const branch of branches) {
     const [goals, marks] = await Promise.all([
       prisma.goal.findMany({
-        where: { branchId: branch.id, parentGoalId: null },
+        where: { categoryId: branch.id, parentGoalId: null },
         select: {
           id: true,
           year: true,
@@ -61,7 +61,7 @@ async function main() {
         },
       }),
       prisma.mark.findMany({
-        where: { branchId: branch.id, archived: false },
+        where: { categoryId: branch.id, archived: false },
         select: {
           id: true,
           year: true,

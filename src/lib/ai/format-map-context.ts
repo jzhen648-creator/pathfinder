@@ -102,7 +102,7 @@ function buildPursuitRow(
     id: string;
     title: string;
     description: string | null;
-    bloomStatus: string;
+    status: string;
     significance: number | null;
     parentGoalId: string | null;
     targetAmount: number | null;
@@ -119,7 +119,7 @@ function buildPursuitRow(
     id: goal.id,
     title: goal.title,
     description: goal.description?.trim() ?? "",
-    status: goal.bloomStatus,
+    status: goal.status,
     significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
     milestones: goal.milestones.map((milestone) => ({
       id: milestone.id,
@@ -149,14 +149,14 @@ function pursuitStatusWhere(filter: MapContextFilter) {
   if (excludePaused) notIn.push("PAUSED");
   if (excludeAbandoned) notIn.push("ABANDONED");
   if (notIn.length === 0) return {};
-  return { bloomStatus: { notIn } };
+  return { status: { notIn } };
 }
 
 const goalSelect = {
   id: true,
   title: true,
   description: true,
-  bloomStatus: true,
+  status: true,
   significance: true,
   parentGoalId: true,
   targetAmount: true,
@@ -180,7 +180,7 @@ export async function formatMapContext(
   filter: MapContextFilter = {},
 ): Promise<FormattedMapContext> {
   const branches = canonicalRootHubRows(
-    await prisma.branch.findMany({
+    await prisma.themeCategory.findMany({
       where: {
         userId,
         parentBranchId: null,
@@ -273,16 +273,16 @@ export async function formatPursuitContext(
     },
     select: {
       ...goalSelect,
-      branchId: true,
+      categoryId: true,
       limbId: true,
-      branch: { select: { id: true, label: true, name: true, limbId: true } },
+      themeCategory: { select: { id: true, label: true, name: true, limbId: true } },
     },
   });
-  if (!goal?.branchId) return null;
+  if (!goal?.categoryId) return null;
 
-  const themeId = goal.limbId ?? goal.branch?.limbId ?? "becoming";
+  const themeId = goal.limbId ?? goal.themeCategory?.limbId ?? "becoming";
   const themeLabel = getLifeArea(themeId)?.label ?? themeId;
-  const hubRawLabel = goal.branch?.label ?? goal.branch?.name ?? goal.branchId;
+  const hubRawLabel = goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId;
   const section = canonicalHubDisplayLabel(themeId, hubRawLabel);
 
   const siblingGoals = await prisma.goal.findMany({
@@ -296,15 +296,15 @@ export async function formatPursuitContext(
     select: {
       id: true,
       title: true,
-      bloomStatus: true,
-      branch: { select: { label: true, name: true, limbId: true } },
+      status: true,
+      themeCategory: { select: { label: true, name: true, limbId: true } },
     },
     orderBy: { createdAt: "asc" },
     take: 12,
   });
 
   const hubMarks = await prisma.mark.findMany({
-    where: { userId, branchId: goal.branchId, archived: false },
+    where: { userId, categoryId: goal.categoryId, archived: false },
     select: { id: true, title: true, description: true, date: true, sentiment: true },
     orderBy: [{ sequencePosition: "asc" }, { date: "asc" }],
     take: 20,
@@ -329,16 +329,16 @@ export async function formatPursuitContext(
       ...buildPursuitRow(goal, pursuitTitleById),
       themeId,
       themeLabel,
-      hubId: goal.branchId,
+      hubId: goal.categoryId,
       section,
     },
     siblingPursuits: siblingGoals.map((sibling) => ({
       id: sibling.id,
       title: sibling.title,
-      status: sibling.bloomStatus,
+      status: sibling.status,
       section: canonicalHubDisplayLabel(
         themeId,
-        sibling.branch?.label ?? sibling.branch?.name ?? "",
+        sibling.themeCategory?.label ?? sibling.themeCategory?.name ?? "",
       ),
     })),
     siblingMarks: [...markById.values()],

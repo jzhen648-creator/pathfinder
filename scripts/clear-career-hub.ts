@@ -14,7 +14,7 @@ const WORK_THEME_ID = "work";
 const prisma = new PrismaClient();
 
 async function main() {
-  const branch = await prisma.branch.findUnique({
+  const branch = await prisma.themeCategory.findUnique({
     where: { id: CAREER_BRANCH_ID },
     select: { id: true, label: true, name: true, userId: true, limbId: true },
   });
@@ -24,8 +24,8 @@ async function main() {
     process.exit(1);
   }
 
-  const goals = await prisma.goal.deleteMany({ where: { branchId: branch.id } });
-  const marks = await prisma.mark.deleteMany({ where: { branchId: branch.id } });
+  const goals = await prisma.goal.deleteMany({ where: { categoryId: branch.id } });
+  const marks = await prisma.mark.deleteMany({ where: { categoryId: branch.id } });
 
   const streamSession = getStreamSessionDelegate(prisma);
   let sessionCount = 0;

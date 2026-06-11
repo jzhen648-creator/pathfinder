@@ -32,7 +32,7 @@ export async function loadOnboardingTreePayload(userId: string): Promise<Onboard
     },
   });
 
-  const hubs = await prisma.branch.findMany({
+  const hubs = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null, isSystemHub: true },
     select: {
       id: true,

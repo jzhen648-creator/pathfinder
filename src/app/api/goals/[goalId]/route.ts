@@ -68,7 +68,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     month?: number | null;
     future?: boolean;
     archived?: boolean;
-    bloomStatus?: "ACTIVE" | "PAUSED" | "COMPLETE" | "MAINTAINING" | "ABANDONED";
+    status?: "ACTIVE" | "PAUSED" | "COMPLETE" | "MAINTAINING" | "ABANDONED";
     bloomedAt?: Date | null;
     endedAt?: Date | null;
     endReason?: string | null;
@@ -108,7 +108,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   const pursuitStatus = input.status ?? input.bloomStatus;
   if (pursuitStatus !== undefined) {
-    data.bloomStatus = pursuitStatus;
+    data.status = pursuitStatus;
     if (pursuitStatus === "PAUSED" || pursuitStatus === "ABANDONED") {
       data.endedAt = new Date();
     } else if (pursuitStatus === "COMPLETE") {
@@ -130,9 +130,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       title: true,
       description: true,
       significance: true,
-      branchId: true,
+      categoryId: true,
       goalType: true,
-      bloomStatus: true,
+      status: true,
       iconName: true,
     },
   });

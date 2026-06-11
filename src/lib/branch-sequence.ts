@@ -42,15 +42,15 @@ export type BranchNodeRow = {
  */
 export async function loadBranchSequencedNodes(
   prisma: PrismaClient | Prisma.TransactionClient,
-  branchId: string,
+  categoryId: string,
 ): Promise<BranchNodeRow[]> {
   const [goals, marks] = await Promise.all([
     prisma.goal.findMany({
-      where: { branchId, parentGoalId: null, archived: false },
+      where: { categoryId, parentGoalId: null, archived: false },
       select: { id: true, sequencePosition: true, createdAt: true, year: true, month: true },
     }),
     prisma.mark.findMany({
-      where: { branchId, archived: false },
+      where: { categoryId, archived: false },
       select: { id: true, sequencePosition: true, createdAt: true, year: true, month: true, date: true },
     }),
   ]);

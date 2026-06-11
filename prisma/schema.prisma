@@ -43,7 +43,7 @@ model User {
   createdAt                  DateTime              @default(now())
   updatedAt                  DateTime              @updatedAt
   goals                      Goal[]
-  branches                   Branch[]
+  branches                   ThemeCategory[]
   marks                      Mark[]
   evaluationCaches           GoalEvaluationCache[]
   accounts                   Account[]
@@ -153,7 +153,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Branch {
+model ThemeCategory {
   id                  String       @id @default(cuid())
   userId              String
   user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -181,20 +181,21 @@ model Branch {
   endedAt             DateTime?
   endReason           String?
   spawnedFromBranchId String?
-  spawnedFromBranch   Branch?      @relation("BranchSpawn", fields: [spawnedFromBranchId], references: [id], onDelete: SetNull)
-  branchesSpawnedHere Branch[]     @relation("BranchSpawn")
+  spawnedFromBranch   ThemeCategory? @relation("BranchSpawn", fields: [spawnedFromBranchId], references: [id], onDelete: SetNull)
+  branchesSpawnedHere ThemeCategory[] @relation("BranchSpawn")
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
   @@index([userId])
   @@index([userId, limbId])
   @@index([userId, isActive])
+  @@map("Branch")
 }
 
 model Mark {
   id                String        @id @default(cuid())
-  branchId          String
-  branch            Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  categoryId        String        @map("branchId")
+  themeCategory     ThemeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   /// Legacy column name: stores the **life area** id. See `Branch.limbId`.
   limbId            String
   userId            String
@@ -234,13 +235,13 @@ model Mark {
   updatedAt         DateTime      @updatedAt
 
   @@index([userId])
-  @@index([branchId])
+  @@index([categoryId])
   @@index([sourceStreamRunId])
   @@index([limbId])
   @@index([archived])
   @@index([date])
   @@index([parentMarkId])
-  @@index([branchId, sequencePosition])
+  @@index([categoryId, sequencePosition])
 }
 
 model Reframe {
@@ -425,7 +426,7 @@ model Goal {
   /// Soft-removed from tree / timeline; hidden from map. Revive via PATCH `archived: false`.
   archived         Boolean     @default(false)
   /// Lifecycle maturity only (**BUD** / **GROWING** **BLOOMED** / **ENDED**). Not driven by continuation count; **`BRANCHED`** is legacy on goals.
-  bloomStatus      BloomStatus @default(ACTIVE)
+  status           BloomStatus @default(ACTIVE) @map("bloomStatus")
   bloomedAt        DateTime?
   endedAt          DateTime?
   endReason        String?
@@ -458,18 +459,18 @@ model Goal {
   updatedAt        DateTime    @updatedAt
   userId           String
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  branchId         String?
-  branch           Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  categoryId       String?     @map("branchId")
+  themeCategory    ThemeCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   /// Last pursuit Stream run that updated this goal's context/status.
   sourceStreamRunId String?
   milestones       Milestone[]
 
   @@index([parentGoalId])
   @@index([sourceStreamRunId])
-  @@index([branchId])
+  @@index([categoryId])
   @@index([limbId])
   @@index([archived])
-  @@index([branchId, sequencePosition])
+  @@index([categoryId, sequencePosition])
 }
 
 // Caches the AI-generated evaluation for a specific (user, goal-inputs) tuple

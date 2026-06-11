@@ -13,8 +13,8 @@ async function wipeUserContent(userId: string): Promise<void> {
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
   await prisma.mark.deleteMany({ where: { userId } });
-  await prisma.branch.deleteMany({ where: { userId, isSystemHub: false } });
-  await prisma.branch.updateMany({
+  await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.updateMany({
     where: { userId, isSystemHub: true },
     data: { isActive: false },
   });
@@ -76,7 +76,7 @@ async function main() {
   const hubsCreated = await ensureSystemHubsForUser(prisma, keepUser.id);
 
   const counts = await Promise.all([
-    prisma.branch.count({ where: { userId: keepUser.id } }),
+    prisma.themeCategory.count({ where: { userId: keepUser.id } }),
     prisma.mark.count({ where: { userId: keepUser.id } }),
     prisma.goal.count({ where: { userId: keepUser.id } }),
   ]);

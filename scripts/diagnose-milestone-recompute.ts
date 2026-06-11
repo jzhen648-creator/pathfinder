@@ -19,10 +19,10 @@ const exerciseBloomUpdate = process.argv.includes("--exercise-bloom-update");
 async function main() {
   const milestone = await prisma.milestone.findFirst({
     where: {
-      goal: { goalType: { notIn: ["moment", "event"] }, bloomStatus: { not: "PAUSED" } },
+      goal: { goalType: { notIn: ["moment", "event"] }, status: { not: "PAUSED" } },
     },
     include: {
-      goal: { select: { id: true, goalType: true, bloomStatus: true } },
+      goal: { select: { id: true, goalType: true, status: true } },
       subtasks: { select: { id: true, title: true, isCompleted: true } },
     },
     orderBy: { position: "asc" },
@@ -35,7 +35,7 @@ async function main() {
 
   const goalId = milestone.goalId;
   const prevCompletedAt = milestone.completedAt;
-  const prevBloom = milestone.goal.bloomStatus;
+  const prevBloom = milestone.goal.status;
 
   console.log("[diagnose-milestone-recompute] picked milestone", {
     milestoneId: milestone.id,
@@ -78,7 +78,7 @@ async function main() {
 
   const goalAfter = await prisma.goal.findUnique({
     where: { id: goalId },
-    select: { bloomStatus: true, bloomedAt: true },
+    select: { status: true, bloomedAt: true },
   });
 
   console.log("[diagnose-milestone-recompute] after recomputeGoalBloomStatus", {
@@ -88,7 +88,7 @@ async function main() {
       : recomputeErr instanceof Error
         ? { message: recomputeErr.message, stack: recomputeErr.stack }
         : recomputeErr,
-    goalBloomAfter: goalAfter?.bloomStatus,
+    goalBloomAfter: goalAfter?.status,
     bloomedAtAfter: goalAfter?.bloomedAt?.toISOString() ?? null,
   });
 
@@ -117,7 +117,7 @@ async function main() {
     }
     const goalBloomFull = await prisma.goal.findUnique({
       where: { id: goalId },
-      select: { bloomStatus: true, bloomedAt: true },
+      select: { status: true, bloomedAt: true },
     });
     console.log("[diagnose-milestone-recompute] goal after full milestone completion", goalBloomFull);
     await prisma.$transaction(

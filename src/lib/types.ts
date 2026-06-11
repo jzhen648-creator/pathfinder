@@ -81,7 +81,7 @@ export type Moment = {
   id: string;
   userId: string;
   limbId: LifeAreaId;
-  branchId: string;
+  categoryId: string;
   label: string; // max 5 words
   description: string | null;
   year: number; // actual year
@@ -104,7 +104,7 @@ export type Moment = {
 // Stored in database (new canonical checkpoint entity).
 export type Mark = {
   id: string;
-  branchId: string;
+  categoryId: string;
   limbId: LifeAreaId;
   userId: string;
   title: string;
@@ -167,7 +167,7 @@ export type Path = {
 export type Gap = {
   id: string;
   limbId: LifeAreaId;
-  branchId: string;
+  categoryId: string;
   insertIndex: number;
   prevMomentId: string | null;
   nextMomentId: string | null;

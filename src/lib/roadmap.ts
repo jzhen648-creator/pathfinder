@@ -99,7 +99,7 @@ export async function getGoalWithProgress(goalId: string, userId: string) {
     currentAmount: goal.currentAmount,
     deadline: goal.deadline?.toISOString() ?? null,
     progress: goalProgress,
-    bloomStatus: goal.bloomStatus,
+    status: goal.status,
     bloomedAt: goal.bloomedAt?.toISOString() ?? null,
     endedAt: goal.endedAt?.toISOString() ?? null,
     endReason: goal.endReason,

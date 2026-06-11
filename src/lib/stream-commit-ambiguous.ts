@@ -11,7 +11,7 @@ import type { AmbiguousItem, StreamAmbiguousResolution } from "@/types/stream";
 
 type UnresolvedAmbiguousMark = {
   id: string;
-  branchId: string;
+  categoryId: string;
   limbId: string;
   title: string;
   description: string | null;
@@ -24,7 +24,7 @@ type AmbiguousMarkResult =
 /** Place ambiguous Stream items on the hub as unresolved marks (visible on tree). */
 export async function commitAmbiguousItemsToBranch(
   userId: string,
-  branchId: string,
+  categoryId: string,
   limbId: string,
   items: AmbiguousItem[],
 ): Promise<{ created: number; committed: number; markIds: string[] }> {
@@ -35,7 +35,7 @@ export async function commitAmbiguousItemsToBranch(
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
     const nextSequencePosition = async () => {
-      const nodes = await loadBranchSequencedNodes(tx, branchId);
+      const nodes = await loadBranchSequencedNodes(tx, categoryId);
       const resolution = resolveSequenceAnchor(nodes, appendAnchor);
       await applySequenceResolution(tx, resolution);
       return resolution.sequencePosition;
@@ -52,7 +52,7 @@ export async function commitAmbiguousItemsToBranch(
         ? await tx.mark.findFirst({
             where: {
               userId,
-              branchId,
+              categoryId,
               streamAmbiguousId: item.id,
               archived: false,
               needsResolution: true,
@@ -71,7 +71,7 @@ export async function commitAmbiguousItemsToBranch(
       const mark = await tx.mark.create({
         data: {
           userId,
-          branchId,
+          categoryId,
           limbId,
           title,
           description: item.reason?.trim() || null,
@@ -100,7 +100,7 @@ async function getUnresolvedAmbiguousMark(
 ): Promise<AmbiguousMarkResult> {
   const mark = await prisma.mark.findFirst({
     where: { id: markId, userId, archived: false, needsResolution: true },
-    select: { id: true, branchId: true, limbId: true, title: true, description: true },
+    select: { id: true, categoryId: true, limbId: true, title: true, description: true },
   });
   if (!mark) {
     return { ok: false, error: "Unresolved mark not found", status: 404 };
@@ -117,11 +117,11 @@ export async function moveUnresolvedMarkToBranch(
   if (!current.ok) return current;
   const { mark } = current;
 
-  if (mark.branchId === targetBranchId) {
+  if (mark.categoryId === targetBranchId) {
     return { ok: true, mark };
   }
 
-  const targetBranch = await prisma.branch.findFirst({
+  const targetBranch = await prisma.themeCategory.findFirst({
     where: { id: targetBranchId, userId },
     select: { id: true, limbId: true },
   });
@@ -138,15 +138,15 @@ export async function moveUnresolvedMarkToBranch(
     moved = await tx.mark.update({
       where: { id: mark.id },
       data: {
-        branchId: targetBranch.id,
+        categoryId: targetBranch.id,
         limbId: targetBranch.limbId,
         sequencePosition: seqRes.sequencePosition,
       },
-      select: { id: true, branchId: true, limbId: true, title: true, description: true },
+      select: { id: true, categoryId: true, limbId: true, title: true, description: true },
     });
   });
 
-  return { ok: true, mark: moved ?? { ...mark, branchId: targetBranch.id, limbId: targetBranch.limbId } };
+  return { ok: true, mark: moved ?? { ...mark, categoryId: targetBranch.id, limbId: targetBranch.limbId } };
 }
 
 export async function resolveAmbiguousMark(
@@ -184,14 +184,14 @@ export async function resolveAmbiguousMark(
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
-    const nodes = await loadBranchSequencedNodes(tx, targetBranchId ?? mark.branchId);
+    const nodes = await loadBranchSequencedNodes(tx, targetBranchId ?? mark.categoryId);
     const seqRes = resolveSequenceAnchor(nodes, appendAnchor);
     await applySequenceResolution(tx, seqRes);
 
     await tx.goal.create({
       data: {
         userId,
-        branchId: mark.branchId,
+        categoryId: mark.categoryId,
         limbId: mark.limbId,
         title: mark.title,
         description: markDescription,
@@ -199,7 +199,7 @@ export async function resolveAmbiguousMark(
         shortLabel,
         lifeArea,
         goalType: "project",
-        bloomStatus: "ACTIVE",
+        status: "ACTIVE",
         year: defaultYear,
         month: defaultMonth,
         future: false,

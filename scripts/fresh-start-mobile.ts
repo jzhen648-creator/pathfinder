@@ -83,8 +83,8 @@ async function wipeUserContent(userId: string, dryRun: boolean): Promise<void> {
   await prisma.userManualProfile.deleteMany({ where: { userId } });
   await prisma.trunkEntry.deleteMany({ where: { userId } });
   await prisma.trunkSegment.deleteMany({ where: { userId } });
-  await prisma.branch.deleteMany({ where: { userId, isSystemHub: false } });
-  await prisma.branch.updateMany({
+  await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.updateMany({
     where: { userId, isSystemHub: true },
     data: { isActive: false },
   });
@@ -190,7 +190,7 @@ async function main() {
   const [goals, marks, branches, profile] = await Promise.all([
     prisma.goal.count({ where: { userId: keepUser.id } }),
     prisma.mark.count({ where: { userId: keepUser.id } }),
-    prisma.branch.count({ where: { userId: keepUser.id } }),
+    prisma.themeCategory.count({ where: { userId: keepUser.id } }),
     prisma.userManualProfile.count({ where: { userId: keepUser.id } }),
   ]);
 

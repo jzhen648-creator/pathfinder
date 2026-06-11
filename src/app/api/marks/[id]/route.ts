@@ -13,7 +13,7 @@ type RouteProps = {
 };
 
 const updateMarkSchema = z.object({
-  branchId: z.string().min(1).optional(),
+  categoryId: z.string().min(1).optional(),
   limbId: z.string().min(1).optional(),
   title: z.string().min(1).max(200).optional(),
   label: z.string().min(1).max(200).optional(),
@@ -73,10 +73,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const input = parsed.data;
-  const targetBranchId = input.branchId ?? existing.branchId;
+  const targetBranchId = input.categoryId ?? existing.categoryId;
   const targetLimbId = input.limbId ?? existing.limbId;
-  if (targetBranchId !== existing.branchId || targetLimbId !== existing.limbId) {
-    const branch = await prisma.branch.findFirst({
+  if (targetBranchId !== existing.categoryId || targetLimbId !== existing.limbId) {
+    const branch = await prisma.themeCategory.findFirst({
       where: { id: targetBranchId, userId },
       select: { id: true, limbId: true },
     });
@@ -99,7 +99,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       await tx.mark.update({
         where: { id },
         data: {
-          branchId: targetBranchId,
+          categoryId: targetBranchId,
           limbId: targetLimbId,
           title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
           description: input.description,
@@ -125,7 +125,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   const mark = await prisma.mark.update({
     where: { id },
     data: {
-      branchId: targetBranchId,
+      categoryId: targetBranchId,
       limbId: targetLimbId,
       title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
       description: input.description,

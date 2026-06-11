@@ -282,7 +282,7 @@ export function dropTargetToDraftOp(
 
       goalTitle,
 
-      body: { op: "moveToHub", branchId: target.branchId },
+      body: { op: "moveToHub", categoryId: target.branchId },
 
       summaryLine: `Move “${goalTitle}” to ${hubLabel}`,
 
@@ -308,7 +308,7 @@ export function dropTargetToDraftOp(
 
         op: "moveToHub",
 
-        branchId: target.branchId,
+        categoryId: target.branchId,
 
         sequenceAnchor: anchor,
 

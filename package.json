@@ -29,6 +29,7 @@
     "backfill:tree-milestones": "npx tsx scripts/backfill-tree-milestones-to-relational.ts",
     "backfill:goal-bloom": "npx tsx scripts/backfill-goal-bloom.ts",
     "backfill:retire-practice": "npx tsx scripts/backfill-retire-practice-goal-type.ts",
+    "backfill:retire-identity": "npx tsx scripts/backfill-retire-identity-goal-type.ts",
     "backfill:flatten-goal-lineage": "npx tsx scripts/backfill-flatten-goal-lineage.ts",
     "check:prod-data-hygiene": "npx tsx scripts/check-prod-data-hygiene.ts",
     "backfill:hub-taxonomy": "npx tsx scripts/backfill-hub-taxonomy.ts",

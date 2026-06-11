@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { branchId } = await params;
 
-  const branch = await prisma.branch.findFirst({
+  const branch = await prisma.themeCategory.findFirst({
     where: { id: branchId, userId },
     select: { id: true },
   });
@@ -55,11 +55,11 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   /** Validate that every id exists on this branch + isn't an evolution child. */
   const [goals, marks] = await Promise.all([
     prisma.goal.findMany({
-      where: { branchId, parentGoalId: null, archived: false },
+      where: { categoryId: branchId, parentGoalId: null, archived: false },
       select: { id: true },
     }),
     prisma.mark.findMany({
-      where: { branchId, archived: false },
+      where: { categoryId: branchId, archived: false },
       select: { id: true },
     }),
   ]);

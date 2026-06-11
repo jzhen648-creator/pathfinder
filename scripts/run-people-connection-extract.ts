@@ -61,7 +61,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function loadHubContext(userId: string, hubSlug: string) {
-  const branches = await prisma.branch.findMany({
+  const branches = await prisma.themeCategory.findMany({
     where: { userId, parentBranchId: null, limbId: "people" },
     select: { id: true, limbId: true, label: true, name: true },
   });
@@ -75,7 +75,7 @@ async function loadHubContext(userId: string, hubSlug: string) {
     prisma.goal.findMany({
       where: {
         userId,
-        branchId: match.id,
+        categoryId: match.id,
         archived: false,
         goalType: { notIn: ["moment", "event"] },
       },
@@ -83,7 +83,7 @@ async function loadHubContext(userId: string, hubSlug: string) {
         id: true,
         title: true,
         goalType: true,
-        bloomStatus: true,
+        status: true,
         parentGoalId: true,
       },
       orderBy: { createdAt: "asc" },
@@ -91,7 +91,7 @@ async function loadHubContext(userId: string, hubSlug: string) {
     prisma.goal.findMany({
       where: {
         userId,
-        branchId: match.id,
+        categoryId: match.id,
         archived: true,
         goalType: { notIn: ["moment", "event"] },
       },
@@ -99,17 +99,17 @@ async function loadHubContext(userId: string, hubSlug: string) {
       orderBy: { updatedAt: "desc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: match.id, archived: false },
+      where: { userId, categoryId: match.id, archived: false },
       select: { title: true, date: true },
       orderBy: { date: "asc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: match.id, archived: true },
+      where: { userId, categoryId: match.id, archived: true },
       select: { title: true, date: true },
       orderBy: { date: "desc" },
     }),
     prisma.mark.findMany({
-      where: { userId, branchId: match.id, archived: false, kind: "stream" },
+      where: { userId, categoryId: match.id, archived: false, kind: "stream" },
       select: { title: true },
       orderBy: { createdAt: "desc" },
       take: 3,
@@ -117,14 +117,14 @@ async function loadHubContext(userId: string, hubSlug: string) {
   ]);
 
   return buildStreamHubContextInput({
-    branchId: match.id,
+    categoryId: match.id,
     limbId: match.limbId,
     hubLabel: match.label ?? match.name ?? hubSlug,
     existingPursuits: goals.map((g) => ({
       goalId: g.id,
       title: g.title,
       goalType: g.goalType,
-      bloomStatus: g.bloomStatus,
+      status: g.status,
       parentGoalId: g.parentGoalId ?? null,
     })),
     existingMarks: marks.map((m) => ({
@@ -193,7 +193,7 @@ async function main() {
           userContext,
           mapContext: await formatMapContext(user.id, {
             themeId: "people",
-            hubId: hubContext.branchId,
+            hubId: hubContext.categoryId,
           }),
         });
         printExtraction(scenario.id, result);

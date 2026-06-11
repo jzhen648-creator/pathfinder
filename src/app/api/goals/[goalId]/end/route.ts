@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: RouteProps) {
   await prisma.goal.update({
     where: { id: goalId },
     data: {
-      bloomStatus: "PAUSED",
+      status: "PAUSED",
       endedAt: new Date(),
       endReason: parsed.data.endReason?.trim() || null,
     },
