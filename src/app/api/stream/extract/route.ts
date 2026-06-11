@@ -183,7 +183,11 @@ export async function POST(request: Request) {
           formatUserContext(userId),
           formatMapContext(userId),
         ]);
-        const result = await runStreamGlobalExtract(input, { userContext, mapContext });
+        const result = await runStreamGlobalExtract(input, {
+          userContext,
+          mapContext,
+          queueKey: userId,
+        });
         return NextResponse.json(
           mirrorStreamExtractResponse({ ...result, committedAmbiguousCount: 0 }),
         );
