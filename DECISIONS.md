@@ -49,7 +49,7 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Tracks/hubs stay in DB** (`Branch`, `branchId` on `Goal`/`Mark`, taxonomy sync) but **never appear in mobile UI** — no track picker, no track section headers, no track subtitles on map labels.
 
-**Silent assignment:** `pathfinder-mobile/lib/map/default-branch.ts` → `defaultBranchIdForTheme(branches, themeId)` picks the canonical first taxonomy slot per theme (Income, Career, Purpose & Values, Family, Movement, Hobbies for pleasures). Used by add pursuit, add mark, and Stream creates.
+**Silent assignment:** `defaultCategoryIdForTheme()` in `pathfinder-mobile/lib/map/default-category.ts` (was `default-branch.ts`) picks the canonical first taxonomy slot per theme (Income, Career, Purpose & Values, Family, Movement, Hobbies for pleasures). Used by add pursuit, add mark, and Stream creates.
 
 **UI changes:** `AddPursuitFlowSheet` is theme → form only; `ThemeDetailPanel` shows flat Pursuits + Life facts & events; pursuit labels have no track subtitle.
 

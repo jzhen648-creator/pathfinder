@@ -15,7 +15,7 @@ See also [../../START-HERE.md](../../START-HERE.md), [../../.cursor/rules/pathfi
 | **View (node scope)** | Insights sparkle | Regenerated; not editable |
 | **Input verb** | **+** | Add pursuit only |
 
-**Hidden from mobile UI:** tracks/hubs (`Branch`, `branchId`) — auto-assigned via `default-branch.ts`. Six themes including **Play & Leisure** (taxonomy v8).
+**Hidden from mobile UI:** tracks/hubs (`Branch`, `branchId` / `categoryId`) — auto-assigned via `default-category.ts`; mobile fetches `GET /api/map-data`. Six themes including **Play & Leisure** (taxonomy v8).
 
 **Retired:** Profile tab, UserMemory blob, Review tab, Now tab, map-wide Stream sheet, track pickers.
 
@@ -38,7 +38,7 @@ See also [../../START-HERE.md](../../START-HERE.md), [../../.cursor/rules/pathfi
 | Data | Where |
 |------|--------|
 | Theme labels / subtitles | `src/lib/life-areas.ts` + `pathfinder-mobile/theme/tokens.ts` |
-| Hub taxonomy (AI + silent assign) | `src/lib/taxonomy.ts`, hub sync, `default-branch.ts` |
+| Hub taxonomy (AI + silent assign) | `src/lib/taxonomy.ts`, hub sync; mobile: `default-category.ts` |
 | Product vocabulary | `GLOSSARY.md`, `ONTOLOGY.md`, `pathfinder-mobile/TERMINOLOGY.md` |
 
 ## Backend touch points
