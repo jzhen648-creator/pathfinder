@@ -4,6 +4,12 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-11 — Work category Job rename + category UI lock
+
+**Taxonomy:** `Career & role` → **Job** under Work & Career; `TAXONOMY_VERSION` → `2026-06-11-v10-work-job-category`. Legacy aliases `career`, `career & role` → slug `job`. Prod sync via `hubTaxonomyVersion` on login.
+
+**UI:** Mobile shows **category** (not section) for taxonomy slots — theme detail group headers, pursuit eyebrow, Build here picker, long-press menu row. Source of truth: `pathfinder-mobile/TERMINOLOGY.md`.
+
 ## 2026-06-11 — Taxonomy Phase 2 slice 1 (aliases, no migration)
 
 **API:** `GET /api/branches` returns `categories[]` (duplicate of `branches[]`). `GET /api/map-data` aliases the same handler.
