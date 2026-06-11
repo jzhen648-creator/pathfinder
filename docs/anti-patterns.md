@@ -59,7 +59,7 @@ Patterns the architecture **appears to resist**, plus **regression risks** for h
 
 ## Architectural drift vectors
 
-1. **Docs vs code bloom vocabulary** — GLOSSARY/BRIEF still say BUD/GROWING; DB uses ACTIVE/ON_HOLD/COMPLETE. AI may “fix” toward wrong enum.
+1. **Docs vs code bloom vocabulary** — keep GLOSSARY/ONTOLOGY aligned with `ACTIVE`/`PAUSED`/`COMPLETE`; legacy `ON_HOLD` normalized at read only.
 2. **`thread*` in seeds/geometry** — Easy to copy old names into new features.
 3. **Dual layout maintenance** — Fixes applied only to domain-cluster or only to longitudinal path.
 4. **Stream prompt drift** — Hub routing notes out of sync with `hub-catalog.ts` / taxonomy version.

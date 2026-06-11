@@ -116,7 +116,7 @@ export async function POST(request: Request, props: RouteProps) {
     "Order titles chronologically as a story arc from earliest to final.",
     "Title length: 3–8 words.",
     "If pursuit context (description) names specific facts, reflect THOSE in milestones — not generic steps.",
-    "If status is ON_HOLD or PAUSED: include reassess/resume waypoints where appropriate.",
+    "If status is PAUSED: include reassess/resume waypoints where appropriate.",
     "If status is MAINTAINING: focus on sustaining routines, not reaching a final endpoint.",
   ].join("\n");
 

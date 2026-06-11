@@ -33,7 +33,7 @@ function milestonePayloadSummary(
 /**
  * Recomputes and persists goal bloom lifecycle (**ACTIVE** / **COMPLETE**).
  * Does not use continuation topology (`forkedGoals`).
- * Does not change ON_HOLD or MAINTAINING goals (user-set; never auto-computed).
+ * Does not change PAUSED, ABANDONED, or MAINTAINING goals (user-set; never auto-computed).
  *
  * Lifecycle milestone semantics are delegated to {@link computeGoalLifecycleBloom} →
  * {@link milestoneDoneForSemantics} (explicit `completedAt` primary; subtask rollup only when subtasks exist).

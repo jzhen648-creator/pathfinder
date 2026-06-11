@@ -77,7 +77,7 @@ Prefer **small pure modules** over framework indirection. Tree code is intention
 | Tension | State |
 |---------|--------|
 | Domain-cluster vs longitudinal layout | APIs + `sequencedNodes` live; visual default still domain-cluster (`BRANCH_LONGITUDINAL_ALL: false`) |
-| Docs say BUD/GROWING/BLOOMED | DB enum is `ACTIVE` / `ON_HOLD` / `COMPLETE`; visuals use milestone-derived `visualPhase` |
+| Docs say BUD/GROWING/BLOOMED | DB enum is `ACTIVE` / `PAUSED` / `COMPLETE` / `MAINTAINING` / `ABANDONED`; visuals use milestone-derived `visualPhase` |
 | `thread*` in code vs “hub” in product | Geometry/seeds still use thread aliases; forbidden for new domain IDs |
 | `GET /api/branches` mutates taxonomy | **Resolved (May 2026):** GET is read-only; versioned sync on explicit write paths |
 | `Goal.goalType: moment\|event` | Transitional rows in `tree-data`; retirement not done |

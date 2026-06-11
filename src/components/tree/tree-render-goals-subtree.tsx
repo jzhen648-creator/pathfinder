@@ -165,7 +165,7 @@ export function renderGoalsSubtree(
   const hasMilestones = milestoneVisual.visibleOrbitalCount > 0;
   const progress01 = milestoneVisual.progress01;
   const milestoneProgressDecor =
-    !hasMilestones || milestoneVisual.visualPhase === "COMPLETE" || milestoneVisual.visualPhase === "ON_HOLD" ? null : (
+    !hasMilestones || milestoneVisual.visualPhase === "COMPLETE" || milestoneVisual.visualPhase === "PAUSED" ? null : (
       <circle
         cx={x}
         cy={y}

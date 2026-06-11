@@ -1,5 +1,5 @@
 /**
- * Re-runs bloom lifecycle for every non-ON_HOLD goal → **ACTIVE** / **COMPLETE**.
+ * Re-runs bloom lifecycle for every non-paused goal → **ACTIVE** / **COMPLETE**.
  * Safe to run multiple times. Repairs stale **ACTIVE** rows when milestones imply completion.
  *
  * Run from repo root: npm run backfill:goal-bloom
@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const goals = await prisma.goal.findMany({
-    where: { bloomStatus: { not: "ON_HOLD" } },
+    where: { bloomStatus: { notIn: ["PAUSED", "ABANDONED", "MAINTAINING"] } },
     select: { id: true },
   });
   let ok = 0;
@@ -23,7 +23,7 @@ async function main() {
       console.error(`recomputeGoalBloomStatus failed for ${g.id}`, e);
     }
   }
-  console.log(`Backfill complete: recomputed ${ok} / ${goals.length} goals (excluding ON_HOLD).`);
+  console.log(`Backfill complete: recomputed ${ok} / ${goals.length} goals (excluding paused/maintaining/abandoned).`);
 }
 
 main()

@@ -197,7 +197,7 @@ const GOALS: GoalSeed[] = [
     description:
       "Hold the private cost of public leadership with honesty while rebuilding presence across children, grandchildren, and kin.",
     goalType: "relationship",
-    bloomStatus: "ON_HOLD",
+    bloomStatus: "PAUSED",
     year: 1998,
     shortLabel: "Family bonds",
     milestones: [

@@ -12,7 +12,7 @@ import type { GoalBloomStatus, TreeOrbitalMilestone } from "./tree-types";
 /** Orbital ring radius hint used by limb backdrop hull bounds. */
 export const TREE_GOAL_ORBITAL_CRISP_RADIUS_PX = 18;
 
-export type GoalNodeVisualPhase = "ON_HOLD" | "COMPLETE" | "ACTIVE";
+export type GoalNodeVisualPhase = "PAUSED" | "COMPLETE" | "ACTIVE";
 
 export type GoalNodeRenderIntensities = {
   /** Tiny base boost to core glyph alpha (kept for compatibility with goal-visual sizing logic). */
@@ -56,7 +56,7 @@ export function deriveGoalNodeRenderState(args: {
 
   let visualPhase: GoalNodeVisualPhase;
   if (args.bloomStatus === "PAUSED" || args.bloomStatus === "ABANDONED") {
-    visualPhase = "ON_HOLD";
+    visualPhase = "PAUSED";
   } else if (args.bloomStatus === "COMPLETE") {
     visualPhase = "COMPLETE";
   } else if (visibleCount > 0 && completedCount === visibleCount) {
@@ -72,7 +72,7 @@ export function deriveGoalNodeRenderState(args: {
 
   /** Phase multiplier on top of progress01 — keeps zero-glow-at-0% with milestones, lifts bloomed. */
   const phaseGlowMul =
-    visualPhase === "ON_HOLD"
+    visualPhase === "PAUSED"
       ? 0.38
       : visualPhase === "ACTIVE"
         ? visibleCount > 0 && completedCount > 0 && completedCount < visibleCount
@@ -99,7 +99,7 @@ export function deriveGoalNodeRenderState(args: {
 
   /** Modest base lift to keep the core glyph crisp across phases without re-introducing chromatic stacks. */
   let coreGlyphOpacityBoost = 0;
-  if (visualPhase !== "ON_HOLD") {
+  if (visualPhase !== "PAUSED") {
     if (visualPhase === "COMPLETE") {
       coreGlyphOpacityBoost = 0.05 + progress01 * 0.04;
     } else if (visualPhase === "ACTIVE") {

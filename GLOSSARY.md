@@ -62,16 +62,17 @@ We keep the column name **`limbId`** for migrations and existing data. In new do
 
 ## Status (bloom)
 
-For **`Goal`** lifecycle, canonical states are **`BUD`**, **`GROWING`**, **`BLOOMED`**, **`ENDED`**.
+Persisted **`Goal.bloomStatus`** values: **`ACTIVE`**, **`PAUSED`**, **`COMPLETE`**, **`MAINTAINING`**, **`ABANDONED`**.
 
-- **`BUD`** — no milestones yet (with exceptions for `moment` / `event` without milestones).
-- **`GROWING`** — milestones exist; goal not yet achieved.
-- **`BLOOMED`** — goal achieved. Remains **`BLOOMED`** even when the goal has **continuation** successors.
-- **`ENDED`** — abandoned / stopped via the end flow.
+- **`ACTIVE`** — pursuit in progress (milestones may or may not exist).
+- **`PAUSED`** — deliberately shelved; user or Stream set; not auto-recomputed.
+- **`COMPLETE`** — achieved / finished.
+- **`MAINTAINING`** — ongoing practice (legacy `practice` goalType → project + MAINTAINING).
+- **`ABANDONED`** — off map; visible on Timeline only.
 
-**`BRANCHED`** — **deprecated on goals**: previously tied to “has continuation goals”; do not use for goal lifecycle going forward. Enum value remains for SQLite/Prisma compatibility until a future migration. Timeline **`MomentNode`** logic may still produce **`BRANCHED`** for turning-point visuals — separate from goal bloom semantics.
+Legacy **`ON_HOLD`**, **`BUD`**, **`GROWING`**, **`BLOOMED`**, **`ENDED`** are normalized at read via `normalizeLegacyBloomStatus`.
 
-See [`ONTOLOGY.md`](./ONTOLOGY.md) and `npm run backfill:goal-bloom` for normalizing legacy rows.
+See [`ONTOLOGY.md`](./ONTOLOGY.md), `npm run backfill:goal-bloom`, and `npm run backfill:flatten-goal-lineage`.
 
 ## Deprecated aliases (prefer the primary name)
 

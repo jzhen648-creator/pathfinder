@@ -785,7 +785,7 @@ const richDogfoodCases: DogfoodCase[] = [
       maxStructured: 8,
       kinds: ["mark", "pursuit"],
       hubSlugs: ["career", "skills"],
-      bloomStatus: "ON_HOLD",
+      bloomStatus: "PAUSED",
       continuation: true,
     },
   ),
@@ -800,7 +800,7 @@ const richDogfoodCases: DogfoodCase[] = [
       maxStructured: 8,
       kinds: ["mark", "pursuit"],
       hubSlugs: ["assets", "safety net"],
-      bloomStatus: "ON_HOLD",
+      bloomStatus: "PAUSED",
       continuation: true,
     },
   ),
@@ -1663,7 +1663,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — mortgage broking to CFP",
       "work",
       "Actually I've been thinking and I don't think mortgage broking is right for me anymore. Since 14 July 2026 I'm more interested in financial planning, maybe the CFP qualification instead, so the mortgage broker pursuit should probably go on hold rather than duplicate.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["career", "skills"], continuation: true, bloomStatus: "ON_HOLD" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["career", "skills"], continuation: true, bloomStatus: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1671,7 +1671,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — London flat deposit to flexibility",
       "finance",
       "I might pause the London flat deposit idea, honestly. With my girlfriend, the visa and possible international roles, locking everything into a Zone 2 flat by 2029 feels less right. I'd rather keep the ISA and emergency fund flexible for now.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["assets", "safety net"], bloomStatus: "ON_HOLD" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlugs: ["assets", "safety net"], bloomStatus: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1679,7 +1679,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — 10k run to strength",
       "health",
       "I'm putting the 10k idea on hold after my knee twinged on 12 July 2026. I still want to be fit, but the next thing should be strength training twice a week and sorting my back properly, not forcing another running target.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlug: "movement", bloomStatus: "ON_HOLD" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlug: "movement", bloomStatus: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1687,7 +1687,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — weekly YouTube to seasons",
       "work",
       "The weekly YouTube schedule is too much with CEMAP and visa stuff. I don't want to quit the channel, but from August 2026 I want to pause weekly uploads and do eight-video seasons instead.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlug: "builds & launches", bloomStatus: "ON_HOLD" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlug: "builds & launches", bloomStatus: "PAUSED" },
     ),
     themeCase(
       "contradictory-pivots",
@@ -1695,7 +1695,7 @@ function _buildContradictoryPivotCases(): DogfoodCase[] {
       "Pivot — spousal visa timing",
       "people",
       "We've decided not to rush the spousal visa for February 2027. After her July visit, it feels wiser to pause that timeline and plan another three-month visit first, probably April 2027, before we commit to marriage paperwork.",
-      { minStructured: 2, kinds: ["pursuit"], hubSlug: "romance", bloomStatus: "ON_HOLD" },
+      { minStructured: 2, kinds: ["pursuit"], hubSlug: "romance", bloomStatus: "PAUSED" },
     ),
   ];
 }
@@ -1816,7 +1816,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
       input: `Pausing "${onHoldCandidate.title}" for now — taking a break.`,
       expect: {
         existingGoalId: onHoldCandidate.id,
-        bloomStatus: "ON_HOLD",
+        bloomStatus: "PAUSED",
       },
     });
   }

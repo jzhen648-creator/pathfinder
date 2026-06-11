@@ -54,7 +54,7 @@ Bloom describes **maturity of one goal**, not graph shape.
 | **BLOOMED** | Goal achieved. |
 | **ENDED** | User abandoned or stopped (explicit flow). |
 
-**Tree panel status buttons** (`ACTIVE` / `ON_HOLD` / `COMPLETE` on `Goal.bloomStatus`) are the user-facing pursuit controls on the map; Stream may set them when the user reports pause/finish/resume. Distinct from milestone **GROWING** visuals on the hex.
+**Tree panel status buttons** (`ACTIVE` / `PAUSED` / `COMPLETE` on `Goal.bloomStatus`) are the user-facing pursuit controls on the map; Stream may set them when the user reports pause/finish/resume. Distinct from milestone **GROWING** visuals on the hex.
 
 **`BRANCHED`** on `Goal` rows is **deprecated**: it historically reflected “has evolution successors” and mixed topology with lifecycle. **Do not assign `BRANCHED` from recomputation.** Prefer `npm run backfill:goal-bloom` to normalize legacy rows.
 

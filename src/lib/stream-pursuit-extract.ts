@@ -221,7 +221,7 @@ export async function runPursuitStreamExtract(
     "- Add milestones only for this pursuit (pursuitExistingGoalId = target goalId).",
     "- Optionally add one hub mark for a distinct timeline moment.",
     "- Do NOT create new pursuits. Do NOT delete or archive anything.",
-    "- Only set bloomStatus COMPLETE or ON_HOLD if the user clearly finished or paused this pursuit.",
+    "- Only set bloomStatus COMPLETE or PAUSED if the user clearly finished or paused this pursuit.",
     "",
     "User input:",
     input,

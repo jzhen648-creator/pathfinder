@@ -35,7 +35,7 @@ export function goalAchievedForBloomLifecycle(
 
 export type GoalLifecycleBloom = "ACTIVE" | "COMPLETE";
 
-/** Canonical lifecycle states for an active (non-ON_HOLD) goal. */
+/** Canonical lifecycle states for an active (non-paused) goal. */
 export function computeGoalLifecycleBloom(
   goal: { goalType: string; future: boolean; year: number | null },
   milestones: MilestoneLifecycleInput[],

@@ -12,7 +12,7 @@ export type MomentNode = {
   description: string | null;
   year: number | null;
   significance: number;
-  bloomStatus: "ACTIVE" | "COMPLETE" | "ON_HOLD";
+  bloomStatus: "ACTIVE" | "COMPLETE" | "PAUSED";
   isTurningPoint: boolean;
   future: boolean;
   value: number | null;

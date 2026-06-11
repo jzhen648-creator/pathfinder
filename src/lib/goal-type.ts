@@ -32,8 +32,9 @@ export function normalizeIngestedPursuitType(input: {
   }
   if (input.goalType === "practice") {
     const status = input.bloomStatus ?? "ACTIVE";
-    if (status === "COMPLETE" || status === "ON_HOLD") {
-      return { goalType: "project", bloomStatus: status };
+    if (status === "COMPLETE" || status === "PAUSED" || status === "ON_HOLD") {
+      const bloomStatus = status === "ON_HOLD" ? "PAUSED" : status;
+      return { goalType: "project", bloomStatus };
     }
     return { goalType: "project", bloomStatus: "MAINTAINING" };
   }

@@ -91,7 +91,11 @@ export function nextStepsGoalFromApi(
   api: ApiGoalProgressShape,
   lastMarkSummary: NextStepsGoalDTO["lastMarkSummary"],
 ): NextStepsGoalDTO | null {
-  if (api.bloomStatus === "COMPLETE" || api.bloomStatus === "ON_HOLD") {
+  if (
+    api.bloomStatus === "COMPLETE" ||
+    api.bloomStatus === "PAUSED" ||
+    api.bloomStatus === "ON_HOLD"
+  ) {
     return null;
   }
   const limbId = goalLifeAreaToLimbId(api.lifeArea);
@@ -144,7 +148,13 @@ export function buildNextStepsGoals(goals: GoalRow[], marks: MarkRow[]): NextSte
     }
   }
 
-  const active = goals.filter((g) => g.bloomStatus !== "COMPLETE" && g.bloomStatus !== "ON_HOLD");
+  const active = goals.filter(
+    (g) =>
+      g.bloomStatus !== "COMPLETE" &&
+      g.bloomStatus !== "PAUSED" &&
+      g.bloomStatus !== "ON_HOLD" &&
+      g.bloomStatus !== "ABANDONED",
+  );
   const ordered = [...active].sort((a, b) => {
     const at = a.deadline?.getTime() ?? Number.MAX_SAFE_INTEGER;
     const bt = b.deadline?.getTime() ?? Number.MAX_SAFE_INTEGER;

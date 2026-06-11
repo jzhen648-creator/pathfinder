@@ -1,5 +1,5 @@
 /**
- * Retire goalType `practice` → `project` with bloomStatus MAINTAINING (unless COMPLETE / ON_HOLD).
+ * Retire goalType `practice` → `project` with bloomStatus MAINTAINING (unless COMPLETE / PAUSED).
  *
  * Run from pathfinder/: npm run backfill:retire-practice
  */
@@ -16,7 +16,7 @@ async function main() {
   let updated = 0;
   for (const row of rows) {
     const bloomStatus =
-      row.bloomStatus === "COMPLETE" || row.bloomStatus === "ON_HOLD"
+      row.bloomStatus === "COMPLETE" || row.bloomStatus === "PAUSED"
         ? row.bloomStatus
         : "MAINTAINING";
     await prisma.goal.update({

@@ -23,7 +23,7 @@ const CONTEXT_QUESTIONS_SYSTEM = [
   "- Each question must reference something inferable from the context OR name the obvious unknown for THIS pursuit.",
   "- Never ask what context already answers (e.g. don't ask if it's active when status is ACTIVE).",
   "- Never use field-label phrasing (Timeline:, Status:, bullet questionnaires).",
-  "- If status is ON_HOLD or PAUSED: softer reopening tone (e.g. what made you pause, still planning to pick it back up).",
+  "- If status is PAUSED: softer reopening tone (e.g. what made you pause, still planning to pick it back up).",
   "- No markdown, no commentary outside JSON.",
 ].join("\n");
 

@@ -113,7 +113,7 @@ The extraction prompt must:
 6. Use canonical hub slugs from `hub-catalog.ts`
 7. Not invent milestone structures unless the user described steps (user-named methods/treatments → milestones; do not fabricate phases)
 8. Marks: title, date, notes only — hub-scoped, never `pursuitRef`
-9. Status-only dumps: map to `existingGoalId` + `ACTIVE` / `ON_HOLD` / `COMPLETE` — no duplicate pursuit rows
+9. Status-only dumps: map to `existingGoalId` + `ACTIVE` / `PAUSED` / `COMPLETE` — no duplicate pursuit rows
 10. Pursuit titles: distilled plain language (~3–8 words); procedures and methods → milestones, not packed into the pursuit title
 11. Subset/method overlap on a hub → milestone on existing pursuit, not a duplicate peer pursuit
 

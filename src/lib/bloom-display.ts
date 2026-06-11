@@ -27,7 +27,7 @@ export function badgeBucketFromBloom(status: BloomStatus | string): BloomBadgeBu
   return "active";
 }
 
-/** Map legacy persisted values during transition (pre-migration rows). */
+/** Map legacy persisted values during transition (pre-migration rows and inbound JSON). */
 export function normalizeLegacyBloomStatus(status: string): BloomStatus | null {
   if (status === "ON_HOLD") return "PAUSED";
   if (
