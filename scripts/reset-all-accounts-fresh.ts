@@ -6,7 +6,7 @@
  * Run: npm run reset:all-accounts
  */
 import { PrismaClient } from "@prisma/client";
-import { syncHubTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
+import { syncTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
 import { seedAllTreeTestProfiles } from "../src/lib/tree-test-profiles-seed";
 
 const DEMO_TREE_EMAILS = new Set([
@@ -19,9 +19,9 @@ async function wipeUserTreeData(prisma: PrismaClient, userId: string): Promise<v
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
   await prisma.mark.deleteMany({ where: { userId } });
-  await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.deleteMany({ where: { userId, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
-    where: { userId, isSystemHub: true },
+    where: { userId, isSystemCategory: true },
     data: { isActive: false },
   });
   await prisma.trunkEntry.deleteMany({ where: { userId } });
@@ -54,7 +54,7 @@ async function main() {
     console.log("\nApplying fresh hub taxonomy for non-demo accounts…");
     for (const user of users) {
       if (DEMO_TREE_EMAILS.has(user.email)) continue;
-      await syncHubTaxonomyForUser(prisma, user.id);
+      await syncTaxonomyForUser(prisma, user.id);
       console.log(`  hubs   ${user.email}`);
     }
 

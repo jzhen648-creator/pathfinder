@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
 import { hubCountForTheme } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import type { IconSvgProps } from "./icon-svg-props";

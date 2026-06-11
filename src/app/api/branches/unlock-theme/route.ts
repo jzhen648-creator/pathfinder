@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import { unlockThemesForUser } from "@/lib/unlocked-themes";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     );
   }
 
-  await ensureHubTaxonomyCurrent(prisma, userId);
+  await ensureTaxonomyCurrent(prisma, userId);
   const unlockedLimbIds = await unlockThemesForUser(prisma, userId, parsed.data.limbIds);
   return NextResponse.json({ unlockedLimbIds });
 }

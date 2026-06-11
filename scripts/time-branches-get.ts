@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { syncHubTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
+import { syncTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
 
 const prisma = new PrismaClient();
 
@@ -14,7 +14,7 @@ async function main() {
   }
 
   const t0 = Date.now();
-  await syncHubTaxonomyForUser(prisma, user.id);
+  await syncTaxonomyForUser(prisma, user.id);
   console.log("sync ms", Date.now() - t0);
 
   const t1 = Date.now();

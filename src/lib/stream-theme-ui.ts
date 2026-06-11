@@ -1,5 +1,5 @@
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
-import { systemHubKey } from "@/lib/system-hubs";
+import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
+import { systemHubKey } from "@/lib/system-categories";
 import { hubsForTheme, normalizeHubLabelKey } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import type { StreamHubUiContext, StreamThemeUiContext } from "@/types/stream";

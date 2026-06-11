@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { LifeAreaId } from "@/lib/types";
-import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
-import { activateLimbsForUser } from "@/lib/system-hubs";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
+import { activateLimbsForUser } from "@/lib/system-categories";
 
 export type CompleteOnboardingInput = {
   name: string;
@@ -16,7 +16,7 @@ export async function completeOnboardingForUser(
 ): Promise<void> {
   const preferredName = input.name.trim();
 
-  await ensureHubTaxonomyCurrent(prisma, userId);
+  await ensureTaxonomyCurrent(prisma, userId);
   await activateLimbsForUser(prisma, userId, input.activeLimbIds);
 
   const primaryLimbId = input.activeLimbIds[0] ?? null;

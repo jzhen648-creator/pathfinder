@@ -7,7 +7,7 @@ import {
 } from "@/lib/ai/stream-extract-normalize";
 import { truncateStreamNarrative } from "@/lib/ai/stream-extract-narrative";
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
-import { hubPanelCopy, type HubCatalogEntry } from "@/lib/hub-catalog";
+import { hubPanelCopy, type HubCatalogEntry } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { normalizeStreamHubSlug } from "@/lib/resolve-hub-branch";
 import {
@@ -959,7 +959,7 @@ function scoreHubForText(text: string, hub: StreamThemeContextInput["hubs"][numb
   return score;
 }
 
-function fillThemeExtractHubIds(
+function fillThemeExtractCategorySlugs(
   data: StreamExtractResponse,
   theme: StreamThemeContextInput,
 ): StreamExtractResponse {
@@ -997,23 +997,23 @@ function fillThemeExtractHubIds(
   const clientKeyToHub = new Map<string, string>();
   const pursuits = data.pursuits.map((p, i) => {
     let hubId =
-      resolveRawHub(p.hubId) ??
+      resolveRawHub(p.hubId ?? p.categorySlug) ??
       (p.existingGoalId ? goalIdToHub.get(p.existingGoalId) ?? null : null);
     if (!hubId) {
       hubId = inferHub(p.title, p.hubId);
       console.warn(`[runStreamThemeExtract] inferred hubId for pursuits[${i}]: ${hubId}`);
     }
     if (p.clientKey) clientKeyToHub.set(p.clientKey, hubId);
-    return { ...p, hubId };
+    return { ...p, hubId, categorySlug: hubId };
   });
 
   const marks = data.marks.map((m, i) => {
-    let hubId = resolveRawHub(m.hubId);
+    let hubId = resolveRawHub(m.hubId ?? m.categorySlug);
     if (!hubId) {
       hubId = inferHub(m.title, m.hubId);
       console.warn(`[runStreamThemeExtract] inferred hubId for marks[${i}]: ${hubId}`);
     }
-    return { ...m, hubId };
+    return { ...m, hubId, categorySlug: hubId };
   });
 
   const milestones = data.milestones.map((ms, i) => {
@@ -1023,16 +1023,19 @@ function fillThemeExtractHubIds(
     } else {
       hubId = clientKeyToHub.get(ms.pursuitRef.clientKey) ?? null;
     }
-    hubId = hubId ?? resolveRawHub(ms.hubId);
+    hubId = hubId ?? resolveRawHub(ms.hubId ?? ms.categorySlug);
     if (!hubId) {
       hubId = inferHub(ms.title, ms.hubId);
       console.warn(`[runStreamThemeExtract] inferred hubId for milestones[${i}]: ${hubId}`);
     }
-    return { ...ms, hubId };
+    return { ...ms, hubId, categorySlug: hubId };
   });
 
   return { ...data, marks, pursuits, milestones };
 }
+
+/** @deprecated Use {@link fillThemeExtractCategorySlugs}. */
+const fillThemeExtractHubIds = fillThemeExtractCategorySlugs;
 
 export async function runStreamThemeExtract(
   theme: StreamThemeContextInput,
@@ -1059,7 +1062,7 @@ export async function runStreamThemeExtract(
   }
 
   const withKeys = parseStreamExtractResponse(json);
-  return fillThemeExtractHubIds(withKeys, theme);
+  return fillThemeExtractCategorySlugs(withKeys, theme);
 }
 
 export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [

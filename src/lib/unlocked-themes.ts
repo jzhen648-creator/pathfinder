@@ -26,11 +26,11 @@ export function parseUnlockedLimbIds(raw: unknown): LifeAreaId[] {
  */
 export function mergeUnlockedLimbIds(
   stored: readonly LifeAreaId[],
-  branchRows: readonly { limbId: string; parentBranchId?: string | null; isActive?: boolean | null }[],
+  branchRows: readonly { limbId: string; parentCategoryId?: string | null; isActive?: boolean | null }[],
 ): LifeAreaId[] {
   const set = new Set<LifeAreaId>(stored);
   for (const b of branchRows) {
-    if (!b.parentBranchId && b.isActive === true && isLifeAreaId(b.limbId)) {
+    if (!b.parentCategoryId && b.isActive === true && isLifeAreaId(b.limbId)) {
       set.add(b.limbId);
     }
   }

@@ -1,7 +1,7 @@
 import type { LifeAreaId } from "./types";
 
-/** Bump when locked theme/hub names change (sync + docs). */
-export const TAXONOMY_VERSION = "2026-06-11-v10-work-job-category" as const;
+/** Bump when locked theme/category names change (sync + docs). */
+export const TAXONOMY_VERSION = "2026-06-11-v11-category-rename" as const;
 
 export const LIFE_AREA_IDS = [
   "becoming",
@@ -18,8 +18,8 @@ export type HubTemplate = {
   name: string;
 };
 
-/** Locked default root hubs — AI routing categories (not map geometry). */
-export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
+/** Locked default root taxonomy categories — AI routing slots (not map geometry). */
+export const LOCKED_CATEGORY_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "finance", threadType: "Employment income", name: "Employment income" },
   { limbId: "finance", threadType: "Rental & property income", name: "Rental & property income" },
   { limbId: "finance", threadType: "Business & freelance income", name: "Business & freelance income" },
@@ -44,7 +44,10 @@ export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "health", threadType: "Rest & sleep", name: "Rest & sleep" },
 ] as const;
 
-/** @deprecated Prefer {@link hubsForTheme}. Maximum hubs on any single theme. */
+/** @deprecated Use {@link LOCKED_CATEGORY_TEMPLATES}. */
+export const LOCKED_HUB_TEMPLATES = LOCKED_CATEGORY_TEMPLATES;
+
+/** @deprecated Prefer {@link categoriesForTheme}. Maximum categories on any single theme. */
 export const HUBS_PER_THEME = 6;
 
 /** Legacy hub labels → normalized key for matching template slots (lowercase). */
@@ -137,27 +140,43 @@ export const LEGACY_HUB_MIGRATIONS: Record<string, { limbId: LifeAreaId; label: 
   appearance: { limbId: "health", label: "Body & grooming" },
 };
 
-export function normalizeHubLabelKey(label: string): string {
+export function categoriesForTheme(themeId: LifeAreaId): readonly HubTemplate[] {
+  return LOCKED_CATEGORY_TEMPLATES.filter((t) => t.limbId === themeId);
+}
+
+/** @deprecated Use {@link categoriesForTheme}. */
+export const hubsForTheme = categoriesForTheme;
+
+export function categoryCountForTheme(themeId: LifeAreaId): number {
+  return categoriesForTheme(themeId).length;
+}
+
+/** @deprecated Use {@link categoryCountForTheme}. */
+export const hubCountForTheme = categoryCountForTheme;
+
+export function validCategoryLabelKeysForTheme(themeId: LifeAreaId): Set<string> {
+  return new Set(categoriesForTheme(themeId).map((t) => normalizeCategoryLabelKey(t.threadType)));
+}
+
+/** @deprecated Use {@link validCategoryLabelKeysForTheme}. */
+export const validHubLabelKeysForTheme = validCategoryLabelKeysForTheme;
+
+export function normalizeCategoryLabelKey(label: string): string {
   const base = label.trim().toLowerCase();
   return HUB_LABEL_ALIASES[base] ?? base;
 }
 
-/** @alias normalizeHubLabelKey */
-export function hubMatchKey(label: string): string {
-  return normalizeHubLabelKey(label);
+/** @deprecated Use {@link normalizeCategoryLabelKey}. */
+export function normalizeHubLabelKey(label: string): string {
+  return normalizeCategoryLabelKey(label);
 }
 
-export function hubsForTheme(themeId: LifeAreaId): readonly HubTemplate[] {
-  return LOCKED_HUB_TEMPLATES.filter((t) => t.limbId === themeId);
+export function categorySlugKey(label: string): string {
+  return normalizeCategoryLabelKey(label);
 }
 
-export function hubCountForTheme(themeId: LifeAreaId): number {
-  return hubsForTheme(themeId).length;
-}
-
-export function validHubLabelKeysForTheme(themeId: LifeAreaId): Set<string> {
-  return new Set(hubsForTheme(themeId).map((t) => normalizeHubLabelKey(t.threadType)));
-}
+/** @deprecated Use {@link categorySlugKey}. */
+export const hubMatchKey = categorySlugKey;
 
 export {
   HUB_LUCIDE_ICONS,

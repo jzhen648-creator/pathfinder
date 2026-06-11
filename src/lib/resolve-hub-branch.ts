@@ -1,13 +1,13 @@
 import type { PrismaClient } from "@prisma/client";
 import type { LifeAreaId } from "@/lib/types";
-import { canonicalRootHubRows } from "@/lib/hub-dedupe";
+import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import {
   hubsForTheme,
   normalizeHubLabelKey,
   validHubLabelKeysForTheme,
   LIFE_AREA_IDS,
 } from "@/lib/taxonomy";
-import { systemHubKey } from "@/lib/system-hubs";
+import { systemHubKey } from "@/lib/system-categories";
 
 export type ResolvedHubBranch = {
   categoryId: string;
@@ -52,7 +52,7 @@ export async function resolveBranchForHub(
   if (!template) return null;
 
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, limbId: themeId, parentBranchId: null },
+    where: { userId, limbId: themeId, parentCategoryId: null },
     select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
   });
 
@@ -78,7 +78,7 @@ export async function resolveAllHubBranchesForTheme(
 ): Promise<ResolvedHubBranch[]> {
   const templates = hubsForTheme(themeId);
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, limbId: themeId, parentBranchId: null },
+    where: { userId, limbId: themeId, parentCategoryId: null },
     select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
   });
 
@@ -115,13 +115,13 @@ export async function buildHubBranchResolver(
   userId: string,
 ): Promise<HubBranchResolver> {
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentBranchId: null },
+    where: { userId, parentCategoryId: null },
     select: {
       id: true,
       limbId: true,
       label: true,
       name: true,
-      isSystemHub: true,
+      isSystemCategory: true,
       createdAt: true,
     },
     orderBy: { createdAt: "asc" },

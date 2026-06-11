@@ -65,7 +65,7 @@ export type Branch = {
   unit?: string | null;
   status?: "active" | "paused" | "achieved" | "abandoned";
   order?: number;
-  parentBranchId: string | null;
+  parentCategoryId: string | null;
   turningPointId: string | null;
   mapAngleOffset: number; // 0 for first branch
   // ±25 for splits

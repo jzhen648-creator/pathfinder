@@ -1,4 +1,4 @@
-import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import { getOnboardingProgress } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
 import { normalizeHubLabelKey } from "@/lib/taxonomy";
@@ -20,7 +20,7 @@ export type OnboardingTreePayload = {
 
 /** Server-side onboarding data for the tree page overlay. */
 export async function loadOnboardingTreePayload(userId: string): Promise<OnboardingTreePayload> {
-  await ensureHubTaxonomyCurrent(prisma, userId);
+  await ensureTaxonomyCurrent(prisma, userId);
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -33,7 +33,7 @@ export async function loadOnboardingTreePayload(userId: string): Promise<Onboard
   });
 
   const hubs = await prisma.themeCategory.findMany({
-    where: { userId, parentBranchId: null, isSystemHub: true },
+    where: { userId, parentCategoryId: null, isSystemCategory: true },
     select: {
       id: true,
       limbId: true,
@@ -42,7 +42,7 @@ export async function loadOnboardingTreePayload(userId: string): Promise<Onboard
       order: true,
       createdAt: true,
       isActive: true,
-      parentBranchId: true,
+      parentCategoryId: true,
     },
     orderBy: [{ limbId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
   });

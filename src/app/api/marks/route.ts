@@ -15,7 +15,7 @@ import {
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
-import { activateHubForUser } from "@/lib/system-hubs";
+import { activateHubForUser } from "@/lib/system-categories";
 
 function inferSentiment(input: {
   sentiment?: "positive" | "neutral" | "negative";

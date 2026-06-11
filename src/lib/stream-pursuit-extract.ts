@@ -1,5 +1,5 @@
 import { getLifeArea } from "@/lib/life-areas";
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
 import { prisma } from "@/lib/prisma";
 import {
   buildStreamHubContextInput,

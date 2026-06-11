@@ -23,7 +23,7 @@ type DevPanelProps = {
     limbId: string;
     label?: string | null;
     mapAngleOffset: number;
-    parentBranchId?: string | null;
+    parentCategoryId?: string | null;
   }>;
   selectedNode: Record<string, unknown> | null;
   selectedNodeRaw: Record<string, unknown> | null;

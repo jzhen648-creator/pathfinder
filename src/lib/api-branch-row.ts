@@ -8,10 +8,10 @@ export type ApiBranchRow = {
   goalValue?: number | null;
   currentValue?: number | null;
   unit?: string | null;
-  parentBranchId?: string | null;
+  parentCategoryId?: string | null;
   turningPointId?: string | null;
   order?: number;
   createdAt: string;
   isActive?: boolean;
-  isSystemHub?: boolean;
+  isSystemCategory?: boolean;
 };

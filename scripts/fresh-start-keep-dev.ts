@@ -5,7 +5,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveDevLoginEmail } from "../src/lib/dev-login-credentials";
 import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
-import { ensureSystemHubsForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser } from "../src/lib/system-hubs";
 
 const prisma = new PrismaClient();
 
@@ -13,9 +13,9 @@ async function wipeUserContent(userId: string): Promise<void> {
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
   await prisma.mark.deleteMany({ where: { userId } });
-  await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.deleteMany({ where: { userId, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
-    where: { userId, isSystemHub: true },
+    where: { userId, isSystemCategory: true },
     data: { isActive: false },
   });
   await prisma.trunkEntry.deleteMany({ where: { userId } });
@@ -44,8 +44,8 @@ async function resetDevProfile(userId: string): Promise<void> {
       lifeWheelRatings: Prisma.JsonNull,
       lifeWheelHistory: Prisma.JsonNull,
       lifeWheelAchievementAt: null,
-      hubTaxonomyVersion: null,
-      hubTaxonomySyncedAt: null,
+      taxonomyVersion: null,
+      taxonomySyncedAt: null,
     },
   });
 }
@@ -73,7 +73,7 @@ async function main() {
 
   await wipeUserContent(keepUser.id);
   await resetDevProfile(keepUser.id);
-  const hubsCreated = await ensureSystemHubsForUser(prisma, keepUser.id);
+  const hubsCreated = await ensureSystemCategoriesForUser(prisma, keepUser.id);
 
   const counts = await Promise.all([
     prisma.themeCategory.count({ where: { userId: keepUser.id } }),

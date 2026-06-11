@@ -2,7 +2,7 @@ import type { PrismaClient, StreamInputMode } from "@prisma/client";
 
 import { formatPreviousStreamSessionDumps } from "@/lib/ai/stream-extract";
 
-import { hubPanelCopy, parseHubRedirectTarget } from "@/lib/hub-catalog";
+import { hubPanelCopy, parseHubRedirectTarget } from "@/lib/category-catalog";
 
 import { getLifeArea } from "@/lib/life-areas";
 

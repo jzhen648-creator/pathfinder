@@ -1,9 +1,9 @@
 /**
- * Minimal idempotency check: ensureSystemHubsForUser twice => 17 system hubs, no duplicates.
+ * Minimal idempotency check: ensureSystemCategoriesForUser twice => 17 system hubs, no duplicates.
  * Run: npx tsx scripts/test-system-hubs-idempotent.ts
  */
 import { PrismaClient } from "@prisma/client";
-import { ensureSystemHubsForUser, listSystemHubKeysForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser, listSystemHubKeysForUser } from "../src/lib/system-hubs";
 import { LOCKED_HUB_TEMPLATES } from "../src/lib/taxonomy";
 
 const prisma = new PrismaClient();
@@ -16,11 +16,11 @@ async function main() {
     return;
   }
 
-  const first = await ensureSystemHubsForUser(prisma, user.id);
-  const second = await ensureSystemHubsForUser(prisma, user.id);
+  const first = await ensureSystemCategoriesForUser(prisma, user.id);
+  const second = await ensureSystemCategoriesForUser(prisma, user.id);
   const keys = await listSystemHubKeysForUser(prisma, user.id);
   const count = await prisma.themeCategory.count({
-    where: { userId: user.id, isSystemHub: true, parentBranchId: null },
+    where: { userId: user.id, isSystemCategory: true, parentCategoryId: null },
   });
 
   console.log(`User: ${user.email}`);

@@ -47,7 +47,7 @@ export function CreateMarkModal({
   const [error, setError] = useState<string | null>(null);
 
   const { activeBranchesForLifeArea, dormantBranchesForLifeArea } = useMemo(() => {
-    const inArea = branches.filter((b) => b.limbId === selectedLifeAreaId && !b.parentBranchId);
+    const inArea = branches.filter((b) => b.limbId === selectedLifeAreaId && !b.parentCategoryId);
     return {
       activeBranchesForLifeArea: inArea.filter((b) => b.isActive !== false),
       dormantBranchesForLifeArea: inArea.filter((b) => b.isActive === false),

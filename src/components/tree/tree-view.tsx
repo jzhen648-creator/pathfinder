@@ -25,7 +25,7 @@ import { PATHFINDER_GOALS_CHANGED_EVENT } from "@/config/constants";
 import { FLAGS } from "@/lib/flags";
 import type { ApiBranchRow } from "@/lib/api-branch-row";
 import type { SequenceAnchor } from "@/lib/branch-sequence";
-import { canonicalHubDisplayLabel, hubFirstTimeQuestion } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel, hubFirstTimeQuestion } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { TREE_THEME_SHORT_LABEL } from "@/components/tree/tree-design-visual";
 import { LIFE_AREA_ORDER } from "./tree-data";
@@ -923,7 +923,7 @@ function TreeViewInner({
   const addGoalBranches = useMemo(
     () =>
       apiBranchRows
-        .filter((b) => !b.parentBranchId)
+        .filter((b) => !b.parentCategoryId)
         .map((b) => {
           const raw = (b.label ?? b.name ?? "").trim() || "Hub";
           return {

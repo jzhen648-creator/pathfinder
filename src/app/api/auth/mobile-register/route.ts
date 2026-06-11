@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import {
   requireAuthSecret,
   signMobileSessionJwt,
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     },
   });
 
-  await ensureHubTaxonomyCurrent(prisma, user.id);
+  await ensureTaxonomyCurrent(prisma, user.id);
 
   const token = await signMobileSessionJwt(
     {

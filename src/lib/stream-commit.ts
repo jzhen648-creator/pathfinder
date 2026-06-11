@@ -21,8 +21,8 @@ import {
   resolveBranchForHub,
   type HubBranchResolver,
 } from "@/lib/resolve-hub-branch";
-import { dedupeDuplicateRootHubs } from "@/lib/hub-dedupe";
-import { activateHubForUser } from "@/lib/system-hubs";
+import { dedupeDuplicateRootCategories } from "@/lib/category-dedupe";
+import { activateHubForUser } from "@/lib/system-categories";
 import {
   recordStreamGlobalSession,
   recordStreamThemeSession,
@@ -573,7 +573,7 @@ export async function commitStreamToHub(
   userId: string,
   payload: StreamCommitPayload,
 ): Promise<CommitResult> {
-  await dedupeDuplicateRootHubs(prisma, userId);
+  await dedupeDuplicateRootCategories(prisma, userId);
   const resolver = await buildHubBranchResolver(prisma, userId);
   const hubId = resolver.resolve(payload.hubId);
   if (!hubId) {
@@ -769,7 +769,7 @@ export async function commitStreamToTheme(
   userId: string,
   payload: StreamThemeCommitPayload,
 ): Promise<ThemeCommitResult> {
-  await dedupeDuplicateRootHubs(prisma, userId);
+  await dedupeDuplicateRootCategories(prisma, userId);
   const resolver = await buildHubBranchResolver(prisma, userId);
   const themeId = payload.themeId as LifeAreaId;
   if (!getLifeArea(themeId)) {
@@ -906,7 +906,7 @@ export async function commitStreamGlobal(
   userId: string,
   payload: StreamGlobalCommitPayload,
 ): Promise<GlobalCommitResult> {
-  await dedupeDuplicateRootHubs(prisma, userId);
+  await dedupeDuplicateRootCategories(prisma, userId);
   const resolver = await buildHubBranchResolver(prisma, userId);
   const marks = remapHubIdOnItems(payload.marks, resolver);
   const pursuits = remapHubIdOnItems(payload.pursuits, resolver);

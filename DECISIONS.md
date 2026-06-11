@@ -20,6 +20,20 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **UI:** Mobile shows **category** (not section) for taxonomy slots — theme detail group headers, pursuit eyebrow, Build here picker, long-press menu row. Source of truth: `pathfinder-mobile/TERMINOLOGY.md`.
 
+## 2026-06-11 — Taxonomy Phases 2–3 (category rename cutover)
+
+**Prisma (client names, SQL columns unchanged via `@map`):** `ThemeCategory`, `Goal.categoryId`, `Mark.categoryId`, `Goal.status`, `StreamRun.categoryId`, `isSystemCategory`, `parentCategoryId`, `User.taxonomyVersion`. `TAXONOMY_VERSION` → `2026-06-11-v11-category-rename`.
+
+**Backend modules:** `category-catalog`, `system-categories`, `category-dedupe`, `taxonomy-sync` (hub-* shims kept). `fillThemeExtractCategorySlugs` mirrors `categorySlug` on extract items.
+
+**API:** `GET /api/map-data` primary (`categories[]` first); `/api/branches` deprecated alias. New `/api/categories/*` routes mirror branch subroutes.
+
+**Mobile:** `useMapData`, `mapDataQueryKey`, `categoriesFromMapData`, `categoryId` on map nodes; deprecated `useBranches` / `branchId` shims.
+
+**Prod after deploy:** run `npm run backfill:taxonomy` (bumps `taxonomyVersion`), then optional `backfill:retire-identity`, `backfill:retire-practice`, `backfill:flatten-goal-lineage`.
+
+**Deferred:** physical SQL column rename; `limbId` → `themeId`; Stream v2 reject `hubId`-only; desktop tree hub vocabulary.
+
 ## 2026-06-11 — Taxonomy Phase 2 slice 1 (aliases, no migration)
 
 **API:** `GET /api/branches` returns `categories[]` (duplicate of `branches[]`). `GET /api/map-data` aliases the same handler.

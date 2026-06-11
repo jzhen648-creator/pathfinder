@@ -13,7 +13,7 @@
  * unless `--force` is passed.
  */
 import { PrismaClient } from "@prisma/client";
-import { syncHubTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
+import { syncTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
 import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
 import { LIFE_AREA_IDS } from "../src/lib/taxonomy";
 import { unlockThemesForUser } from "../src/lib/unlocked-themes";
@@ -53,9 +53,9 @@ async function wipeUserTreeData(userId: string): Promise<{ goals: number; marks:
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   const goals = await prisma.goal.deleteMany({ where: { userId } });
   const marks = await prisma.mark.deleteMany({ where: { userId } });
-  const branches = await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  const branches = await prisma.themeCategory.deleteMany({ where: { userId, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
-    where: { userId, isSystemHub: true },
+    where: { userId, isSystemCategory: true },
     data: { isActive: false },
   });
   await prisma.trunkEntry.deleteMany({ where: { userId } });
@@ -115,9 +115,9 @@ async function main() {
   console.log("  system hubs set dormant; trunk + stream sessions cleared.");
 
   console.log("\nStep 2/4: Ensuring 17 system hubs…");
-  await syncHubTaxonomyForUser(prisma, user.id);
+  await syncTaxonomyForUser(prisma, user.id);
   const hubCount = await prisma.themeCategory.count({
-    where: { userId: user.id, parentBranchId: null, isSystemHub: true },
+    where: { userId: user.id, parentCategoryId: null, isSystemCategory: true },
   });
   console.log(`  system hubs present: ${hubCount}`);
 

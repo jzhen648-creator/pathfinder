@@ -2,7 +2,7 @@ import type { BloomStatus, Prisma } from "@prisma/client";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
-import { activateHubForUser } from "@/lib/system-hubs";
+import { activateHubForUser } from "@/lib/system-categories";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
 import {
   loadPursuitStreamContext,
@@ -175,7 +175,7 @@ export async function savePendingPursuitCapture(
       data: {
         userId,
         goalId: pursuitId,
-        branchId: ctx.branchId,
+        categoryId: ctx.branchId,
         limbId: ctx.limbId,
         rawInput: trimmed,
         inputMode,

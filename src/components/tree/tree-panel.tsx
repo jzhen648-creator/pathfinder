@@ -12,7 +12,7 @@ import {
 } from "./tree-view-goal-queries";
 import { isScaffoldingSubtaskTitle } from "@/lib/legacy-subtask-placeholder-title";
 import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
-import { canonicalHubDisplayLabel, hubMapGoalNoun, hubPanelCopy } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel, hubMapGoalNoun, hubPanelCopy } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { HubCatalogPanelSections } from "./hub-catalog-panel-sections";
 import { PanelStreamSection } from "@/components/stream/panel-stream-section";
@@ -770,7 +770,7 @@ export function TreePanel({
     const areaCanvasRail = isCanvasDetailRail(panelSurface, panelPresentation);
     const showUnlockBanner = themeUnlockBanner === area.id;
     const inactiveHubsForTheme = apiBranchRows.filter(
-      (b) => !b.parentBranchId && b.limbId === area.id && b.isActive !== true,
+      (b) => !b.parentCategoryId && b.limbId === area.id && b.isActive !== true,
     );
     const activeThemeStream =
       panelStreamSession?.mode === "theme" && panelStreamSession.theme.themeId === area.id

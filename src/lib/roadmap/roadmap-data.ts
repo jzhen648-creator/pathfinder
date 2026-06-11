@@ -78,12 +78,12 @@ export type RoadmapBranchInput = {
   goalValue?: number | null;
   currentValue?: number | null;
   unit?: string | null;
-  parentBranchId?: string | null;
+  parentCategoryId?: string | null;
   turningPointId?: string | null;
   order?: number;
   createdAt: string;
   isActive?: boolean;
-  isSystemHub?: boolean;
+  isSystemCategory?: boolean;
 };
 
 export type RoadmapVizType =
@@ -263,12 +263,12 @@ function orderBranchesForLifeAreaLayout(
       id,
       limbId,
       createdAt: "",
-      parentBranchId: null,
+      parentCategoryId: null,
       turningPointId: null,
     } as RoadmapBranchInput;
   });
 
-  const isRoot = (b: RoadmapBranchInput) => !b.parentBranchId;
+  const isRoot = (b: RoadmapBranchInput) => !b.parentCategoryId;
   const roots = rows.filter(isRoot);
   const children = rows.filter((b) => !isRoot(b));
 
@@ -292,7 +292,7 @@ function orderBranchesForLifeAreaLayout(
   };
   const childrenCountByBranch = new Map<string, number>();
   for (const row of rows) {
-    const pid = row.parentBranchId;
+    const pid = row.parentCategoryId;
     if (!pid) continue;
     childrenCountByBranch.set(pid, (childrenCountByBranch.get(pid) ?? 0) + 1);
   }
@@ -386,8 +386,8 @@ export function buildPrimarySpineByLifeArea(
   const branchById = new Map(branches.map((b) => [b.id, b] as const));
   const childrenCountByBranch = new Map<string, number>();
   for (const b of branches) {
-    if (!b.parentBranchId) continue;
-    childrenCountByBranch.set(b.parentBranchId, (childrenCountByBranch.get(b.parentBranchId) ?? 0) + 1);
+    if (!b.parentCategoryId) continue;
+    childrenCountByBranch.set(b.parentCategoryId, (childrenCountByBranch.get(b.parentCategoryId) ?? 0) + 1);
   }
   const scoreBranch = (branchId: string): number => {
     const series = byBranch.get(branchId) ?? [];
@@ -422,7 +422,7 @@ export function buildPrimarySpineByLifeArea(
     const candidates = [...limbBranchIds];
     if (candidates.length === 0) continue;
     const roots = candidates.filter((id) => {
-      const pid = branchById.get(id)?.parentBranchId;
+      const pid = branchById.get(id)?.parentCategoryId;
       if (!pid) return true;
       const parent = branchById.get(pid);
       return !parent || coerceRoadmapLifeAreaId(parent.limbId) !== limbId;
@@ -442,10 +442,10 @@ export function resolveChronologyParentBranchId(
   branch: RoadmapBranchInput,
   spineByLifeArea: Map<LimbId, string>,
 ): string | null {
-  if (!branch.parentBranchId) return null;
+  if (!branch.parentCategoryId) return null;
   const limbId = coerceRoadmapLifeAreaId(branch.limbId);
   const spineId = spineByLifeArea.get(limbId);
-  if (!spineId || branch.id === spineId) return branch.parentBranchId;
+  if (!spineId || branch.id === spineId) return branch.parentCategoryId;
   return spineId;
 }
 
@@ -767,11 +767,11 @@ export function buildRoadmapLayout(
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
   const anchorFromParentBranch = (
-    parentBranchId: string,
+    parentCategoryId: string,
     turningPointId: string | null | undefined,
     childStartDate: string | null | undefined,
   ): RoadmapMarkInput | null => {
-    const parentMarks = byBranch.get(parentBranchId) ?? [];
+    const parentMarks = byBranch.get(parentCategoryId) ?? [];
     return resolveParentBranchAnchor(parentMarks, turningPointId, childStartDate).anchorMark;
   };
 
@@ -781,7 +781,7 @@ export function buildRoadmapLayout(
     const gid = goalSyntheticId(branchId);
     const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(br.limbId));
     if (list.length > 0) {
-      if (!br.parentBranchId) nodeById.get(list[0]!.id)!.parentId = rid;
+      if (!br.parentCategoryId) nodeById.get(list[0]!.id)!.parentId = rid;
       else {
         const chronologyParentBranchId = resolveChronologyParentBranchId(br, spineByLifeArea);
         const anchor = chronologyParentBranchId
@@ -801,7 +801,7 @@ export function buildRoadmapLayout(
     if ((byBranch.get(b.id) ?? []).length > 0) continue;
     const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(b.limbId));
     const g = nodeById.get(gid)!;
-    if (!b.parentBranchId) g.parentId = rid;
+    if (!b.parentCategoryId) g.parentId = rid;
     else {
       const chronologyParentBranchId = resolveChronologyParentBranchId(b, spineByLifeArea);
       const anchor = chronologyParentBranchId
@@ -894,11 +894,11 @@ export function buildRoadmapLayout(
     const branchIdsInLimb = new Set(branchesWithContent.map((b) => b.id));
     const childrenByBranch = new Map<string, RoadmapBranchInput[]>();
     const roots = branchesWithContent.filter((br) => {
-      const pid = branchById.get(br.id)?.parentBranchId;
+      const pid = branchById.get(br.id)?.parentCategoryId;
       return !pid || !branchIdsInLimb.has(pid);
     });
     for (const br of branchesWithContent) {
-      const pid = branchById.get(br.id)?.parentBranchId;
+      const pid = branchById.get(br.id)?.parentCategoryId;
       if (!pid || !branchIdsInLimb.has(pid)) continue;
       const arr = childrenByBranch.get(pid) ?? [];
       arr.push(br);
@@ -948,7 +948,7 @@ export function buildRoadmapLayout(
         limbId,
         x,
         label: branchDisplayName(br),
-        isChild: Boolean(br.parentBranchId),
+        isChild: Boolean(br.parentCategoryId),
         showLabel: nB > 1,
       });
 

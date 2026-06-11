@@ -212,7 +212,7 @@ async function loadMap(): Promise<MapSnapshot> {
   }
 
   const branches = await prisma.themeCategory.findMany({
-    where: { userId: user.id, parentBranchId: null },
+    where: { userId: user.id, parentCategoryId: null },
     select: { id: true, limbId: true, label: true, name: true, isActive: true },
     orderBy: { order: "asc" },
   });

@@ -7,7 +7,7 @@ import {
   hubPanelCopy,
   parseHubRedirectTarget,
   type HubCatalogEntry,
-} from "@/lib/hub-catalog";
+} from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { LOCKED_HUB_TEMPLATES } from "@/lib/taxonomy";
 import type { AreaData } from "./tree-types";

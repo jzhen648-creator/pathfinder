@@ -32,13 +32,13 @@ async function resolveVersions(userId: string) {
     getMemoryVersion(userId),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { hubTaxonomyVersion: true },
+      select: { taxonomyVersion: true },
     }),
   ]);
   return {
     mapVersion,
     memoryVersion,
-    hubTaxonomyVersion: user?.hubTaxonomyVersion ?? null,
+    taxonomyVersion: user?.taxonomyVersion ?? null,
   };
 }
 
@@ -54,10 +54,10 @@ function storyCacheStale(
   row: { mapVersion: string; memoryVersion: number; payload: string },
   mapVersion: string,
   memoryVersion: number,
-  hubTaxonomyVersion: string | null,
+  taxonomyVersion: string | null,
 ): boolean {
   if (row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion) return true;
-  if (hubTaxonomyVersion && hubTaxonomyVersion !== TAXONOMY_VERSION) return true;
+  if (taxonomyVersion && taxonomyVersion !== TAXONOMY_VERSION) return true;
   return !isCurrentStoryPayload(row.payload);
 }
 
@@ -122,7 +122,7 @@ export async function runMapAiSync(
   const pendingBefore = await countPendingCaptures(userId);
   const digested = await digestAllPendingCaptures(userId);
 
-  const { mapVersion, memoryVersion, hubTaxonomyVersion } = await resolveVersions(userId);
+  const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
 
   const [insightRow, storyRow] = await Promise.all([
     prisma.insightCache.findUnique({ where: { userId } }),
@@ -135,7 +135,7 @@ export async function runMapAiSync(
     isOlderThanOneDay(insightRow.generatedAt);
   const storyStale =
     !storyRow ||
-    storyCacheStale(storyRow, mapVersion, memoryVersion, hubTaxonomyVersion) ||
+    storyCacheStale(storyRow, mapVersion, memoryVersion, taxonomyVersion) ||
     isOlderThanOneDay(storyRow.generatedAt);
 
   const workNeeded =

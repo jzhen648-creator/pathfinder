@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import {
   advanceOnboardingScene,
   isOnboardingScene,
   type OnboardingScene,
 } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
-import { activateHubForUser } from "@/lib/system-hubs";
+import { activateHubForUser } from "@/lib/system-categories";
 import { LIFE_AREA_IDS, normalizeHubLabelKey } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid onboarding scene" }, { status: 400 });
     }
 
-    await ensureHubTaxonomyCurrent(prisma, userId);
+    await ensureTaxonomyCurrent(prisma, userId);
 
     const hubSlugKey = parsed.data.hubSlug
       ? normalizeHubLabelKey(parsed.data.hubSlug)
@@ -54,8 +54,8 @@ export async function POST(request: Request) {
         ? await prisma.themeCategory.findMany({
             where: {
               userId,
-              parentBranchId: null,
-              isSystemHub: true,
+              parentCategoryId: null,
+              isSystemCategory: true,
               ...(parsed.data.themeId ? { limbId: parsed.data.themeId } : {}),
             },
             select: { id: true, limbId: true, label: true, name: true },

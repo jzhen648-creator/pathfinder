@@ -1,5 +1,5 @@
 import { normalizeGoalBloomForDisplay } from "@/lib/goal-bloom-lifecycle";
-import { canonicalHubDisplayLabel, hubMatchKey } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel, hubMatchKey } from "@/lib/category-catalog";
 import { LOCKED_HUB_TEMPLATES } from "@/lib/taxonomy";
 import { resolveOrbitalMilestonesForTreeGoal } from "./milestone-tree-projection";
 import type {
@@ -19,8 +19,8 @@ export type RawBranch = {
   id: string;
   limbId: string;
   isActive?: boolean | null;
-  isSystemHub?: boolean | null;
-  parentBranchId?: string | null;
+  isSystemCategory?: boolean | null;
+  parentCategoryId?: string | null;
   turningPointId?: string | null;
   /** Legacy / explicit API alias for taxonomy thread title. */
   threadType?: string | null;
@@ -414,7 +414,7 @@ export function mapToTreeData(
   goals: RawTreeGoalPayload[] = [],
 ): AreaData[] {
   const visibleRoots = branches.filter(
-    (b) => !b.parentBranchId && branchIsActiveOnTree(b),
+    (b) => !b.parentCategoryId && branchIsActiveOnTree(b),
   );
 
   return LIFE_AREA_ORDER.filter((lifeAreaId) => !TREE_DISABLED_LIFE_AREA_IDS.has(lifeAreaId)).map(

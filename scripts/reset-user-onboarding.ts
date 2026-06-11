@@ -3,7 +3,7 @@
  * Run: npx tsx scripts/reset-user-onboarding.ts [email]
  */
 import { Prisma, PrismaClient } from "@prisma/client";
-import { ensureSystemHubsForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser } from "../src/lib/system-hubs";
 
 const email = process.argv[2] ?? "jzhen648@gmail.com";
 const prisma = new PrismaClient();
@@ -19,9 +19,9 @@ async function main() {
   await prisma.goalEvaluationCache.deleteMany({ where: { userId: user.id } });
   await prisma.goal.deleteMany({ where: { userId: user.id } });
   await prisma.mark.deleteMany({ where: { userId: user.id } });
-  await prisma.themeCategory.deleteMany({ where: { userId: user.id, isSystemHub: false } });
+  await prisma.themeCategory.deleteMany({ where: { userId: user.id, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
-    where: { userId: user.id, isSystemHub: true },
+    where: { userId: user.id, isSystemCategory: true },
     data: { isActive: false },
   });
   await prisma.trunkEntry.deleteMany({ where: { userId: user.id } });
@@ -46,9 +46,9 @@ async function main() {
     },
   });
 
-  const created = await ensureSystemHubsForUser(prisma, user.id);
+  const created = await ensureSystemCategoriesForUser(prisma, user.id);
   const dormant = await prisma.themeCategory.count({
-    where: { userId: user.id, isSystemHub: true, isActive: false },
+    where: { userId: user.id, isSystemCategory: true, isActive: false },
   });
 
   console.log(`Reset complete for ${email}`);

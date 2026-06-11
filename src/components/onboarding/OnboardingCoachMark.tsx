@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OB_FONT_SANS, OB_PRIMARY, obCardStyle } from "@/components/onboarding/onboarding-ui";
-import { hubPanelCopy } from "@/lib/hub-catalog";
+import { hubPanelCopy } from "@/lib/category-catalog";
 import type { CoachMarkStep } from "@/components/tree/tree-view-types";
 
 type TargetRect = {

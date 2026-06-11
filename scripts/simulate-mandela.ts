@@ -204,8 +204,8 @@ type BranchRow = {
   limbId: string;
   label: string | null;
   name: string | null;
-  isSystemHub?: boolean;
-  parentBranchId?: string | null;
+  isSystemCategory?: boolean;
+  parentCategoryId?: string | null;
 };
 
 type GoalRow = {
@@ -968,7 +968,7 @@ function buildHubIndex(branches: BranchRow[]): HubIndex {
   const bySlug = new Map<string, HubIndexEntry>();
   const byThemeId = new Map<LifeAreaId, HubIndexEntry[]>();
 
-  for (const branch of branches.filter((b) => !b.parentBranchId)) {
+  for (const branch of branches.filter((b) => !b.parentCategoryId)) {
     const themeId = branch.limbId as LifeAreaId;
     const label = hubLabelFromBranch(branch);
     const name = (branch.name ?? branch.label ?? label).trim() || label;
@@ -1482,7 +1482,7 @@ async function fetchBranchMap(token: string): Promise<{
   if (status !== 200) {
     throw new Error(`GET /api/branches failed (${status}): ${body.error ?? "unknown"}`);
   }
-  const branches = (body.branches ?? []).filter((b) => !b.parentBranchId);
+  const branches = (body.branches ?? []).filter((b) => !b.parentCategoryId);
   const goals = body.goals ?? [];
   const branchById = new Map(branches.map((b) => [b.id, b]));
   const hubByLabel = new Map<string, BranchRow>();

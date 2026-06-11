@@ -62,7 +62,7 @@ function sleep(ms: number): Promise<void> {
 
 async function loadHubContext(userId: string, hubSlug: string) {
   const branches = await prisma.themeCategory.findMany({
-    where: { userId, parentBranchId: null, limbId: "people" },
+    where: { userId, parentCategoryId: null, limbId: "people" },
     select: { id: true, limbId: true, label: true, name: true },
   });
   const { systemHubKey } = await import("../src/lib/system-hubs");

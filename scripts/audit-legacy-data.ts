@@ -104,13 +104,13 @@ async function auditUser(userId: string, email: string) {
     prisma.mark.count({ where: { userId, archived: false } }),
     prisma.mark.count({ where: { userId, archived: true } }),
     prisma.mark.count({ where: { userId, archived: false, needsResolution: true } }),
-    prisma.themeCategory.count({ where: { userId, isSystemHub: true } }),
-    prisma.themeCategory.count({ where: { userId, isSystemHub: false } }),
-    prisma.themeCategory.count({ where: { userId, parentBranchId: { not: null } } }),
+    prisma.themeCategory.count({ where: { userId, isSystemCategory: true } }),
+    prisma.themeCategory.count({ where: { userId, isSystemCategory: false } }),
+    prisma.themeCategory.count({ where: { userId, parentCategoryId: { not: null } } }),
     prisma.themeCategory.count({
       where: {
         userId,
-        isSystemHub: false,
+        isSystemCategory: false,
         OR: [
           { goals: { some: {} } },
           { marks: { some: {} } },
@@ -122,7 +122,7 @@ async function auditUser(userId: string, email: string) {
     prisma.user.findUnique({
       where: { id: userId },
       select: {
-        hubTaxonomyVersion: true,
+        taxonomyVersion: true,
         onboardingScene: true,
         onboardingHubSlug: true,
         onboardingProfileText: true,
@@ -214,7 +214,7 @@ async function auditUser(userId: string, email: string) {
   printTier(
     "User metadata (desktop onboarding — safe to null, not delete user)",
     {
-      hub_taxonomy_version: userDesktopFields?.hubTaxonomyVersion ? 1 : 0,
+      hub_taxonomy_version: userDesktopFields?.taxonomyVersion ? 1 : 0,
       desktop_onboarding_fields_set: desktopFieldCount,
     },
   );

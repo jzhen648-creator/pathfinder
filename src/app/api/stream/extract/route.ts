@@ -13,7 +13,7 @@ import {
 import { commitAmbiguousItemsToBranch } from "@/lib/stream-commit-ambiguous";
 import { isValidHubSlugForTheme, resolveBranchForHub } from "@/lib/resolve-hub-branch";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
 import { prisma } from "@/lib/prisma";
 import { buildStreamThemeContextInput } from "@/lib/stream-theme-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";

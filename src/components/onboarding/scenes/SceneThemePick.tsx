@@ -16,7 +16,7 @@ import { LIFE_AREAS } from "@/lib/life-areas";
 
 import { themePanelCopy } from "@/lib/theme-catalog";
 
-import { hubPanelCopy } from "@/lib/hub-catalog";
+import { hubPanelCopy } from "@/lib/category-catalog";
 
 import { OnboardingTreeBackground } from "@/components/onboarding/onboarding-tree-background";
 

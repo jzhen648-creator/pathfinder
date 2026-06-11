@@ -1,7 +1,7 @@
 import type { BloomStatus } from "@prisma/client";
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
-import { canonicalRootHubRows } from "@/lib/hub-dedupe";
+import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import { prisma } from "@/lib/prisma";
 
 export type MapContextFilter = {
@@ -183,7 +183,7 @@ export async function formatMapContext(
     await prisma.themeCategory.findMany({
       where: {
         userId,
-        parentBranchId: null,
+        parentCategoryId: null,
         ...(filter.themeId ? { limbId: filter.themeId } : {}),
         ...(filter.hubId ? { id: filter.hubId } : {}),
         isActive: true,
@@ -193,7 +193,7 @@ export async function formatMapContext(
         limbId: true,
         label: true,
         name: true,
-        isSystemHub: true,
+        isSystemCategory: true,
         createdAt: true,
         goals: {
           where: {

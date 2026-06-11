@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
-import { activateLimbsForUser } from "@/lib/system-hubs";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
+import { activateLimbsForUser } from "@/lib/system-categories";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 
 const bodySchema = z.object({
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     );
   }
 
-  await ensureHubTaxonomyCurrent(prisma, userId);
+  await ensureTaxonomyCurrent(prisma, userId);
   const activated = await activateLimbsForUser(prisma, userId, parsed.data.limbIds);
   return NextResponse.json({ activated });
 }

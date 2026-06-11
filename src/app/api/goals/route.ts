@@ -20,7 +20,7 @@ import {
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
-import { activateHubForUser } from "@/lib/system-hubs";
+import { activateHubForUser } from "@/lib/system-categories";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;

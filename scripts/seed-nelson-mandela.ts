@@ -4,7 +4,7 @@
  */
 import { BloomStatus, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { ensureHubTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
 
 const prisma = new PrismaClient();
 
@@ -248,7 +248,7 @@ const MARKS: MarkSeed[] = [
 
 async function resolveHub(userId: string, limbId: string, label: HubLabel) {
   const branch = await prisma.themeCategory.findFirst({
-    where: { userId, limbId, isSystemHub: true, label },
+    where: { userId, limbId, isSystemCategory: true, label },
     select: { id: true },
   });
   if (!branch) {
@@ -284,7 +284,7 @@ async function main() {
       name: hub.name,
       status: "active",
       status: "ACTIVE",
-      isSystemHub: true,
+      isSystemCategory: true,
       isActive: true,
       order,
       createdAt: hub.createdAt,
@@ -393,7 +393,7 @@ async function main() {
     console.log(`  - ${goal.title}: parentGoalId=${goal.parentGoalId ?? "null"} -> id=${goal.id}`);
   }
 
-  await ensureHubTaxonomyCurrent(prisma, user.id);
+  await ensureTaxonomyCurrent(prisma, user.id);
   console.log("Hub taxonomy stamped for fast theme-unlock E2E.");
 }
 

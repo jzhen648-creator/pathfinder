@@ -42,7 +42,7 @@ async function ensureDefaultBranchesForUsers(
             status: "active",
             order: template.order,
             mapAngleOffset: 0,
-            parentBranchId: null,
+            parentCategoryId: null,
             turningPointId: null,
           },
         });

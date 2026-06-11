@@ -35,9 +35,9 @@ model User {
   lifeWheelRatings           Json?
   lifeWheelHistory           Json?
   lifeWheelAchievementAt     DateTime?
-  /// Last applied {@link TAXONOMY_VERSION} from hub-taxonomy-sync; null = never synced.
-  hubTaxonomyVersion         String?
-  hubTaxonomySyncedAt        DateTime?
+  /// Last applied {@link TAXONOMY_VERSION} from taxonomy-sync; null = never synced.
+  taxonomyVersion            String?               @map("hubTaxonomyVersion")
+  taxonomySyncedAt           DateTime?             @map("hubTaxonomySyncedAt")
   /// Life-area ids unlocked on the tree (`finance` | `work` | …). Hubs under a theme stay dormant until opened individually.
   unlockedLimbIds            Json?
   createdAt                  DateTime              @default(now())
@@ -160,7 +160,7 @@ model ThemeCategory {
   /// Legacy column name: stores the **life area** id (`finance` | `work` | `becoming` | `people` | `health`), not a "limb" entity. Prefer the term *life area* in docs and UI.
   limbId              String
   label               String?
-  parentBranchId      String?
+  parentCategoryId    String?      @map("parentBranchId")
   turningPointId      String?
   mapAngleOffset      Float        @default(0)
   marks               Mark[]
@@ -174,15 +174,15 @@ model ThemeCategory {
   order               Int          @default(0)
   /// Progressive reveal: visible on tree/roadmap when true.
   isActive            Boolean      @default(false)
-  /// Locked taxonomy hub (one of 17); protected from wipe scripts.
-  isSystemHub         Boolean      @default(false)
+  /// Locked taxonomy category (one of 22); protected from wipe scripts.
+  isSystemCategory    Boolean      @default(false) @map("isSystemHub")
   bloomStatus         BloomStatus  @default(ACTIVE)
   bloomedAt           DateTime?
   endedAt             DateTime?
   endReason           String?
-  spawnedFromBranchId String?
-  spawnedFromBranch   ThemeCategory? @relation("BranchSpawn", fields: [spawnedFromBranchId], references: [id], onDelete: SetNull)
-  branchesSpawnedHere ThemeCategory[] @relation("BranchSpawn")
+  spawnedFromCategoryId String?    @map("spawnedFromBranchId")
+  spawnedFromCategory ThemeCategory? @relation("CategorySpawn", fields: [spawnedFromCategoryId], references: [id], onDelete: SetNull)
+  categoriesSpawnedHere ThemeCategory[] @relation("CategorySpawn")
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
@@ -289,7 +289,7 @@ model StreamRun {
   userId              String
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   goalId              String
-  branchId            String
+  categoryId          String          @map("branchId")
   limbId              String
   rawInput            String          @db.Text
   inputMode           StreamInputMode @default(text)

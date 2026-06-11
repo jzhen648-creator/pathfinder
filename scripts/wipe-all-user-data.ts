@@ -1,12 +1,12 @@
 /**
  * 1. Wipes goals, marks, milestones, reframes, and non-system branches.
- *    Preserves system hub rows (isSystemHub) and resets them to dormant.
+ *    Preserves system hub rows (isSystemCategory) and resets them to dormant.
  * 2. Optionally deletes demo/test accounts.
  *
  * Run: npm run wipe:all-user-data
  */
 import { Prisma, PrismaClient } from "@prisma/client";
-import { ensureSystemHubsForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser } from "../src/lib/system-hubs";
 
 const KEEP_EMAIL = "jzhen648@gmail.com";
 
@@ -38,12 +38,12 @@ async function wipeAllUserData(): Promise<void> {
   const marks = await prisma.mark.deleteMany({});
   const caches = await prisma.goalEvaluationCache.deleteMany({});
   const goals = await prisma.goal.deleteMany({});
-  const customBranches = await prisma.themeCategory.deleteMany({ where: { isSystemHub: false } });
+  const customBranches = await prisma.themeCategory.deleteMany({ where: { isSystemCategory: false } });
   const trunkEntries = await prisma.trunkEntry.deleteMany({});
   const trunkSegments = await prisma.trunkSegment.deleteMany({});
 
   const hubReset = await prisma.themeCategory.updateMany({
-    where: { isSystemHub: true },
+    where: { isSystemCategory: true },
     data: { isActive: false },
   });
 
@@ -74,7 +74,7 @@ async function wipeAllUserData(): Promise<void> {
 
   console.log("\nEnsuring 17 system hubs per user…");
   for (const user of users) {
-    const created = await ensureSystemHubsForUser(prisma, user.id);
+    const created = await ensureSystemCategoriesForUser(prisma, user.id);
     if (created > 0) console.log(`  ${user.email}: created ${created} hub(s)`);
   }
 }

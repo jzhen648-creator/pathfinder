@@ -18,7 +18,7 @@ import {
 
 } from "@/components/onboarding/onboarding-ui";
 
-import { canonicalHubDisplayLabel, hubFirstTimeQuestion } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel, hubFirstTimeQuestion } from "@/lib/category-catalog";
 
 import { getLifeArea } from "@/lib/life-areas";
 

@@ -11,7 +11,7 @@ async function main() {
   console.log("user", user.email);
 
   const branches = await prisma.themeCategory.findMany({
-    where: { userId: user.id, parentBranchId: null },
+    where: { userId: user.id, parentCategoryId: null },
     select: { id: true, limbId: true, label: true, isActive: true, status: true },
   });
   const active = branches.filter((b) => b.isActive);

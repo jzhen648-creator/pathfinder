@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { canonicalHubDisplayLabel } from "@/lib/hub-catalog";
+import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
 import { generateJsonCompletion } from "@/lib/gemini";
 import { generateGoalShortLabel, resolvePursuitShortLabel } from "@/lib/goal-short-label";
 import { getLucideInstalledSlugs, isValidLucideSlug } from "@/lib/icons/enumerate-lucide-slugs";

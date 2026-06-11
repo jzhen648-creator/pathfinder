@@ -11,7 +11,7 @@
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveDevLoginEmail } from "../src/lib/dev-login-credentials";
-import { ensureHubTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
 import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
 
 const prisma = new PrismaClient();
@@ -83,9 +83,9 @@ async function wipeUserContent(userId: string, dryRun: boolean): Promise<void> {
   await prisma.userManualProfile.deleteMany({ where: { userId } });
   await prisma.trunkEntry.deleteMany({ where: { userId } });
   await prisma.trunkSegment.deleteMany({ where: { userId } });
-  await prisma.themeCategory.deleteMany({ where: { userId, isSystemHub: false } });
+  await prisma.themeCategory.deleteMany({ where: { userId, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
-    where: { userId, isSystemHub: true },
+    where: { userId, isSystemCategory: true },
     data: { isActive: false },
   });
 }
@@ -105,8 +105,8 @@ async function resetUserForMobileOnboarding(userId: string, dryRun: boolean): Pr
     lifeWheelRatings: Prisma.JsonNull,
     lifeWheelHistory: Prisma.JsonNull,
     lifeWheelAchievementAt: null,
-    hubTaxonomyVersion: null,
-    hubTaxonomySyncedAt: null,
+    taxonomyVersion: null,
+    taxonomySyncedAt: null,
   };
 
   if (dryRun) {
@@ -115,7 +115,7 @@ async function resetUserForMobileOnboarding(userId: string, dryRun: boolean): Pr
   }
 
   await prisma.user.update({ where: { id: userId }, data });
-  await ensureHubTaxonomyCurrent(prisma, userId);
+  await ensureTaxonomyCurrent(prisma, userId);
 }
 
 async function main() {

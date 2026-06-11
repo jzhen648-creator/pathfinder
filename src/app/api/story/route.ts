@@ -44,7 +44,7 @@ async function resolveVersions(userId: string) {
 
       where: { id: userId },
 
-      select: { hubTaxonomyVersion: true },
+      select: { taxonomyVersion: true },
 
     }),
 
@@ -56,7 +56,7 @@ async function resolveVersions(userId: string) {
 
     memoryVersion,
 
-    hubTaxonomyVersion: user?.hubTaxonomyVersion ?? null,
+    taxonomyVersion: user?.taxonomyVersion ?? null,
 
   };
 
@@ -72,7 +72,7 @@ function isCacheStale(
 
   memoryVersion: number,
 
-  hubTaxonomyVersion: string | null,
+  taxonomyVersion: string | null,
 
 ): boolean {
 
@@ -82,7 +82,7 @@ function isCacheStale(
 
   }
 
-  if (hubTaxonomyVersion !== TAXONOMY_VERSION) {
+  if (taxonomyVersion !== TAXONOMY_VERSION) {
 
     return true;
 
@@ -122,7 +122,7 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  const { mapVersion, memoryVersion, hubTaxonomyVersion } = await resolveVersions(userId);
+  const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
 
   const row = await prisma.storyCache.findUnique({ where: { userId } });
 
@@ -140,7 +140,7 @@ export async function GET() {
 
 
 
-  const stale = isCacheStale(row, mapVersion, memoryVersion, hubTaxonomyVersion);
+  const stale = isCacheStale(row, mapVersion, memoryVersion, taxonomyVersion);
 
   const story = storyCacheToPayload(row, stale);
 
@@ -234,7 +234,7 @@ export async function POST(request: Request) {
 
   const force = parsedBody.data.force === true;
 
-  const { mapVersion, memoryVersion, hubTaxonomyVersion } = await resolveVersions(userId);
+  const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
 
   const existing = await prisma.storyCache.findUnique({ where: { userId } });
 
@@ -242,7 +242,7 @@ export async function POST(request: Request) {
 
   if (existing && !force) {
 
-    const stale = isCacheStale(existing, mapVersion, memoryVersion, hubTaxonomyVersion);
+    const stale = isCacheStale(existing, mapVersion, memoryVersion, taxonomyVersion);
 
     const freshEnough = !isOlderThanOneDay(existing.generatedAt);
 

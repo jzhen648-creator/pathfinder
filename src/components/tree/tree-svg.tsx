@@ -224,7 +224,7 @@ import {
 } from "./tree-limb-reveal-animation";
 import type { LifeAreaId } from "@/lib/types";
 import { normalizeHubLabelKey } from "@/lib/taxonomy";
-import { hubPanelCopy } from "@/lib/hub-catalog";
+import { hubPanelCopy } from "@/lib/category-catalog";
 import { StreamPreviewMarkersLayer } from "@/components/stream/stream-preview-tree-layer";
 import { TreeEditMapOverlay } from "./tree-edit-map-overlay";
 import type { EditDragGoalPayload } from "./tree-edit-drag";

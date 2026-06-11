@@ -232,10 +232,10 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
   while (pending.length > 0 && guard < 2000) {
     guard += 1;
     const branchSeed = pending.shift()!;
-    const parentBranchId = branchSeed.parentThreadType
+    const parentCategoryId = branchSeed.parentThreadType
       ? createdByThreadType.get(branchSeed.parentThreadType)?.id
       : null;
-    if (branchSeed.parentThreadType && !parentBranchId) {
+    if (branchSeed.parentThreadType && !parentCategoryId) {
       pending.push(branchSeed);
       continue;
     }
@@ -243,7 +243,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
       data: {
         userId: user.id,
         limbId: branchSeed.limbId,
-        parentBranchId,
+        parentCategoryId,
         label: branchSeed.threadType,
         name: branchSeed.name,
         goal: branchSeed.goal,
@@ -252,7 +252,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
         unit: branchSeed.unit,
         status: branchSeed.status,
         bloomStatus: branchSeed.bloomStatus,
-        isSystemHub: true,
+        isSystemCategory: true,
         isActive: true,
         createdAt: branchSeed.createdAt,
       },
