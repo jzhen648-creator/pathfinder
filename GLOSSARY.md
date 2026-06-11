@@ -2,7 +2,7 @@
 
 **Backend and persistence vocabulary.** For **mobile UI copy**, [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) is the source of truth.
 
-**Mental model (mobile):** Self → **theme** → **pursuits** (+ **marks** in theme detail). **Taxonomy categories** (legacy code: hub, track, `Branch`, `branchId`) route Stream and DB rows but are **never shown** in mobile UI.
+**Mental model (mobile):** Self → **theme** → **category** → **pursuit** (+ **status** on each pursuit; **marks** in theme detail). User-facing stack: **theme · category · pursuit · status · mark**. Legacy code: hub, track, `Branch`, `branchId` — retiring toward `Category`, `categoryId`.
 
 **Mental model (desktop legacy):** Self → **theme** → **hub** → goals and timeline notes. See [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). Desktop hub vocabulary is **legacy** — do not copy into mobile.
 
@@ -14,13 +14,13 @@ For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINO
 |------|--------|
 | **Self** | The user / center of the life map (conceptual). |
 | **Theme** | One of six fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Self & Mind** `becoming`, **Play & Leisure** `pleasures`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (**20** system hubs total, taxonomy v8). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
-| **Taxonomy category** | Preferred **doc/comment** word for a named slot under a theme (e.g. Family, Skills, Hobbies). Persisted as root **`Branch`** + `branchId` on goals/marks. **Hidden from mobile UI** (2026-06). **Stream wire:** hub-scoped extract/commit use **`categoryId`** (Branch row id), mirrored as legacy **`hubId`**; theme-level item routing still uses **`hubId`** / **`categorySlug`** (normalized slug). |
-| **Hub** | **Legacy** synonym for taxonomy category — code, desktop UI, and old docs only. Do not use in new mobile copy. |
-| **Track** | **Legacy** synonym for taxonomy category — deprecated in mobile UI (2026-06). Same row as **hub** / root **`Branch`**. |
+| **Category** | User-facing name for a named slot under a theme (e.g. Job under Work & Career, Movement under Health & Body). Persisted as root **`Branch`** row + `branchId` on goals/marks (→ **`categoryId`** / **`Category`** in Prisma Phase 3–4). Shown in mobile theme detail groups and pursuit eyebrow. Legacy doc/code words: hub, track, section, taxonomy category. **Stream wire:** hub-scoped extract/commit use **`categoryId`** (Branch row id), mirrored as legacy **`hubId`**; theme-level item routing still uses **`hubId`** / **`categorySlug`** (normalized slug). |
+| **Hub** | **Legacy** synonym for **category** — code, desktop UI, and old docs only. |
+| **Track** | **Legacy** synonym for **category** — deprecated. Same row as **hub** / root **`Branch`**. |
 | **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Self & Mind"** in UI. Legacy labels **Who I'm Becoming**, **Mind & Spirit**, and **Personal Growth** map to `becoming` in serializers only — do not use them in new copy. |
 | **Branch** | A persisted **`Branch`** row: the database anchor for a **hub**; owns **timeline notes** (`Mark`) and goals via `branchId`. **Not** the same as **goal evolution** (`Goal.parentGoalId`). Columns `parentBranchId` / `turningPointId` remain for legacy rows; **new hub splits from the timeline are disabled** (2026-05). |
 | **Goal evolution (legacy)** | Successor goal linked via `Goal.parentGoalId` / `forkedGoals`. Fork API removed; **Stream** adds new pursuits. Older docs: **continuation**. |
-| **Goal** | Roadmap item (`Goal` model): types **project** or **identity** (`practice` retired → project + **Maintaining** status). May include legacy `moment` / `event` rows. Carries **bloom** lifecycle for that pursuit alone. |
+| **Goal** / **Pursuit** | Prisma **`Goal`**; user word **pursuit** only — **no subtypes** (not project, identity, or practice). **`goalType`** column is legacy wire; new creates default `"project"` until the column is dropped. Use **status** (especially **Maintaining**) for ongoing pursuits. Legacy `moment` / `event` rows are not map pursuits. |
 | **Timeline note** (`Mark`) | Dated item on a **hub** (`Mark` via `branchId`) — **not** on a pursuit. Displayed in the hub panel and on the tree; created through Stream, not direct panel buttons. Product word: **timeline note**; Prisma model **`Mark`**. `Mark.kind` ∈ {`mark`, `stream`}. |
 | **Unresolved mark** | `Mark.needsResolution` after Stream `ambiguous[]` auto-commit. Dashed **`?`** on tree; resolve on hover card or `POST /api/stream/resolve-ambiguous`. |
 | **Archived** | `Goal.archived` / `Mark.archived` — hidden from tree; revivable from hub **Archive** section (`PATCH` `archived: false`). |
@@ -60,11 +60,13 @@ We keep the column name **`limbId`** for migrations and existing data. In new do
 | **`roadmapLifeAreaRootId`**, **`ROADMAP_LIFE_AREA_ROOT_PREFIX`** | Synthetic root node id per visible **theme**. The prefix string may remain `limb-root:` for stable persisted node ids. |
 | **`coerceRoadmapLifeAreaId`** | Normalizes a string to a known **theme** id. |
 
-## Status (bloom)
+## Status (user word; persisted as bloom until Prisma rename)
 
-Persisted **`Goal.bloomStatus`** values: **`ACTIVE`**, **`PAUSED`**, **`COMPLETE`**, **`MAINTAINING`**, **`ABANDONED`**.
+User-facing word: **Status** — Active · Maintaining · Paused · Complete.
 
-**JSON mirror (Phase 2):** GET/PATCH also expose **`status`** — same value as `bloomStatus`; mobile and new clients prefer `status`.
+Persisted **`Goal.bloomStatus`** values (→ column **`status`** in Prisma Phase 3): **`ACTIVE`**, **`PAUSED`**, **`COMPLETE`**, **`MAINTAINING`**, **`ABANDONED`**.
+
+**JSON mirror (Phase 2):** GET/PATCH also expose **`status`** — same value as `bloomStatus`; mobile and new clients use **`status`** in code and **Status** in UI.
 
 - **`ACTIVE`** — pursuit in progress (milestones may or may not exist).
 - **`PAUSED`** — deliberately shelved; user or Stream set; not auto-recomputed. Mobile UI: **Paused** (legacy copy: on hold).
@@ -80,11 +82,12 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md), `npm run backfill:goal-bloom`, and `npm run 
 
 | Prefer | Legacy |
 |--------|--------|
-| **Theme** (user-facing) / `LifeArea`, `LifeAreaId` (code) | Older prose: **life area**; oldest code: `Limb`, `LimbId` |
+| **Theme** (user) / `LifeAreaId` (code) | life area, `Limb`, `limbId` |
+| **Category** (user) / `categoryId` (target) | hub, track, section, taxonomy category, `branchId`, `Branch` |
+| **Pursuit** (user) / `Goal` (model) | project, identity, practice, `goalType` |
+| **Status** (user) / `status` (target) | bloom, `bloomStatus`, on hold |
+| **Timeline note** (user) / **Mark** (model) | mark (older copy) |
 | `LIFE_AREA_SUBTYPES` | `LIMB_SUBTYPES` |
-| **Track** (mobile UI) / **Hub** (desktop UI) | Older UI: **branch line** for the same track |
-| **Hub** (desktop UI) | Mobile now prefers **track** for the same `Branch` row |
-| **Timeline note** (user-facing) | Older copy: **mark** (Prisma model remains `Mark`) |
 | `DomainHubData`, `AreaData.branches` | `ThreadData`, `threads` (**deprecated** — never means goal continuation) |
 | `AreaBranchData` | Same as `DomainHubData` (**deprecated** name only) |
 | `BranchForkSpec`, `branchPieces` | `ThreadForkSpec`, `threadPieces` |
@@ -93,7 +96,10 @@ See [`ONTOLOGY.md`](./ONTOLOGY.md), `npm run backfill:goal-bloom`, and `npm run 
 ## UI wording
 
 - **Theme** — pillar labels (Money & Finance, Work & Career, Self & Mind, Play & Leisure, …).
-- **Hub / track** — taxonomy category in DB/API (`branchId`); **not shown** in mobile UI. Desktop legacy UI may still say hub.
+- **Category** — slot label under a theme (Job, Movement, …); mobile theme detail + pursuit eyebrow (`Work & Career · Job`).
+- **Pursuit** — map node / goal the user is building.
+- **Status** — Active, Maintaining, Paused, Complete (never bloom / on hold in UI).
+- **Hub / track / section** — legacy; use **category**.
 - **Capture progress** — pursuit-scoped apply (`PursuitInlineStream`, `/api/stream/pursuit/*`). Centre **+** opens add pursuit, not map-wide Stream.
 - **Edit map** — toolbar toggle to drag-reorganize pursuits on the SVG map.
 - **Continuation** — legacy prose for goal evolution; prefer **evolution** in new UI.

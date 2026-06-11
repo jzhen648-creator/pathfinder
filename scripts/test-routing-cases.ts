@@ -106,7 +106,7 @@ const CASES: RoutingCase[] = [
     themeId: "work",
     input: "Finished CeMAP module 1 last Tuesday",
     expected: { kind: "hub", hubSlug: "skills & learning" },
-    description: "Professional qualification — should land on Skills & learning, not Career & role",
+    description: "Professional qualification — should land on Skills & learning, not Job",
   },
   {
     id: "retreat-purpose",
@@ -120,7 +120,7 @@ const CASES: RoutingCase[] = [
     themeId: "work",
     input: "I launched my YouTube channel on 3 April",
     expected: { kind: "hub", hubSlug: "projects & shipping" },
-    description: "Published channel launch — should land on Projects & shipping, not Career & role",
+    description: "Published channel launch — should land on Projects & shipping, not Job",
   },
   {
     id: "acne-ambiguous",

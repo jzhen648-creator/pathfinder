@@ -52,7 +52,7 @@ export const HUB_BRANCH_ICONS: Record<LifeAreaId, Record<string, TreeIconCompone
     "Debts & obligations": BranchDebt,
   },
   work: {
-    "Career & role": BranchCareer,
+    "Job": BranchCareer,
     "Skills & learning": BranchHammer,
     "Projects & shipping": BranchProjects,
   },

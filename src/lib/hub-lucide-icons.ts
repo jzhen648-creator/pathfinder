@@ -42,7 +42,7 @@ export const HUB_LUCIDE_ICONS: Record<LifeAreaId, Record<string, HubLucideIconSl
     "debts & obligations": "credit-card",
   },
   work: {
-    "career & role": "building-2",
+    job: "building-2",
     "skills & learning": "graduation-cap",
     "projects & shipping": "rocket",
   },

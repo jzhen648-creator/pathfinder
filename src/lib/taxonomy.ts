@@ -1,7 +1,7 @@
 import type { LifeAreaId } from "./types";
 
 /** Bump when locked theme/hub names change (sync + docs). */
-export const TAXONOMY_VERSION = "2026-06-10-v9-finance-categories" as const;
+export const TAXONOMY_VERSION = "2026-06-11-v10-work-job-category" as const;
 
 export const LIFE_AREA_IDS = [
   "becoming",
@@ -26,7 +26,7 @@ export const LOCKED_HUB_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "finance", threadType: "Assets & investing", name: "Assets & investing" },
   { limbId: "finance", threadType: "Safety net", name: "Safety net" },
   { limbId: "finance", threadType: "Debts & obligations", name: "Debts & obligations" },
-  { limbId: "work", threadType: "Career & role", name: "Career & role" },
+  { limbId: "work", threadType: "Job", name: "Job" },
   { limbId: "work", threadType: "Skills & learning", name: "Skills & learning" },
   { limbId: "work", threadType: "Projects & shipping", name: "Projects & shipping" },
   { limbId: "becoming", threadType: "Purpose & Values", name: "Purpose & Values" },
@@ -60,7 +60,8 @@ export const HUB_LABEL_ALIASES: Record<string, string> = {
   joy: "joy & creativity",
   projects: "projects & shipping",
   "builds & launches": "projects & shipping",
-  career: "career & role",
+  career: "job",
+  "career & role": "job",
   skills: "skills & learning",
   income: "employment income",
   salary: "employment income",
@@ -103,7 +104,8 @@ export const LEGACY_HUB_MIGRATIONS: Record<string, { limbId: LifeAreaId; label: 
   "inner life": { limbId: "becoming", label: "Mind & Emotions" },
   projects: { limbId: "work", label: "Projects & shipping" },
   "builds & launches": { limbId: "work", label: "Projects & shipping" },
-  career: { limbId: "work", label: "Career & role" },
+  career: { limbId: "work", label: "Job" },
+  "career & role": { limbId: "work", label: "Job" },
   skills: { limbId: "work", label: "Skills & learning" },
   mind: { limbId: "becoming", label: "Mind & Emotions" },
   "inner work": { limbId: "becoming", label: "Mind & Emotions" },

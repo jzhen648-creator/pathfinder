@@ -79,7 +79,7 @@ function inferJourneyBranchName(g: {
   if (g.limbId === "work") {
     if (/(mentor|network|collaborat|peer|skill|learn|course|cert)/.test(text)) return "Skills & learning";
     if (/(project|ship|build|portfolio)/.test(text)) return "Projects & shipping";
-    return "Career & role";
+    return "Job";
   }
   if (g.limbId === "people") {
     if (/(dad|mum|family|parent|child)/.test(text)) return "Family";
@@ -98,7 +98,7 @@ function inferJourneyBranchName(g: {
     if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Mind & Emotions";
     return "Purpose";
   }
-  return "Career & role";
+  return "Job";
 }
 
 async function main() {

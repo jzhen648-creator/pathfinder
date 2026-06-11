@@ -222,10 +222,10 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
     },
   },
   work: {
-    "Career & role": {
+    Job: {
       about:
-        "Your professional trajectory — job titles, promotions, employer changes, industry pivots, and the story of what you do for a living. Strategy and position, not craft details or shipped artifacts.",
-      why: "Career moves are high-stakes and infrequent; they deserve a hub that is not cluttered with every course or side repo.",
+        "Your job — title, employer, promotion, redundancy, job search, and where paid work is heading. The theme already says career; this category is the job itself, not courses or shipped work.",
+      why: "Job moves are high-stakes and infrequent; they deserve a category that is not cluttered with every course or side repo.",
       belongsHere: [
         "Land Head of Product role",
         "Plan promotion to director",
@@ -237,7 +237,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Close friendship with former colleague (→ Friendships)",
       ],
       aiRoutingNote:
-        "Route here for role, employer, promotion, redundancy, job search, and career direction — what the user does for work and where it's going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Skills & learning. If they're shipping a portfolio piece or publishing content, that's Projects & shipping. Career & role covers the role itself; the other two cover the inputs and outputs. Extract all three when present in the same dump.",
+        "Route here for role, employer, promotion, redundancy, job search, and where paid work is going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Skills & learning. If they're shipping a portfolio piece or publishing content, that's Projects & shipping. Job covers the role itself; the other two cover the inputs and outputs. Extract all three when present in the same dump.",
       examples: [
         "Land Head of Product role",
         "Plan promotion to director",
@@ -265,11 +265,11 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
       ],
       doesNotBelongHere: [
         "Ship side project MVP (→ Projects & shipping)",
-        "Ask for promotion (→ Career & role)",
+        "Ask for promotion (→ Job)",
         "Weekend trip with friends (→ Joy & Creativity)",
       ],
       aiRoutingNote:
-        "Route here for learning, qualifications, courses, certifications, practice, and skill-building — the inputs that compound into capability. CEMAP, language learning, technical practice, and reading lists belong here even when motivated by a career goal. If the user names a specific qualification or course, this hub almost always wins over Career. Do not collapse a Skills item into a Career pursuit just because they share a target role.",
+        "Route here for learning, qualifications, courses, certifications, practice, and skill-building — the inputs that compound into capability. CEMAP, language learning, technical practice, and reading lists belong here even when motivated by a job goal. If the user names a specific qualification or course, this hub almost always wins over Job. Do not collapse a Skills item into a Job pursuit just because they share a target role.",
       examples: [
         "Complete CeMAP qualification",
         "Deepen SQL for analytics",
@@ -296,7 +296,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Deliver Q3 product launch",
       ],
       doesNotBelongHere: [
-        "Promotion planning (→ Career & role)",
+        "Promotion planning (→ Job)",
         "Learn React course (→ Skills & learning)",
         "Hobby game dev with no ship goal (→ Joy & Creativity)",
       ],
@@ -368,7 +368,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, HubCatalogEntry>>> 
         "Run a 10k training plan (→ Movement)",
       ],
       aiRoutingNote:
-        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Purpose & Values), not career output (Career & role / Skills & learning), not body presentation projects (Body & grooming). If the user mentions therapy by name, this hub wins over Purpose & Values. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
+        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Purpose & Values), not work output (Job / Skills & learning), not body presentation projects (Body & grooming). If the user mentions therapy by name, this hub wins over Purpose & Values. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
       examples: [
         "I feel overwhelmed and need to organise my thoughts",
         "I want to become more confident",
