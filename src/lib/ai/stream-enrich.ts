@@ -29,6 +29,7 @@ export async function runStreamEnrich(input: {
   themeLabel?: string | null;
   additionalContext: string;
   pursuitContextJson?: string | null;
+  queueKey?: string | null;
 }): Promise<{ title: string; description: string }> {
   const placement =
     input.hubLabel && input.themeLabel
@@ -59,6 +60,7 @@ export async function runStreamEnrich(input: {
     user,
     maxTokens: 512,
     temperature: 0.35,
+    queueKey: input.queueKey,
   });
 
   let parsed: unknown;

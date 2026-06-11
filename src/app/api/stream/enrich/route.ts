@@ -59,6 +59,7 @@ export async function POST(request: Request) {
         hubLabel,
         themeLabel,
         additionalContext,
+        queueKey: userId,
       });
 
       const updated = await prisma.mark.update({
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       themeLabel,
       additionalContext,
       pursuitContextJson: pursuitCtx ? JSON.stringify(pursuitCtx, null, 2) : null,
+      queueKey: userId,
     });
 
     const updated = await prisma.goal.update({
