@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-slug";
+import { PURSUIT_STATUS_VALUES } from "@/lib/pursuit-status-api";
+
+const pursuitStatusSchema = z.enum(PURSUIT_STATUS_VALUES);
 
 /** PATCH `/api/goals/[goalId]` — at least one field required. */
 const calendarDaySchema = z
@@ -17,7 +20,10 @@ export const updateGoalPayloadSchema = z
     deadline: calendarDaySchema.nullable().optional(),
     /** `false` revives a pursuit removed from the map. */
     archived: z.boolean().optional(),
-    bloomStatus: z.enum(["ACTIVE", "PAUSED", "COMPLETE", "MAINTAINING", "ABANDONED"]).optional(),
+    /** Canonical pursuit status (preferred over bloomStatus). */
+    status: pursuitStatusSchema.optional(),
+    /** @deprecated Use `status` — mirrored for transition. */
+    bloomStatus: pursuitStatusSchema.optional(),
     /** World axial hex q on the mobile map lattice; `null` clears a pin. */
     mapGridQ: z.number().int().nullable().optional(),
     /** World axial hex r on the mobile map lattice; `null` clears a pin. */
@@ -33,6 +39,7 @@ export const updateGoalPayloadSchema = z
       data.timelineStart !== undefined ||
       data.deadline !== undefined ||
       data.archived !== undefined ||
+      data.status !== undefined ||
       data.bloomStatus !== undefined ||
       data.mapGridQ !== undefined ||
       data.mapGridR !== undefined ||

@@ -1,0 +1,59 @@
+/** Phase 2 mirror — `status` is canonical JSON; `bloomStatus` kept until Prisma rename. */
+
+export const PURSUIT_STATUS_VALUES = [
+  "ACTIVE",
+  "PAUSED",
+  "COMPLETE",
+  "MAINTAINING",
+  "ABANDONED",
+] as const;
+
+export type PursuitStatusValue = (typeof PURSUIT_STATUS_VALUES)[number];
+
+export type WithBloomStatus = { bloomStatus?: string | null };
+
+export function normalizePursuitStatusValue(raw: unknown): PursuitStatusValue | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const upper = raw.trim().toUpperCase();
+  if (upper === "ON_HOLD") return "PAUSED";
+  if ((PURSUIT_STATUS_VALUES as readonly string[]).includes(upper)) {
+    return upper as PursuitStatusValue;
+  }
+  return null;
+}
+
+export function withPursuitStatusMirror<T extends WithBloomStatus>(
+  row: T,
+): T & { status: PursuitStatusValue | string | null } {
+  const normalized = normalizePursuitStatusValue(row.bloomStatus);
+  return { ...row, status: normalized ?? row.bloomStatus ?? "ACTIVE" };
+}
+
+export function withPursuitStatusMirrors<T extends WithBloomStatus>(
+  rows: T[],
+): Array<T & { status: PursuitStatusValue | string | null }> {
+  return rows.map(withPursuitStatusMirror);
+}
+
+export function resolvePursuitStatusFromBody(body: {
+  status?: unknown;
+  bloomStatus?: unknown;
+}): PursuitStatusValue | undefined {
+  const fromStatus = normalizePursuitStatusValue(body.status);
+  if (fromStatus) return fromStatus;
+  return normalizePursuitStatusValue(body.bloomStatus) ?? undefined;
+}
+
+export function normalizePursuitStatusInBody(body: unknown): unknown {
+  if (!body || typeof body !== "object") return body;
+  const record = { ...(body as Record<string, unknown>) };
+  const resolved = resolvePursuitStatusFromBody({
+    status: record.status,
+    bloomStatus: record.bloomStatus,
+  });
+  if (resolved) {
+    record.status = resolved;
+    record.bloomStatus = resolved;
+  }
+  return record;
+}

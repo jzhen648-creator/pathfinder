@@ -8,6 +8,7 @@ import { dedupeDuplicateRootHubs } from "@/lib/hub-dedupe";
 import { ensureHubTaxonomyCurrent } from "@/lib/hub-taxonomy-sync";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 import { withCategoryIdMirrors } from "@/lib/category-id";
+import { withPursuitStatusMirrors } from "@/lib/pursuit-status-api";
 import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
 /** Root hub rows + goals for tree/roadmap. Read-only; taxonomy sync on register, onboarding, activate, or backfill. */
@@ -112,7 +113,7 @@ export async function GET(request: Request) {
       branches,
       /** Phase 2 alias — same rows as `branches` (taxonomy categories). */
       categories: branches,
-      goals: withCategoryIdMirrors(goals),
+      goals: withPursuitStatusMirrors(withCategoryIdMirrors(goals)),
       archivedGoals: withCategoryIdMirrors(archivedGoals),
       marks: withCategoryIdMirrors(marks),
       unlockedLimbIds,

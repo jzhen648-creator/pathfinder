@@ -3,6 +3,11 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
 import { isInsightEligibleGoalType } from "@/lib/insights/merge-insight-cache";
+import { withCategoryIdMirror } from "@/lib/category-id";
+import {
+  resolvePursuitStatusFromBody,
+  withPursuitStatusMirror,
+} from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 
@@ -23,7 +28,17 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     return NextResponse.json({ error: "JSON body required" }, { status: 400 });
   }
 
-  const parsed = updateGoalPayloadSchema.safeParse(body);
+  const raw = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const resolvedStatus = resolvePursuitStatusFromBody(raw);
+  const parsed = updateGoalPayloadSchema.safeParse({
+    ...raw,
+    ...(resolvedStatus
+      ? {
+          status: raw.status ?? resolvedStatus,
+          bloomStatus: raw.bloomStatus ?? resolvedStatus,
+        }
+      : {}),
+  });
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
@@ -91,11 +106,12 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       input.iconName == null ? null : input.iconName.trim().toLowerCase() || null;
   }
 
-  if (input.bloomStatus !== undefined) {
-    data.bloomStatus = input.bloomStatus;
-    if (input.bloomStatus === "PAUSED" || input.bloomStatus === "ABANDONED") {
+  const pursuitStatus = input.status ?? input.bloomStatus;
+  if (pursuitStatus !== undefined) {
+    data.bloomStatus = pursuitStatus;
+    if (pursuitStatus === "PAUSED" || pursuitStatus === "ABANDONED") {
       data.endedAt = new Date();
-    } else if (input.bloomStatus === "COMPLETE") {
+    } else if (pursuitStatus === "COMPLETE") {
       data.bloomedAt = new Date();
       data.endedAt = null;
       data.endReason = null;
@@ -135,7 +151,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     refreshInsightsInBackground(userId);
   }
 
-  return NextResponse.json({ goal });
+  return NextResponse.json({
+    goal: withPursuitStatusMirror(withCategoryIdMirror(goal)),
+  });
 }
 
 export async function DELETE(request: Request, { params }: RouteProps) {
