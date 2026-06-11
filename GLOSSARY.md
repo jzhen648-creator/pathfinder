@@ -14,7 +14,7 @@ For historical UX wording inventory (desktop era), see [`docs/archive/UX-TERMINO
 |------|--------|
 | **Self** | The user / center of the life map (conceptual). |
 | **Theme** | One of six fixed pillars: **Money & Finance** `finance`, **Work & Career** `work`, **Self & Mind** `becoming`, **Play & Leisure** `pleasures`, **People & Relationships** `people`, **Health & Body** `health`. Locked hub names live in `src/lib/taxonomy.ts` (**20** system hubs total, taxonomy v8). **Catalog/config only** — not a database table. Older prose used **life area** for the same idea; in code the id is still **`LifeAreaId`**. |
-| **Taxonomy category** | Preferred **doc/comment** word for a named slot under a theme (e.g. Family, Skills, Hobbies). Persisted as root **`Branch`** + `branchId` on goals/marks. **Hidden from mobile UI** (2026-06). Stream JSON still uses `hubId` (category slug) until Phase 2. |
+| **Taxonomy category** | Preferred **doc/comment** word for a named slot under a theme (e.g. Family, Skills, Hobbies). Persisted as root **`Branch`** + `branchId` on goals/marks. **Hidden from mobile UI** (2026-06). **Stream wire:** hub-scoped extract/commit use **`categoryId`** (Branch row id), mirrored as legacy **`hubId`**; theme-level item routing still uses **`hubId`** / **`categorySlug`** (normalized slug). |
 | **Hub** | **Legacy** synonym for taxonomy category — code, desktop UI, and old docs only. Do not use in new mobile copy. |
 | **Track** | **Legacy** synonym for taxonomy category — deprecated in mobile UI (2026-06). Same row as **hub** / root **`Branch`**. |
 | **Becoming (label)** | Human-readable name for theme id `becoming`. Use **"Self & Mind"** in UI. Legacy labels **Who I'm Becoming**, **Mind & Spirit**, and **Personal Growth** map to `becoming` in serializers only — do not use them in new copy. |
@@ -64,8 +64,10 @@ We keep the column name **`limbId`** for migrations and existing data. In new do
 
 Persisted **`Goal.bloomStatus`** values: **`ACTIVE`**, **`PAUSED`**, **`COMPLETE`**, **`MAINTAINING`**, **`ABANDONED`**.
 
+**JSON mirror (Phase 2):** GET/PATCH also expose **`status`** — same value as `bloomStatus`; mobile and new clients prefer `status`.
+
 - **`ACTIVE`** — pursuit in progress (milestones may or may not exist).
-- **`PAUSED`** — deliberately shelved; user or Stream set; not auto-recomputed.
+- **`PAUSED`** — deliberately shelved; user or Stream set; not auto-recomputed. Mobile UI: **Paused** (legacy copy: on hold).
 - **`COMPLETE`** — achieved / finished.
 - **`MAINTAINING`** — ongoing practice (legacy `practice` goalType → project + MAINTAINING).
 - **`ABANDONED`** — off map; visible on Timeline only.
