@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidLucideSlug } from "@/lib/icons/enumerate-lucide-slugs";
+import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-slug";
 
 /** PATCH `/api/goals/[goalId]` — at least one field required. */
 const calendarDaySchema = z
@@ -96,7 +96,7 @@ export const updateGoalPayloadSchema = z
     }
     if (data.iconName !== undefined && data.iconName != null) {
       const slug = data.iconName.trim().toLowerCase();
-      if (!slug || !isValidLucideSlug(slug)) {
+      if (!slug || !isValidStoredPursuitIconSlug(slug)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "iconName must be a valid Lucide slug or null",
