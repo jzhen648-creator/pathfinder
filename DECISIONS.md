@@ -4,6 +4,16 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-11 — Creation mode · Reflection sync
+
+**Creation:** Pursuit create and map placement are offline — no Gemini on `POST /api/goals` (no `assignPursuitVisuals`). Icons are user-picked only.
+
+**Capture:** Pursuit **Update** and **Add context** save pending `StreamRun` rows (`POST /api/goals/[goalId]/capture`, `/apply-context`, `/api/stream/pursuit/apply`) — no extract until sync.
+
+**Reflection:** One tap **Update readings** on Insights → `POST /api/map/ai-sync` digests pending notes, then regenerates `InsightCache` + `StoryCache`. Map utility bar shows **Update readings** chip when caches are stale. Per-user AI queue + 8 req/min cap.
+
+**Retired:** Map-wide Stream UI, instant apply on note save, Stream as product word on mobile (+ tab is **add on map**).
+
 ## 2026-06-11 — Work category Job rename + category UI lock
 
 **Taxonomy:** `Career & role` → **Job** under Work & Career; `TAXONOMY_VERSION` → `2026-06-11-v10-work-job-category`. Legacy aliases `career`, `career & role` → slug `job`. Prod sync via `hubTaxonomyVersion` on login.
