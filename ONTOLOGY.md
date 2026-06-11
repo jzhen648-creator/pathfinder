@@ -73,7 +73,7 @@ Bloom describes **maturity of one goal**, not graph shape.
 | **Hub** / **track** | Legacy synonyms for **taxonomy category**. Desktop legacy UI only; not mobile product language. |
 | **Theme** vs **`LifeAreaId` / `limbId`** | Same ids — **theme** is the product word; code symbols stay until an optional rename pass. |
 | **Child** | `TreeGoalNode.childGoals` = successor goals for layout (goal evolution); not “subtasks.” |
-| **Stream** | **(a)** Retired map-wide extract *surface* (map sheet, theme-picker FAB path). **(b)** Live pursuit-scoped apply (`PursuitInlineStream`, `/api/stream/pursuit/*`). **(c)** Backend input pipe concept (`/api/stream/extract`, commit routes). In **UI copy**: use **Update pursuit** / **Capture progress** for (b); **Describe** / **Capture** for (c); never bare **Stream** as a destination. Code may keep `stream/*` paths until a rename pass. |
+| **Stream** | **Backend wire only** (`StreamRun`, `/api/stream/*`, pending capture until ai-sync). **Retired** as product surface and UI copy (Jun 2026). Use **Capture** (pending note on a pursuit) and **Reflection sync** (**Update readings** on Insights → `POST /api/map/ai-sync`). Never bare **Stream** in UI. |
 
 ## Terminology policy (permanent)
 

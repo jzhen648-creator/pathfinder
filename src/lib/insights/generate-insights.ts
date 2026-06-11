@@ -411,10 +411,19 @@ export async function generateNodeInsights(
     return emptyNodeInsightPatch();
   }
 
-  const [themeHubPatch, pursuitPatch] = await Promise.all([
-    generateThemeHubNodeInsights(userId, mapContext, userContext, themeIds, hubIds),
-    generatePursuitNodeInsights(userId, mapContext, userContext, pursuitIds),
-  ]);
+  const themeHubPatch = await generateThemeHubNodeInsights(
+    userId,
+    mapContext,
+    userContext,
+    themeIds,
+    hubIds,
+  );
+  const pursuitPatch = await generatePursuitNodeInsights(
+    userId,
+    mapContext,
+    userContext,
+    pursuitIds,
+  );
 
   return {
     themes: themeHubPatch.themes,

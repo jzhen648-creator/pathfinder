@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { savePendingPursuitCapture } from "@/lib/stream-pursuit-apply";
-import { streamPursuitApplyRequestSchema } from "@/types/stream";
 
-export async function POST(request: Request) {
+type RouteProps = { params: Promise<{ goalId: string }> };
+
+const requestSchema = z.object({
+  text: z.string().trim().min(1).max(4000),
+  inputMode: z.enum(["text", "voice"]).optional(),
+});
+
+export async function POST(request: Request, props: RouteProps) {
   const auth = await requireApiSessionUserId();
   if (!auth.ok) return auth.response;
+
+  const { goalId } = await props.params;
 
   let body: unknown;
   try {
@@ -14,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON body required" }, { status: 400 });
   }
 
-  const parsed = streamPursuitApplyRequestSchema.safeParse(body);
+  const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid payload" },
@@ -22,14 +31,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const { pursuitId, input, inputMode } = parsed.data;
-  const result = await savePendingPursuitCapture(auth.userId, pursuitId, input, inputMode);
+  const result = await savePendingPursuitCapture(
+    auth.userId,
+    goalId,
+    parsed.data.text,
+    parsed.data.inputMode ?? "text",
+  );
 
   if (!result.ok) {
-    return NextResponse.json(
-      { ok: false, error: result.error },
-      { status: result.status },
-    );
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
   return NextResponse.json({

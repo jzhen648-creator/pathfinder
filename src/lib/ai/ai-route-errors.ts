@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { GeminiNotConfiguredError, GeminiProviderError } from "@/lib/gemini";
+import { AiUserRateLimitError } from "@/lib/ai/ai-user-rate-limit";
 
 function providerStatus(err: unknown): number | null {
   if (err instanceof GeminiProviderError) return err.status;
@@ -23,6 +24,16 @@ function isRateLimitMessage(message: string): boolean {
 export function aiRouteErrorResponse(err: unknown, logLabel: string): NextResponse {
   if (err instanceof GeminiNotConfiguredError) {
     return NextResponse.json({ error: err.message }, { status: 503 });
+  }
+
+  if (err instanceof AiUserRateLimitError) {
+    return NextResponse.json(
+      { error: "AI is busy — wait a moment and try again." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(err.retryAfterMs / 1000)) },
+      },
+    );
   }
 
   if (providerStatus(err) === 429) {

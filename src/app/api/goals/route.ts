@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
@@ -21,9 +21,6 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-hubs";
-import { assignPursuitVisualsSafe } from "@/lib/ai/assign-pursuit-icon";
-import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
-import { isInsightEligibleGoalType } from "@/lib/insights/merge-insight-cache";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -161,25 +158,6 @@ export async function POST(request: Request) {
       console.error("[POST /api/goals] recomputeGoalBloomStatus failed", recErr);
     }
 
-    const goalId = goal.id;
-    after(() => {
-      void assignPursuitVisualsSafe({ title, description, lifeArea, queueKey: userId })
-        .then(async ({ iconName, shortLabel }) => {
-          const existing = await prisma.goal.findUnique({
-            where: { id: goalId },
-            select: { iconName: true },
-          });
-          const data: { iconName?: string; shortLabel?: string } = {};
-          if (!existing?.iconName && iconName) data.iconName = iconName;
-          if (shortLabel) data.shortLabel = shortLabel;
-          if (Object.keys(data).length === 0) return;
-          await prisma.goal.update({ where: { id: goalId }, data });
-        })
-        .catch((err) =>
-          console.error("[POST /api/goals] assignPursuitVisuals failed", err),
-        );
-    });
-
     if (
       shouldGenerateRoadmap(input.generateRoadmap) &&
       input.bloomStatus !== "MAINTAINING" &&
@@ -219,12 +197,6 @@ export async function POST(request: Request) {
     }
 
     const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
-
-    if (isInsightEligibleGoalType(input.goalType)) {
-      refreshInsightsInBackground(userId, { pursuitIds: [goal.id] });
-    } else {
-      refreshInsightsInBackground(userId);
-    }
 
     return NextResponse.json(
       {

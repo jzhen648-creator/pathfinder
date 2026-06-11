@@ -1,7 +1,6 @@
 import type { BloomStatus, Prisma } from "@prisma/client";
 import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
-import { persistPursuitVisualsForGoal } from "@/lib/ai/assign-pursuit-icon";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-hubs";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
@@ -108,6 +107,105 @@ function stabilizePursuitUpdate(
   return next;
 }
 
+export type PursuitCaptureSaveResult =
+  | {
+      ok: true;
+      runId: string;
+      rawInput: string;
+      expiresAt: string;
+      appended: boolean;
+    }
+  | { ok: false; error: string; status: number };
+
+/** Save or append a pending capture note — no Gemini until map ai-sync digests it. */
+export async function savePendingPursuitCapture(
+  userId: string,
+  pursuitId: string,
+  input: string,
+  inputMode: "text" | "voice" = "text",
+): Promise<PursuitCaptureSaveResult> {
+  const trimmed = input.trim().slice(0, 4000);
+  if (!trimmed) {
+    return { ok: false, error: "Note cannot be empty", status: 400 };
+  }
+
+  const ctx = await loadPursuitStreamContext(userId, pursuitId);
+  if (!ctx) {
+    return { ok: false, error: "Pursuit not found", status: 404 };
+  }
+
+  const goalRow = await prisma.goal.findFirst({
+    where: { id: pursuitId, userId },
+    select: { description: true, status: true, categoryId: true },
+  });
+  if (!goalRow?.categoryId) {
+    return { ok: false, error: "Pursuit not found", status: 404 };
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(Date.now() + RUN_TTL_MS);
+
+  const existing = await prisma.streamRun.findFirst({
+    where: {
+      userId,
+      goalId: pursuitId,
+      status: "pending",
+      expiresAt: { gt: now },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  try {
+    if (existing) {
+      const merged = [existing.rawInput.trim(), trimmed].filter(Boolean).join("\n\n").slice(0, 4000);
+      const updated = await prisma.streamRun.update({
+        where: { id: existing.id },
+        data: { rawInput: merged, inputMode, expiresAt },
+      });
+      return {
+        ok: true,
+        runId: updated.id,
+        rawInput: updated.rawInput,
+        expiresAt: updated.expiresAt.toISOString(),
+        appended: true,
+      };
+    }
+
+    const created = await prisma.streamRun.create({
+      data: {
+        userId,
+        goalId: pursuitId,
+        branchId: ctx.branchId,
+        limbId: ctx.limbId,
+        rawInput: trimmed,
+        inputMode,
+        status: "pending",
+        previousDescription: goalRow.description,
+        previousBloomStatus: goalRow.status,
+        expiresAt,
+      },
+    });
+
+    return {
+      ok: true,
+      runId: created.id,
+      rawInput: created.rawInput,
+      expiresAt: created.expiresAt.toISOString(),
+      appended: false,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("StreamRun") || message.includes("does not exist")) {
+      return {
+        ok: false,
+        error: "Stream runs table is missing. Run: npx prisma migrate deploy",
+        status: 503,
+      };
+    }
+    throw err;
+  }
+}
+
 export type PursuitStreamApplyResult =
   | {
       ok: true;
@@ -126,15 +224,53 @@ export type PursuitStreamApplyResult =
     }
   | { ok: false; streamRunId: string; rawInput: string; error: string; status: number };
 
+/** @deprecated Prefer savePendingPursuitCapture — kept for route alias. */
 export async function applyPursuitStream(
   userId: string,
   pursuitId: string,
   input: string,
   inputMode: "text" | "voice" = "text",
+): Promise<PursuitCaptureSaveResult> {
+  return savePendingPursuitCapture(userId, pursuitId, input, inputMode);
+}
+
+export async function digestPendingStreamRun(
+  userId: string,
+  runId: string,
 ): Promise<PursuitStreamApplyResult> {
+  const run = await prisma.streamRun.findFirst({
+    where: { id: runId, userId, status: "pending" },
+  });
+  if (!run) {
+    return {
+      ok: false,
+      streamRunId: runId,
+      rawInput: "",
+      error: "Pending capture not found",
+      status: 404,
+    };
+  }
+  if (run.expiresAt.getTime() < Date.now()) {
+    return {
+      ok: false,
+      streamRunId: run.id,
+      rawInput: run.rawInput,
+      error: "Capture expired — save a new note",
+      status: 410,
+    };
+  }
+
+  const pursuitId = run.goalId;
+  const input = run.rawInput;
   const ctx = await loadPursuitStreamContext(userId, pursuitId);
   if (!ctx) {
-    return { ok: false, streamRunId: "", rawInput: input, error: "Pursuit not found", status: 404 };
+    return {
+      ok: false,
+      streamRunId: run.id,
+      rawInput: run.rawInput,
+      error: "Pursuit not found",
+      status: 404,
+    };
   }
 
   const goalRow = await prisma.goal.findFirst({
@@ -142,44 +278,16 @@ export async function applyPursuitStream(
     select: { description: true, status: true, categoryId: true, title: true },
   });
   if (!goalRow?.categoryId) {
-    return { ok: false, streamRunId: "", rawInput: input, error: "Pursuit not found", status: 404 };
+    return {
+      ok: false,
+      streamRunId: run.id,
+      rawInput: run.rawInput,
+      error: "Pursuit not found",
+      status: 404,
+    };
   }
 
-  const expiresAt = new Date(Date.now() + RUN_TTL_MS);
-  let run: {
-    id: string;
-    rawInput: string;
-    previousDescription: string | null;
-    previousBloomStatus: BloomStatus | null;
-  };
-  try {
-    run = await prisma.streamRun.create({
-      data: {
-        userId,
-        goalId: pursuitId,
-        branchId: ctx.branchId,
-        limbId: ctx.limbId,
-        rawInput: input.trim().slice(0, 4000),
-        inputMode,
-        status: "pending",
-        previousDescription: goalRow.description,
-        previousBloomStatus: goalRow.status,
-        expiresAt,
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("StreamRun") || message.includes("does not exist")) {
-      return {
-        ok: false,
-        streamRunId: "",
-        rawInput: input,
-        error: "Stream runs table is missing. Run: npx prisma migrate deploy",
-        status: 503,
-      };
-    }
-    throw err;
-  }
+  const expiresAt = run.expiresAt;
 
   let extraction: StreamExtractResponse;
   try {
@@ -212,7 +320,6 @@ export async function applyPursuitStream(
   }
 
   const items: StreamRunAppliedItem[] = [];
-  const goalsNeedingVisuals = new Set<string>();
 
   const branchRow = await prisma.themeCategory.findFirst({
     where: { id: ctx.branchId, userId },
@@ -286,9 +393,6 @@ export async function applyPursuitStream(
               (run.previousBloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE") ?? "ACTIVE",
             newBloomStatus: data.status as "ACTIVE" | "PAUSED" | "COMPLETE",
           });
-        }
-        if (data.title) {
-          goalsNeedingVisuals.add(pursuitId);
         }
       }
 
@@ -370,14 +474,8 @@ export async function applyPursuitStream(
       }
     });
 
-    for (const goalId of goalsNeedingVisuals) {
-      void persistPursuitVisualsForGoal(goalId).catch((e) => {
-        console.error("[applyPursuitStream] persistPursuitVisualsForGoal failed", goalId, e);
-      });
-    }
-
     await recomputeGoalBloomStatus(pursuitId).catch((e) => {
-      console.error("[applyPursuitStream] recomputeGoalBloomStatus", e);
+      console.error("[digestPendingStreamRun] recomputeGoalBloomStatus", e);
     });
 
     const summary = {
@@ -421,6 +519,49 @@ export async function applyPursuitStream(
       status: 500,
     };
   }
+}
+
+export async function digestAllPendingCaptures(userId: string): Promise<{
+  processed: number;
+  failed: number;
+  errors: string[];
+}> {
+  const now = new Date();
+  const pending = await prisma.streamRun.findMany({
+    where: {
+      userId,
+      status: "pending",
+      expiresAt: { gt: now },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+
+  let processed = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const row of pending) {
+    const result = await digestPendingStreamRun(userId, row.id);
+    if (result.ok) {
+      processed += 1;
+    } else {
+      failed += 1;
+      if (result.error) errors.push(result.error);
+    }
+  }
+
+  return { processed, failed, errors };
+}
+
+export async function countPendingCaptures(userId: string): Promise<number> {
+  return prisma.streamRun.count({
+    where: {
+      userId,
+      status: "pending",
+      expiresAt: { gt: new Date() },
+    },
+  });
 }
 
 export async function undoPursuitStreamRun(

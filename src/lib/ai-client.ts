@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { runSerializedAiJob } from "@/lib/ai/ai-job-queue";
+import { assertAiUserRateLimit, AiUserRateLimitError } from "@/lib/ai/ai-user-rate-limit";
 
 type AiProvider = "gemini" | "groq" | "deepseek";
 
@@ -195,6 +196,7 @@ export async function generateJsonCompletion(input: {
 }): Promise<string> {
   const { queueKey, ...completionInput } = input;
   return runSerializedAiJob(queueKey, async () => {
+    assertAiUserRateLimit(queueKey);
     const { client, config } = getAiClient();
     const completion = await withRateLimitRetry(() =>
       client.chat.completions.create({
