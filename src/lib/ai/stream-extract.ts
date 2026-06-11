@@ -1193,7 +1193,7 @@ export async function runStreamGlobalExtract(
 
 export function buildStreamHubContextInput(args: {
   branchId: string;
-  limbId: string;
+  themeId: string;
   hubLabel: string;
   existingPursuits: StreamHubContextInput["existingPursuits"];
   existingMarks: StreamHubContextInput["existingMarks"];
@@ -1201,10 +1201,10 @@ export function buildStreamHubContextInput(args: {
   removedMarks: StreamHubContextInput["removedMarks"];
   previousStreamSessionSummary: string;
 }): StreamHubContextInput {
-  const themeLabel = getLifeArea(args.limbId)?.label ?? args.limbId;
+  const themeLabel = getLifeArea(args.themeId)?.label ?? args.themeId;
   return {
     branchId: args.branchId,
-    limbId: args.limbId,
+    limbId: args.themeId,
     hubLabel: args.hubLabel,
     themeLabel,
     existingPursuits: args.existingPursuits,

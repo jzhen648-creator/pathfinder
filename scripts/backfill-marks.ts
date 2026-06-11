@@ -61,12 +61,12 @@ async function ensureDefaultBranchesForUsers(
 }
 
 function inferJourneyBranchName(g: {
-  limbId: string;
+  themeId: string;
   title?: string | null;
   description?: string | null;
 }): string {
   const text = `${g.title ?? ""} ${g.description ?? ""}`.toLowerCase();
-  if (g.limbId === "finance") {
+  if (g.themeId === "finance") {
     if (/(debt|loan|paid off|mortgage|credit)/.test(text)) return "Debts & obligations";
     if (/(rent|rental|landlord|tenant|btl|buy-to-let|airbnb|hmo)/.test(text)) return "Rental & property income";
     if (/(freelance|self[- ]?employed|sole trader|invoic|side business|consulting client)/.test(text)) {
@@ -76,24 +76,24 @@ function inferJourneyBranchName(g: {
     if (/(insurance|emergency|runway|safety)/.test(text)) return "Safety net";
     return "Assets & investing";
   }
-  if (g.limbId === "work") {
+  if (g.themeId === "work") {
     if (/(mentor|network|collaborat|peer|skill|learn|course|cert)/.test(text)) return "Skills & learning";
     if (/(project|ship|build|portfolio)/.test(text)) return "Projects & shipping";
     return "Job";
   }
-  if (g.limbId === "people") {
+  if (g.themeId === "people") {
     if (/(dad|mum|family|parent|child)/.test(text)) return "Family";
     if (/(engag|partner|romance|marri)/.test(text)) return "Romance";
     if (/(volunteer|community|local group|neighbour|friend)/.test(text)) return "Friendships";
     return "Friendships";
   }
-  if (g.limbId === "health") {
+  if (g.themeId === "health") {
     if (/(burnout|sleep|rest|recovery|downtime)/.test(text)) return "Rest & sleep";
     if (/(meal|nutrition|eat|food)/.test(text)) return "Nutrition";
     if (/(teeth|hair|skin|invisalign|cosmetic|upgrade)/.test(text)) return "Body & grooming";
     return "Movement";
   }
-  if (g.limbId === "becoming") {
+  if (g.themeId === "becoming") {
     if (/(hobby|trip|joy|culture|experience|creative)/.test(text)) return "Joy";
     if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Mind & Emotions";
     return "Purpose";
@@ -103,7 +103,7 @@ function inferJourneyBranchName(g: {
 
 async function main() {
   const timelineGoals = await prisma.goal.findMany({
-    where: { goalType: { in: ["moment", "event"] }, limbId: { not: null } },
+    where: { goalType: { in: ["moment", "event"] }, themeId: { not: null } },
     orderBy: [{ userId: "asc" }, { createdAt: "asc" }],
   });
 
@@ -113,11 +113,11 @@ async function main() {
   }
 
   const userIds = [...new Set(timelineGoals.map((g) => g.userId))];
-  const limbIds = [...new Set(timelineGoals.map((g) => g.limbId).filter((id): id is string => id != null))];
+  const limbIds = [...new Set(timelineGoals.map((g) => g.themeId).filter((id): id is string => id != null))];
   const defaultBranches = await ensureDefaultBranchesForUsers(userIds, limbIds);
 
   for (const g of timelineGoals) {
-    const limbId = g.limbId;
+    const limbId = g.themeId;
     if (limbId == null) continue;
     const targetBranchName = inferJourneyBranchName({ limbId, title: g.title, description: g.description });
     const target = await prisma.themeCategory.findFirst({

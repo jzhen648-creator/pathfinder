@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const branchRecord = await prisma.themeCategory.findFirst({
     where: { id: input.branchId.trim(), userId },
-    select: { id: true, limbId: true, name: true, label: true, isActive: true },
+    select: { id: true, themeId: true, name: true, label: true, isActive: true },
   });
   if (!branchRecord) {
     return NextResponse.json({ error: "Branch not found" }, { status: 404 });
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
   }
 
   const unit = measurable && input.unit.trim().length > 0 ? input.unit.trim() : null;
-  const lifeArea = getLifeArea(branchRecord.limbId)?.label ?? "Other";
+  const lifeArea = getLifeArea(branchRecord.themeId)?.label ?? "Other";
 
   const sigRaw = Number(input.significance);
   const significance = Number.isFinite(sigRaw)
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
           lifeArea,
           goalType: input.goalType,
           categoryId: branchRecord.id,
-          limbId: branchRecord.limbId,
+          themeId: branchRecord.themeId,
           deadline,
           significance,
           status: input.bloomStatus ?? "ACTIVE",

@@ -55,7 +55,7 @@ function continuationDepths(goals: { id: string; parentGoalId: string | null }[]
 async function auditUser(userId: string, email: string) {
   const branches = await prisma.themeCategory.findMany({
     where: { userId },
-    select: { id: true, limbId: true, label: true, name: true, status: true },
+    select: { id: true, themeId: true, label: true, name: true, status: true },
     orderBy: [{ limbId: "asc" }, { label: "asc" }],
   });
   const goals = await prisma.goal.findMany({
@@ -100,7 +100,7 @@ async function auditUser(userId: string, email: string) {
 
   const hubRows: HubRow[] = branches.map((b) => ({
     hub: b.label ?? b.name ?? b.id.slice(0, 8),
-    theme: b.limbId,
+    theme: b.themeId,
     goals: goalsByBranch.get(b.id) ?? 0,
     marks: marksByBranch.get(b.id) ?? 0,
     milestones: milestonesByBranch.get(b.id) ?? 0,
@@ -154,7 +154,7 @@ async function auditUser(userId: string, email: string) {
   }
 
   const themesMissing = LIFE_AREA_IDS.filter(
-    (themeId) => !branches.some((b) => b.limbId === themeId),
+    (themeId) => !branches.some((b) => b.themeId === themeId),
   );
 
   console.log("\nSummary:");

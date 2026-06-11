@@ -20,7 +20,7 @@ type DevPanelProps = {
   // even before Slice 2 wires them into the render loop.
   branches?: Array<{
     id: string;
-    limbId: string;
+    themeId: string;
     label?: string | null;
     mapAngleOffset: number;
     parentCategoryId?: string | null;
@@ -269,7 +269,7 @@ export function DevPanel({
             {(() => {
               const byLimb: Record<string, typeof branches> = {};
               branches.forEach((b) => {
-                (byLimb[b.limbId] ||= []).push(b);
+                (byLimb[b.themeId] ||= []).push(b);
               });
               return Object.entries(byLimb).map(([limbId, list]) => (
                 <div key={`limb-${limbId}`} style={{ marginBottom: 6 }}>

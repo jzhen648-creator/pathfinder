@@ -74,16 +74,16 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   const input = parsed.data;
   const targetBranchId = input.categoryId ?? existing.categoryId;
-  const targetLimbId = input.limbId ?? existing.limbId;
-  if (targetBranchId !== existing.categoryId || targetLimbId !== existing.limbId) {
+  const targetLimbId = input.limbId ?? existing.themeId;
+  if (targetBranchId !== existing.categoryId || targetLimbId !== existing.themeId) {
     const branch = await prisma.themeCategory.findFirst({
       where: { id: targetBranchId, userId },
-      select: { id: true, limbId: true },
+      select: { id: true, themeId: true },
     });
     if (!branch) {
       return NextResponse.json({ error: "branchId must reference an existing branch" }, { status: 400 });
     }
-    if (branch.limbId !== targetLimbId) {
+    if (branch.themeId !== targetLimbId) {
       return NextResponse.json({ error: "branchId must belong to the same limbId" }, { status: 400 });
     }
   }
@@ -100,7 +100,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
         where: { id },
         data: {
           categoryId: targetBranchId,
-          limbId: targetLimbId,
+          themeId: targetLimbId,
           title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
           description: input.description,
           ...(patchDate !== undefined ? { date: patchDate } : {}),
@@ -126,7 +126,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     where: { id },
     data: {
       categoryId: targetBranchId,
-      limbId: targetLimbId,
+      themeId: targetLimbId,
       title: titleInput ? titleInput.trim().split(/\s+/).slice(0, 7).join(" ") : undefined,
       description: input.description,
       ...(patchDate !== undefined ? { date: patchDate } : {}),

@@ -38,7 +38,7 @@ function sortKey(a: SortRow, b: SortRow): number {
 
 async function main() {
   const branches = await prisma.themeCategory.findMany({
-    select: { id: true, userId: true, limbId: true },
+    select: { id: true, userId: true, themeId: true },
   });
   console.log(
     `[backfill-node-sequence] ${dryRun ? "DRY RUN \u2014 " : ""}${force ? "FORCE \u2014 " : ""}scanning ${branches.length} branch(es)`,

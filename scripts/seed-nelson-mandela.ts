@@ -37,7 +37,7 @@ type MilestoneSeed = {
 type GoalSeed = {
   key: string;
   hub: HubLabel;
-  limbId: string;
+  themeId: string;
   title: string;
   description: string;
   goalType: string;
@@ -50,7 +50,7 @@ type GoalSeed = {
 
 type MarkSeed = {
   hub: HubLabel;
-  limbId: string;
+  themeId: string;
   title: string;
   date: Date;
 };
@@ -67,7 +67,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "defiance-campaign",
     hub: "Career",
-    limbId: "work",
+    themeId: "work",
     title: "Build disciplined national resistance through the Defiance Campaign",
     description:
       "Organise legal, public, and civic pressure into a disciplined movement capable of challenging apartheid at national scale.",
@@ -87,7 +87,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "freedom-charter",
     hub: "Purpose & Values",
-    limbId: "becoming",
+    themeId: "becoming",
     title: "Anchor the liberation movement around a democratic Freedom Charter",
     description:
       "Help turn scattered grievances into a shared constitutional vision for a non-racial and democratic South Africa.",
@@ -107,7 +107,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "robin-island",
     hub: "Mind & Emotions",
-    limbId: "becoming",
+    themeId: "becoming",
     title: "Preserve dignity, discipline, and political clarity through imprisonment",
     description:
       "Use confinement as a long school of self-command, collective morale, and strategic preparation for eventual negotiations.",
@@ -129,7 +129,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "negotiated-transition",
     hub: "Career",
-    limbId: "work",
+    themeId: "work",
     title: "Negotiate the transition from apartheid to constitutional democracy",
     description:
       "Move from prisoner and banned leader to national negotiator while holding together principle, pressure, and compromise.",
@@ -150,7 +150,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "presidency",
     hub: "Career",
-    limbId: "work",
+    themeId: "work",
     title: "Lead the first democratic presidency with reconciliation and institution-building",
     description:
       "Use the presidency to stabilise democracy, legitimise new institutions, and model restraint after victory.",
@@ -171,7 +171,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "global-eldership",
     hub: "Career",
-    limbId: "work",
+    themeId: "work",
     title: "Continue elder statesmanship through global advocacy networks",
     description:
       "After office, lend moral authority to peace, public health, and democratic causes without clinging to formal power.",
@@ -192,7 +192,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "family-repair",
     hub: "Family",
-    limbId: "people",
+    themeId: "people",
     title: "Repair and protect family bonds after decades of sacrifice",
     description:
       "Hold the private cost of public leadership with honesty while rebuilding presence across children, grandchildren, and kin.",
@@ -212,7 +212,7 @@ const GOALS: GoalSeed[] = [
   {
     key: "dialogue-centre",
     hub: "Builds & Launches",
-    limbId: "work",
+    themeId: "work",
     title: "Build institutions that preserve memory and convene difficult dialogue",
     description:
       "Turn personal legacy into durable civic infrastructure for archives, dialogue, education, and democratic culture.",
@@ -279,7 +279,7 @@ async function main() {
   await prisma.themeCategory.createMany({
     data: HUBS.map((hub, order) => ({
       userId: user.id,
-      limbId: hub.limbId,
+      themeId: hub.themeId,
       label: hub.label,
       name: hub.name,
       status: "active",
@@ -293,15 +293,15 @@ async function main() {
 
   const branches = new Map<string, string>();
   for (const hub of HUBS) {
-    const branch = await resolveHub(user.id, hub.limbId, hub.label);
-    branches.set(`${hub.limbId}:${hub.label}`, branch.id);
+    const branch = await resolveHub(user.id, hub.themeId, hub.label);
+    branches.set(`${hub.themeId}:${hub.label}`, branch.id);
   }
 
   await prisma.mark.createMany({
     data: MARKS.map((mark, index) => ({
       userId: user.id,
-      categoryId: branches.get(`${mark.limbId}:${mark.hub}`)!,
-      limbId: mark.limbId,
+      categoryId: branches.get(`${mark.themeId}:${mark.hub}`)!,
+      themeId: mark.themeId,
       title: mark.title,
       date: mark.date,
       year: mark.date.getUTCFullYear(),
@@ -320,13 +320,13 @@ async function main() {
     const created = await prisma.goal.create({
       data: {
         userId: user.id,
-        categoryId: branches.get(`${goal.limbId}:${goal.hub}`)!,
-        limbId: goal.limbId,
+        categoryId: branches.get(`${goal.themeId}:${goal.hub}`)!,
+        themeId: goal.themeId,
         parentGoalId,
         title: goal.title,
         shortLabel: goal.shortLabel,
         description: goal.description,
-        lifeArea: LIFE_AREA_BY_LIMB[goal.limbId] ?? "Other",
+        lifeArea: LIFE_AREA_BY_LIMB[goal.themeId] ?? "Other",
         goalType: goal.goalType,
         status: goal.status,
         year: goal.year,

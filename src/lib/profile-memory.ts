@@ -172,7 +172,7 @@ function buildManualClassifyUserMessage(input: {
 }
 
 function buildExtractionUserMessage(input: {
-  entries: Array<{ createdAt: Date; limbId: string; inputText: string }>;
+  entries: Array<{ createdAt: Date; themeId: string; inputText: string }>;
   existingFacts: ProfileFactRow[];
 }) {
   const existing = input.existingFacts.length
@@ -185,7 +185,7 @@ function buildExtractionUserMessage(input: {
     .map((entry, index) =>
       [
         `Entry ${index + 1}`,
-        `Theme: ${entry.limbId}`,
+        `Theme: ${entry.themeId}`,
         `Created: ${entry.createdAt.toISOString()}`,
         "Raw Stream:",
         entry.inputText.slice(0, 8_000),
@@ -300,7 +300,7 @@ export async function extractProfileFactsForUser(userId: string) {
     where: { userId, processedForProfile: false },
     orderBy: { createdAt: "asc" },
     take: 10,
-    select: { id: true, createdAt: true, limbId: true, inputText: true },
+    select: { id: true, createdAt: true, themeId: true, inputText: true },
   });
 
   if (entries.length === 0) {

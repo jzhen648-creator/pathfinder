@@ -75,7 +75,7 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   const branch = await prisma.themeCategory.findFirst({
     where: { id: branchId, userId },
-    select: { id: true, limbId: true },
+    select: { id: true, themeId: true },
   });
   if (!branch) return NextResponse.json({ error: "Branch not found" }, { status: 404 });
 
@@ -110,7 +110,7 @@ export async function POST(request: Request, { params }: RouteProps) {
         data: {
           userId,
           categoryId: branchId,
-          limbId: branch.limbId,
+          themeId: branch.themeId,
           title: input.title.trim(),
           description: input.description,
           goalType: input.goalType,
@@ -146,7 +146,7 @@ export async function POST(request: Request, { params }: RouteProps) {
       data: {
         userId,
         categoryId: branchId,
-        limbId: branch.limbId,
+        themeId: branch.themeId,
         title,
         description: input.description ?? null,
         date: resolved.d,

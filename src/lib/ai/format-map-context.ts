@@ -184,13 +184,13 @@ export async function formatMapContext(
       where: {
         userId,
         parentCategoryId: null,
-        ...(filter.themeId ? { limbId: filter.themeId } : {}),
+        ...(filter.themeId ? { themeId: filter.themeId } : {}),
         ...(filter.hubId ? { id: filter.hubId } : {}),
         isActive: true,
       },
       select: {
         id: true,
-        limbId: true,
+        themeId: true,
         label: true,
         name: true,
         isSystemCategory: true,
@@ -218,7 +218,7 @@ export async function formatMapContext(
           orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
         },
       },
-      orderBy: [{ limbId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ themeId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
     }),
   );
 
@@ -226,10 +226,10 @@ export async function formatMapContext(
 
   for (const branch of branches) {
     const theme =
-      themeMap.get(branch.limbId) ??
+      themeMap.get(branch.themeId) ??
       {
-        id: branch.limbId,
-        label: getLifeArea(branch.limbId)?.label ?? branch.limbId,
+        id: branch.themeId,
+        label: getLifeArea(branch.themeId)?.label ?? branch.themeId,
         marks: [],
         hubs: [],
       };
@@ -242,7 +242,7 @@ export async function formatMapContext(
     }
 
     const hubRawLabel = branch.label ?? branch.name ?? branch.id;
-    const section = canonicalHubDisplayLabel(branch.limbId, hubRawLabel);
+    const section = canonicalHubDisplayLabel(branch.themeId, hubRawLabel);
     const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
 
     theme.hubs.push({
@@ -253,7 +253,7 @@ export async function formatMapContext(
       pursuits: branch.goals.map((goal) => buildPursuitRow(goal, pursuitTitleById)),
     });
 
-    themeMap.set(branch.limbId, theme);
+    themeMap.set(branch.themeId, theme);
   }
 
   return { themes: [...themeMap.values()] };
@@ -274,13 +274,13 @@ export async function formatPursuitContext(
     select: {
       ...goalSelect,
       categoryId: true,
-      limbId: true,
-      themeCategory: { select: { id: true, label: true, name: true, limbId: true } },
+      themeId: true,
+      themeCategory: { select: { id: true, label: true, name: true, themeId: true } },
     },
   });
   if (!goal?.categoryId) return null;
 
-  const themeId = goal.limbId ?? goal.themeCategory?.limbId ?? "becoming";
+  const themeId = goal.themeId ?? goal.themeCategory?.themeId ?? "becoming";
   const themeLabel = getLifeArea(themeId)?.label ?? themeId;
   const hubRawLabel = goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId;
   const section = canonicalHubDisplayLabel(themeId, hubRawLabel);
@@ -290,14 +290,14 @@ export async function formatPursuitContext(
       userId,
       archived: false,
       goalType: { notIn: ["moment", "event"] },
-      limbId: themeId,
+      themeId: themeId,
       id: { not: pursuitId },
     },
     select: {
       id: true,
       title: true,
       status: true,
-      themeCategory: { select: { label: true, name: true, limbId: true } },
+      themeCategory: { select: { label: true, name: true, themeId: true } },
     },
     orderBy: { createdAt: "asc" },
     take: 12,
@@ -311,7 +311,7 @@ export async function formatPursuitContext(
   });
 
   const themeMarks = await prisma.mark.findMany({
-    where: { userId, limbId: themeId, archived: false },
+    where: { userId, themeId: themeId, archived: false },
     select: { id: true, title: true, description: true, date: true, sentiment: true },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: 15,

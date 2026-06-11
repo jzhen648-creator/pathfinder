@@ -30,7 +30,7 @@ const DEMO_PASSWORD = "password123";
 
 async function seedContinuationChains(userId: string) {
   const careerBranch = await prisma.themeCategory.findFirst({
-    where: { userId, limbId: "work", label: "Career" },
+    where: { userId, themeId: "work", label: "Career" },
     select: { id: true },
   });
   if (!careerBranch) {
@@ -69,7 +69,7 @@ async function seedContinuationChains(userId: string) {
     data: {
       userId,
       categoryId: careerBranch.id,
-      limbId: "work",
+      themeId: "work",
       parentGoalId: root.id,
       title: "Lead payments platform through Series B scale-up",
       description:
@@ -102,7 +102,7 @@ async function seedContinuationChains(userId: string) {
     data: {
       userId,
       categoryId: careerBranch.id,
-      limbId: "work",
+      themeId: "work",
       parentGoalId: chapter2.id,
       title: "Director of Product track — first panel loop",
       description: "Third chapter: begin informal DP conversations after platform outcomes land.",
@@ -116,7 +116,7 @@ async function seedContinuationChains(userId: string) {
   });
 
   const assetsBranch = await prisma.themeCategory.findFirst({
-    where: { userId, limbId: "finance", label: "Assets" },
+    where: { userId, themeId: "finance", label: "Assets" },
     select: { id: true },
   });
   if (assetsBranch) {
@@ -139,7 +139,7 @@ async function seedContinuationChains(userId: string) {
           data: {
             userId,
             categoryId: assetsBranch.id,
-            limbId: "finance",
+            themeId: "finance",
             parentGoalId: depositRoot.id,
             title: "Save £55k deposit fund by 2028 (stretch)",
             description: "Continuation: raised target after LISA growth and side-income plan.",

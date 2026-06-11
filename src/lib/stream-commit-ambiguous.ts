@@ -12,7 +12,7 @@ import type { AmbiguousItem, StreamAmbiguousResolution } from "@/types/stream";
 type UnresolvedAmbiguousMark = {
   id: string;
   categoryId: string;
-  limbId: string;
+  themeId: string;
   title: string;
   description: string | null;
 };
@@ -72,7 +72,7 @@ export async function commitAmbiguousItemsToBranch(
         data: {
           userId,
           categoryId,
-          limbId,
+          themeId: limbId,
           title,
           description: item.reason?.trim() || null,
           date: today,
@@ -100,7 +100,7 @@ async function getUnresolvedAmbiguousMark(
 ): Promise<AmbiguousMarkResult> {
   const mark = await prisma.mark.findFirst({
     where: { id: markId, userId, archived: false, needsResolution: true },
-    select: { id: true, categoryId: true, limbId: true, title: true, description: true },
+    select: { id: true, categoryId: true, themeId: true, title: true, description: true },
   });
   if (!mark) {
     return { ok: false, error: "Unresolved mark not found", status: 404 };
@@ -123,7 +123,7 @@ export async function moveUnresolvedMarkToBranch(
 
   const targetBranch = await prisma.themeCategory.findFirst({
     where: { id: targetBranchId, userId },
-    select: { id: true, limbId: true },
+    select: { id: true, themeId: true },
   });
   if (!targetBranch) {
     return { ok: false, error: "Target hub not found", status: 400 };
@@ -139,14 +139,14 @@ export async function moveUnresolvedMarkToBranch(
       where: { id: mark.id },
       data: {
         categoryId: targetBranch.id,
-        limbId: targetBranch.limbId,
+        themeId: targetBranch.themeId,
         sequencePosition: seqRes.sequencePosition,
       },
-      select: { id: true, categoryId: true, limbId: true, title: true, description: true },
+      select: { id: true, categoryId: true, themeId: true, title: true, description: true },
     });
   });
 
-  return { ok: true, mark: moved ?? { ...mark, categoryId: targetBranch.id, limbId: targetBranch.limbId } };
+  return { ok: true, mark: moved ?? { ...mark, categoryId: targetBranch.id, themeId: targetBranch.themeId } };
 }
 
 export async function resolveAmbiguousMark(
@@ -170,7 +170,7 @@ export async function resolveAmbiguousMark(
     return { ok: true };
   }
 
-  const lifeArea = getLifeArea(mark.limbId)?.label ?? "Other";
+  const lifeArea = getLifeArea(mark.themeId)?.label ?? "Other";
   const now = new Date();
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
@@ -192,7 +192,7 @@ export async function resolveAmbiguousMark(
       data: {
         userId,
         categoryId: mark.categoryId,
-        limbId: mark.limbId,
+        themeId: mark.themeId,
         title: mark.title,
         description: markDescription,
         iconName,

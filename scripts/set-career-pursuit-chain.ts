@@ -21,7 +21,7 @@ type CareerGoalRow = {
   title: string;
   parentGoalId: string | null;
   categoryId: string | null;
-  limbId: string | null;
+  themeId: string | null;
 };
 
 function pickGoal(
@@ -44,7 +44,7 @@ function pickGoal(
 async function main() {
   const branch = await prisma.themeCategory.findUnique({
     where: { id: CAREER_BRANCH_ID },
-    select: { id: true, label: true, name: true, limbId: true },
+    select: { id: true, label: true, name: true, themeId: true },
   });
   if (!branch) {
     console.error(`Career branch not found (id=${CAREER_BRANCH_ID}).`);
@@ -64,7 +64,7 @@ async function main() {
       parentGoalId: true,
       sequencePosition: true,
       categoryId: true,
-      limbId: true,
+      themeId: true,
     },
     orderBy: { title: "asc" },
   });
@@ -114,7 +114,7 @@ async function main() {
           parentGoalId: u.parentGoalId,
           sequencePosition: null,
           categoryId: mortgage.categoryId,
-          limbId: mortgage.limbId ?? goals.find((g) => g.id === u.id)?.limbId,
+          themeId: mortgage.themeId ?? goals.find((g) => g.id === u.id)?.limbId,
         },
       });
       console.log(`  ${u.title}`);

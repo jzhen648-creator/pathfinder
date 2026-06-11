@@ -16,7 +16,7 @@ const prisma = new PrismaClient();
 async function main() {
   const branch = await prisma.themeCategory.findUnique({
     where: { id: CAREER_BRANCH_ID },
-    select: { id: true, label: true, name: true, userId: true, limbId: true },
+    select: { id: true, label: true, name: true, userId: true, themeId: true },
   });
 
   if (!branch) {
@@ -31,7 +31,7 @@ async function main() {
   let sessionCount = 0;
   if (streamSession) {
     const sessions = await streamSession.deleteMany({
-      where: { userId: branch.userId, limbId: WORK_THEME_ID },
+      where: { userId: branch.userId, themeId: WORK_THEME_ID },
     });
     sessionCount = sessions.count;
   } else {
@@ -39,7 +39,7 @@ async function main() {
   }
 
   console.log(
-    `Cleared Career hub "${branch.label ?? branch.name}" (${branch.id}, theme ${branch.limbId ?? WORK_THEME_ID})`,
+    `Cleared Career hub "${branch.label ?? branch.name}" (${branch.id}, theme ${branch.themeId ?? WORK_THEME_ID})`,
   );
   console.log(`  goals deleted:              ${goals.count}`);
   console.log(`  marks deleted:              ${marks.count}`);

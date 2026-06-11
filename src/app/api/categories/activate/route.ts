@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
   const category = await prisma.themeCategory.findFirst({
     where: { id: parsed.data.categoryId, userId, parentCategoryId: null },
-    select: { id: true, limbId: true },
+    select: { id: true, themeId: true },
   });
   if (!category) {
     return NextResponse.json({ error: "Category not found." }, { status: 404 });
@@ -48,11 +48,11 @@ export async function POST(request: Request) {
     }),
     prisma.themeCategory.findMany({
       where: { userId, parentCategoryId: null },
-      select: { limbId: true, parentCategoryId: true, isActive: true },
+      select: { themeId: true, parentCategoryId: true, isActive: true },
     }),
   ]);
   const unlocked = mergeUnlockedLimbIds(parseUnlockedLimbIds(user?.unlockedLimbIds), roots);
-  if (!isLifeAreaId(category.limbId) || !unlocked.includes(category.limbId)) {
+  if (!isLifeAreaId(category.themeId) || !unlocked.includes(category.themeId)) {
     return NextResponse.json({ error: "Unlock this theme on your map first." }, { status: 400 });
   }
 

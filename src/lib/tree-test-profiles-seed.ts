@@ -242,7 +242,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
     const branch = await prisma.themeCategory.create({
       data: {
         userId: user.id,
-        limbId: branchSeed.limbId,
+        themeId: branchSeed.limbId,
         parentCategoryId,
         label: branchSeed.threadType,
         name: branchSeed.name,
@@ -273,7 +273,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
       data: {
         userId: user.id,
         categoryId: branch.id,
-        limbId: markSeed.limbId,
+        themeId: markSeed.limbId,
         title: markSeed.title,
         description: markSeed.description,
         date: markSeed.date,
@@ -300,7 +300,7 @@ export async function seedUserTree(prisma: PrismaClient, passwordHash: string, s
       data: {
         userId: user.id,
         categoryId: branch.id,
-        limbId: goalSeed.limbId,
+        themeId: goalSeed.limbId,
         title: goalSeed.title,
         description: goalSeed.description,
         lifeArea,

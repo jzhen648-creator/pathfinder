@@ -64,7 +64,7 @@ export async function reorganizeGoalForUser(
     select: {
       id: true,
       categoryId: true,
-      limbId: true,
+      themeId: true,
       parentGoalId: true,
     },
   });
@@ -73,12 +73,12 @@ export async function reorganizeGoalForUser(
   if (body.op === "moveToHub") {
     const branch = await prisma.themeCategory.findFirst({
       where: { id: body.categoryId, userId },
-      select: { id: true, limbId: true },
+      select: { id: true, themeId: true },
     });
     if (!branch) throw new ReorganizeError("Branch not found", 404);
 
     const anchor: SequenceAnchor = body.sequenceAnchor ?? { kind: "append" };
-    const lifeArea = getLifeArea(branch.limbId)?.label ?? branch.limbId;
+    const lifeArea = getLifeArea(branch.themeId)?.label ?? branch.themeId;
 
     await prisma.$transaction(async (tx) => {
       const nodes = await loadBranchSequencedNodes(tx, branch.id);
@@ -89,7 +89,7 @@ export async function reorganizeGoalForUser(
         where: { id: goalId },
         data: {
           categoryId: branch.id,
-          limbId: branch.limbId,
+          themeId: branch.themeId,
           lifeArea,
           parentGoalId: null,
           sequencePosition: resolution.sequencePosition,
@@ -100,7 +100,7 @@ export async function reorganizeGoalForUser(
       if (descendantIds.length > 0) {
         await tx.goal.updateMany({
           where: { id: { in: descendantIds } },
-          data: { categoryId: branch.id, limbId: branch.limbId, lifeArea },
+          data: { categoryId: branch.id, themeId: branch.themeId, lifeArea },
         });
       }
     });
@@ -109,10 +109,10 @@ export async function reorganizeGoalForUser(
 
   const parent = await prisma.goal.findFirst({
     where: { id: body.parentGoalId, userId, archived: false },
-    select: { id: true, categoryId: true, limbId: true, parentGoalId: true },
+    select: { id: true, categoryId: true, themeId: true, parentGoalId: true },
   });
   if (!parent) throw new ReorganizeError("Parent pursuit not found", 404);
-  if (goal.limbId && parent.limbId && parent.limbId !== goal.limbId) {
+  if (goal.themeId && parent.themeId && parent.themeId !== goal.themeId) {
     throw new ReorganizeError("Pursuits can only be nested within the same theme", 400);
   }
 
@@ -141,7 +141,7 @@ export async function reorganizeGoalForUser(
       parentGoalId: body.parentGoalId,
       sequencePosition: null,
       categoryId: parent.categoryId,
-      limbId: parent.limbId,
+      themeId: parent.themeId,
     },
   });
 
@@ -149,7 +149,7 @@ export async function reorganizeGoalForUser(
   if (descendantIds.length > 0 && parent.categoryId) {
     await prisma.goal.updateMany({
       where: { id: { in: descendantIds } },
-      data: { categoryId: parent.categoryId, limbId: parent.limbId },
+      data: { categoryId: parent.categoryId, themeId: parent.themeId },
     });
   }
 

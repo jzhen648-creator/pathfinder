@@ -56,9 +56,9 @@ export async function POST(request: Request) {
               userId,
               parentCategoryId: null,
               isSystemCategory: true,
-              ...(parsed.data.themeId ? { limbId: parsed.data.themeId } : {}),
+              ...(parsed.data.themeId ? { themeId: parsed.data.themeId } : {}),
             },
-            select: { id: true, limbId: true, label: true, name: true },
+            select: { id: true, themeId: true, label: true, name: true },
           })
         : [];
 
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Hub not found." }, { status: 404 });
     }
 
-    const selectedHubThemeId = selectedHub?.limbId;
+    const selectedHubThemeId = selectedHub?.themeId;
     if (selectedHubThemeId && !isLifeAreaId(selectedHubThemeId)) {
       return NextResponse.json({ error: "Invalid hub theme" }, { status: 400 });
     }

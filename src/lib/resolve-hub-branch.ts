@@ -13,7 +13,7 @@ export type ResolvedHubBranch = {
   categoryId: string;
   hubSlug: string;
   hubLabel: string;
-  limbId: LifeAreaId;
+  themeId: LifeAreaId;
   updatedAt?: Date;
 };
 
@@ -52,12 +52,12 @@ export async function resolveBranchForHub(
   if (!template) return null;
 
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, limbId: themeId, parentCategoryId: null },
-    select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
+    where: { userId, themeId: themeId, parentCategoryId: null },
+    select: { id: true, label: true, name: true, themeId: true, updatedAt: true },
   });
 
   const match = roots.find(
-    (b) => systemHubKey(b.limbId, b.label ?? b.name) === systemHubKey(themeId, template.threadType),
+    (b) => systemHubKey(b.themeId, b.label ?? b.name) === systemHubKey(themeId, template.threadType),
   );
   if (!match) return null;
 
@@ -65,7 +65,7 @@ export async function resolveBranchForHub(
     categoryId: match.id,
     hubSlug: hubSlugNorm,
     hubLabel: template.threadType,
-    limbId: themeId,
+    themeId: themeId,
     updatedAt: match.updatedAt,
   };
 }
@@ -78,13 +78,13 @@ export async function resolveAllHubBranchesForTheme(
 ): Promise<ResolvedHubBranch[]> {
   const templates = hubsForTheme(themeId);
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, limbId: themeId, parentCategoryId: null },
-    select: { id: true, label: true, name: true, limbId: true, updatedAt: true },
+    where: { userId, themeId: themeId, parentCategoryId: null },
+    select: { id: true, label: true, name: true, themeId: true, updatedAt: true },
   });
 
   const byKey = new Map<string, (typeof roots)[number]>();
   for (const b of roots) {
-    byKey.set(systemHubKey(b.limbId, b.label ?? b.name), b);
+    byKey.set(systemHubKey(b.themeId, b.label ?? b.name), b);
   }
 
   const out: ResolvedHubBranch[] = [];
@@ -96,7 +96,7 @@ export async function resolveAllHubBranchesForTheme(
       categoryId: branch.id,
       hubSlug: normalizeHubLabelKey(t.threadType),
       hubLabel: t.threadType,
-      limbId: themeId,
+      themeId: themeId,
       updatedAt: branch.updatedAt,
     });
   }
@@ -118,7 +118,7 @@ export async function buildHubBranchResolver(
     where: { userId, parentCategoryId: null },
     select: {
       id: true,
-      limbId: true,
+      themeId: true,
       label: true,
       name: true,
       isSystemCategory: true,
@@ -136,7 +136,7 @@ export async function buildHubBranchResolver(
     byId.set(branch.id, branch.id);
     const slug = normalizeStreamHubSlug(branch.label ?? branch.name ?? "");
     idToSlug.set(branch.id, slug);
-    byThemeSlug.set(`${branch.limbId}::${slug}`, branch.id);
+    byThemeSlug.set(`${branch.themeId}::${slug}`, branch.id);
   }
 
   function lookupId(raw: string, preferredThemeId?: LifeAreaId): string | null {

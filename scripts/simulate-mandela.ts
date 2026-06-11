@@ -201,7 +201,7 @@ type AuthSession = { token: string; email: string };
 
 type BranchRow = {
   id: string;
-  limbId: string;
+  themeId: string;
   label: string | null;
   name: string | null;
   isSystemCategory?: boolean;
@@ -212,7 +212,7 @@ type GoalRow = {
   id: string;
   title: string;
   categoryId: string | null;
-  limbId: string | null;
+  themeId: string | null;
   goalType?: string | null;
 };
 
@@ -315,7 +315,7 @@ type CreatedPursuitRecord = {
   title: string;
   hubLabel: string;
   categoryId: string;
-  limbId: LifeAreaId;
+  themeId: LifeAreaId;
   sourceBrainDumpId: string;
 };
 
@@ -969,7 +969,7 @@ function buildHubIndex(branches: BranchRow[]): HubIndex {
   const byThemeId = new Map<LifeAreaId, HubIndexEntry[]>();
 
   for (const branch of branches.filter((b) => !b.parentCategoryId)) {
-    const themeId = branch.limbId as LifeAreaId;
+    const themeId = branch.themeId as LifeAreaId;
     const label = hubLabelFromBranch(branch);
     const name = (branch.name ?? branch.label ?? label).trim() || label;
     const normalizedLabel = normalizeHubLabelKey(label);
@@ -1389,7 +1389,7 @@ function logExtractedCards(
     item: { title?: string; label?: string; hubId?: string; titleConfidence?: number; confidence?: number },
   ) => {
     const branch = item.hubId ? branchById.get(item.hubId) : undefined;
-    const hub = branch ? `${hubLabelFromBranch(branch)} (${branch.limbId})` : item.hubId ?? "(missing)";
+    const hub = branch ? `${hubLabelFromBranch(branch)} (${branch.themeId})` : item.hubId ?? "(missing)";
     const conf =
       typeof item.titleConfidence === "number"
         ? item.titleConfidence.toFixed(2)
@@ -1415,7 +1415,7 @@ function logExtractedCards(
 
   const pushUnsupported = (item: { title?: string; label?: string; hubId?: string; confidence?: number }) => {
     const branch = item.hubId ? branchById.get(item.hubId) : undefined;
-    const hub = branch ? `${hubLabelFromBranch(branch)} (${branch.limbId})` : item.hubId ?? "(missing)";
+    const hub = branch ? `${hubLabelFromBranch(branch)} (${branch.themeId})` : item.hubId ?? "(missing)";
     const conf = typeof item.confidence === "number" ? item.confidence.toFixed(2) : "n/a";
     const row = {
       type: "unsupported_or_uncommitted",
@@ -2044,12 +2044,12 @@ async function phase2StreamSessions(
               title: goal.title,
               hubLabel: hubLabelFromBranch(branch),
               categoryId: goal.categoryId ?? "",
-              limbId: (goal.limbId ?? branch?.limbId ?? "work") as LifeAreaId,
+              themeId: (goal.themeId ?? branch?.limbId ?? "work") as LifeAreaId,
               sourceBrainDumpId: dump.id,
             };
             sessionResult.pursuitsCreatedThisSession.push(record);
             results.createdPursuits.push(record);
-            console.log(`  New pursuit: ${record.title} → ${record.hubLabel} (${record.limbId}) [${record.id}]`);
+            console.log(`  New pursuit: ${record.title} → ${record.hubLabel} (${record.themeId}) [${record.id}]`);
           }
         } else {
           sessionResult.commitError = commitRes.body.error ?? `HTTP ${commitRes.status}`;
@@ -2114,25 +2114,25 @@ async function phase3Marks(token: string, results: SimulationResults): Promise<v
     {
       title: "Sentenced to life imprisonment at the Rivonia Trial",
       hub: "Purpose",
-      limbId: "becoming",
+      themeId: "becoming",
       date: "1964-06-12",
     },
     {
       title: "Walked free from Victor Verster Prison after 27 years",
       hub: "Purpose",
-      limbId: "becoming",
+      themeId: "becoming",
       date: "1990-02-11",
     },
     {
       title: "Inaugurated as the first democratically elected President of South Africa",
       hub: "Career",
-      limbId: "work",
+      themeId: "work",
       date: "1994-05-10",
     },
     {
       title: "Awarded the Nobel Peace Prize",
       hub: "Purpose",
-      limbId: "becoming",
+      themeId: "becoming",
       date: "1993-12-10",
     },
   ];
@@ -2148,7 +2148,7 @@ async function phase3Marks(token: string, results: SimulationResults): Promise<v
         method: "POST",
         body: JSON.stringify({
           categoryId: hub.id,
-          limbId: spec.limbId,
+          themeId: spec.limbId,
           title: spec.title,
           date: spec.date,
         }),
@@ -2160,7 +2160,7 @@ async function phase3Marks(token: string, results: SimulationResults): Promise<v
     marks.push({
       title: spec.title,
       hubLabel: spec.hub,
-      limbId: spec.limbId,
+      themeId: spec.limbId,
       categoryId: hub.id,
       date: spec.date,
     });

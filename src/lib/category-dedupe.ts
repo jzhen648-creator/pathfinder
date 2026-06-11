@@ -12,8 +12,8 @@ function matchesTemplate(limbId: string, label: string | null | undefined): bool
 /** Prefer canonical template label, then system category, then oldest row. */
 export function pickKeeperCategory(list: readonly ThemeCategory[]): ThemeCategory {
   return [...list].sort((a, b) => {
-    const aTemplate = matchesTemplate(a.limbId, a.label ?? a.name) ? 0 : 1;
-    const bTemplate = matchesTemplate(b.limbId, b.label ?? b.name) ? 0 : 1;
+    const aTemplate = matchesTemplate(a.themeId, a.label ?? a.name) ? 0 : 1;
+    const bTemplate = matchesTemplate(b.themeId, b.label ?? b.name) ? 0 : 1;
     if (aTemplate !== bTemplate) return aTemplate - bTemplate;
     const aSystem = isLockedSystemCategory(a) ? 0 : 1;
     const bSystem = isLockedSystemCategory(b) ? 0 : 1;
@@ -39,7 +39,7 @@ export async function dedupeDuplicateRootCategories(
 
   const groups = new Map<string, ThemeCategory[]>();
   for (const branch of roots) {
-    const key = systemCategoryKey(branch.limbId, branch.label ?? branch.name);
+    const key = systemCategoryKey(branch.themeId, branch.label ?? branch.name);
     const list = groups.get(key) ?? [];
     list.push(branch);
     groups.set(key, list);
@@ -60,7 +60,7 @@ export async function dedupeDuplicateRootCategories(
       }
       const canonicalKey = normalizeCategoryLabelKey(keeper.label ?? keeper.name ?? "");
       const template = LOCKED_CATEGORY_TEMPLATES.find(
-        (t) => t.limbId === keeper.limbId && normalizeCategoryLabelKey(t.threadType) === canonicalKey,
+        (t) => t.limbId === keeper.themeId && normalizeCategoryLabelKey(t.threadType) === canonicalKey,
       );
       if (template && (keeper.label !== template.threadType || keeper.name !== template.name)) {
         await prisma.themeCategory.update({
@@ -76,13 +76,13 @@ export async function dedupeDuplicateRootCategories(
   return updates;
 }
 
-type RootCategoryRow = Pick<ThemeCategory, "id" | "limbId" | "label" | "name" | "isSystemCategory" | "createdAt">;
+type RootCategoryRow = Pick<ThemeCategory, "id" | "themeId" | "label" | "name" | "isSystemCategory" | "createdAt">;
 
 /** Read-only: one row per canonical category slot (for map context / Stream resolver). */
 export function canonicalRootCategoryRows<T extends RootCategoryRow>(roots: readonly T[]): T[] {
   const groups = new Map<string, T[]>();
   for (const branch of roots) {
-    const key = systemCategoryKey(branch.limbId, branch.label ?? branch.name);
+    const key = systemCategoryKey(branch.themeId, branch.label ?? branch.name);
     const list = groups.get(key) ?? [];
     list.push(branch);
     groups.set(key, list);
@@ -94,8 +94,8 @@ export function canonicalRootCategoryRows<T extends RootCategoryRow>(roots: read
       continue;
     }
     const sorted = [...list].sort((a, b) => {
-      const aTemplate = matchesTemplate(a.limbId, a.label ?? a.name) ? 0 : 1;
-      const bTemplate = matchesTemplate(b.limbId, b.label ?? b.name) ? 0 : 1;
+      const aTemplate = matchesTemplate(a.themeId, a.label ?? a.name) ? 0 : 1;
+      const bTemplate = matchesTemplate(b.themeId, b.label ?? b.name) ? 0 : 1;
       if (aTemplate !== bTemplate) return aTemplate - bTemplate;
       const aSystem = a.isSystemCategory ? 0 : 1;
       const bSystem = b.isSystemCategory ? 0 : 1;

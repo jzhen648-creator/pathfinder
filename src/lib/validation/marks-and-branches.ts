@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveThemeIdFromBody } from "@/lib/theme-id";
 import { resolveBranchIdFromBody } from "@/lib/category-id";
 import { zodErrorMessage } from "@/lib/validation/zod-helpers";
 

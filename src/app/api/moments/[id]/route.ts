@@ -29,7 +29,7 @@ function goalToLegacyMomentJson(g: {
   id: string;
   title: string;
   description: string;
-  limbId: string | null;
+  themeId: string | null;
   categoryId: string | null;
   parentGoalId: string | null;
   year: number;
@@ -48,7 +48,7 @@ function goalToLegacyMomentJson(g: {
     id: g.id,
     label: g.title,
     description: g.description,
-    limbId: g.limbId,
+    themeId: g.themeId,
     categoryId: g.categoryId,
     parentMomentId: g.parentGoalId,
     year: g.year,
@@ -90,7 +90,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   const updated = await prisma.goal.update({
     where: { id },
     data: {
-      limbId: input.limbId ?? undefined,
+      themeId: input.limbId ?? undefined,
       categoryId: input.categoryId ?? undefined,
       title: input.label ? input.label.trim().split(/\s+/).slice(0, 5).join(" ") : undefined,
       description: input.description !== undefined ? (input.description ?? "") : undefined,

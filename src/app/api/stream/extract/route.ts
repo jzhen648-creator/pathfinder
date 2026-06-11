@@ -218,13 +218,13 @@ export async function POST(request: Request) {
 
     const branch = await prisma.themeCategory.findFirst({
       where: { id: hubId, userId },
-      select: { id: true, limbId: true, label: true },
+      select: { id: true, themeId: true, label: true },
     });
     if (!branch) {
       return NextResponse.json({ error: "Hub not found" }, { status: 404 });
     }
 
-    const hubLabel = canonicalHubDisplayLabel(branch.limbId, branch.label ?? branch.id);
+    const hubLabel = canonicalHubDisplayLabel(branch.themeId, branch.label ?? branch.id);
 
     const [goals, archivedGoals, marks, archivedMarks, recentStreamMarks] = await Promise.all([
       prisma.goal.findMany({
@@ -280,7 +280,7 @@ export async function POST(request: Request) {
 
     const hubContext = buildStreamHubContextInput({
       branchId: branch.id,
-      limbId: branch.limbId,
+      themeId: branch.themeId,
       hubLabel,
       existingPursuits: goals.map((g) => ({
         goalId: g.id,
@@ -307,11 +307,11 @@ export async function POST(request: Request) {
     try {
       const [userContext, mapContext] = await Promise.all([
         formatUserContext(userId),
-        formatMapContext(userId, { themeId: branch.limbId, hubId: branch.id }),
+        formatMapContext(userId, { themeId: branch.themeId, hubId: branch.id }),
       ]);
       const placementNote =
         mapGridQ !== undefined && mapGridR !== undefined
-          ? `User claimed grid cell q=${mapGridQ}, r=${mapGridR} on theme ${branch.limbId}, track "${hubLabel}".`
+          ? `User claimed grid cell q=${mapGridQ}, r=${mapGridR} on theme ${branch.themeId}, track "${hubLabel}".`
           : undefined;
       const result = await runStreamExtract(hubContext, input, {
         userContext,
@@ -324,7 +324,7 @@ export async function POST(request: Request) {
         const { committed } = await commitAmbiguousItemsToBranch(
           userId,
           branch.id,
-          branch.limbId,
+          branch.themeId,
           result.ambiguous,
         );
         committedAmbiguousCount = committed;

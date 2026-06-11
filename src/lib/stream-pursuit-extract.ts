@@ -14,7 +14,7 @@ import type { StreamExtractResponse } from "@/types/stream";
 export type PursuitStreamContext = {
   goalId: string;
   branchId: string;
-  limbId: string;
+  themeId: string;
   pursuitTitle: string;
   pursuitDescription: string;
   hubLabel: string;
@@ -38,17 +38,17 @@ export async function loadPursuitStreamContext(
       title: true,
       description: true,
       categoryId: true,
-      limbId: true,
+      themeId: true,
       milestones: {
         select: { id: true, title: true, completedAt: true },
         orderBy: { position: "asc" },
       },
-      themeCategory: { select: { id: true, label: true, name: true, limbId: true } },
+      themeCategory: { select: { id: true, label: true, name: true, themeId: true } },
     },
   });
   if (!goal?.categoryId) return null;
 
-  const limbId = goal.limbId ?? goal.themeCategory?.limbId ?? "becoming";
+  const limbId = goal.themeId ?? goal.themeCategory?.themeId ?? "becoming";
   const hubLabel = canonicalHubDisplayLabel(
     limbId,
     goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId,
@@ -57,7 +57,7 @@ export async function loadPursuitStreamContext(
   return {
     goalId: goal.id,
     branchId: goal.categoryId,
-    limbId,
+    themeId: limbId,
     pursuitTitle: goal.title,
     pursuitDescription: goal.description?.trim() ?? "",
     hubLabel,
@@ -131,7 +131,7 @@ export async function runPursuitStreamExtract(
 ): Promise<StreamExtractResponse> {
   const branch = await prisma.themeCategory.findFirst({
     where: { id: ctx.branchId, userId },
-    select: { id: true, limbId: true, label: true },
+    select: { id: true, themeId: true, label: true },
   });
   if (!branch) throw new Error("Hub not found");
 
@@ -177,7 +177,7 @@ export async function runPursuitStreamExtract(
 
   const hubContext: StreamHubContextInput = buildStreamHubContextInput({
     branchId: branch.id,
-    limbId: branch.limbId,
+    themeId: branch.themeId,
     hubLabel: ctx.hubLabel,
     existingPursuits: goals.map((g) => ({
       goalId: g.id,
@@ -229,7 +229,7 @@ export async function runPursuitStreamExtract(
 
   const [userContext, mapContext] = await Promise.all([
     formatUserContext(userId),
-    formatMapContext(userId, { themeId: ctx.limbId, hubId: ctx.branchId, pursuitId: ctx.goalId }),
+    formatMapContext(userId, { themeId: ctx.themeId, hubId: ctx.branchId, pursuitId: ctx.goalId }),
   ]);
 
   const result = await runStreamExtract(hubContext, pursuitFocus, {

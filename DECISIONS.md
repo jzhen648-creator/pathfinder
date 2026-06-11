@@ -4,6 +4,14 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-12 — Insights auto-reading on tab focus (first visit + stale refresh)
+
+**Product:** Opening **Insights** auto-runs **Update readings** when (a) the user has pursuits but **no whole-map reading yet**, or (b) the story API reports `canAutoRefresh` (map changed since last reading). **Not** a background sync on every tab switch — one attempt per focus; manual button remains for forced refresh.
+
+**Still deliberate:** Map mutations (create pursuit, save pending note) do **not** trigger AI until Insights focus or explicit **Update readings** / map stale chip. Creation mode unchanged.
+
+**Implementation:** `useInsightsReadingsSync` + `?sync=1` deep link from map utility bar.
+
 ## 2026-06-11 — Creation mode · Reflection sync
 
 **Creation:** Pursuit create and map placement are offline — no Gemini on `POST /api/goals` (no `assignPursuitVisuals`). Icons are user-picked only.
@@ -32,7 +40,17 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Prod after deploy:** run `npm run backfill:taxonomy` (bumps `taxonomyVersion`), then optional `backfill:retire-identity`, `backfill:retire-practice`, `backfill:flatten-goal-lineage`.
 
-**Deferred:** physical SQL column rename; `limbId` → `themeId`; Stream v2 reject `hubId`-only; desktop tree hub vocabulary.
+**Deferred:** ~~physical SQL column rename; `limbId` → `themeId`~~ **done** (see next entry); Stream v2 reject `hubId`-only; desktop tree hub vocabulary.
+
+## 2026-06-11 — Physical SQL rename: categoryId + themeId columns
+
+**Migration:** `20260611180000_rename_category_theme_columns` — Postgres `branchId` → `categoryId` (Goal, Mark, StreamRun); `limbId` → `themeId` (Branch, Mark, Goal, StreamSession, StreamRun). Index + FK constraint renames included.
+
+**Prisma:** Removed `@map("branchId")`; model fields use `themeId` directly. JSON API still mirrors `branchId` / `limbId` via `category-id.ts` + `theme-id.ts`.
+
+**Still @map / legacy SQL:** `Branch` table name, `parentBranchId`, `isSystemHub`, `hubTaxonomyVersion`, `bloomStatus` column on Goal.
+
+**Version:** `TAXONOMY_VERSION` → `2026-06-11-v12-sql-category-theme-columns`.
 
 ## 2026-06-11 — Taxonomy Phase 2 slice 1 (aliases, no migration)
 

@@ -68,7 +68,7 @@ async function main() {
   const careerBranchId = "cmp8wfcok0009vnu8aolonp5p";
   const branch = await prisma.themeCategory.findUnique({
     where: { id: careerBranchId },
-    select: { id: true, label: true, name: true, limbId: true },
+    select: { id: true, label: true, name: true, themeId: true },
   });
   console.log("=== Career branch (cmp8wfcok0009vnu8aolonp5p) ===\n");
   console.log(JSON.stringify(branch, null, 2));

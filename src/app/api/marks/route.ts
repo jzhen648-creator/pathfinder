@@ -154,7 +154,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const branch = await prisma.themeCategory.findFirst({
     where: { id: input.branchId, userId },
-    select: { id: true, limbId: true, isActive: true },
+    select: { id: true, themeId: true, isActive: true },
   });
   if (!branch) {
     return NextResponse.json(
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
   if (!branch.isActive) {
     await activateHubForUser(prisma, userId, branch.id);
   }
-  if (branch.limbId !== input.limbId) {
+  if (branch.themeId !== input.limbId) {
     return NextResponse.json(
       { error: "branchId must belong to the same theme (limbId) as the mark." },
       { status: 400 },
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
       data: {
         userId,
         categoryId: input.branchId,
-        limbId: input.limbId,
+        themeId: input.limbId,
         title,
         description: input.description ?? null,
         date: resolved.d,

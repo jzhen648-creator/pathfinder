@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { dedupeDuplicateRootCategories } from "@/lib/category-dedupe";
 import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
-import { withCategoryIdMirrors } from "@/lib/category-id";
+import { withCategoryIdMirrors } from "@/lib/category-id";
+import { withMapEntityMirrors, withMapEntityMirrorsList } from "@/lib/theme-id";
 import { withPursuitStatusMirrors } from "@/lib/pursuit-status-api";
 import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
           title: true,
           description: true,
           categoryId: true,
-          limbId: true,
+          themeId: true,
           date: true,
           year: true,
           month: true,
@@ -108,15 +109,20 @@ export async function GET(request: Request) {
         },
       }),
     ]);
-    const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
-    return NextResponse.json({
-      categories,
-      /** @deprecated Legacy mirror — same rows as `categories`. */
-      branches: categories,
-      goals: withPursuitStatusMirrors(withCategoryIdMirrors(goals)),
-      archivedGoals: withCategoryIdMirrors(archivedGoals),
-      marks: withCategoryIdMirrors(marks),
-      unlockedLimbIds,
+        const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
+    const mirroredCategories = withMapEntityMirrorsList(
+      categories.map((c) => withMapEntityMirrors({ ...c, categoryId: c.id })),
+    );
+    const mirroredGoals = withMapEntityMirrorsList(withPursuitStatusMirrors(withCategoryIdMirrors(goals)));
+    const mirroredMarks = withMapEntityMirrorsList(withCategoryIdMirrors(marks));
+    return NextResponse.json({
+      categories: mirroredCategories,
+      /** @deprecated Legacy mirror — same rows as `categories`. */
+      branches: mirroredCategories,
+      goals: mirroredGoals,
+      archivedGoals: withCategoryIdMirrors(archivedGoals),
+      marks: mirroredMarks,
+      unlockedLimbIds,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load map data";
@@ -143,7 +149,7 @@ export async function POST(request: Request) {
   const category = await prisma.themeCategory.create({
     data: {
       userId,
-      limbId: input.limbId,
+      themeId: input.limbId,
       label: input.label ?? null,
       parentCategoryId: null,
       turningPointId: null,

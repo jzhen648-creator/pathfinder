@@ -62,12 +62,12 @@ function sleep(ms: number): Promise<void> {
 
 async function loadHubContext(userId: string, hubSlug: string) {
   const branches = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null, limbId: "people" },
-    select: { id: true, limbId: true, label: true, name: true },
+    where: { userId, parentCategoryId: null, themeId: "people" },
+    select: { id: true, themeId: true, label: true, name: true },
   });
   const { systemHubKey } = await import("../src/lib/system-hubs");
   const match = branches.find(
-    (b) => systemHubKey(b.limbId, b.label ?? b.name).split("::")[1] === hubSlug,
+    (b) => systemHubKey(b.themeId, b.label ?? b.name).split("::")[1] === hubSlug,
   );
   if (!match) throw new Error(`Hub not found: people::${hubSlug}`);
 
@@ -118,7 +118,7 @@ async function loadHubContext(userId: string, hubSlug: string) {
 
   return buildStreamHubContextInput({
     categoryId: match.id,
-    limbId: match.limbId,
+    themeId: match.themeId,
     hubLabel: match.label ?? match.name ?? hubSlug,
     existingPursuits: goals.map((g) => ({
       goalId: g.id,

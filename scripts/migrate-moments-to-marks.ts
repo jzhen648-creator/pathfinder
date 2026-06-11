@@ -13,7 +13,7 @@ async function main() {
   let skipped = 0;
 
   for (const g of timelineGoals) {
-    if (!g.categoryId || !g.limbId) {
+    if (!g.categoryId || !g.themeId) {
       skipped += 1;
       continue;
     }
@@ -43,7 +43,7 @@ async function main() {
         subtype: g.subtype,
         year: g.year,
         month: g.month,
-        limbId: g.limbId,
+        themeId: g.themeId,
         categoryId: g.categoryId,
         userId: g.userId,
         sentiment: "neutral",

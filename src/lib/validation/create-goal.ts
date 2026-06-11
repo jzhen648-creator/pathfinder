@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { resolveBranchIdFromBody } from "@/lib/category-id";
+import { resolveThemeIdFromBody } from "@/lib/theme-id";
 import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
 
 export { GOAL_TYPE_VALUES };

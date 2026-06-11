@@ -32,7 +32,7 @@ import type { StreamThemeContextInput, StreamThemeHubContextInput } from "../src
 
 function simulateDefaultHubRename(
   label: string,
-  limbId: LifeAreaId,
+  themeId: LifeAreaId,
 ): { label: string; limbId: LifeAreaId; renamed: boolean } {
   const raw = normLabel(label);
   let nextLabel = label.trim();
@@ -53,7 +53,7 @@ function simulateDefaultHubRename(
 
   return {
     label: nextLabel,
-    limbId: nextLimb,
+    themeId: nextLimb,
     renamed: nextLabel !== label.trim() || nextLimb !== limbId,
   };
 }

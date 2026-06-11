@@ -71,7 +71,7 @@ export async function POST(request: Request, props: RouteProps) {
   const goal = await prisma.goal.findFirst({
     where: { id: goalId, userId, archived: false },
     include: {
-      themeCategory: { select: { id: true, name: true, label: true, limbId: true } },
+      themeCategory: { select: { id: true, name: true, label: true, themeId: true } },
       milestones: { select: { title: true } },
     },
   });

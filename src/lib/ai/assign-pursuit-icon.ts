@@ -158,17 +158,17 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
       title: true,
       description: true,
       lifeArea: true,
-      limbId: true,
+      themeId: true,
       goalType: true,
       iconName: true,
       status: true,
-      themeCategory: { select: { label: true, name: true, limbId: true } },
+      themeCategory: { select: { label: true, name: true, themeId: true } },
     },
   });
   if (!row) return;
   if (row.goalType === "moment" || row.goalType === "event") return;
 
-  const themeId = row.limbId ?? row.themeCategory?.limbId ?? row.lifeArea;
+  const themeId = row.themeId ?? row.themeCategory?.themeId ?? row.lifeArea;
   const hubLabel = row.themeCategory?.label ?? row.themeCategory?.name ?? "";
   const sectionLabel = themeId
     ? canonicalHubDisplayLabel(themeId, hubLabel)

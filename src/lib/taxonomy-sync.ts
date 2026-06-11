@@ -24,12 +24,12 @@ async function migrateFinanceIncomeCategories(
   userId: string,
 ): Promise<number> {
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null, limbId: "finance" },
-    select: { id: true, label: true, name: true, limbId: true },
+    where: { userId, parentCategoryId: null, themeId: "finance" },
+    select: { id: true, label: true, name: true, themeId: true },
   });
 
   const branchByKey = new Map(
-    roots.map((b) => [systemCategoryKey(b.limbId, b.label ?? b.name), b.id]),
+    roots.map((b) => [systemCategoryKey(b.themeId, b.label ?? b.name), b.id]),
   );
 
   const employmentId = branchByKey.get(systemCategoryKey("finance", "Employment income"));
@@ -106,7 +106,7 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
 
   for (const branch of roots) {
     const raw = normLabel(branch.label ?? branch.name);
-    let limbId = resolveLegacyLimbId(branch.limbId);
+    let limbId = resolveLegacyLimbId(branch.themeId);
     let label = (branch.label ?? branch.name ?? "").trim();
     let name = (branch.name ?? branch.label ?? "").trim();
 
@@ -151,7 +151,7 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
       name = template.name;
       patch.isSystemCategory = true;
     }
-    if (limbId !== branch.limbId) patch.limbId = limbId;
+    if (limbId !== branch.themeId) patch.limbId = limbId;
     if (label !== (branch.label ?? "")) patch.label = label;
     if (name !== (branch.name ?? "")) patch.name = name;
 
@@ -180,8 +180,8 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
 
   for (const branch of afterDedupe) {
     if (isLockedSystemCategory(branch)) continue;
-    const labelKey = systemCategoryKey(branch.limbId, branch.label ?? branch.name).split("::")[1] ?? "";
-    const valid = validCategoryKeysByLimb.get(branch.limbId);
+    const labelKey = systemCategoryKey(branch.themeId, branch.label ?? branch.name).split("::")[1] ?? "";
+    const valid = validCategoryKeysByLimb.get(branch.themeId);
     if (!labelKey || !valid || valid.has(labelKey)) continue;
     const [goalCount, markCount] = await Promise.all([
       prisma.goal.count({ where: { categoryId: branch.id } }),

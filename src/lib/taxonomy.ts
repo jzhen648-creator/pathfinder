@@ -1,7 +1,7 @@
 import type { LifeAreaId } from "./types";
 
 /** Bump when locked theme/category names change (sync + docs). */
-export const TAXONOMY_VERSION = "2026-06-11-v11-category-rename" as const;
+export const TAXONOMY_VERSION = "2026-06-11-v12-sql-category-theme-columns" as const;
 
 export const LIFE_AREA_IDS = [
   "becoming",

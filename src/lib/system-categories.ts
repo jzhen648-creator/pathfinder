@@ -39,7 +39,7 @@ export async function ensureSystemCategoriesForUser(
 
   const present = new Map<string, ThemeCategory>();
   for (const b of roots) {
-    const key = systemCategoryKey(b.limbId, b.label ?? b.name);
+    const key = systemCategoryKey(b.themeId, b.label ?? b.name);
     const existing = present.get(key);
     if (!existing || b.createdAt < existing.createdAt) {
       present.set(key, b);
@@ -57,7 +57,7 @@ export async function ensureSystemCategoriesForUser(
     await prisma.themeCategory.create({
       data: {
         userId,
-        limbId: t.limbId,
+        themeId: t.limbId,
         label: t.threadType,
         name: t.name,
         status: "active",
@@ -74,7 +74,7 @@ export async function ensureSystemCategoriesForUser(
 
   for (const b of roots) {
     if (b.isSystemCategory) continue;
-    if (!matchesTemplate(b.limbId, b.label ?? b.name)) continue;
+    if (!matchesTemplate(b.themeId, b.label ?? b.name)) continue;
     await prisma.themeCategory.update({
       where: { id: b.id },
       data: { isSystemCategory: true },
@@ -95,7 +95,7 @@ export async function activateLimbsForUser(
       userId,
       parentCategoryId: null,
       isSystemCategory: true,
-      limbId: { in: [...limbIds] },
+      themeId: { in: [...limbIds] },
     },
     data: { isActive: true },
   });
@@ -126,9 +126,9 @@ export async function listSystemCategoryKeysForUser(
 ): Promise<string[]> {
   const rows = await prisma.themeCategory.findMany({
     where: { userId, parentCategoryId: null, isSystemCategory: true },
-    select: { limbId: true, label: true, name: true },
+    select: { themeId: true, label: true, name: true },
   });
-  return rows.map((r) => systemCategoryKey(r.limbId, r.label ?? r.name));
+  return rows.map((r) => systemCategoryKey(r.themeId, r.label ?? r.name));
 }
 
 export { normLabel };

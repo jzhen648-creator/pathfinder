@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveThemeIdFromBody } from "@/lib/theme-id";
 
 export const parseMarkRequestSchema = z.object({
   text: z.string().min(1, "text is required"),

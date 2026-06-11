@@ -36,7 +36,7 @@ export async function loadOnboardingTreePayload(userId: string): Promise<Onboard
     where: { userId, parentCategoryId: null, isSystemCategory: true },
     select: {
       id: true,
-      limbId: true,
+      themeId: true,
       label: true,
       name: true,
       order: true,
@@ -44,7 +44,7 @@ export async function loadOnboardingTreePayload(userId: string): Promise<Onboard
       isActive: true,
       parentCategoryId: true,
     },
-    orderBy: [{ limbId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
+    orderBy: [{ themeId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
   });
 
   const goalInclude = {
@@ -85,7 +85,7 @@ export async function loadOnboardingTreePayload(userId: string): Promise<Onboard
       const label = (hub.label ?? hub.name ?? "Hub").trim() || "Hub";
       return {
         id: hub.id,
-        limbId: hub.limbId,
+        limbId: hub.themeId,
         label,
         slug: normalizeHubLabelKey(label),
       };

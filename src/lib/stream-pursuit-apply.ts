@@ -176,7 +176,7 @@ export async function savePendingPursuitCapture(
         userId,
         goalId: pursuitId,
         categoryId: ctx.branchId,
-        limbId: ctx.limbId,
+        themeId: ctx.themeId,
         rawInput: trimmed,
         inputMode,
         status: "pending",
@@ -336,7 +336,7 @@ export async function digestPendingStreamRun(
     await prisma.$transaction(async (tx) => {
       const branch = await tx.themeCategory.findFirst({
         where: { id: ctx.branchId, userId },
-        select: { id: true, limbId: true, isActive: true },
+        select: { id: true, themeId: true, isActive: true },
       });
       if (!branch) throw new Error("Hub not found");
 
@@ -364,7 +364,7 @@ export async function digestPendingStreamRun(
           data.bloomedAt = update.bloomStatus === "COMPLETE" ? new Date() : null;
         }
 
-        if (ctx.limbId === "finance" && data.description) {
+        if (ctx.themeId === "finance" && data.description) {
           const metrics = syncFinanceMetricsFromProse(data.description);
           if (metrics) {
             data.currentAmount = metrics.currentAmount;
@@ -456,7 +456,7 @@ export async function digestPendingStreamRun(
           data: {
             userId,
             categoryId: branch.id,
-            limbId: branch.limbId,
+            themeId: branch.themeId,
             title,
             description: null,
             date: resolved.d,

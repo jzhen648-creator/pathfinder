@@ -157,8 +157,8 @@ model ThemeCategory {
   id                  String       @id @default(cuid())
   userId              String
   user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Legacy column name: stores the **life area** id (`finance` | `work` | `becoming` | `people` | `health`), not a "limb" entity. Prefer the term *life area* in docs and UI.
-  limbId              String
+  /// Life area id (`finance` | `work` | `becoming` | `people` | `health` | `pleasures`).
+  themeId             String
   label               String?
   parentCategoryId    String?      @map("parentBranchId")
   turningPointId      String?
@@ -187,17 +187,17 @@ model ThemeCategory {
   updatedAt           DateTime     @updatedAt
 
   @@index([userId])
-  @@index([userId, limbId])
+  @@index([userId, themeId])
   @@index([userId, isActive])
   @@map("Branch")
 }
 
 model Mark {
   id                String        @id @default(cuid())
-  categoryId        String        @map("branchId")
+  categoryId        String
   themeCategory     ThemeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  /// Legacy column name: stores the **life area** id. See `Branch.limbId`.
-  limbId            String
+  /// Life area id — same values as {@link ThemeCategory.themeId}.
+  themeId           String
   userId            String
   user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   title             String
@@ -237,7 +237,7 @@ model Mark {
   @@index([userId])
   @@index([categoryId])
   @@index([sourceStreamRunId])
-  @@index([limbId])
+  @@index([themeId])
   @@index([archived])
   @@index([date])
   @@index([parentMarkId])
@@ -261,8 +261,8 @@ model StreamSession {
   id                    String          @id @default(cuid())
   userId                String
   user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Life area id (`finance` | `work` | …) — same as limbId / themeId.
-  limbId                String
+  /// Life area id — same as themeId on map entities.
+  themeId               String
   inputText             String
   inputMode             StreamInputMode
   itemsAdded            Int
@@ -272,7 +272,7 @@ model StreamSession {
   processedForProfileAt DateTime?
   createdAt             DateTime        @default(now())
 
-  @@index([userId, limbId, createdAt])
+  @@index([userId, themeId, createdAt])
   @@index([userId, processedForProfile, createdAt])
 }
 
@@ -289,8 +289,8 @@ model StreamRun {
   userId              String
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   goalId              String
-  categoryId          String          @map("branchId")
-  limbId              String
+  categoryId          String
+  themeId             String
   rawInput            String          @db.Text
   inputMode           StreamInputMode @default(text)
   status              StreamRunStatus @default(pending)
@@ -453,13 +453,13 @@ model Goal {
   location         String?
   timelineNote     String?
   subtype          String?
-  /// Legacy column name: stores the **life area** id when set. See `Branch.limbId`.
-  limbId           String?
+  /// Life area id when set (denormalized from category row).
+  themeId          String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   userId           String
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId       String?     @map("branchId")
+  categoryId       String?
   themeCategory    ThemeCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   /// Last pursuit Stream run that updated this goal's context/status.
   sourceStreamRunId String?
@@ -468,7 +468,7 @@ model Goal {
   @@index([parentGoalId])
   @@index([sourceStreamRunId])
   @@index([categoryId])
-  @@index([limbId])
+  @@index([themeId])
   @@index([archived])
   @@index([categoryId, sequencePosition])
 }

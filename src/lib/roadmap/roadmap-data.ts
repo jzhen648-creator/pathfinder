@@ -57,7 +57,7 @@ export const ROADMAP_LIFE_AREA_COLUMN_ORDER: LimbId[] = [
 export type RoadmapMarkInput = {
   id: string;
   branchId: string;
-  limbId: string;
+  themeId: string;
   title: string;
   description: string | null;
   date: string;
@@ -71,7 +71,7 @@ export type RoadmapMarkInput = {
 
 export type RoadmapBranchInput = {
   id: string;
-  limbId: string;
+  themeId: string;
   name?: string | null;
   label?: string | null;
   goal?: string | null;
@@ -237,7 +237,7 @@ function branchDisplayName(b: RoadmapBranchInput): string {
 /** One horizontal track inside a limb column (for sub-labels under the limb title). */
 export type RoadmapBranchLane = {
   branchId: string;
-  limbId: LimbId;
+  themeId: LimbId;
   x: number;
   label: string;
   /** Branch split from a parent (fork); styled slightly quieter. */
@@ -251,7 +251,7 @@ export type RoadmapBranchLane = {
  * root (most marks, then longest span) centered; child branches follow to the side.
  */
 function orderBranchesForLifeAreaLayout(
-  limbId: LimbId,
+  themeId: LimbId,
   ids: string[],
   byBranch: Map<string, RoadmapMarkInput[]>,
   branchRow: (id: string) => RoadmapBranchInput | undefined,
@@ -261,7 +261,7 @@ function orderBranchesForLifeAreaLayout(
     if (row) return row;
     return {
       id,
-      limbId,
+      themeId: themeId,
       createdAt: "",
       parentCategoryId: null,
       turningPointId: null,
@@ -414,10 +414,10 @@ export function buildPrimarySpineByLifeArea(
     const limbBranchIds = new Set<string>();
     for (const m of marks) {
       if (m.archived) continue;
-      if (coerceRoadmapLifeAreaId(m.limbId) === limbId) limbBranchIds.add(m.branchId);
+      if (coerceRoadmapLifeAreaId(m.themeId) === limbId) limbBranchIds.add(m.branchId);
     }
     for (const b of branches) {
-      if (coerceRoadmapLifeAreaId(b.limbId) === limbId) limbBranchIds.add(b.id);
+      if (coerceRoadmapLifeAreaId(b.themeId) === limbId) limbBranchIds.add(b.id);
     }
     const candidates = [...limbBranchIds];
     if (candidates.length === 0) continue;
@@ -425,7 +425,7 @@ export function buildPrimarySpineByLifeArea(
       const pid = branchById.get(id)?.parentCategoryId;
       if (!pid) return true;
       const parent = branchById.get(pid);
-      return !parent || coerceRoadmapLifeAreaId(parent.limbId) !== limbId;
+      return !parent || coerceRoadmapLifeAreaId(parent.themeId) !== limbId;
     });
     const pool = roots.length > 0 ? roots : candidates;
     pool.sort((a, b) => {
@@ -443,7 +443,7 @@ export function resolveChronologyParentBranchId(
   spineByLifeArea: Map<LimbId, string>,
 ): string | null {
   if (!branch.parentCategoryId) return null;
-  const limbId = coerceRoadmapLifeAreaId(branch.limbId);
+  const limbId = coerceRoadmapLifeAreaId(branch.themeId);
   const spineId = spineByLifeArea.get(limbId);
   if (!spineId || branch.id === spineId) return branch.parentCategoryId;
   return spineId;
@@ -685,7 +685,7 @@ export function buildRoadmapLayout(
   const activeMarksByLimb = new Map<LimbId, RoadmapMarkInput[]>();
   lifeAreas.forEach((id) => activeMarksByLimb.set(id, []));
   for (const m of activeMarks) {
-    const lid = coerceRoadmapLifeAreaId(m.limbId);
+    const lid = coerceRoadmapLifeAreaId(m.themeId);
     if (!activeMarksByLimb.has(lid)) continue;
     activeMarksByLimb.get(lid)!.push(m);
   }
@@ -716,7 +716,7 @@ export function buildRoadmapLayout(
   const goalIds = new Set<string>();
 
   for (const m of activeMarks) {
-    const limb = coerceRoadmapLifeAreaId(m.limbId);
+    const limb = coerceRoadmapLifeAreaId(m.themeId);
     nodes.push({
       id: m.id,
       parentId: null,
@@ -734,7 +734,7 @@ export function buildRoadmapLayout(
   for (const b of branches) {
     const g = (b.goal ?? "").trim();
     if (!g) continue;
-    const limb = coerceRoadmapLifeAreaId(b.limbId);
+    const limb = coerceRoadmapLifeAreaId(b.themeId);
     const gid = goalSyntheticId(b.id);
     goalIds.add(gid);
     nodes.push({
@@ -779,7 +779,7 @@ export function buildRoadmapLayout(
     const br = branchById.get(branchId);
     if (!br) continue;
     const gid = goalSyntheticId(branchId);
-    const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(br.limbId));
+    const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(br.themeId));
     if (list.length > 0) {
       if (!br.parentCategoryId) nodeById.get(list[0]!.id)!.parentId = rid;
       else {
@@ -799,7 +799,7 @@ export function buildRoadmapLayout(
     const gid = goalSyntheticId(b.id);
     if (!goalIds.has(gid)) continue;
     if ((byBranch.get(b.id) ?? []).length > 0) continue;
-    const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(b.limbId));
+    const rid = roadmapLifeAreaRootId(coerceRoadmapLifeAreaId(b.themeId));
     const g = nodeById.get(gid)!;
     if (!b.parentCategoryId) g.parentId = rid;
     else {
@@ -816,10 +816,10 @@ export function buildRoadmapLayout(
   function branchIdsWithContentForLifeArea(limbId: LimbId): string[] {
     const ids = new Set<string>();
     for (const m of activeMarks) {
-      if (coerceRoadmapLifeAreaId(m.limbId) === limbId) ids.add(m.branchId);
+      if (coerceRoadmapLifeAreaId(m.themeId) === limbId) ids.add(m.branchId);
     }
     for (const b of branches) {
-      if (coerceRoadmapLifeAreaId(b.limbId) !== limbId) continue;
+      if (coerceRoadmapLifeAreaId(b.themeId) !== limbId) continue;
       if (goalIds.has(goalSyntheticId(b.id))) ids.add(b.id);
     }
     return Array.from(ids).sort((a, b) => {
@@ -945,7 +945,7 @@ export function buildRoadmapLayout(
 
       branchLanes.push({
         branchId: br.id,
-        limbId,
+        themeId: limbId,
         x,
         label: branchDisplayName(br),
         isChild: Boolean(br.parentCategoryId),
@@ -1057,7 +1057,7 @@ export function buildRoadmapLayout(
       const g = nodeById.get(gid);
       if (g && g.y < topY) x = g.x;
     }
-    lane.x = x ?? nodeById.get(roadmapLifeAreaRootId(lane.limbId))?.x ?? lane.x;
+    lane.x = x ?? nodeById.get(roadmapLifeAreaRootId(lane.themeId))?.x ?? lane.x;
   }
 
   return { nodes, edges, byBranch, layoutWidth, branchLanes };

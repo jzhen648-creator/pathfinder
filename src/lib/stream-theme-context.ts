@@ -188,7 +188,7 @@ export async function buildStreamThemeContextInput(
   const sessionQuery = streamSession
     ? streamSession
         .findMany({
-          where: { userId, limbId: themeId },
+          where: { userId, themeId: themeId },
           select: { inputText: true, inputMode: true, createdAt: true },
           orderBy: { createdAt: "desc" },
           take: 3,
@@ -326,7 +326,7 @@ export async function recordStreamGlobalSession(
 export async function recordStreamThemeSession(
   prisma: PrismaClient,
   userId: string,
-  limbId: string,
+  themeId: string,
   fields: StreamSessionCommitFields,
 ): Promise<void> {
   const streamSession = getStreamSessionDelegate(prisma);
@@ -340,7 +340,7 @@ export async function recordStreamThemeSession(
     await streamSession.create({
       data: {
         userId,
-        limbId,
+        themeId: themeId,
         inputText: fields.inputText,
         inputMode: fields.inputMode,
         itemsAdded: fields.itemsAdded,

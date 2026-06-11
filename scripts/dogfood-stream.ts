@@ -181,7 +181,7 @@ type MapGoal = {
   id: string;
   title: string;
   categoryId: string | null;
-  limbId: string;
+  themeId: string;
   status: string;
   parentGoalId: string | null;
   hubSlug: string | null;
@@ -192,7 +192,7 @@ type MapSnapshot = {
   userId: string;
   branches: Array<{
     id: string;
-    limbId: string;
+    themeId: string;
     label: string;
     hubSlug: string;
   }>;
@@ -213,20 +213,20 @@ async function loadMap(): Promise<MapSnapshot> {
 
   const branches = await prisma.themeCategory.findMany({
     where: { userId: user.id, parentCategoryId: null },
-    select: { id: true, limbId: true, label: true, name: true, isActive: true },
+    select: { id: true, themeId: true, label: true, name: true, isActive: true },
     orderBy: { order: "asc" },
   });
 
   const branchRows = branches.map((b) => ({
     id: b.id,
-    limbId: b.limbId,
+    themeId: b.themeId,
     label: b.label ?? b.name ?? "",
-    hubSlug: systemHubKey(b.limbId, b.label ?? b.name).split("::")[1] ?? "",
+    hubSlug: systemHubKey(b.themeId, b.label ?? b.name).split("::")[1] ?? "",
   }));
 
   const branchByThemeHub = new Map<string, string>();
   for (const b of branchRows) {
-    branchByThemeHub.set(`${b.limbId}::${b.hubSlug}`, b.id);
+    branchByThemeHub.set(`${b.themeId}::${b.hubSlug}`, b.id);
   }
 
   const goalsRaw = await prisma.goal.findMany({
@@ -241,7 +241,7 @@ async function loadMap(): Promise<MapSnapshot> {
       categoryId: true,
       status: true,
       parentGoalId: true,
-      themeCategory: { select: { limbId: true, label: true, name: true } },
+      themeCategory: { select: { themeId: true, label: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -264,7 +264,7 @@ async function loadMap(): Promise<MapSnapshot> {
 
   const marks = await prisma.mark.findMany({
     where: { userId: user.id, archived: false },
-    select: { id: true, title: true, categoryId: true, limbId: true },
+    select: { id: true, title: true, categoryId: true, themeId: true },
     orderBy: { date: "desc" },
     take: 200,
   });
@@ -1714,7 +1714,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
       category: "multi-session",
       label: "Dynamic continuation — YouTube subs",
       mode: "theme",
-      themeId: (youtubeGoal.limbId as LifeAreaId) ?? "work",
+      themeId: (youtubeGoal.themeId as LifeAreaId) ?? "work",
       input: "I want to hit 25k YouTube subs by 2028.",
       expect: {
         minStructured: 1,
@@ -1727,7 +1727,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
     map,
     (g) =>
       /\b(teeth|dental|invisalign|orthodont|appearance|smile)\b/i.test(g.title) &&
-      (g.hubSlug === "appearance" || g.limbId === "health"),
+      (g.hubSlug === "appearance" || g.themeId === "health"),
   );
   if (teethGoal) {
     fixturesUsed.push(`milestone: ${teethGoal.title} (${teethGoal.id})`);
@@ -1792,7 +1792,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
       category: "milestone-status",
       label: "Dynamic embellishment — mark pursuit complete",
       mode: "theme",
-      themeId: activeGoal.limbId as LifeAreaId,
+      themeId: activeGoal.themeId as LifeAreaId,
       input: `Finished "${activeGoal.title}" — done and dusted.`,
       expect: {
         existingGoalId: activeGoal.id,
@@ -1812,7 +1812,7 @@ function _buildDynamicCases(map: MapSnapshot): { cases: DogfoodCase[]; fixturesU
       category: "contradictory-pivots",
       label: "Dynamic status — pause pursuit",
       mode: "theme",
-      themeId: onHoldCandidate.limbId as LifeAreaId,
+      themeId: onHoldCandidate.themeId as LifeAreaId,
       input: `Pausing "${onHoldCandidate.title}" for now — taking a break.`,
       expect: {
         existingGoalId: onHoldCandidate.id,

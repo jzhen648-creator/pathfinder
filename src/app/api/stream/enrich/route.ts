@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (itemType === "mark") {
       const mark = await prisma.mark.findFirst({
         where: { id: itemId, userId, archived: false },
-        include: { themeCategory: { select: { label: true, name: true, limbId: true } } },
+        include: { themeCategory: { select: { label: true, name: true, themeId: true } } },
       });
       if (!mark) return NextResponse.json({ error: "Mark not found" }, { status: 404 });
       if (!isSparseContextItem(mark.title, mark.description)) {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       }
 
       const hubLabel = (mark.themeCategory?.label ?? mark.themeCategory?.name ?? "").trim() || "Hub";
-      const themeLabel = getLifeArea(mark.limbId ?? mark.themeCategory?.limbId ?? "")?.label ?? "Life";
+      const themeLabel = getLifeArea(mark.themeId ?? mark.themeCategory?.themeId ?? "")?.label ?? "Life";
       const { title, description } = await runStreamEnrich({
         itemType: "mark",
         currentTitle: mark.title,
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const goal = await prisma.goal.findFirst({
       where: { id: itemId, userId, archived: false },
-      include: { themeCategory: { select: { label: true, name: true, limbId: true } } },
+      include: { themeCategory: { select: { label: true, name: true, themeId: true } } },
     });
     if (!goal) return NextResponse.json({ error: "Pursuit not found" }, { status: 404 });
     if (goal.goalType === "moment" || goal.goalType === "event") {
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     const hubLabel =
       (goal.themeCategory?.label ?? goal.themeCategory?.name ?? "").trim() || goal.lifeArea || "Hub";
     const themeLabel =
-      getLifeArea(goal.limbId ?? goal.themeCategory?.limbId ?? goal.lifeArea)?.label ?? "Life";
+      getLifeArea(goal.themeId ?? goal.themeCategory?.themeId ?? goal.lifeArea)?.label ?? "Life";
     const pursuitCtx = await formatPursuitContext(userId, goal.id);
     const { title, description } = await runStreamEnrich({
       itemType: "pursuit",

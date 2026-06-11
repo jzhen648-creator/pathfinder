@@ -120,7 +120,7 @@ function resolveMilestonesForBranch(
 
 type TxClient = Prisma.TransactionClient;
 
-type BranchRow = { id: string; limbId: string; isActive: boolean };
+type BranchRow = { id: string; themeId: string; isActive: boolean };
 
 type HubCommitCounts = {
   createdMarks: number;
@@ -243,7 +243,7 @@ async function commitItemsToBranchInTx(
     clientKeyToGoalId,
   );
 
-  const lifeArea = getLifeArea(branch.limbId)?.label ?? "Other";
+  const lifeArea = getLifeArea(branch.themeId)?.label ?? "Other";
   const now = new Date();
   const defaultYear = now.getFullYear();
   const defaultMonth = now.getMonth() + 1;
@@ -292,7 +292,7 @@ async function commitItemsToBranchInTx(
         lifeArea,
         goalType,
         categoryId: branch.id,
-        limbId: branch.limbId,
+        themeId: branch.themeId,
         deadline: parsePursuitDeadline(p.deadline),
         significance: 3,
         status: bloomStatus,
@@ -384,7 +384,7 @@ async function commitItemsToBranchInTx(
       data: {
         userId,
         categoryId: branch.id,
-        limbId: branch.limbId,
+        themeId: branch.themeId,
         title,
         description: null,
         date: resolved.d,
@@ -582,7 +582,7 @@ export async function commitStreamToHub(
 
   const branch = await prisma.themeCategory.findFirst({
     where: { id: hubId, userId },
-    select: { id: true, limbId: true, isActive: true },
+    select: { id: true, themeId: true, isActive: true },
   });
   if (!branch) {
     return { ok: false, error: "Hub not found", status: 404 };
@@ -810,7 +810,7 @@ export async function commitStreamToTheme(
     }
     branchBySlug.set(slug, {
       id: resolved.categoryId,
-      limbId: resolved.limbId,
+      themeId: "limbId" in resolved ? resolved.limbId : resolved.themeId,
       isActive: true,
     });
   }
@@ -938,7 +938,7 @@ export async function commitStreamGlobal(
 
   const branches = await prisma.themeCategory.findMany({
     where: { id: { in: [...allBranchIds] }, userId },
-    select: { id: true, limbId: true, isActive: true },
+    select: { id: true, themeId: true, isActive: true },
   });
   const branchById = new Map(branches.map((b) => [b.id, b]));
   for (const branchId of allBranchIds) {

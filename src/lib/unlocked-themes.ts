@@ -26,12 +26,13 @@ export function parseUnlockedLimbIds(raw: unknown): LifeAreaId[] {
  */
 export function mergeUnlockedLimbIds(
   stored: readonly LifeAreaId[],
-  branchRows: readonly { limbId: string; parentCategoryId?: string | null; isActive?: boolean | null }[],
+  branchRows: readonly { themeId?: string; limbId?: string; parentCategoryId?: string | null; isActive?: boolean | null }[],
 ): LifeAreaId[] {
   const set = new Set<LifeAreaId>(stored);
   for (const b of branchRows) {
-    if (!b.parentCategoryId && b.isActive === true && isLifeAreaId(b.limbId)) {
-      set.add(b.limbId);
+    const rowTheme = b.themeId ?? b.limbId;
+    if (!b.parentCategoryId && b.isActive === true && rowTheme && isLifeAreaId(rowTheme)) {
+      set.add(rowTheme);
     }
   }
   return LIFE_AREA_IDS.filter((id) => set.has(id));
