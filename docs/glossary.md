@@ -1,3 +1,6 @@
+> **SUPERSEDED — compressed glossary with hub/tree vocabulary.**  
+> **Use instead:** [`../GLOSSARY.md`](../GLOSSARY.md), [`../ONTOLOGY.md`](../ONTOLOGY.md), [`../../pathfinder-mobile/TERMINOLOGY.md`](../../pathfinder-mobile/TERMINOLOGY.md).
+
 # Glossary (AI-oriented, compressed)
 
 Terms that materially affect reasoning. User-facing vocabulary; code symbols in parentheses where different. Full tables: repo root `GLOSSARY.md`, `ONTOLOGY.md`.
@@ -28,9 +31,9 @@ Terms that materially affect reasoning. User-facing vocabulary; code symbols in 
 | **`archived`** | Soft hide on Goal/Mark; revive from hub archive section. |
 | **`needsResolution`** | Stream ambiguous mark; user picks Done / In progress / Not started on map. |
 | **`Mark.kind`** | `mark` (manual) vs `stream` (AI provenance). |
-| **Bloom (persisted)** | `ACTIVE` \| `ON_HOLD` \| `COMPLETE` on `Goal.bloomStatus`. Legacy BUD/GROWING/BLOOMED/ENDED normalized at read. |
+| **Bloom (persisted)** | `ACTIVE` \| `PAUSED` \| `COMPLETE` \| `MAINTAINING` \| `ABANDONED` on `Goal.bloomStatus`. Legacy `ON_HOLD` and BUD/GROWING/BLOOMED/ENDED normalized at read. |
 | **Lifecycle (derived)** | `computeGoalLifecycleBloom` from milestones — may override stale ACTIVE for display. |
-| **Visual phase** | `deriveGoalNodeRenderState` → `ON_HOLD` \| `ACTIVE` \| `COMPLETE` for SVG halos/orbitals (not a DB enum). |
+| **Visual phase** | `deriveGoalNodeRenderState` → `PAUSED` \| `ACTIVE` \| `COMPLETE` for SVG halos/orbitals (not a DB enum). |
 
 ---
 

@@ -1,3 +1,6 @@
+> **SUPERSEDED — desktop tree product (pre–mobile-first).** Do not use for product or architecture decisions.  
+> **Use instead:** [`../START-HERE.md`](../START-HERE.md), [`../PATHFINDER-CONTEXT.md`](../PATHFINDER-CONTEXT.md), [`ONTOLOGY.md`](./ONTOLOGY.md), [`GLOSSARY.md`](./GLOSSARY.md), [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md), [`.cursor/rules/pathfinder-current-state.mdc`](../.cursor/rules/pathfinder-current-state.mdc).
+
 # Pathfinder — project brief
 
 **Pathfinder** is a personal **life-map** web app: one place to see how the main areas of your life connect, log meaningful **pursuits** over time, place **timeline notes** on hubs, and plan structured roadmaps without losing the wider picture.

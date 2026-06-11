@@ -2,6 +2,8 @@
 
 Centred semantic icon for each pursuit hexagon (a tooth for Invisalign, a runner for a marathon). Coverage is **not** driven by the length of this list — it's driven by letting the AI pick from the full installed Lucide set. This list is the **quality anchor**, not the vocabulary.
 
+Mobile also ships a **curated render catalog** (~220 Lucide slugs) in `pathfinder-mobile/scripts/curated-pursuit-icon-slugs.mjs` — pursuits assigned icons outside that set still resolve via theme fallback until the catalog is expanded.
+
 ## How resolution works (two tiers)
 
 1. **Preferred overrides** (this file) — exact/fuzzy concept match → use the named icon. Guarantees good picks for common pursuits and flags custom ones.
@@ -12,7 +14,7 @@ Centred semantic icon for each pursuit hexagon (a tooth for Invisalign, a runner
 Notes:
 - Icon pick is a **separate call at pursuit creation**, not part of per-message Stream extraction. The full name list may be included there since it fires once per pursuit.
 - Names are **kebab-case**; component exports are **PascalCase** (`heart-pulse` → `HeartPulse`).
-- ⚠️ = no Lucide match; exclude from import, falls back to theme icon until a custom icon is drawn.
+- ⚠️ = no good Lucide match; exclude from override, falls back to theme icon until a custom icon is drawn.
 - Any name below not found in the installed package degrades gracefully (→ AI pick → theme icon), so validate against node_modules rather than trusting this file blindly.
 
 ---
@@ -58,7 +60,7 @@ performance review → clipboard-check
 networking → handshake
 change career / pivot → route
 quit job → door-open
-sabbatical / time off → palm-tree
+sabbatical / time off → tree-palm
 retire → umbrella
 learn a skill → graduation-cap
 course / study → book-open
@@ -96,28 +98,28 @@ find a mentor → user-check
 
 ### Movement
 gym / strength training → dumbbell
-gain muscle → dumbbell
+gain muscle → biceps-flexed
 lose weight → scale
 cycling → bike
-swimming → waves
+swimming → waves-ladder
 hiking → mountain
 walking / steps → footprints
 climbing / bouldering → mountain
-martial arts / boxing → ⚠️ (no good match → theme)
-tennis → ⚠️
+martial arts / boxing → sword
+tennis → volleyball
 golf → flag
-football / soccer → ⚠️
-basketball → ⚠️
-skiing / snowboarding → ⚠️
-surfing → waves
-rowing → ⚠️
+football / soccer → volleyball
+basketball → volleyball
+skiing / snowboarding → snowflake
+surfing → waves-ladder
+rowing → ship
 sports (general) → trophy
-running / marathon → ⚠️ runner figure
-triathlon → ⚠️
-yoga → ⚠️ yoga pose
-pilates → ⚠️
-stretching / mobility → ⚠️
-posture → ⚠️
+running / marathon → person-standing
+triathlon → medal
+yoga → stretch-vertical
+pilates → stretch-vertical
+stretching / mobility → stretch-horizontal
+posture → accessibility
 
 ### Nutrition
 healthy eating / diet → salad
@@ -129,15 +131,15 @@ intermittent fasting → clock
 hydration → droplet
 nutrition tracking → apple
 supplements / vitamins → pill
-gut health → ⚠️
+gut health → pill-bottle
 
 ### Appearance
-teeth / invisalign / dental → ⚠️ tooth
+teeth / invisalign / dental → smile
 skincare → sparkles
 haircut / hair → scissors
 style / wardrobe → shirt
 glasses / eyewear → glasses
-tattoo → ⚠️
+tattoo → pen-tool
 weight goal → scale
 
 ### Rest & Recovery
@@ -146,16 +148,16 @@ sleep routine → bed
 recovery → battery-charging
 reduce stress → heart-pulse
 breathing → wind
-sauna / cold plunge → ⚠️
+sauna / cold plunge → shower-head
 quit caffeine → coffee
 digital detox / screen time → smartphone
 
 ### Medical
 doctor / checkup → stethoscope
-dentist appointment → ⚠️ tooth
+dentist appointment → smile
 manage a condition → activity
 medication → pill
-physiotherapy → ⚠️
+physiotherapy → accessibility
 mental health → brain
 quit smoking → cigarette-off
 sobriety / quit drinking → wine-off
@@ -171,12 +173,12 @@ parenting / kids → baby
 romance / dating → heart
 find a partner → heart
 relationship → heart-handshake
-engagement → ⚠️ rings
-marriage / wedding → ⚠️ rings
-move in together → home
+engagement → gem
+marriage / wedding → heart-handshake
+move in together → house
 long-distance → map-pin
 repair a relationship → heart-handshake
-divorce / separation → ⚠️
+divorce / separation → heart-crack
 set boundaries → shield
 friendships → users-round
 make new friends → user-plus
@@ -197,10 +199,10 @@ host / entertain → party-popper
 purpose / direction → compass
 life vision → telescope
 spirituality / faith → church
-prayer → ⚠️
+prayer → cross
 therapy / inner work → brain
 journaling → notebook-pen
-meditation / mindfulness → ⚠️ lotus
+meditation / mindfulness → sun-medium
 personal growth → sprout
 self-discipline → target
 build habits → repeat
@@ -234,14 +236,14 @@ explore / road trips → map
 camping → tent
 fishing → fish
 sailing / boating → sailboat
-scuba diving → ⚠️
+scuba diving → fish
 astronomy / stargazing → telescope
 birdwatching → bird
 gardening / plants → flower-2
 art / painting → brush
 drawing → pencil
-pottery / ceramics → ⚠️
-knitting / sewing / crafts → ⚠️
+pottery / ceramics → anvil
+knitting / sewing / crafts → package-2
 woodworking / diy → hammer
 baking → cake-slice
 cooking (hobby) → chef-hat
@@ -250,8 +252,8 @@ coffee / cafés → coffee
 nature / outdoors → trees
 creative writing → feather
 calligraphy → pen-tool
-collecting → ⚠️
-dancing → ⚠️
+collecting → package-2
+dancing → hand-metal
 volunteering → hand-heart
 
 ## Life & Admin — *(cross-cutting; map to the most relevant existing theme)*
@@ -261,7 +263,7 @@ move abroad / emigrate → plane
 renovate home → hammer
 home improvement → wrench
 declutter / minimalism → archive
-organize / cleaning → broom
+organize / cleaning → brush-cleaning
 buy a car → car
 sell a car → car
 learn to drive → car
@@ -276,25 +278,16 @@ adopt a pet → paw-print
 
 ---
 
-## Custom icon commission list (the ⚠️ items)
+## Custom icon commission list (optional polish)
 
-Only these need designing. Match Lucide: 24×24, 2px stroke, round caps/joins, no fill.
+Lucide covers most pursuits with the mappings above. Only commission custom icons if a literal glyph matters more than the semantic stand-in.
 
-**High priority (common):**
-1. Tooth / dental
-2. Runner / marathon
-3. Yoga pose
-4. Meditation / lotus
-5. Stretching
-6. Wedding rings
+**Optional (literal glyph):**
+1. Tooth / dental (currently `smile`)
+2. Wedding rings (currently `gem` / `heart-handshake`)
+3. Sport-specific — tennis racket, basketball, football (currently `volleyball` / `trophy`)
 
-**Lower priority (grow as needed):**
-7. Dancing
-8. Specific sports — boxing/martial arts, tennis, basketball, football/soccer, skiing, rowing
-9. Crafts — knitting/sewing, pottery
-10. Misc — scuba, sauna/cold plunge
-
-Until each exists, those pursuits fall back to the theme icon.
+Match Lucide: 24×24, 2px stroke, round caps/joins, no fill.
 
 ## Resolution order (give this to Cursor)
 

@@ -532,7 +532,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "gain muscle"
     ],
-    "iconSlug": "dumbbell",
+    "iconSlug": "biceps-flexed",
     "section": "Health — Health & Body"
   },
   {
@@ -553,7 +553,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "swimming"
     ],
-    "iconSlug": null,
+    "iconSlug": "waves-ladder",
     "section": "Health — Health & Body"
   },
   {
@@ -584,14 +584,14 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "martial arts",
       "boxing"
     ],
-    "iconSlug": null,
+    "iconSlug": "sword",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "tennis"
     ],
-    "iconSlug": null,
+    "iconSlug": "volleyball",
     "section": "Health — Health & Body"
   },
   {
@@ -606,14 +606,14 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "football",
       "soccer"
     ],
-    "iconSlug": null,
+    "iconSlug": "volleyball",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "basketball"
     ],
-    "iconSlug": null,
+    "iconSlug": "volleyball",
     "section": "Health — Health & Body"
   },
   {
@@ -621,21 +621,21 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "skiing",
       "snowboarding"
     ],
-    "iconSlug": null,
+    "iconSlug": "snowflake",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "surfing"
     ],
-    "iconSlug": null,
+    "iconSlug": "waves-ladder",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "rowing"
     ],
-    "iconSlug": null,
+    "iconSlug": "ship",
     "section": "Health — Health & Body"
   },
   {
@@ -650,28 +650,28 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "running",
       "marathon"
     ],
-    "iconSlug": null,
+    "iconSlug": "person-standing",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "triathlon"
     ],
-    "iconSlug": null,
+    "iconSlug": "medal",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "yoga"
     ],
-    "iconSlug": null,
+    "iconSlug": "stretch-vertical",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "pilates"
     ],
-    "iconSlug": null,
+    "iconSlug": "stretch-vertical",
     "section": "Health — Health & Body"
   },
   {
@@ -679,14 +679,14 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "stretching",
       "mobility"
     ],
-    "iconSlug": null,
+    "iconSlug": "stretch-horizontal",
     "section": "Health — Health & Body"
   },
   {
     "concepts": [
       "posture"
     ],
-    "iconSlug": null,
+    "iconSlug": "accessibility",
     "section": "Health — Health & Body"
   },
   {
@@ -759,7 +759,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "gut health"
     ],
-    "iconSlug": null,
+    "iconSlug": "pill-bottle",
     "section": "Health — Health & Body"
   },
   {
@@ -768,7 +768,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "invisalign",
       "dental"
     ],
-    "iconSlug": null,
+    "iconSlug": "smile",
     "section": "Health — Health & Body"
   },
   {
@@ -806,7 +806,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "tattoo"
     ],
-    "iconSlug": null,
+    "iconSlug": "pen-tool",
     "section": "Health — Health & Body"
   },
   {
@@ -857,7 +857,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "sauna",
       "cold plunge"
     ],
-    "iconSlug": null,
+    "iconSlug": "shower-head",
     "section": "Health — Health & Body"
   },
   {
@@ -887,7 +887,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "dentist appointment"
     ],
-    "iconSlug": null,
+    "iconSlug": "smile",
     "section": "Health — Health & Body"
   },
   {
@@ -908,7 +908,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "physiotherapy"
     ],
-    "iconSlug": null,
+    "iconSlug": "accessibility",
     "section": "Health — Health & Body"
   },
   {
@@ -1005,7 +1005,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "engagement"
     ],
-    "iconSlug": null,
+    "iconSlug": "gem",
     "section": "People — People & Relationships"
   },
   {
@@ -1013,7 +1013,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "marriage",
       "wedding"
     ],
-    "iconSlug": null,
+    "iconSlug": "heart-handshake",
     "section": "People — People & Relationships"
   },
   {
@@ -1042,7 +1042,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "divorce",
       "separation"
     ],
-    "iconSlug": null,
+    "iconSlug": "heart-crack",
     "section": "People — People & Relationships"
   },
   {
@@ -1175,7 +1175,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "prayer"
     ],
-    "iconSlug": null,
+    "iconSlug": "cross",
     "section": "Becoming — Who I'm Becoming"
   },
   {
@@ -1198,7 +1198,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "meditation",
       "mindfulness"
     ],
-    "iconSlug": null,
+    "iconSlug": "sun-medium",
     "section": "Becoming — Who I'm Becoming"
   },
   {
@@ -1425,7 +1425,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "scuba diving"
     ],
-    "iconSlug": null,
+    "iconSlug": "fish",
     "section": "Play & Leisure — Play & Leisure theme (pleasures)"
   },
   {
@@ -1471,7 +1471,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "pottery",
       "ceramics"
     ],
-    "iconSlug": null,
+    "iconSlug": "anvil",
     "section": "Play & Leisure — Play & Leisure theme (pleasures)"
   },
   {
@@ -1480,7 +1480,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "sewing",
       "crafts"
     ],
-    "iconSlug": null,
+    "iconSlug": "package-2",
     "section": "Play & Leisure — Play & Leisure theme (pleasures)"
   },
   {
@@ -1547,14 +1547,14 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
     "concepts": [
       "collecting"
     ],
-    "iconSlug": null,
+    "iconSlug": "package-2",
     "section": "Play & Leisure — Play & Leisure theme (pleasures)"
   },
   {
     "concepts": [
       "dancing"
     ],
-    "iconSlug": null,
+    "iconSlug": "hand-metal",
     "section": "Play & Leisure — Play & Leisure theme (pleasures)"
   },
   {
@@ -1607,7 +1607,7 @@ export const PURSUIT_ICON_PREFERRED_OVERRIDES: readonly PursuitIconOverride[] = 
       "organize",
       "cleaning"
     ],
-    "iconSlug": null,
+    "iconSlug": "brush-cleaning",
     "section": "Life & Admin — *(cross-cutting; map to the most relevant existing theme)*"
   },
   {

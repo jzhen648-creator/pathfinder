@@ -1,3 +1,6 @@
+> **SUPERSEDED for product frame — verify against canonical rules before planning.**  
+> **Use instead:** [`.cursor/rules/pathfinder-current-state.mdc`](../../.cursor/rules/pathfinder-current-state.mdc), [`../ONTOLOGY.md`](../ONTOLOGY.md), [`../../pathfinder-mobile/TERMINOLOGY.md`](../../pathfinder-mobile/TERMINOLOGY.md).
+
 # Current focus (June 2026)
 
 **Active product:** mobile app in `pathfinder-mobile/`.  
