@@ -229,6 +229,3 @@ export async function applySequenceResolution(
     }
   }
 }
-
-/** @deprecated Use {@link loadCategorySequencedNodes}. */
-export const loadBranchSequencedNodes = loadCategorySequencedNodes;

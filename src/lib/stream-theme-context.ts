@@ -252,7 +252,7 @@ export async function buildStreamThemeContextInput(
       goalId: g.id,
       title: g.title,
       goalType: g.goalType,
-      bloomStatus: g.status,
+      status: g.status,
       parentGoalId: g.parentGoalId ?? null,
     });
   }
@@ -283,7 +283,7 @@ export async function buildStreamThemeContextInput(
   const hubs: StreamThemeHubContextInput[] = scopedResolved.map((h) => {
     const copy = hubPanelCopy(themeId, h.hubLabel);
     return {
-      hubId: h.hubSlug,
+      categorySlug: h.hubSlug,
       hubLabel: h.hubLabel,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,

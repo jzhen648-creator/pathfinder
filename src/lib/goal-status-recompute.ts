@@ -3,7 +3,7 @@ import { computeGoalLifecycleBloom } from "@/lib/goal-status-lifecycle";
 import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
 import { prisma } from "@/lib/prisma";
 
-const LOG = "[recomputeGoalBloomStatus]";
+const LOG = "[recomputeGoalStatus]";
 
 function debugRecompute(): boolean {
   return process.env.PATHFINDER_DEBUG_RECOMPUTE_GOAL_BLOOM === "1";
@@ -41,7 +41,7 @@ function milestonePayloadSummary(
  * **Diagnostics:** `PATHFINDER_DEBUG_RECOMPUTE_GOAL_BLOOM=1` logs milestone shapes, per-milestone semantics,
  * computed bloom, and `prisma.goal.update` payload.
  */
-export async function recomputeGoalBloomStatus(goalId: string): Promise<void> {
+export async function recomputeGoalStatus(goalId: string): Promise<void> {
   let goal;
   try {
     goal = await prisma.goal.findUnique({

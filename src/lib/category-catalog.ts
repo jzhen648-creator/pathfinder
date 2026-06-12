@@ -831,4 +831,3 @@ export const hubFirstTimeQuestion = categoryFirstTimeQuestion;
 export const hubPanelCopy = categoryPanelCopy;
 export const canonicalHubDisplayLabel = canonicalCategoryDisplayLabel;
 export const parseHubRedirectTarget = parseCategoryRedirectTarget;
-export { hubMatchKey } from "./taxonomy";

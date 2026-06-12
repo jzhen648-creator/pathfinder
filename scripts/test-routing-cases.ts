@@ -16,7 +16,7 @@ loadEnv({ path: ".env.local", override: true });
 import { runStreamThemeExtract } from "../src/lib/ai/stream-extract";
 import { hasGeminiKey } from "../src/lib/gemini";
 import { hubPanelCopy } from "../src/lib/category-catalog";
-import { LOCKED_HUB_TEMPLATES, normalizeHubLabelKey } from "../src/lib/taxonomy";
+import { LOCKED_CATEGORY_TEMPLATES, normalizeCategoryLabelKey } from "../src/lib/taxonomy";
 import { getLifeArea } from "../src/lib/life-areas";
 import type { LifeAreaId } from "../src/lib/types";
 import type { StreamThemeContextInput, StreamThemeHubContextInput } from "../src/types/stream";
@@ -31,11 +31,11 @@ function mockBranchId(): string {
 }
 
 function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
-  const templates = LOCKED_HUB_TEMPLATES.filter((t) => t.limbId === themeId);
+  const templates = LOCKED_CATEGORY_TEMPLATES.filter((t) => t.limbId === themeId);
   const hubs: StreamThemeHubContextInput[] = templates.map((t) => {
     const copy = hubPanelCopy(themeId, t.threadType);
     return {
-      hubId: normalizeHubLabelKey(t.threadType),
+      categorySlug: normalizeCategoryLabelKey(t.threadType),
       hubLabel: t.threadType,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,

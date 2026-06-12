@@ -8,6 +8,7 @@ export type StreamIngestGoalType = (typeof STREAM_INGEST_GOAL_TYPE_VALUES)[numbe
 
 export type PursuitBloomForMilestones = {
   goalType: string;
+  status?: string | null;
   bloomStatus?: string | null;
 };
 
@@ -18,25 +19,26 @@ export type PursuitBloomForMilestones = {
 export function goalAllowsStreamMilestones(goal: PursuitBloomForMilestones): boolean {
   if (goal.goalType === "moment" || goal.goalType === "event") return false;
   if (goal.goalType === "identity" || goal.goalType === "practice") return false;
-  if (goal.bloomStatus === "MAINTAINING") return false;
+  if ((goal.status ?? goal.bloomStatus) === "MAINTAINING") return false;
   return true;
 }
 
-/** Map legacy practice + Stream bloom to persisted goalType / bloomStatus. */
+/** Map legacy practice + Stream status to persisted goalType / status. */
 export function normalizeIngestedPursuitType(input: {
   goalType: string;
+  status?: string | null;
   bloomStatus?: string | null;
-}): { goalType: GoalType; bloomStatus: string } {
+}): { goalType: GoalType; status: string } {
+  const rawStatus = input.status ?? input.bloomStatus ?? "ACTIVE";
   if (input.goalType === "identity") {
-    return { goalType: "identity", bloomStatus: input.bloomStatus ?? "ACTIVE" };
+    return { goalType: "identity", status: rawStatus };
   }
   if (input.goalType === "practice") {
-    const status = input.bloomStatus ?? "ACTIVE";
-    if (status === "COMPLETE" || status === "PAUSED" || status === "ON_HOLD") {
-      const bloomStatus = status === "ON_HOLD" ? "PAUSED" : status;
-      return { goalType: "project", bloomStatus };
+    if (rawStatus === "COMPLETE" || rawStatus === "PAUSED" || rawStatus === "ON_HOLD") {
+      const status = rawStatus === "ON_HOLD" ? "PAUSED" : rawStatus;
+      return { goalType: "project", status };
     }
-    return { goalType: "project", bloomStatus: "MAINTAINING" };
+    return { goalType: "project", status: "MAINTAINING" };
   }
-  return { goalType: "project", bloomStatus: input.bloomStatus ?? "ACTIVE" };
+  return { goalType: "project", status: rawStatus };
 }

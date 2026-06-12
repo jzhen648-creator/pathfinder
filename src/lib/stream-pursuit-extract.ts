@@ -96,9 +96,9 @@ export function filterPursuitStreamExtraction(
     .filter((u) => u.goalId === goalId)
     .map((u) => ({
       ...u,
-      bloomStatus: allowPursuitBloomStatus(rawInput, u.bloomStatus),
+      status: allowPursuitBloomStatus(rawInput, u.status),
     }))
-    .filter((u) => u.description?.trim() || u.title?.trim() || u.bloomStatus);
+    .filter((u) => u.description?.trim() || u.title?.trim() || u.status);
 
   const milestones = extraction.milestones.filter(
     (m) => m.pursuitRef.kind === "existing" && m.pursuitRef.goalId === goalId,
@@ -109,7 +109,7 @@ export function filterPursuitStreamExtraction(
     .map((p) => ({
       ...p,
       existingGoalId: goalId,
-      bloomStatus: allowPursuitBloomStatus(rawInput, p.bloomStatus) ?? p.bloomStatus,
+      status: allowPursuitBloomStatus(rawInput, p.status) ?? p.status,
     }));
 
   return {
@@ -183,7 +183,7 @@ export async function runPursuitStreamExtract(
       goalId: g.id,
       title: g.title,
       goalType: g.goalType,
-      bloomStatus: g.status,
+      status: g.status,
       parentGoalId: g.parentGoalId ?? null,
     })),
     existingMarks: marks.map((m) => ({
@@ -221,7 +221,7 @@ export async function runPursuitStreamExtract(
     "- Add milestones only for this pursuit (pursuitExistingGoalId = target goalId).",
     "- Optionally add one hub mark for a distinct timeline moment.",
     "- Do NOT create new pursuits. Do NOT delete or archive anything.",
-    "- Only set bloomStatus COMPLETE or PAUSED if the user clearly finished or paused this pursuit.",
+    "- Only set status COMPLETE or PAUSED if the user clearly finished or paused this pursuit.",
     "",
     "User input:",
     input,

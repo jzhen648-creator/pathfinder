@@ -1,11 +1,11 @@
 import type { LifeAreaId } from "./types";
-import { normalizeHubLabelKey } from "./taxonomy";
+import { normalizeCategoryLabelKey } from "./taxonomy";
 
 /**
- * Canonical Lucide kebab-case slugs for all system hub categories.
+ * Canonical Lucide kebab-case slugs for all system taxonomy categories.
  * Single source of truth — mobile pursuit icons import this module.
  */
-export const HUB_LUCIDE_ICON_SLUGS = [
+export const CATEGORY_LUCIDE_ICON_SLUGS = [
   "wallet",
   "home",
   "briefcase",
@@ -29,10 +29,10 @@ export const HUB_LUCIDE_ICON_SLUGS = [
   "moon",
 ] as const;
 
-export type HubLucideIconSlug = (typeof HUB_LUCIDE_ICON_SLUGS)[number];
+export type CategoryLucideIconSlug = (typeof CATEGORY_LUCIDE_ICON_SLUGS)[number];
 
-/** Per-theme hub slot → Lucide slug (keys are `normalizeHubLabelKey(threadType)`). */
-export const HUB_LUCIDE_ICONS: Record<LifeAreaId, Record<string, HubLucideIconSlug>> = {
+/** Per-theme category slot → Lucide slug (keys are `normalizeCategoryLabelKey(threadType)`). */
+export const CATEGORY_LUCIDE_ICONS: Record<LifeAreaId, Record<string, CategoryLucideIconSlug>> = {
   finance: {
     "employment income": "wallet",
     "rental & property income": "home",
@@ -69,8 +69,8 @@ export const HUB_LUCIDE_ICONS: Record<LifeAreaId, Record<string, HubLucideIconSl
   },
 };
 
-/** Slot-order fallback — mirrors `LOCKED_HUB_TEMPLATES` per theme. */
-export const HUB_LUCIDE_ICON_SLOT_ORDER: Record<LifeAreaId, readonly HubLucideIconSlug[]> = {
+/** Slot-order fallback — mirrors `LOCKED_CATEGORY_TEMPLATES` per theme. */
+export const CATEGORY_LUCIDE_ICON_SLOT_ORDER: Record<LifeAreaId, readonly CategoryLucideIconSlug[]> = {
   finance: ["wallet", "home", "briefcase", "piggy-bank", "shield-check", "credit-card"],
   work: ["building-2", "graduation-cap", "rocket"],
   becoming: ["compass", "eye", "sun"],
@@ -84,27 +84,27 @@ function normalizedSlotIndex(branchIndex: number, slotCount: number): number {
   return ((n % slotCount) + slotCount) % slotCount;
 }
 
-/** Lucide slug for a system hub label under a theme; `null` when unknown. */
-export function hubLucideIconSlug(
+/** Lucide slug for a system category label under a theme; `null` when unknown. */
+export function categoryLucideIconSlug(
   themeId: LifeAreaId,
-  hubLabel: string | null | undefined,
+  categoryLabel: string | null | undefined,
   branchIndex?: number,
-): HubLucideIconSlug | null {
-  const trimmed = hubLabel?.trim();
+): CategoryLucideIconSlug | null {
+  const trimmed = categoryLabel?.trim();
   if (!trimmed) return null;
 
-  const byTheme = HUB_LUCIDE_ICONS[themeId];
-  const canonical = normalizeHubLabelKey(trimmed);
+  const byTheme = CATEGORY_LUCIDE_ICONS[themeId];
+  const canonical = normalizeCategoryLabelKey(trimmed);
   if (byTheme[canonical]) return byTheme[canonical];
 
   const needle = trimmed.toLowerCase();
   const displayKey = Object.keys(byTheme).find(
-    (key) => key.toLowerCase() === needle || normalizeHubLabelKey(key) === canonical,
+    (key) => key.toLowerCase() === needle || normalizeCategoryLabelKey(key) === canonical,
   );
   if (displayKey) return byTheme[displayKey]!;
 
   if (branchIndex != null) {
-    const slots = HUB_LUCIDE_ICON_SLOT_ORDER[themeId];
+    const slots = CATEGORY_LUCIDE_ICON_SLOT_ORDER[themeId];
     return slots[normalizedSlotIndex(branchIndex, slots.length)] ?? null;
   }
 

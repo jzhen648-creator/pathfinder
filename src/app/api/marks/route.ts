@@ -12,7 +12,7 @@ import {
 } from "@/lib/validation/marks-and-categories";
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import { activateHubForUser } from "@/lib/system-categories";
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
 
   /** Resolve branch-line sequence position. Same transactional reindex pattern as POST /api/goals. */
   const anchor = input.anchor ?? { kind: "append" as const };
-  const existingNodes = await loadBranchSequencedNodes(prisma, input.branchId);
+  const existingNodes = await loadCategorySequencedNodes(prisma, input.branchId);
   const resolution = resolveSequenceAnchor(existingNodes, anchor);
   const sequencePosition = resolution.sequencePosition;
 

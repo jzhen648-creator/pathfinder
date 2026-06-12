@@ -79,12 +79,12 @@ const withNullParentRef = preprocessStreamExtractJson({
       goalType: "project",
       status: "ACTIVE",
       clientKey: null,
-      hubId: null,
+      categorySlug: null,
     },
   ],
   milestones: [
-    { title: "Phase 1", pursuitRef: null, hubId: null },
-    { title: "Bad ref", pursuitRef: { kind: "existing" }, hubId: null },
+    { title: "Phase 1", pursuitRef: null, categorySlug: null },
+    { title: "Bad ref", pursuitRef: { kind: "existing" }, categorySlug: null },
     {
       title: "Good ref",
       pursuitRef: { kind: "new", clientKey: "pursuit-1" },
@@ -96,7 +96,7 @@ const withNullParentRef = preprocessStreamExtractJson({
       label: "Work confidence",
       reason: null,
       confidence: "0.52",
-      hubId: null,
+      categorySlug: null,
     },
   ],
   clarifyingQuestion: null,
@@ -112,7 +112,7 @@ if (parsedNulls.success) {
   assert.equal(parsedNulls.data.milestones.length, 1);
   assert.equal(parsedNulls.data.milestones[0]?.title, "Good ref");
   assert.equal(parsedNulls.data.ambiguous[0]?.confidence, 0.52);
-  assert.equal(parsedNulls.data.ambiguous[0]?.hubId, undefined);
+  assert.equal(parsedNulls.data.ambiguous[0]?.categorySlug, undefined);
 }
 
 console.log("stream-extract-sessions.test.ts: ok");

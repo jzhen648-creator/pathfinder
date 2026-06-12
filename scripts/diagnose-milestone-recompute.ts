@@ -1,5 +1,5 @@
 /**
- * Runtime check: relational milestone update + recomputeGoalBloomStatus against dev.db.
+ * Runtime check: relational milestone update + recomputeGoalStatus against dev.db.
  * Does not hit Next.js or auth — isolates Prisma + recompute only.
  *
  * Usage (from pathfinder/): npx tsx scripts/diagnose-milestone-recompute.ts
@@ -11,7 +11,7 @@
  */
 import { prisma } from "../src/lib/prisma";
 import { milestoneDoneForSemantics } from "../src/lib/milestone-semantics";
-import { recomputeGoalBloomStatus } from "../src/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "../src/lib/goal-status-recompute";
 
 const keep = process.argv.includes("--keep-completion");
 const exerciseBloomUpdate = process.argv.includes("--exercise-bloom-update");
@@ -70,7 +70,7 @@ async function main() {
   let recomputeOk = false;
   let recomputeErr: unknown;
   try {
-    await recomputeGoalBloomStatus(goalId);
+    await recomputeGoalStatus(goalId);
     recomputeOk = true;
   } catch (e) {
     recomputeErr = e;
@@ -81,7 +81,7 @@ async function main() {
     select: { status: true, bloomedAt: true },
   });
 
-  console.log("[diagnose-milestone-recompute] after recomputeGoalBloomStatus", {
+  console.log("[diagnose-milestone-recompute] after recomputeGoalStatus", {
     recomputeOk,
     error: recomputeOk
       ? undefined
@@ -111,7 +111,7 @@ async function main() {
       count: all.length,
     });
     try {
-      await recomputeGoalBloomStatus(goalId);
+      await recomputeGoalStatus(goalId);
     } catch (e) {
       console.error("[diagnose-milestone-recompute] recompute after full completion FAILED", e);
     }
@@ -128,7 +128,7 @@ async function main() {
         }),
       ),
     );
-    await recomputeGoalBloomStatus(goalId).catch((e) =>
+    await recomputeGoalStatus(goalId).catch((e) =>
       console.error("[diagnose-milestone-recompute] restore after exercise failed", e),
     );
     console.log("[diagnose-milestone-recompute] --exercise-bloom-update: restored all milestone completedAt.");
@@ -137,7 +137,7 @@ async function main() {
         where: { id: milestone.id },
         data: { completedAt: prevCompletedAt },
       });
-      await recomputeGoalBloomStatus(goalId).catch((e) =>
+      await recomputeGoalStatus(goalId).catch((e) =>
         console.error("[diagnose-milestone-recompute] final restore recompute failed", e),
       );
       console.log("[diagnose-milestone-recompute] restored probe milestone to original completedAt.");
@@ -149,7 +149,7 @@ async function main() {
       where: { id: milestone.id },
       data: { completedAt: prevCompletedAt },
     });
-    await recomputeGoalBloomStatus(goalId).catch((e) =>
+    await recomputeGoalStatus(goalId).catch((e) =>
       console.error("[diagnose-milestone-recompute] restore recompute failed", e),
     );
     console.log("[diagnose-milestone-recompute] restored milestone completedAt + reran recompute.");

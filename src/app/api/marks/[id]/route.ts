@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import { prisma } from "@/lib/prisma";
@@ -93,7 +93,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   if (input.sequenceAnchor) {
     await prisma.$transaction(async (tx) => {
-      const nodes = await loadBranchSequencedNodes(tx, targetBranchId);
+      const nodes = await loadCategorySequencedNodes(tx, targetBranchId);
       const resolution = resolveSequenceAnchor(nodes, input.sequenceAnchor!);
       await applySequenceResolution(tx, resolution);
       await tx.mark.update({

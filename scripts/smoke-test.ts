@@ -15,8 +15,8 @@ import {
 
 type CheckResult = { name: string; ok: boolean; detail?: string };
 
-const branchesSchema = z.object({
-  branches: z.array(z.object({ id: z.string(), limbId: z.string() })),
+const mapDataSchema = z.object({
+  categories: z.array(z.object({ id: z.string(), themeId: z.string() })),
   goals: z.array(z.object({ id: z.string(), title: z.string() })),
   archivedGoals: z.array(z.unknown()).optional(),
 });
@@ -77,10 +77,10 @@ async function runChecks(session: ScriptSession): Promise<CheckResult[]> {
 
   results.push(
     await check(
-      "GET /api/branches",
-      async () => readJson(await apiFetch(session, "/api/branches")),
+      "GET /api/map-data",
+      async () => readJson(await apiFetch(session, "/api/map-data")),
       (body) => {
-        const parsed = branchesSchema.safeParse(body);
+        const parsed = mapDataSchema.safeParse(body);
         return parsed.success ? null : parsed.error.issues[0]?.message ?? "invalid shape";
       },
     ),
@@ -108,13 +108,13 @@ async function runChecks(session: ScriptSession): Promise<CheckResult[]> {
     ),
   );
 
-  const activateRes = await apiFetch(session, "/api/branches/activate", {
+  const activateRes = await apiFetch(session, "/api/themes/activate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
   results.push({
-    name: "POST /api/branches/activate (validation)",
+    name: "POST /api/themes/activate (validation)",
     ok: activateRes.status === 400,
     detail: activateRes.status === 400 ? undefined : `expected 400, got ${activateRes.status}`,
   });

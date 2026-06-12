@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 
 function maxMilestonePosition(milestones: { position: number }[]): number {
@@ -48,7 +48,7 @@ export async function appendCanonicalMilestoneForGoal(
       });
     });
 
-    await recomputeGoalBloomStatus(goalId);
+    await recomputeGoalStatus(goalId);
     return { ok: true };
   } catch (e: unknown) {
     const code =
@@ -61,6 +61,3 @@ export async function appendCanonicalMilestoneForGoal(
     return { ok: false, error: "Could not add milestone", status: 500 };
   }
 }
-
-/** @deprecated Use {@link appendCanonicalMilestoneForGoal}. */
-export const appendCanonicalTreeMilestoneForGoal = appendCanonicalMilestoneForGoal;

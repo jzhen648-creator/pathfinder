@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { GeneratedRoadmap } from "@/lib/milestone-generator";
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 
 type PersistResult = { ok: true } | { ok: false; error: string; status: number };
 
@@ -90,7 +90,7 @@ export async function persistGeneratedRoadmapForGoal(
       });
     });
 
-    await recomputeGoalBloomStatus(goalId);
+    await recomputeGoalStatus(goalId);
     return { ok: true };
   } catch (err) {
     console.error("[persistGeneratedRoadmapForGoal]", err);

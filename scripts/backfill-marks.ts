@@ -1,9 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import { LOCKED_HUB_TEMPLATES } from "../src/lib/taxonomy";
+import { LOCKED_CATEGORY_TEMPLATES } from "../src/lib/taxonomy";
 
 const prisma = new PrismaClient();
 
-const BRANCH_TEMPLATES = LOCKED_HUB_TEMPLATES.map((t, order) => ({
+const BRANCH_TEMPLATES = LOCKED_CATEGORY_TEMPLATES.map((t, order) => ({
   limbId: t.limbId,
   name: t.threadType,
   order,

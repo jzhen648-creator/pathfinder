@@ -9,7 +9,7 @@ import { truncateStreamNarrative } from "@/lib/ai/stream-extract-narrative";
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 import { hubPanelCopy, type HubCatalogEntry } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
-import { normalizeStreamHubSlug } from "@/lib/resolve-category";
+import { normalizeStreamCategorySlug } from "@/lib/resolve-category";
 import {
   parseStreamItemOrder,
   streamExtractResponseSchema,
@@ -171,7 +171,7 @@ function sanitizeFlatPursuitRef(
 function sanitizeExtractedMark(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const row = { ...(raw as Record<string, unknown>) };
-  stripNullObjectFields(row, ["hubId"]);
+  stripNullObjectFields(row, ["categorySlug"]);
   return row;
 }
 
@@ -183,7 +183,7 @@ function sanitizeExtractedPursuit(raw: unknown): Record<string, unknown> | null 
   delete row.parentClientKey;
   stripNullObjectFields(row, [
     "clientKey",
-    "hubId",
+    "categorySlug",
     "description",
     "sourcePhrase",
     "titleConfidence",
@@ -201,14 +201,14 @@ function sanitizeExtractedMilestone(raw: unknown): Record<string, unknown> | nul
     sanitizePursuitRef(row.pursuitRef) ??
     sanitizeFlatPursuitRef(row, "pursuitExistingGoalId", "pursuitClientKey");
   if (!pursuitRef) return null;
-  stripNullObjectFields(row, ["hubId"]);
+  stripNullObjectFields(row, ["categorySlug"]);
   return { ...row, pursuitRef };
 }
 
 function sanitizeAmbiguousItem(raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const row = { ...(raw as Record<string, unknown>) };
-  stripNullObjectFields(row, ["confidence", "hubId"]);
+  stripNullObjectFields(row, ["confidence", "categorySlug"]);
   return row;
 }
 
@@ -300,13 +300,13 @@ function parseStreamExtractResponse(json: unknown): StreamExtractResponse {
 }
 
 export const STREAM_EXTRACT_SYSTEM_PROMPT = [
-  "Terminology: a **taxonomy category** is a named slot under one theme (legacy prompt word: hub). JSON routing field remains `hubId`.",
+  "Terminology: a **taxonomy category** is a named slot under one theme (legacy prompt word: hub). JSON routing field is `categorySlug`.",
   "",
   "You are Pathfinder Stream: a category-scoped extractor that turns a free-form brain dump into structured tree updates for ONE taxonomy category only.",
   "",
   "You receive:",
   "- Hub metadata (name, theme, catalog description)",
-  "- Existing pursuits on this hub (goalId, title, goalType, bloomStatus, parentGoalId — parentGoalId: null means it is currently a root pursuit)",
+  "- Existing pursuits on this hub (goalId, title, goalType, status, parentGoalId — parentGoalId: null means it is currently a root pursuit)",
   "- Existing marks on this hub (title, date)",
   "- Previous Stream sessions on this hub (summary of recent Stream mark titles)",
   "- The user's brain dump (typed or transcribed)",
@@ -352,24 +352,24 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "2. Completion over creation",
   "   - If the user describes something DONE and an open pursuit on this hub already tracks it (ACTIVE), do NOT create a duplicate pursuit.",
-  "   - Instead: set existingGoalId to that pursuit's id and bloomStatus \"COMPLETE\". Do not also add a mark for the same fact unless the user is recording a distinct timeline moment (e.g. a specific renewal date) that is not merely \"I finished the pursuit.\"",
+  "   - Instead: set existingGoalId to that pursuit's id and status \"COMPLETE\". Do not also add a mark for the same fact unless the user is recording a distinct timeline moment (e.g. a specific renewal date) that is not merely \"I finished the pursuit.\"",
   "",
   "3. Classify each distinct item the user mentions",
   "",
   "   DONE (completed fact, past win, already in place):",
   "   → Prefer a mark (timeline moment) when it is a concrete event or state reached at a point in time (insurance renewed, fund hit, certificate received).",
-  "   → Prefer completing an existing pursuit (existingGoalId + bloomStatus \"COMPLETE\") when the user is saying a tracked pursuit is finished.",
-  "   → Do NOT create a new pursuit with bloomStatus \"COMPLETE\" unless there was no existing pursuit and a mark would be a poor fit (rare).",
+  "   → Prefer completing an existing pursuit (existingGoalId + status \"COMPLETE\") when the user is saying a tracked pursuit is finished.",
+  "   → Do NOT create a new pursuit with status \"COMPLETE\" unless there was no existing pursuit and a mark would be a poor fit (rare).",
   "",
   "   IN PROGRESS or NOT STARTED (actively working, maintaining, gap, plan):",
   "   → If a matching open pursuit exists: do not duplicate; omit from pursuits or update title only (embellishment).",
-  "   → If no matching pursuit: new pursuit with goalType \"project\" and bloomStatus \"ACTIVE\" (or \"MAINTAINING\" for ongoing habits / maintenance rhythms with no finish line).",
+  "   → If no matching pursuit: new pursuit with goalType \"project\" and status \"ACTIVE\" (or \"MAINTAINING\" for ongoing habits / maintenance rhythms with no finish line).",
   "",
   "   PAUSED / ON HOLD (shelved, not pursuing for now, taking a break):",
-  "   → Match an existing pursuit on this hub and set existingGoalId + bloomStatus \"PAUSED\". Do not create a new pursuit.",
+  "   → Match an existing pursuit on this hub and set existingGoalId + status \"PAUSED\". Do not create a new pursuit.",
   "",
   "   RESUMING (picking back up a PAUSED pursuit):",
-  "   → existingGoalId + bloomStatus \"ACTIVE\". Do not create a new pursuit.",
+  "   → existingGoalId + status \"ACTIVE\". Do not create a new pursuit.",
   "",
   "4A. User-named steps → milestones",
   "   - When the user names specific methods, treatments, modalities, tactics, appointments, or sub-tasks (e.g. \"Invisalign\", \"composite bonding\", \"onlay\", \"find a mentor\", \"outline content\"), attach each as a milestone on the matching pursuit — existing or new in this session.",
@@ -380,11 +380,11 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "   - Do NOT invent milestones the user did not mention. Do not split a single vague mention into a fabricated multi-step plan.",
   "   - Do NOT add milestones for maintenance, insurance, habits, or ongoing practices (e.g. \"Maintain travel insurance\", \"Exercise regularly\") unless the user lists explicit steps.",
   "   - Do NOT add milestones to pursuits you are only blooming as complete.",
-  "   - Never add milestones to pursuits with goalType \"identity\", bloomStatus \"MAINTAINING\", or ongoing habits without explicit user-named steps.",
+  "   - Never add milestones to pursuits with goalType \"identity\", status \"MAINTAINING\", or ongoing habits without explicit user-named steps.",
   "   - Max 5 milestones per pursuit. Short actionable titles.",
   "",
   "5. Best-guess placement (never defer)",
-  "   - If status is unclear (done vs in progress vs not started), default to bloomStatus \"ACTIVE\".",
+  "   - If status is unclear (done vs in progress vs not started), default to status \"ACTIVE\".",
   "   - If the hub is unclear, route the item to the single most likely hub in this theme — placement is low-stakes and the user can re-drag it later.",
   "   - Never withhold, defer, or flag an item over placement or status uncertainty. Always emit it as a mark, pursuit, or milestone.",
   "",
@@ -400,7 +400,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "",
   "8. Embellishment over duplication",
   "   - If the user adds detail to an existing pursuit or mark, do NOT create a duplicate row.",
-  "   - For pursuits: use existingGoalId + unchanged bloomStatus. Update the pursuit title only if the new wording is a clearer or shorter distilled summary — never replace a short title with a longer verbatim list of methods.",
+  "   - For pursuits: use existingGoalId + unchanged status. Update the pursuit title only if the new wording is a clearer or shorter distilled summary — never replace a short title with a longer verbatim list of methods.",
   "   - Route new methods, treatments, steps, or tactics mentioned in the dump to milestones[] on that pursuit (pursuitExistingGoalId for existing goals), not into the pursuit title.",
   "   - For marks: add a new mark only when the detail is a genuinely distinct timeline moment, not a restatement.",
   "",
@@ -419,11 +419,11 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "- Methods as milestones on that pursuit (same session: clientKey + pursuitClientKey).",
   "- Never also create peer pursuits for each method.",
   "",
-  "## Pursuit types (goalType) and status (bloomStatus)",
+  "## Pursuit types (goalType) and status (status)",
   "",
   "- \"project\" — default for deliverables, habits, and most pursuits (write a will, build a fund, meditate daily, review finances monthly)",
   "- \"identity\" — who I am becoming (be someone who prioritises health) — rare; no milestones",
-  "- Ongoing habits / maintenance with no finish line: goalType \"project\" + bloomStatus \"MAINTAINING\" (not a separate goalType)",
+  "- Ongoing habits / maintenance with no finish line: goalType \"project\" + status \"MAINTAINING\" (not a separate goalType)",
   "- Do not emit legacy goalType \"practice\" — use project + MAINTAINING instead",
   "",
   "## Dates",
@@ -448,11 +448,11 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "Parent/child nesting on the map is chosen only by the user in edit mode, not by extraction.",
   "",
   "Rule 9 — Pursuit status changes (no new row):",
-  "When the user is only updating lifecycle status of an existing pursuit — not describing new work — use existingGoalId + bloomStatus. Never create a new pursuit for status-only updates. Do not add milestones on status-only updates.",
-  "- Finished / done / launched / completed / achieved / wrapped up → existingGoalId + bloomStatus \"COMPLETE\".",
-"- Paused / on hold / shelved / not pursuing right now / taking a break from / dropping for now / deprioritising / back burner → existingGoalId + bloomStatus \"PAUSED\".",
-"- Resuming / back on / picking up again / active again / returning to it (especially when the pursuit is currently PAUSED) → existingGoalId + bloomStatus \"ACTIVE\".",
-  "- Established ongoing rhythm / keeping up / maintaining without a finish line → new or existing pursuit with bloomStatus \"MAINTAINING\" (goalType stays \"project\" unless clearly identity).",
+  "When the user is only updating lifecycle status of an existing pursuit — not describing new work — use existingGoalId + status. Never create a new pursuit for status-only updates. Do not add milestones on status-only updates.",
+  "- Finished / done / launched / completed / achieved / wrapped up → existingGoalId + status \"COMPLETE\".",
+"- Paused / on hold / shelved / not pursuing right now / taking a break from / dropping for now / deprioritising / back burner → existingGoalId + status \"PAUSED\".",
+"- Resuming / back on / picking up again / active again / returning to it (especially when the pursuit is currently PAUSED) → existingGoalId + status \"ACTIVE\".",
+  "- Established ongoing rhythm / keeping up / maintaining without a finish line → new or existing pursuit with status \"MAINTAINING\" (goalType stays \"project\" unless clearly identity).",
 "- Match by intent against existing pursuits on this hub (title, paraphrase, synonym) before choosing existingGoalId. For pause/resume signals, prefer a likely existingGoalId match over creating a fresh peer.",
   "",
   "## Confirmation order (itemOrder)",
@@ -465,7 +465,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "## Examples (hub-scoped)",
   "",
   "Example A — distill title; methods → milestones; no peer duplicates",
-  "Existing pursuits: [{ \"goalId\": \"g1\", \"title\": \"Improve my teeth\", \"bloomStatus\": \"ACTIVE\", ... }]",
+  "Existing pursuits: [{ \"goalId\": \"g1\", \"title\": \"Improve my teeth\", \"status\": \"ACTIVE\", ... }]",
   "User: \"I want to fix my teeth — onlay, composite bonding, and probably Invisalign.\"",
   "WRONG pursuits: [{ \"title\": \"Fix teeth with onlay, composite bonding, and orthodontics\" }, { \"title\": \"Get Invisalign\" }, ...]",
   "RIGHT:",
@@ -480,7 +480,7 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "Existing pursuits: []",
   "User: \"Need to sort my teeth — bonding and Invisalign.\"",
   "RIGHT:",
-  "  pursuits: [{ \"title\": \"Improve my teeth\", \"goalType\": \"project\", \"bloomStatus\": \"ACTIVE\", \"clientKey\": \"p1\" }]",
+  "  pursuits: [{ \"title\": \"Improve my teeth\", \"goalType\": \"project\", \"status\": \"ACTIVE\", \"clientKey\": \"p1\" }]",
   "  milestones: [",
   "    { \"title\": \"Composite bonding\", \"pursuitExistingGoalId\": null, \"pursuitClientKey\": \"p1\" },",
   "    { \"title\": \"Get Invisalign\", \"pursuitExistingGoalId\": null, \"pursuitClientKey\": \"p1\" }",
@@ -506,9 +506,9 @@ export const STREAM_EXTRACT_SYSTEM_PROMPT = [
   "    {",
   '      "title": "string",',
   '      "goalType": "project|identity",',
-  '      "bloomStatus": "ACTIVE|MAINTAINING|PAUSED|COMPLETE",',
+  '      "status": "ACTIVE|MAINTAINING|PAUSED|COMPLETE",',
   '      "deadline": "YYYY-MM-DD or null — target end date when the user states one; null if none",',
-  '      "existingGoalId": "string or omit/null — when updating, completing, pausing, or resuming an existing pursuit; use with unchanged bloomStatus for embellishment (distilled title only if clearer/shorter), or ACTIVE|PAUSED|COMPLETE for status changes; do not create a new row",',
+  '      "existingGoalId": "string or omit/null — when updating, completing, pausing, or resuming an existing pursuit; use with unchanged status for embellishment (distilled title only if clearer/shorter), or ACTIVE|PAUSED|COMPLETE for status changes; do not create a new row",',
   '      "clientKey": "string or omit — required when this is a new pursuit referenced by milestones in this session",',
   STREAM_PURUIT_REVIEW_SCHEMA_FIELDS,
   "    }",
@@ -663,7 +663,7 @@ export function buildStreamExtractUserMessage(
       : []),
     "",
     "## Hub",
-    `- hubId (branchId): ${hub.branchId}`,
+    `- categorySlug (branchId): ${hub.branchId}`,
     `- hubName: ${hub.hubLabel}`,
     `- themeName: ${hub.themeLabel}`,
     `- themeId (limbId): ${hub.limbId}`,
@@ -721,7 +721,7 @@ function assignMissingClientKeys(data: StreamExtractResponse): StreamExtractResp
     pursuits.push({
       title: linked?.title ?? "New pursuit",
       goalType: "project",
-      bloomStatus: "ACTIVE",
+      status: "ACTIVE",
       clientKey: key,
     });
   }
@@ -771,34 +771,34 @@ export async function runStreamExtract(
 }
 
 export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
-  "Terminology: **taxonomy category** = named routing slot under a theme (legacy: hub). JSON field remains `hubId` (category slug).",
+  "Terminology: **taxonomy category** = named routing slot under a theme (legacy: hub). JSON field is `categorySlug` (category slug).",
   "",
   "You are Pathfinder Stream: a theme-scoped extractor that turns a free-form brain dump into structured tree updates across the provided relevant categories in ONE life theme.",
   "",
   "You receive:",
   "- Theme metadata (themeId, themeName)",
-  "- For each provided category in this theme: hubId (normalized category slug — use exactly as given), hubLabel (display only), catalog description, existing pursuits (goalId, title, goalType, bloomStatus, parentGoalId — parentGoalId: null means it is currently a root pursuit), existing marks",
+  "- For each provided category in this theme: categorySlug (normalized category slug — use exactly as given), hubLabel (display only), catalog description, existing pursuits (goalId, title, goalType, status, parentGoalId — parentGoalId: null means it is currently a root pursuit), existing marks",
   "- Optional full-map context for cross-theme placement and deduplication",
   "- Optional user background context for subtle calibration only",
   "- Previous theme-level Stream sessions (truncated text of up to 3 prior brain dumps on this theme)",
   "- The user's brain dump (typed or transcribed)",
   "",
-  "Your job: return one warm narrativeSentence plus proposed marks, pursuits, and milestones with correct category routing (`hubId`), plus flagged ambiguities — never write prose outside JSON, never explain, never ask questions in running text. Return ONLY one valid JSON object matching the schema below.",
+  "Your job: return one warm narrativeSentence plus proposed marks, pursuits, and milestones with correct category routing (`categorySlug`), plus flagged ambiguities — never write prose outside JSON, never explain, never ask questions in running text. Return ONLY one valid JSON object matching the schema below.",
   "",
   "## Extraction coverage (read this before routing)",
   "",
   "Messy/contradictory input is normal. Process the whole dump; do not stop after the first obvious cards.",
   "Extract every distinct concrete mark, pursuit, milestone/step, continuation, pause, resume, and status change.",
-  "Cross-theme extraction rule: extract ALL concrete items from the input even when they belong outside the theme/category where Stream was opened. Use map context to route them to the correct hubId. Category/pursuit context is a placement hint only; do not drop items because they are cross-theme.",
+  "Cross-theme extraction rule: extract ALL concrete items from the input even when they belong outside the theme/category where Stream was opened. Use map context to route them to the correct categorySlug. Category/pursuit context is a placement hint only; do not drop items because they are cross-theme.",
   "Uncertainty about one item must not suppress other confident items: place each item on its best-fit category and keep extracting.",
   "If an existing map goal evolves, resumes, stretches, pauses, or pivots, emit the pursuit update instead of dropping it.",
   "Before writing the JSON response, scan the input once more. For each category topic mentioned, confirm you have emitted at least one structured item (mark, pursuit, or milestone). If a topic has no structured item and you are confident about it, add it now.",
-  "If the user's input mentions N distinct concrete outcomes, extract all N as structured items, each on its best-fit category (`hubId`).",
+  "If the user's input mentions N distinct concrete outcomes, extract all N as structured items, each on its best-fit category (`categorySlug`).",
   "",
-  "## Category routing (critical — JSON field `hubId`)",
+  "## Category routing (critical — JSON field `categorySlug`)",
   "",
-  "- Every mark, pursuit, and milestone MUST include hubId — the normalized category slug from context (e.g. \"job\", \"skills & learning\", \"projects & shipping\" for Work & Career; \"employment income\", \"rental & property income\" for Money & Finance).",
-  "- Never use display labels (\"Job\", \"Employment income\") as hubId — only the slug.",
+  "- Every mark, pursuit, and milestone MUST include categorySlug — the normalized category slug from context (e.g. \"job\", \"skills & learning\", \"projects & shipping\" for Work & Career; \"employment income\", \"rental & property income\" for Money & Finance).",
+  "- Never use display labels (\"Job\", \"Employment income\") as categorySlug — only the slug.",
   "- Route each item to the category whose catalog scope and AI routing note best fit the user's intent.",
   "- Work & Career examples: promotions, roles, pivots → job; learning, credentials, mentors, deliberate practice → skills & learning; shipping, portfolios, concrete deliverables → projects & shipping.",
   "- Money & Finance examples: salary, bonus, employer pay → employment income; BTL, landlord, tenants, rental yield → rental & property income; freelance, invoicing, business revenue → business & freelance income; ISA, pension, investing → assets & investing.",
@@ -848,9 +848,9 @@ export const STREAM_EXTRACT_THEME_SYSTEM_PROMPT = [
   "",
   "{",
   '  "narrativeSentence": "one warm second-person sentence, 20 words max",',
-  '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "type": "...", "hubId": "slug" }],',
-  '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "...", "bloomStatus": "...", "hubId": "slug", "deadline": "YYYY-MM-DD or null", "existingGoalId": "optional/null", "clientKey": "optional/null", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
-  '  "milestones": [{ "title": "string", "hubId": "slug", "pursuitExistingGoalId": "string or null", "pursuitClientKey": "string or null" }],',
+  '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "type": "...", "categorySlug": "slug" }],',
+  '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "...", "status": "...", "categorySlug": "slug", "deadline": "YYYY-MM-DD or null", "existingGoalId": "optional/null", "clientKey": "optional/null", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
+  '  "milestones": [{ "title": "string", "categorySlug": "slug", "pursuitExistingGoalId": "string or null", "pursuitClientKey": "string or null" }],',
   '  "itemOrder": [{ "kind": "mark"|"pursuit"|"milestone", "index": 0 }],',
   '  "clarifyingQuestion": "string or null"',
   "}",
@@ -869,7 +869,7 @@ export function buildStreamThemeExtractUserMessage(
   const hubBlocks = theme.hubs.map((h) =>
     [
       `### Hub: ${h.hubLabel}`,
-      `- hubId (slug, required on every item): ${h.hubId}`,
+      `- categorySlug (slug, required on every item): ${h.categorySlug}`,
       `- branchId (internal, do not echo in output): ${h.branchId}`,
       "",
       "#### Hub catalog (scope + routing)",
@@ -913,7 +913,7 @@ export function buildStreamThemeExtractUserMessage(
       ? [
           "## MAP CONTEXT — use for structure and deduplication",
           JSON.stringify(options.mapContext),
-          "Use to place items in correct hub. Complete existing pursuits before creating new ones. Avoid creating duplicate pursuits. Cross-theme items should still be extracted and routed to their correct hubId.",
+          "Use to place items in correct hub. Complete existing pursuits before creating new ones. Avoid creating duplicate pursuits. Cross-theme items should still be extracted and routed to their correct categorySlug.",
           "",
         ]
       : []),
@@ -947,7 +947,7 @@ export function buildStreamThemeExtractUserMessage(
 function scoreHubForText(text: string, hub: StreamThemeContextInput["hubs"][number]): number {
   const lower = text.toLowerCase();
   let score = 0;
-  if (lower.includes(hub.hubId.toLowerCase())) score += 4;
+  if (lower.includes(hub.categorySlug.toLowerCase())) score += 4;
   const label = hub.hubLabel.toLowerCase();
   if (label && lower.includes(label)) score += 3;
   for (const token of `${hub.about} ${hub.aiRoutingNote}`
@@ -963,18 +963,18 @@ function fillThemeExtractCategorySlugs(
   data: StreamExtractResponse,
   theme: StreamThemeContextInput,
 ): StreamExtractResponse {
-  const validHubSlugs = new Set(theme.hubs.map((h) => h.hubId));
-  const defaultHub = theme.hubs[0]?.hubId;
+  const validHubSlugs = new Set(theme.hubs.map((h) => h.categorySlug));
+  const defaultHub = theme.hubs[0]?.categorySlug;
   const goalIdToHub = new Map<string, string>();
   for (const hub of theme.hubs) {
     for (const p of hub.existingPursuits) {
-      goalIdToHub.set(p.goalId, hub.hubId);
+      goalIdToHub.set(p.goalId, hub.categorySlug);
     }
   }
 
   const resolveRawHub = (raw: string | undefined): string | null => {
     if (!raw?.trim()) return null;
-    const slug = normalizeStreamHubSlug(raw);
+    const slug = normalizeStreamCategorySlug(raw);
     return validHubSlugs.has(slug) ? slug : null;
   };
 
@@ -988,7 +988,7 @@ function fillThemeExtractCategorySlugs(
       const score = scoreHubForText(title, hub);
       if (score > bestScore) {
         bestScore = score;
-        best = hub.hubId;
+        best = hub.categorySlug;
       }
     }
     return best;
@@ -996,46 +996,43 @@ function fillThemeExtractCategorySlugs(
 
   const clientKeyToHub = new Map<string, string>();
   const pursuits = data.pursuits.map((p, i) => {
-    let hubId =
-      resolveRawHub(p.hubId ?? p.categorySlug) ??
+    let categorySlug =
+      resolveRawHub(p.categorySlug) ??
       (p.existingGoalId ? goalIdToHub.get(p.existingGoalId) ?? null : null);
-    if (!hubId) {
-      hubId = inferHub(p.title, p.hubId);
-      console.warn(`[runStreamThemeExtract] inferred hubId for pursuits[${i}]: ${hubId}`);
+    if (!categorySlug) {
+      categorySlug = inferHub(p.title, p.categorySlug);
+      console.warn(`[runStreamThemeExtract] inferred categorySlug for pursuits[${i}]: ${categorySlug}`);
     }
-    if (p.clientKey) clientKeyToHub.set(p.clientKey, hubId);
-    return { ...p, hubId, categorySlug: hubId };
+    if (p.clientKey) clientKeyToHub.set(p.clientKey, categorySlug);
+    return { ...p, categorySlug };
   });
 
   const marks = data.marks.map((m, i) => {
-    let hubId = resolveRawHub(m.hubId ?? m.categorySlug);
-    if (!hubId) {
-      hubId = inferHub(m.title, m.hubId);
-      console.warn(`[runStreamThemeExtract] inferred hubId for marks[${i}]: ${hubId}`);
+    let categorySlug = resolveRawHub(m.categorySlug);
+    if (!categorySlug) {
+      categorySlug = inferHub(m.title, m.categorySlug);
+      console.warn(`[runStreamThemeExtract] inferred categorySlug for marks[${i}]: ${categorySlug}`);
     }
-    return { ...m, hubId, categorySlug: hubId };
+    return { ...m, categorySlug };
   });
 
   const milestones = data.milestones.map((ms, i) => {
-    let hubId: string | null = null;
+    let categorySlug: string | null = null;
     if (ms.pursuitRef.kind === "existing") {
-      hubId = goalIdToHub.get(ms.pursuitRef.goalId) ?? null;
+      categorySlug = goalIdToHub.get(ms.pursuitRef.goalId) ?? null;
     } else {
-      hubId = clientKeyToHub.get(ms.pursuitRef.clientKey) ?? null;
+      categorySlug = clientKeyToHub.get(ms.pursuitRef.clientKey) ?? null;
     }
-    hubId = hubId ?? resolveRawHub(ms.hubId ?? ms.categorySlug);
-    if (!hubId) {
-      hubId = inferHub(ms.title, ms.hubId);
-      console.warn(`[runStreamThemeExtract] inferred hubId for milestones[${i}]: ${hubId}`);
+    categorySlug = categorySlug ?? resolveRawHub(ms.categorySlug);
+    if (!categorySlug) {
+      categorySlug = inferHub(ms.title, ms.categorySlug);
+      console.warn(`[runStreamThemeExtract] inferred categorySlug for milestones[${i}]: ${categorySlug}`);
     }
-    return { ...ms, hubId, categorySlug: hubId };
+    return { ...ms, categorySlug };
   });
 
   return { ...data, marks, pursuits, milestones };
 }
-
-/** @deprecated Use {@link fillThemeExtractCategorySlugs}. */
-const fillThemeExtractHubIds = fillThemeExtractCategorySlugs;
 
 export async function runStreamThemeExtract(
   theme: StreamThemeContextInput,
@@ -1066,11 +1063,11 @@ export async function runStreamThemeExtract(
 }
 
 export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
-  "Terminology: **taxonomy category** (legacy: hub). JSON routing field remains `hubId`.",
+  "Terminology: **taxonomy category** (legacy: hub). JSON routing field is `categorySlug`.",
   "",
   "You are Pathfinder Stream V3: a map-wide extractor that turns free-form user text into confirmed life-map operations.",
   "",
-  "You receive the user's full active map. Categories use branch ids in map context. For every NEW mark, pursuit, or milestone, set hubId to the exact category id from map context.",
+  "You receive the user's full active map. Categories use branch ids in map context. For every NEW mark, pursuit, or milestone, set categorySlug to the exact category id from map context.",
   "For every UPDATE/COMPLETE/HOLD/DELETE operation, reference exact goalId and milestoneId values from map context.",
   "",
   "Core Phase 1 capabilities:",
@@ -1124,10 +1121,10 @@ export const STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT = [
   "Output schema (exact keys, all arrays required):",
   "{",
   '  "narrativeSentence": "one warm second-person sentence, 20 words max",',
-  '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "hubId": "hub branch id" }],',
-  '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "project|identity", "bloomStatus": "ACTIVE|MAINTAINING|PAUSED|COMPLETE", "hubId": "hub branch id", "deadline": "YYYY-MM-DD or null", "clientKey": "optional", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
+  '  "marks": [{ "title": "string", "date": "YYYY-MM-DD or null", "categorySlug": "hub branch id" }],',
+  '  "pursuits": [{ "title": "string", "description": "1-2 sentence summary or null", "goalType": "project|identity", "status": "ACTIVE|MAINTAINING|PAUSED|COMPLETE", "categorySlug": "hub branch id", "deadline": "YYYY-MM-DD or null", "clientKey": "optional", "sourcePhrase": "optional", "titleConfidence": "optional", "suggestedTitle": "optional/null", "reviewNote": "optional/null", "eventContext": "optional/null" }],',
   '  "milestones": [],',
-  '  "pursuitUpdates": [{ "goalId": "existing goal id", "title": "optional new title", "bloomStatus": "optional ACTIVE|MAINTAINING|PAUSED|COMPLETE" }],',
+  '  "pursuitUpdates": [{ "goalId": "existing goal id", "title": "optional new title", "status": "optional ACTIVE|MAINTAINING|PAUSED|COMPLETE" }],',
   '  "milestoneUpdates": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id", "title": "new milestone title" }],',
   '  "milestoneCompletions": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id", "completedAt": "YYYY-MM-DD or null/omit" }],',
   '  "milestoneDeletes": [{ "goalId": "parent goal id", "milestoneId": "existing milestone id" }],',
@@ -1152,7 +1149,7 @@ export function buildStreamGlobalExtractUserMessage(
     "",
     "## FULL MAP CONTEXT",
     JSON.stringify(options.mapContext ?? { themes: [] }),
-    "Use exact ids from this context. Hub ids here are branch ids and must be echoed as hubId for new items.",
+    "Use exact ids from this context. Hub ids here are branch ids and must be echoed as categorySlug for new items.",
     "",
     ...(options.userContext
       ? [

@@ -22,10 +22,6 @@ export const goalReorganizeBodySchema = z.discriminatedUnion("op", [
     ...moveToCategorySchema.shape,
   }),
   z.object({
-    op: z.literal("moveToHub"),
-    ...moveToCategorySchema.shape,
-  }),
-  z.object({
     op: z.literal("reparent"),
     parentGoalId: z.string().min(1),
   }),

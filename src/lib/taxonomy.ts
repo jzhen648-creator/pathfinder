@@ -44,14 +44,8 @@ export const LOCKED_CATEGORY_TEMPLATES: readonly HubTemplate[] = [
   { limbId: "health", threadType: "Rest & sleep", name: "Rest & sleep" },
 ] as const;
 
-/** @deprecated Use {@link LOCKED_CATEGORY_TEMPLATES}. */
-export const LOCKED_HUB_TEMPLATES = LOCKED_CATEGORY_TEMPLATES;
-
-/** @deprecated Prefer {@link categoriesForTheme}. Maximum categories on any single theme. */
-export const HUBS_PER_THEME = 6;
-
-/** Legacy hub labels → normalized key for matching template slots (lowercase). */
-export const HUB_LABEL_ALIASES: Record<string, string> = {
+/** Legacy category labels → normalized key for matching template slots (lowercase). */
+export const CATEGORY_LABEL_ALIASES: Record<string, string> = {
   purpose: "purpose & values",
   spirituality: "purpose & values",
   meaning: "purpose & values",
@@ -144,44 +138,27 @@ export function categoriesForTheme(themeId: LifeAreaId): readonly HubTemplate[] 
   return LOCKED_CATEGORY_TEMPLATES.filter((t) => t.limbId === themeId);
 }
 
-/** @deprecated Use {@link categoriesForTheme}. */
-export const hubsForTheme = categoriesForTheme;
-
 export function categoryCountForTheme(themeId: LifeAreaId): number {
   return categoriesForTheme(themeId).length;
 }
-
-/** @deprecated Use {@link categoryCountForTheme}. */
-export const hubCountForTheme = categoryCountForTheme;
 
 export function validCategoryLabelKeysForTheme(themeId: LifeAreaId): Set<string> {
   return new Set(categoriesForTheme(themeId).map((t) => normalizeCategoryLabelKey(t.threadType)));
 }
 
-/** @deprecated Use {@link validCategoryLabelKeysForTheme}. */
-export const validHubLabelKeysForTheme = validCategoryLabelKeysForTheme;
-
 export function normalizeCategoryLabelKey(label: string): string {
   const base = label.trim().toLowerCase();
-  return HUB_LABEL_ALIASES[base] ?? base;
-}
-
-/** @deprecated Use {@link normalizeCategoryLabelKey}. */
-export function normalizeHubLabelKey(label: string): string {
-  return normalizeCategoryLabelKey(label);
+  return CATEGORY_LABEL_ALIASES[base] ?? base;
 }
 
 export function categorySlugKey(label: string): string {
   return normalizeCategoryLabelKey(label);
 }
 
-/** @deprecated Use {@link categorySlugKey}. */
-export const hubMatchKey = categorySlugKey;
-
 export {
-  HUB_LUCIDE_ICONS,
-  HUB_LUCIDE_ICON_SLOT_ORDER,
-  HUB_LUCIDE_ICON_SLUGS,
-  hubLucideIconSlug,
-  type HubLucideIconSlug,
+  CATEGORY_LUCIDE_ICONS,
+  CATEGORY_LUCIDE_ICON_SLOT_ORDER,
+  CATEGORY_LUCIDE_ICON_SLUGS,
+  categoryLucideIconSlug,
+  type CategoryLucideIconSlug,
 } from "./category-lucide-icons";

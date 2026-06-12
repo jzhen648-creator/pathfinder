@@ -21,12 +21,12 @@ import { getLifeArea } from "../src/lib/life-areas";
 import {
   LEGACY_HUB_MIGRATIONS,
   LIFE_AREA_IDS,
-  LOCKED_HUB_TEMPLATES,
-  normalizeHubLabelKey,
-  hubsForTheme,
+  LOCKED_CATEGORY_TEMPLATES,
+  normalizeCategoryLabelKey,
+  categoriesForTheme,
 } from "../src/lib/taxonomy";
 import { normLabel } from "../src/lib/system-categories";
-import { normalizeStreamHubSlug } from "../src/lib/resolve-category";
+import { normalizeStreamCategorySlug } from "../src/lib/resolve-category";
 import type { LifeAreaId } from "../src/lib/types";
 import type { StreamThemeContextInput, StreamThemeHubContextInput } from "../src/types/stream";
 
@@ -44,7 +44,7 @@ function simulateDefaultHubRename(
     nextLabel = legacy.label;
   }
 
-  const template = LOCKED_HUB_TEMPLATES.find(
+  const template = LOCKED_CATEGORY_TEMPLATES.find(
     (t) => t.limbId === nextLimb && normLabel(t.threadType) === normLabel(nextLabel),
   );
   if (template) {
@@ -59,7 +59,7 @@ function simulateDefaultHubRename(
 }
 
 function assertHub(input: string, themeId: LifeAreaId, expectedSlug: string) {
-  const labels = hubsForTheme(themeId).map((t) => t.threadType);
+  const labels = categoriesForTheme(themeId).map((t) => t.threadType);
   const slug = pickBestHubSlugForThemeInput(input, themeId, labels);
   assert.equal(
     slug,
@@ -74,8 +74,8 @@ function buildCatalogMapContext(): FormattedMapContext {
       id: themeId,
       label: getLifeArea(themeId)?.label ?? themeId,
       marks: [],
-      hubs: hubsForTheme(themeId).map((t) => ({
-        id: `hub-${themeId}-${normalizeHubLabelKey(t.threadType)}`,
+      hubs: categoriesForTheme(themeId).map((t) => ({
+        id: `hub-${themeId}-${normalizeCategoryLabelKey(t.threadType)}`,
         label: t.threadType,
         pursuits: [],
       })),
@@ -93,13 +93,13 @@ function resolveHubFromMap(
     if (hub) {
       return {
         themeId: theme.id as LifeAreaId,
-        slug: normalizeHubLabelKey(hub.label),
+        slug: normalizeCategoryLabelKey(hub.label),
       };
     }
   }
-  const slug = normalizeStreamHubSlug(hubId);
+  const slug = normalizeStreamCategorySlug(hubId);
   for (const theme of map.themes) {
-    const hub = theme.hubs.find((h) => normalizeHubLabelKey(h.label) === slug);
+    const hub = theme.hubs.find((h) => normalizeCategoryLabelKey(h.label) === slug);
     if (hub) {
       return { themeId: theme.id as LifeAreaId, slug };
     }
@@ -113,10 +113,10 @@ function mockBranchId(): string {
 }
 
 function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
-  const hubs: StreamThemeHubContextInput[] = hubsForTheme(themeId).map((t) => {
+  const hubs: StreamThemeHubContextInput[] = categoriesForTheme(themeId).map((t) => {
     const copy = hubPanelCopy(themeId, t.threadType);
     return {
-      hubId: normalizeStreamHubSlug(t.threadType),
+      categorySlug: normalizeStreamCategorySlug(t.threadType),
       hubLabel: t.threadType,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,
@@ -165,13 +165,13 @@ async function runDeterministicChecks(): Promise<void> {
   assert.equal(custom.label, "My Therapy Journal");
   assert.equal(custom.renamed, false);
 
-  assert.equal(normalizeHubLabelKey("Purpose"), "purpose & values");
-  assert.equal(normalizeHubLabelKey("Inner life"), "mind & emotions");
-  assert.equal(normalizeHubLabelKey("Joy"), "joy & creativity");
-  assert.equal(normalizeStreamHubSlug("purpose"), "purpose & values");
+  assert.equal(normalizeCategoryLabelKey("Purpose"), "purpose & values");
+  assert.equal(normalizeCategoryLabelKey("Inner life"), "mind & emotions");
+  assert.equal(normalizeCategoryLabelKey("Joy"), "joy & creativity");
+  assert.equal(normalizeStreamCategorySlug("purpose"), "purpose & values");
 
   assert.ok(
-    LOCKED_HUB_TEMPLATES.every((t) => t.limbId !== "becoming" || t.threadType !== "Purpose"),
+    LOCKED_CATEGORY_TEMPLATES.every((t) => t.limbId !== "becoming" || t.threadType !== "Purpose"),
     "template should not use old Purpose label",
   );
 
@@ -185,7 +185,7 @@ async function runDeterministicChecks(): Promise<void> {
   const becoming = getLifeArea("becoming");
   assert.equal(becoming?.label, "Self & Mind");
   assert.deepEqual(
-    hubsForTheme("becoming").map((t) => t.threadType),
+    categoriesForTheme("becoming").map((t) => t.threadType),
     ["Purpose & Values", "Mind & Emotions", "Joy & Creativity"],
   );
 

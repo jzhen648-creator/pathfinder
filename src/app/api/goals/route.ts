@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { getLifeArea } from "@/lib/life-areas";
 import {
   buildFallbackRoadmap,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/validation/create-goal";
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import { activateHubForUser } from "@/lib/system-categories";
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   try {
     /** Resolve branch-line sequence position from the optional `anchor` (defaults to append). The reindex pass, if any, runs inside the same transaction as the goal insert so existing nodes don't temporarily share a slot. */
     const anchor = input.anchor ?? { kind: "append" as const };
-    const existingNodes = await loadBranchSequencedNodes(prisma, branchRecord.id);
+    const existingNodes = await loadCategorySequencedNodes(prisma, branchRecord.id);
     const resolution = resolveSequenceAnchor(existingNodes, anchor);
     const sequencePosition = resolution.sequencePosition;
 
@@ -154,9 +154,9 @@ export async function POST(request: Request) {
     });
 
     try {
-      await recomputeGoalBloomStatus(goal.id);
+      await recomputeGoalStatus(goal.id);
     } catch (recErr) {
-      console.error("[POST /api/goals] recomputeGoalBloomStatus failed", recErr);
+      console.error("[POST /api/goals] recomputeGoalStatus failed", recErr);
     }
 
     if (isLifeAreaId(branchRecord.themeId)) {

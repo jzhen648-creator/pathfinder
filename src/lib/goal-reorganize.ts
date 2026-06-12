@@ -3,7 +3,7 @@ import { getLifeArea } from "@/lib/life-areas";
 import { prisma } from "@/lib/prisma";
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
   type SequenceAnchor,
 } from "@/lib/category-sequence";
@@ -70,7 +70,7 @@ export async function reorganizeGoalForUser(
   });
   if (!goal) throw new ReorganizeError("Goal not found", 404);
 
-  if (body.op === "moveToCategory" || body.op === "moveToHub") {
+  if (body.op === "moveToCategory") {
     const branch = await prisma.themeCategory.findFirst({
       where: { id: body.categoryId, userId },
       select: { id: true, themeId: true },
@@ -81,7 +81,7 @@ export async function reorganizeGoalForUser(
     const lifeArea = getLifeArea(branch.themeId)?.label ?? branch.themeId;
 
     await prisma.$transaction(async (tx) => {
-      const nodes = await loadBranchSequencedNodes(tx, branch.id);
+      const nodes = await loadCategorySequencedNodes(tx, branch.id);
       const resolution = resolveSequenceAnchor(nodes, anchor);
       await applySequenceResolution(tx, resolution);
 

@@ -19,12 +19,12 @@ import {
   type ConfirmationKind,
 } from "./lib/stream-dogfood-queue";
 import type { LifeAreaId } from "../src/lib/types";
-import { validHubLabelKeysForTheme } from "../src/lib/taxonomy";
+import { validCategoryLabelKeysForTheme } from "../src/lib/taxonomy";
 import { systemHubKey } from "../src/lib/system-categories";
 import type {
   ExtractedMilestone,
   ExtractedPursuit,
-  StreamBloomStatus,
+  StreamStatus,
   StreamExtractResponse,
 } from "../src/types/stream";
 import {
@@ -103,7 +103,7 @@ type DogfoodExpect = {
   milestone?: boolean;
   milestoneOnGoalId?: string;
   existingGoalId?: string;
-  bloomStatus?: StreamBloomStatus;
+  bloomStatus?: StreamStatus;
   forbidNewPursuit?: boolean;
   preferAmbiguous?: boolean;
   /** At least one new pursuit title must include one of these (case-insensitive). */
@@ -2049,7 +2049,7 @@ function scoreCase(
   ];
 
   if (expectedHubSlugs.length > 0 && themeId) {
-    const validSlugs = validHubLabelKeysForTheme(themeId);
+    const validSlugs = validCategoryLabelKeysForTheme(themeId);
     const hubIds = [
       ...extraction.marks.map((m) => m.hubId),
       ...extraction.pursuits.map((p) => p.hubId),

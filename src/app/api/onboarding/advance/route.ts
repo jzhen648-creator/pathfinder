@@ -10,7 +10,7 @@ import {
 } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-categories";
-import { LIFE_AREA_IDS, normalizeHubLabelKey } from "@/lib/taxonomy";
+import { LIFE_AREA_IDS, normalizeCategoryLabelKey } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     await ensureTaxonomyCurrent(prisma, userId);
 
     const hubSlugKey = parsed.data.hubSlug
-      ? normalizeHubLabelKey(parsed.data.hubSlug)
+      ? normalizeCategoryLabelKey(parsed.data.hubSlug)
       : null;
 
     const themeRoots =
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     const selectedHub = hubSlugKey
       ? themeRoots.find(
-          (hub) => normalizeHubLabelKey(hub.label ?? hub.name ?? "") === hubSlugKey,
+          (hub) => normalizeCategoryLabelKey(hub.label ?? hub.name ?? "") === hubSlugKey,
         )
       : null;
 

@@ -2,9 +2,9 @@ import type { PrismaClient } from "@prisma/client";
 import type { LifeAreaId } from "@/lib/types";
 import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import {
-  hubsForTheme,
-  normalizeHubLabelKey,
-  validHubLabelKeysForTheme,
+  categoriesForTheme,
+  normalizeCategoryLabelKey,
+  validCategoryLabelKeysForTheme,
   LIFE_AREA_IDS,
 } from "@/lib/taxonomy";
 import { systemHubKey } from "@/lib/system-categories";
@@ -17,25 +17,19 @@ export type ResolvedCategory = {
   updatedAt?: Date;
 };
 
-/** @deprecated Use {@link ResolvedCategory}. */
-export type ResolvedHubBranch = ResolvedCategory;
-
 export function normalizeStreamCategorySlug(slugOrLabel: string): string {
-  return normalizeHubLabelKey(slugOrLabel);
+  return normalizeCategoryLabelKey(slugOrLabel);
 }
 
-/** @deprecated Use {@link normalizeStreamCategorySlug}. */
-export const normalizeStreamHubSlug = normalizeStreamCategorySlug;
-
 export function isValidHubSlugForTheme(themeId: LifeAreaId, hubSlug: string): boolean {
-  const key = normalizeStreamHubSlug(hubSlug);
-  return validHubLabelKeysForTheme(themeId).has(key);
+  const key = normalizeStreamCategorySlug(hubSlug);
+  return validCategoryLabelKeysForTheme(themeId).has(key);
 }
 
 export function resolveHubTemplateForSlug(themeId: LifeAreaId, hubSlug: string) {
-  const key = normalizeStreamHubSlug(hubSlug);
+  const key = normalizeStreamCategorySlug(hubSlug);
   return (
-    hubsForTheme(themeId).find((t) => normalizeHubLabelKey(t.threadType) === key) ?? null
+    categoriesForTheme(themeId).find((t) => normalizeCategoryLabelKey(t.threadType) === key) ?? null
   );
 }
 
@@ -49,7 +43,7 @@ export async function resolveBranchForHub(
   themeId: LifeAreaId,
   hubSlug: string,
 ): Promise<ResolvedCategory | null> {
-  const hubSlugNorm = normalizeStreamHubSlug(hubSlug);
+  const hubSlugNorm = normalizeStreamCategorySlug(hubSlug);
   if (!isValidHubSlugForTheme(themeId, hubSlugNorm)) {
     return null;
   }
@@ -82,7 +76,7 @@ export async function resolveAllHubBranchesForTheme(
   userId: string,
   themeId: LifeAreaId,
 ): Promise<ResolvedCategory[]> {
-  const templates = hubsForTheme(themeId);
+  const templates = categoriesForTheme(themeId);
   const roots = await prisma.themeCategory.findMany({
     where: { userId, themeId: themeId, parentCategoryId: null },
     select: { id: true, label: true, name: true, themeId: true, updatedAt: true },
@@ -100,7 +94,7 @@ export async function resolveAllHubBranchesForTheme(
     if (!branch) continue;
     out.push({
       categoryId: branch.id,
-      hubSlug: normalizeHubLabelKey(t.threadType),
+      hubSlug: normalizeCategoryLabelKey(t.threadType),
       hubLabel: t.threadType,
       themeId: themeId,
       updatedAt: branch.updatedAt,
@@ -114,9 +108,6 @@ export type CategoryResolver = {
   /** Normalized taxonomy slug for theme-scoped Stream items. */
   resolveSlug(hubIdOrSlug: string, preferredThemeId?: LifeAreaId): string | null;
 };
-
-/** @deprecated Use {@link CategoryResolver}. */
-export type HubBranchResolver = CategoryResolver;
 
 /** Resolve category ids or taxonomy slugs to canonical root category ids (handles deduped / legacy labels). */
 export async function buildCategoryResolver(
@@ -143,7 +134,7 @@ export async function buildCategoryResolver(
 
   for (const branch of canonical) {
     byId.set(branch.id, branch.id);
-    const slug = normalizeStreamHubSlug(branch.label ?? branch.name ?? "");
+    const slug = normalizeStreamCategorySlug(branch.label ?? branch.name ?? "");
     idToSlug.set(branch.id, slug);
     byThemeSlug.set(`${branch.themeId}::${slug}`, branch.id);
   }
@@ -153,7 +144,7 @@ export async function buildCategoryResolver(
     if (!trimmed) return null;
     if (byId.has(trimmed)) return byId.get(trimmed)!;
 
-    const slug = normalizeStreamHubSlug(trimmed);
+    const slug = normalizeStreamCategorySlug(trimmed);
     if (preferredThemeId) {
       const hit = byThemeSlug.get(`${preferredThemeId}::${slug}`);
       if (hit) return hit;
@@ -172,7 +163,7 @@ export async function buildCategoryResolver(
     resolveSlug(hubIdOrSlug: string, preferredThemeId?: LifeAreaId): string | null {
       const branchId = lookupId(hubIdOrSlug, preferredThemeId);
       if (branchId) return idToSlug.get(branchId) ?? null;
-      const slug = normalizeStreamHubSlug(hubIdOrSlug);
+      const slug = normalizeStreamCategorySlug(hubIdOrSlug);
       if (preferredThemeId && isValidHubSlugForTheme(preferredThemeId, slug)) return slug;
       for (const themeId of LIFE_AREA_IDS) {
         if (isValidHubSlugForTheme(themeId, slug)) return slug;
@@ -181,6 +172,3 @@ export async function buildCategoryResolver(
     },
   };
 }
-
-/** @deprecated Use {@link buildCategoryResolver}. */
-export const buildHubBranchResolver = buildCategoryResolver;

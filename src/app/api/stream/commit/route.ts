@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasStreamHubScopeInBody, normalizeStreamCommitBody } from "@/lib/category-id";
-import { commitStreamGlobal, commitStreamToHub, commitStreamToTheme } from "@/lib/stream-commit";
+import { commitStreamGlobal, commitStreamToCategory, commitStreamToTheme } from "@/lib/stream-commit";
 import {
   streamCommitPayloadSchema,
   streamGlobalCommitPayloadSchema,
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
   }
 
-  const result = await commitStreamToHub(session.user.id, parsed.data);
+  const result = await commitStreamToCategory(session.user.id, parsed.data);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

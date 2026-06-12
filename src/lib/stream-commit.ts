@@ -6,20 +6,20 @@ function isStreamProtectedBloom(status: BloomStatus): boolean {
 }
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import { getLifeArea } from "@/lib/life-areas";
-import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones, normalizeIngestedPursuitType } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
 import {
-  buildHubBranchResolver,
+  buildCategoryResolver,
   isValidHubSlugForTheme,
-  normalizeStreamHubSlug,
+  normalizeStreamCategorySlug,
   resolveAllHubBranchesForTheme,
   resolveBranchForHub,
-  type HubBranchResolver,
+  type CategoryResolver,
 } from "@/lib/resolve-category";
 import { dedupeDuplicateRootCategories } from "@/lib/category-dedupe";
 import { activateHubForUser } from "@/lib/system-categories";
@@ -213,7 +213,7 @@ async function commitItemsToBranchInTx(
     return {
       ...p,
       goalType: normalized.goalType,
-      bloomStatus: normalized.bloomStatus as ExtractedPursuit["bloomStatus"],
+      status: normalized.status as ExtractedPursuit["status"],
     };
   });
 
@@ -261,7 +261,7 @@ async function commitItemsToBranchInTx(
   const appendAnchor = { kind: "append" as const };
 
   const nextSequencePosition = async () => {
-    const nodes = await loadBranchSequencedNodes(tx, branch.id);
+    const nodes = await loadCategorySequencedNodes(tx, branch.id);
     const resolution = resolveSequenceAnchor(nodes, appendAnchor);
     await applySequenceResolution(tx, resolution);
     return resolution.sequencePosition;
@@ -272,8 +272,8 @@ async function commitItemsToBranchInTx(
     if (!title) return;
     const description = p.description?.trim() ?? "";
 
-    const { goalType, bloomStatus: normalizedBloom } = normalizeIngestedPursuitType(p);
-    const bloomStatus = normalizedBloom as BloomStatus;
+    const { goalType, status: normalizedStatus } = normalizeIngestedPursuitType(p);
+    const pursuitStatus = normalizedStatus as BloomStatus;
     const sequencePosition = await nextSequencePosition();
     const { iconName, shortLabel } = await assignPursuitVisualsSafe({
       title,
@@ -295,19 +295,19 @@ async function commitItemsToBranchInTx(
         themeId: branch.themeId,
         deadline: parsePursuitDeadline(p.deadline),
         significance: 3,
-        status: bloomStatus,
+        status: pursuitStatus,
         aiGenerated: false,
         future: true,
         year: defaultYear,
         month: defaultMonth,
         sequencePosition,
-        ...(bloomStatus === "COMPLETE" ? { bloomedAt: new Date() } : {}),
+        ...(pursuitStatus === "COMPLETE" ? { bloomedAt: new Date() } : {}),
       },
     });
 
     createdPursuits += 1;
     touchedPursuitIds.add(goal.id);
-    if (bloomStatus === "COMPLETE") {
+    if (pursuitStatus === "COMPLETE") {
       forceBloomedGoalIds.add(goal.id);
     }
     if (p.clientKey) {
@@ -329,16 +329,16 @@ async function commitItemsToBranchInTx(
 
     const currentBloom = currentBloomByGoalId.get(goalId);
     if (currentBloom && !isStreamProtectedBloom(currentBloom)) {
-      if (p.bloomStatus === "COMPLETE") {
+      if (p.status === "COMPLETE") {
         updateData.status = "COMPLETE";
         updateData.bloomedAt = new Date();
         forceBloomedGoalIds.add(goalId);
         bloomedPursuits += 1;
-      } else if (p.bloomStatus === "PAUSED") {
+      } else if (p.status === "PAUSED") {
         updateData.status = "PAUSED";
-      } else if (p.bloomStatus === "MAINTAINING") {
+      } else if (p.status === "MAINTAINING") {
         updateData.status = "MAINTAINING";
-      } else if (p.bloomStatus === "ACTIVE") {
+      } else if (p.status === "ACTIVE") {
         updateData.status = "ACTIVE";
       }
     }
@@ -356,7 +356,7 @@ async function commitItemsToBranchInTx(
       touchedPursuitIds.add(goalId);
     }
 
-    if (p.bloomStatus === "ACTIVE" && !forceBloomedGoalIds.has(goalId)) {
+    if (p.status === "ACTIVE" && !forceBloomedGoalIds.has(goalId)) {
       goalsNeedingRecompute.add(goalId);
     }
   }
@@ -518,16 +518,16 @@ async function applyStreamOperationsInTx(
       data.title = op.title.trim();
       goalsNeedingShortLabel.add(op.goalId);
     }
-    if (op.bloomStatus && !isStreamProtectedBloom(goal.status)) {
-      data.status = op.bloomStatus as BloomStatus;
-      data.bloomedAt = op.bloomStatus === "COMPLETE" ? new Date() : null;
+    if (op.status && !isStreamProtectedBloom(goal.status)) {
+      data.status = op.status as BloomStatus;
+      data.bloomedAt = op.status === "COMPLETE" ? new Date() : null;
     }
     if (Object.keys(data).length === 0) continue;
 
     await tx.goal.update({ where: { id: op.goalId }, data });
     updatedPursuits += 1;
     touchedPursuitIds.add(op.goalId);
-    if (op.bloomStatus === "ACTIVE") {
+    if (op.status === "ACTIVE") {
       goalsNeedingRecompute.add(op.goalId);
     }
   }
@@ -569,19 +569,19 @@ async function applyStreamOperationsInTx(
   };
 }
 
-export async function commitStreamToHub(
+export async function commitStreamToCategory(
   userId: string,
   payload: StreamCommitPayload,
 ): Promise<CommitResult> {
   await dedupeDuplicateRootCategories(prisma, userId);
-  const resolver = await buildHubBranchResolver(prisma, userId);
-  const hubId = resolver.resolve(payload.hubId);
-  if (!hubId) {
-    return { ok: false, error: "Hub not found", status: 404 };
+  const resolver = await buildCategoryResolver(prisma, userId);
+  const categoryId = resolver.resolve(payload.categoryId);
+  if (!categoryId) {
+    return { ok: false, error: "Category not found", status: 404 };
   }
 
   const branch = await prisma.themeCategory.findFirst({
-    where: { id: hubId, userId },
+    where: { id: categoryId, userId },
     select: { id: true, themeId: true, isActive: true },
   });
   if (!branch) {
@@ -601,9 +601,9 @@ export async function commitStreamToHub(
     if (amb.resolution === "done") {
       marks.push({ title: label, date: null });
     } else if (amb.resolution === "in_progress") {
-      pursuits.push({ title: label, goalType: "project", bloomStatus: "ACTIVE" });
+      pursuits.push({ title: label, goalType: "project", status: "ACTIVE" });
     } else {
-      pursuits.push({ title: label, goalType: "project", bloomStatus: "ACTIVE" });
+      pursuits.push({ title: label, goalType: "project", status: "ACTIVE" });
     }
   }
 
@@ -645,9 +645,9 @@ export async function commitStreamToHub(
 
     for (const goalId of goalsNeedingRecompute) {
       try {
-        await recomputeGoalBloomStatus(goalId);
+        await recomputeGoalStatus(goalId);
       } catch (e) {
-        console.error("[commitStreamToHub] recomputeGoalBloomStatus failed", goalId, e);
+        console.error("[commitStreamToCategory] recomputeGoalStatus failed", goalId, e);
       }
     }
 
@@ -665,17 +665,17 @@ export async function commitStreamToHub(
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not save stream to tree";
-    console.error("[commitStreamToHub]", e);
+    console.error("[commitStreamToCategory]", e);
     const status = msg.includes("Invalid") || msg.includes("unknown") ? 400 : 500;
     return { ok: false, error: msg, status };
   }
 }
 
-function groupByHubSlug<T extends { hubId?: string }>(items: T[]): Map<string, T[]> {
+function groupByCategorySlug<T extends { categorySlug?: string }>(items: T[]): Map<string, T[]> {
   const map = new Map<string, T[]>();
   for (const item of items) {
-    if (!item.hubId?.trim()) continue;
-    const slug = normalizeStreamHubSlug(item.hubId);
+    if (!item.categorySlug?.trim()) continue;
+    const slug = normalizeStreamCategorySlug(item.categorySlug);
     const list = map.get(slug) ?? [];
     list.push(item);
     map.set(slug, list);
@@ -683,10 +683,10 @@ function groupByHubSlug<T extends { hubId?: string }>(items: T[]): Map<string, T
   return map;
 }
 
-function groupByBranchId<T extends { hubId?: string }>(items: T[]): Map<string, T[]> {
+function groupByBranchId<T extends { categorySlug?: string }>(items: T[]): Map<string, T[]> {
   const map = new Map<string, T[]>();
   for (const item of items) {
-    const branchId = item.hubId?.trim();
+    const branchId = item.categorySlug?.trim();
     if (!branchId) continue;
     const list = map.get(branchId) ?? [];
     list.push(item);
@@ -695,8 +695,8 @@ function groupByBranchId<T extends { hubId?: string }>(items: T[]): Map<string, 
   return map;
 }
 
-function hasMissingHubId(items: Array<{ hubId?: string }>): boolean {
-  return items.some((item) => !item.hubId?.trim());
+function hasMissingCategorySlug(items: Array<{ categorySlug?: string }>): boolean {
+  return items.some((item) => !item.categorySlug?.trim());
 }
 
 function expectedCreatedPursuits(pursuits: ExtractedPursuit[]): number {
@@ -711,31 +711,31 @@ function resolveThemeForHubSlug(preferredThemeId: LifeAreaId, slug: string): Lif
   return null;
 }
 
-function remapHubIdOnItems<T extends { hubId?: string }>(
+function remapCategoryIdOnItems<T extends { categorySlug?: string }>(
   items: T[],
-  resolver: HubBranchResolver,
+  resolver: CategoryResolver,
   preferredThemeId?: LifeAreaId,
 ): T[] {
   return items.map((item) => {
-    if (!item.hubId?.trim()) return item;
-    const resolved = resolver.resolve(item.hubId, preferredThemeId);
-    return resolved ? { ...item, hubId: resolved } : item;
+    if (!item.categorySlug?.trim()) return item;
+    const resolved = resolver.resolve(item.categorySlug, preferredThemeId);
+    return resolved ? { ...item, categorySlug: resolved } : item;
   });
 }
 
-function remapHubSlugOnItems<T extends { hubId?: string }>(
+function remapCategorySlugOnItems<T extends { categorySlug?: string }>(
   items: T[],
-  resolver: HubBranchResolver,
+  resolver: CategoryResolver,
   preferredThemeId: LifeAreaId,
 ): T[] {
   return items.map((item) => {
-    if (!item.hubId?.trim()) return item;
-    const slug = resolver.resolveSlug(item.hubId, preferredThemeId);
-    return slug ? { ...item, hubId: slug } : item;
+    if (!item.categorySlug?.trim()) return item;
+    const slug = resolver.resolveSlug(item.categorySlug, preferredThemeId);
+    return slug ? { ...item, categorySlug: slug } : item;
   });
 }
 
-async function alignThemeMilestoneHubIds(
+async function alignThemeMilestoneCategorySlugs(
   userId: string,
   themeId: LifeAreaId,
   milestones: ExtractedMilestone[],
@@ -759,9 +759,9 @@ async function alignThemeMilestoneHubIds(
 
   return milestones.map((ms) => {
     if (ms.pursuitRef.kind !== "existing") return ms;
-    const hubId = hubByGoalId.get(ms.pursuitRef.goalId);
-    if (!hubId) return ms;
-    return { ...ms, hubId };
+    const categorySlug = hubByGoalId.get(ms.pursuitRef.goalId);
+    if (!categorySlug) return ms;
+    return { ...ms, categorySlug };
   });
 }
 
@@ -770,23 +770,23 @@ export async function commitStreamToTheme(
   payload: StreamThemeCommitPayload,
 ): Promise<ThemeCommitResult> {
   await dedupeDuplicateRootCategories(prisma, userId);
-  const resolver = await buildHubBranchResolver(prisma, userId);
+  const resolver = await buildCategoryResolver(prisma, userId);
   const themeId = payload.themeId as LifeAreaId;
   if (!getLifeArea(themeId)) {
     return { ok: false, error: "Unknown theme", status: 400 };
   }
 
-  const marks = remapHubSlugOnItems(payload.marks, resolver, themeId);
-  const pursuits = remapHubSlugOnItems(payload.pursuits, resolver, themeId);
-  const alignedMilestones = await alignThemeMilestoneHubIds(
+  const marks = remapCategorySlugOnItems(payload.marks, resolver, themeId);
+  const pursuits = remapCategorySlugOnItems(payload.pursuits, resolver, themeId);
+  const alignedMilestones = await alignThemeMilestoneCategorySlugs(
     userId,
     themeId,
-    remapHubSlugOnItems(payload.milestones, resolver, themeId),
+    remapCategorySlugOnItems(payload.milestones, resolver, themeId),
   );
 
-  const marksByHub = groupByHubSlug(marks);
-  const pursuitsByHub = groupByHubSlug(pursuits);
-  const milestonesByHub = groupByHubSlug(alignedMilestones);
+  const marksByHub = groupByCategorySlug(marks);
+  const pursuitsByHub = groupByCategorySlug(pursuits);
+  const milestonesByHub = groupByCategorySlug(alignedMilestones);
 
   const allSlugs = new Set([
     ...marksByHub.keys(),
@@ -866,9 +866,9 @@ export async function commitStreamToTheme(
 
     for (const goalId of goalsNeedingRecompute) {
       try {
-        await recomputeGoalBloomStatus(goalId);
+        await recomputeGoalStatus(goalId);
       } catch (e) {
-        console.error("[commitStreamToTheme] recomputeGoalBloomStatus failed", goalId, e);
+        console.error("[commitStreamToTheme] recomputeGoalStatus failed", goalId, e);
       }
     }
 
@@ -907,15 +907,15 @@ export async function commitStreamGlobal(
   payload: StreamGlobalCommitPayload,
 ): Promise<GlobalCommitResult> {
   await dedupeDuplicateRootCategories(prisma, userId);
-  const resolver = await buildHubBranchResolver(prisma, userId);
-  const marks = remapHubIdOnItems(payload.marks, resolver);
-  const pursuits = remapHubIdOnItems(payload.pursuits, resolver);
-  const milestones = remapHubIdOnItems(payload.milestones, resolver);
+  const resolver = await buildCategoryResolver(prisma, userId);
+  const marks = remapCategoryIdOnItems(payload.marks, resolver);
+  const pursuits = remapCategoryIdOnItems(payload.pursuits, resolver);
+  const milestones = remapCategoryIdOnItems(payload.milestones, resolver);
 
   if (
-    hasMissingHubId(marks) ||
-    hasMissingHubId(pursuits) ||
-    hasMissingHubId(milestones)
+    hasMissingCategorySlug(marks) ||
+    hasMissingCategorySlug(pursuits) ||
+    hasMissingCategorySlug(milestones)
   ) {
     return {
       ok: false,
@@ -1028,9 +1028,9 @@ export async function commitStreamGlobal(
 
     for (const goalId of goalsNeedingRecompute) {
       try {
-        await recomputeGoalBloomStatus(goalId);
+        await recomputeGoalStatus(goalId);
       } catch (e) {
-        console.error("[commitStreamGlobal] recomputeGoalBloomStatus failed", goalId, e);
+        console.error("[commitStreamGlobal] recomputeGoalStatus failed", goalId, e);
       }
     }
 

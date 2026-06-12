@@ -5,7 +5,7 @@
  * Run from repo root: npm run backfill:goal-bloom
  */
 import { PrismaClient } from "@prisma/client";
-import { recomputeGoalBloomStatus } from "../src/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "../src/lib/goal-status-recompute";
 
 const prisma = new PrismaClient();
 
@@ -17,10 +17,10 @@ async function main() {
   let ok = 0;
   for (const g of goals) {
     try {
-      await recomputeGoalBloomStatus(g.id);
+      await recomputeGoalStatus(g.id);
       ok += 1;
     } catch (e) {
-      console.error(`recomputeGoalBloomStatus failed for ${g.id}`, e);
+      console.error(`recomputeGoalStatus failed for ${g.id}`, e);
     }
   }
   console.log(`Backfill complete: recomputed ${ok} / ${goals.length} goals (excluding paused/maintaining/abandoned).`);

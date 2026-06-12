@@ -1,5 +1,5 @@
 import type { BloomStatus, Prisma } from "@prisma/client";
-import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-categories";
@@ -11,7 +11,7 @@ import {
 } from "@/lib/stream-pursuit-extract";
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import {
@@ -359,9 +359,9 @@ export async function digestPendingStreamRun(
 
         if (update.title?.trim()) data.title = update.title.trim();
         if (update.description?.trim()) data.description = update.description.trim();
-        if (update.bloomStatus && goalRow.status !== "MAINTAINING") {
-          data.status = update.bloomStatus as BloomStatus;
-          data.bloomedAt = update.bloomStatus === "COMPLETE" ? new Date() : null;
+        if (update.status && goalRow.status !== "MAINTAINING") {
+          data.status = update.status as BloomStatus;
+          data.bloomedAt = update.status === "COMPLETE" ? new Date() : null;
         }
 
         if (ctx.themeId === "finance" && data.description) {
@@ -389,9 +389,9 @@ export async function digestPendingStreamRun(
           items.push({
             kind: "status",
             goalId: pursuitId,
-            previousBloomStatus:
+            previousStatus:
               (run.previousBloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE") ?? "ACTIVE",
-            newBloomStatus: data.status as "ACTIVE" | "PAUSED" | "COMPLETE",
+            newStatus: data.status as "ACTIVE" | "PAUSED" | "COMPLETE",
           });
         }
       }
@@ -436,7 +436,7 @@ export async function digestPendingStreamRun(
 
       const appendAnchor = { kind: "append" as const };
       const nextSequencePosition = async () => {
-        const nodes = await loadBranchSequencedNodes(tx, branch.id);
+        const nodes = await loadCategorySequencedNodes(tx, branch.id);
         const resolution = resolveSequenceAnchor(nodes, appendAnchor);
         await applySequenceResolution(tx, resolution);
         return resolution.sequencePosition;
@@ -474,8 +474,8 @@ export async function digestPendingStreamRun(
       }
     });
 
-    await recomputeGoalBloomStatus(pursuitId).catch((e) => {
-      console.error("[digestPendingStreamRun] recomputeGoalBloomStatus", e);
+    await recomputeGoalStatus(pursuitId).catch((e) => {
+      console.error("[digestPendingStreamRun] recomputeGoalStatus", e);
     });
 
     const summary = {
@@ -634,7 +634,7 @@ export async function undoPursuitStreamRun(
       });
     });
 
-    await recomputeGoalBloomStatus(run.goalId).catch(() => {});
+    await recomputeGoalStatus(run.goalId).catch(() => {});
 
     return { ok: true };
   } catch (err) {

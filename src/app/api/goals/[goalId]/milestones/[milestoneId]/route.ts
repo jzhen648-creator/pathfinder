@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { prisma } from "@/lib/prisma";
 
 const patchBodySchema = z.union([
@@ -151,21 +151,21 @@ export async function PATCH(request: Request, props: RouteProps) {
     });
 
     if (skipBloomRecompute) {
-      console.warn(logPrefix, "SKIP recomputeGoalBloomStatus (PATHFINDER_SKIP_MILESTONE_PATCH_BLOOM_RECOMPUTE=1)");
+      console.warn(logPrefix, "SKIP recomputeGoalStatus (PATHFINDER_SKIP_MILESTONE_PATCH_BLOOM_RECOMPUTE=1)");
     } else {
-      console.info(logPrefix, "recomputeGoalBloomStatus enter", { goalId });
+      console.info(logPrefix, "recomputeGoalStatus enter", { goalId });
       try {
-        await recomputeGoalBloomStatus(goalId);
-        console.info(logPrefix, "recomputeGoalBloomStatus exit ok", { goalId });
+        await recomputeGoalStatus(goalId);
+        console.info(logPrefix, "recomputeGoalStatus exit ok", { goalId });
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
-        console.error(logPrefix, "FAILED during recomputeGoalBloomStatus", {
+        console.error(logPrefix, "FAILED during recomputeGoalStatus", {
           goalId,
           message: err.message,
           stack: err.stack,
           cause: err.cause,
         });
-        throw Object.assign(err, { phase: "recomputeGoalBloomStatus" });
+        throw Object.assign(err, { phase: "recomputeGoalStatus" });
       }
     }
 
@@ -229,7 +229,7 @@ export async function DELETE(_request: Request, props: RouteProps) {
     }
 
     await prisma.milestone.delete({ where: { id: milestoneId } });
-    await recomputeGoalBloomStatus(goalId);
+    await recomputeGoalStatus(goalId);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

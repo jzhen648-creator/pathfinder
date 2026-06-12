@@ -131,14 +131,14 @@ export async function POST(request: Request) {
           { limbId: LifeAreaId; items: typeof result.ambiguous }
         >();
         for (const amb of result.ambiguous) {
-          if (!amb.hubId) continue;
-          const targetThemeId = resolveThemeForHubSlug(themeId as LifeAreaId, amb.hubId);
+          if (!amb.categorySlug) continue;
+          const targetThemeId = resolveThemeForHubSlug(themeId as LifeAreaId, amb.categorySlug);
           if (!targetThemeId) continue;
           const resolved = await resolveBranchForHub(
             prisma,
             userId,
             targetThemeId,
-            amb.hubId,
+            amb.categorySlug,
           );
           if (!resolved) continue;
           const entry = byBranch.get(resolved.categoryId) ?? { limbId: targetThemeId, items: [] };
@@ -214,10 +214,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { hubId, input, mapGridQ, mapGridR } = reqParsed.data;
+    const { categoryId, input, mapGridQ, mapGridR } = reqParsed.data;
 
     const branch = await prisma.themeCategory.findFirst({
-      where: { id: hubId, userId },
+      where: { id: categoryId, userId },
       select: { id: true, themeId: true, label: true },
     });
     if (!branch) {
@@ -286,7 +286,7 @@ export async function POST(request: Request) {
         goalId: g.id,
         title: g.title,
         goalType: g.goalType,
-        bloomStatus: g.status,
+        status: g.status,
         parentGoalId: g.parentGoalId ?? null,
         ...(g.description?.trim() ? { description: g.description.trim() } : {}),
         ...(g.deadline ? { deadline: g.deadline.toISOString().slice(0, 10) } : {}),

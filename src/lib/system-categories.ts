@@ -61,7 +61,7 @@ export async function ensureSystemCategoriesForUser(
         label: t.threadType,
         name: t.name,
         status: "active",
-        bloomStatus: "ACTIVE",
+        lifecycleStatus: "ACTIVE",
         isSystemCategory: true,
         isActive: false,
         order,

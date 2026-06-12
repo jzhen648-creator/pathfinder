@@ -6,7 +6,7 @@
  *   npx tsx scripts/backfill-tree-milestones-to-relational.ts --dry-run
  */
 import { PrismaClient } from "@prisma/client";
-import { recomputeGoalBloomStatus } from "../src/lib/goal-status-recompute";
+import { recomputeGoalStatus } from "../src/lib/goal-status-recompute";
 
 const prisma = new PrismaClient();
 const dryRun = process.argv.includes("--dry-run");
@@ -71,7 +71,7 @@ async function main() {
           });
         }
       });
-      await recomputeGoalBloomStatus(row.id);
+      await recomputeGoalStatus(row.id);
     }
     migrated += 1;
   }

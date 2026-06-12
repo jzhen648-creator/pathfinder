@@ -1,6 +1,6 @@
 import {
   applySequenceResolution,
-  loadBranchSequencedNodes,
+  loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import { getLifeArea } from "@/lib/life-areas";
@@ -35,7 +35,7 @@ export async function commitAmbiguousItemsToBranch(
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
     const nextSequencePosition = async () => {
-      const nodes = await loadBranchSequencedNodes(tx, categoryId);
+      const nodes = await loadCategorySequencedNodes(tx, categoryId);
       const resolution = resolveSequenceAnchor(nodes, appendAnchor);
       await applySequenceResolution(tx, resolution);
       return resolution.sequencePosition;
@@ -131,7 +131,7 @@ export async function moveUnresolvedMarkToBranch(
 
   let moved: UnresolvedAmbiguousMark | null = null;
   await prisma.$transaction(async (tx) => {
-    const nodes = await loadBranchSequencedNodes(tx, targetBranch.id);
+    const nodes = await loadCategorySequencedNodes(tx, targetBranch.id);
     const seqRes = resolveSequenceAnchor(nodes, { kind: "append" });
     await applySequenceResolution(tx, seqRes);
 
@@ -184,7 +184,7 @@ export async function resolveAmbiguousMark(
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
-    const nodes = await loadBranchSequencedNodes(tx, targetBranchId ?? mark.categoryId);
+    const nodes = await loadCategorySequencedNodes(tx, targetBranchId ?? mark.categoryId);
     const seqRes = resolveSequenceAnchor(nodes, appendAnchor);
     await applySequenceResolution(tx, seqRes);
 
