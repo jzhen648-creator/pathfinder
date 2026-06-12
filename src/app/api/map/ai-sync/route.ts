@@ -5,10 +5,7 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { runMapAiSync } from "@/lib/map/ai-sync";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
-import {
-  insightPayloadStaleAfterSync,
-  isReadingDrift,
-} from "@/lib/insights/reading-cache-stale";
+import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { storyCacheToPayload } from "@/lib/story/parse-story-cache";
 import { prisma } from "@/lib/prisma";
@@ -45,12 +42,34 @@ export async function POST(request: Request) {
   try {
     const result = await runMapAiSync(userId, { force: parsed.data.force === true });
 
-    const [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([
+    let [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([
       computeMapVersion(userId),
       getMemoryVersion(userId),
       prisma.insightCache.findUnique({ where: { userId } }),
       prisma.storyCache.findUnique({ where: { userId } }),
     ]);
+
+    // Align cache stamps with the live fingerprint so GET drift clears after sync.
+    if (!result.skipped) {
+      await Promise.all([
+        insightRow
+          ? prisma.insightCache.update({
+              where: { userId },
+              data: { mapVersion, memoryVersion },
+            })
+          : Promise.resolve(),
+        storyRow
+          ? prisma.storyCache.update({
+              where: { userId },
+              data: { mapVersion, memoryVersion },
+            })
+          : Promise.resolve(),
+      ]);
+      [insightRow, storyRow] = await Promise.all([
+        prisma.insightCache.findUnique({ where: { userId } }),
+        prisma.storyCache.findUnique({ where: { userId } }),
+      ]);
+    }
 
     const insightDrift = insightRow
       ? isReadingDrift(insightRow, mapVersion, memoryVersion)
@@ -59,22 +78,20 @@ export async function POST(request: Request) {
       ? isReadingDrift(storyRow, mapVersion, memoryVersion)
       : false;
 
+    const insightsFresh = !result.skipped && (result.insights.refreshed || !insightDrift);
+    const storyFresh = !result.skipped && (result.story.refreshed || !storyDrift);
+
     const insightPayload = insightRow
-      ? insightCacheToPayload(
-          insightRow,
-          insightPayloadStaleAfterSync(result.insights.refreshed, insightDrift),
-        )
+      ? insightCacheToPayload(insightRow, insightsFresh ? false : insightDrift)
       : null;
     const storyPayload = storyRow
-      ? storyCacheToPayload(
-          storyRow,
-          insightPayloadStaleAfterSync(result.story.refreshed, storyDrift),
-        )
+      ? storyCacheToPayload(storyRow, storyFresh ? false : storyDrift)
       : null;
 
     return NextResponse.json({
       ...result,
       synced: !result.skipped,
+      memoryVersion,
       cache: {
         insights: insightPayload,
         story: storyPayload,
