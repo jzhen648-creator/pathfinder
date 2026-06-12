@@ -1,3 +1,14 @@
 {
-  "regions": ["icn1"]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["icn1"],
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-stream-runs",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/map-health",
+      "schedule": "0 4 * * 0"
+    }
+  ]
 }

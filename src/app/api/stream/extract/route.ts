@@ -27,6 +27,9 @@ import {
   streamThemeExtractRequestSchema,
 } from "@/types/stream";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 function getErrorDetails(err: unknown) {
   if (err instanceof Error) {
     const e = err as Error & { status?: number; requestID?: string };

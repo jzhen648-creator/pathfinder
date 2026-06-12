@@ -9,6 +9,9 @@ import {
   streamThemeCommitPayloadSchema,
 } from "@/types/stream";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 function isThemeCommitBody(body: unknown): body is { themeId: string } {
   return (
     typeof body === "object" &&

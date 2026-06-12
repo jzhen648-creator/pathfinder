@@ -61,8 +61,32 @@ async function readJson(res: Response): Promise<{ status: number; body: unknown 
   return { status: res.status, body };
 }
 
+async function checkHealth(): Promise<CheckResult> {
+  const base = getApiBaseUrl();
+  try {
+    const res = await fetch(`${base}/api/health`);
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; db?: string };
+    if (res.status === 200 && body.ok && body.db === "up") {
+      return { name: "GET /api/health", ok: true };
+    }
+    return {
+      name: "GET /api/health",
+      ok: false,
+      detail: `HTTP ${res.status} db=${String(body.db ?? "?")}`,
+    };
+  } catch (e) {
+    return {
+      name: "GET /api/health",
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
 async function runChecks(session: ScriptSession): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
+
+  results.push(await checkHealth());
 
   results.push(
     await check(
