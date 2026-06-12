@@ -5,6 +5,11 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { runMapAiSync } from "@/lib/map/ai-sync";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
+import {
+  insightPayloadStaleAfterSync,
+  isInsightRowStale,
+  isStoryRowStale,
+} from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { storyCacheToPayload } from "@/lib/story/parse-story-cache";
 import { prisma } from "@/lib/prisma";
@@ -41,23 +46,41 @@ export async function POST(request: Request) {
   try {
     const result = await runMapAiSync(userId, { force: parsed.data.force === true });
 
-    const [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([
+    const [mapVersion, memoryVersion, insightRow, storyRow, user] = await Promise.all([
       computeMapVersion(userId),
       getMemoryVersion(userId),
       prisma.insightCache.findUnique({ where: { userId } }),
       prisma.storyCache.findUnique({ where: { userId } }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { taxonomyVersion: true },
+      }),
     ]);
+
+    const taxonomyVersion = user?.taxonomyVersion ?? null;
+    const insightRowStale = insightRow
+      ? isInsightRowStale(insightRow, mapVersion, memoryVersion)
+      : false;
+    const storyRowStale = storyRow
+      ? isStoryRowStale(storyRow, mapVersion, memoryVersion, taxonomyVersion)
+      : false;
 
     const insightPayload = insightRow
       ? insightCacheToPayload(
           insightRow,
-          insightRow.mapVersion !== mapVersion || insightRow.memoryVersion !== memoryVersion,
+          insightPayloadStaleAfterSync(result.insights.refreshed, insightRowStale),
         )
       : null;
-    const storyPayload = storyRow ? storyCacheToPayload(storyRow, false) : null;
+    const storyPayload = storyRow
+      ? storyCacheToPayload(
+          storyRow,
+          insightPayloadStaleAfterSync(result.story.refreshed, storyRowStale),
+        )
+      : null;
 
     return NextResponse.json({
       ...result,
+      synced: !result.skipped,
       cache: {
         insights: insightPayload,
         story: storyPayload,

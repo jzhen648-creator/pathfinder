@@ -7,6 +7,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
+import { isStoryRowStale } from "@/lib/insights/reading-cache-stale";
 
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
@@ -14,9 +15,7 @@ import { prisma } from "@/lib/prisma";
 
 import { generateStory, StoryGenerationResponseError } from "@/lib/story/generate-story";
 
-import { isCurrentStoryPayload, storyCacheToPayload } from "@/lib/story/parse-story-cache";
-
-import { TAXONOMY_VERSION } from "@/lib/taxonomy";
+import { storyCacheToPayload } from "@/lib/story/parse-story-cache";
 
 
 
@@ -64,42 +63,6 @@ async function resolveVersions(userId: string) {
 
 
 
-function isCacheStale(
-
-  row: { mapVersion: string; memoryVersion: number; payload: string },
-
-  mapVersion: string,
-
-  memoryVersion: number,
-
-  taxonomyVersion: string | null,
-
-): boolean {
-
-  if (row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion) {
-
-    return true;
-
-  }
-
-  if (taxonomyVersion !== TAXONOMY_VERSION) {
-
-    return true;
-
-  }
-
-  if (!isCurrentStoryPayload(row.payload)) {
-
-    return true;
-
-  }
-
-  return false;
-
-}
-
-
-
 function isOlderThanOneDay(generatedAt: Date): boolean {
 
   return Date.now() - generatedAt.getTime() >= ONE_DAY_MS;
@@ -140,7 +103,7 @@ export async function GET() {
 
 
 
-  const stale = isCacheStale(row, mapVersion, memoryVersion, taxonomyVersion);
+  const stale = isStoryRowStale(row, mapVersion, memoryVersion, taxonomyVersion);
 
   const story = storyCacheToPayload(row, stale);
 
@@ -176,7 +139,7 @@ export async function GET() {
 
     memoryVersion,
 
-    canAutoRefresh: stale || isOlderThanOneDay(row.generatedAt),
+    canAutoRefresh: stale,
 
   });
 
@@ -242,7 +205,7 @@ export async function POST(request: Request) {
 
   if (existing && !force) {
 
-    const stale = isCacheStale(existing, mapVersion, memoryVersion, taxonomyVersion);
+    const stale = isStoryRowStale(existing, mapVersion, memoryVersion, taxonomyVersion);
 
     const freshEnough = !isOlderThanOneDay(existing.generatedAt);
 

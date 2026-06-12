@@ -124,7 +124,7 @@ export async function GET() {
 
     memoryVersion,
 
-    canAutoRefresh: stale || isOlderThanOneDay(row.generatedAt),
+    canAutoRefresh: stale,
 
   });
 
