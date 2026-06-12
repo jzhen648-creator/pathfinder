@@ -1,4 +1,4 @@
-import { formatCanvasLabelForDisplay } from "@/components/tree/tree-canvas-label";
+import { formatCanvasLabelForDisplay } from "@/lib/canvas-label-display";
 import { labelPreservesSalience } from "@/lib/canvas-label-salience";
 import { prisma } from "@/lib/prisma";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -27,11 +27,7 @@ async function resolvePostLoginPath(): Promise<string> {
   );
   if (callback) return callback;
 
-  const session = await getSession();
-  if (session?.user?.onboardingCompleted) return "/tree";
-  if (session) return "/tree";
-  // Cookie may not be visible to getSession yet; app layout gates incomplete users.
-  return "/tree";
+  return "/";
 }
 
 export default function LoginPage() {

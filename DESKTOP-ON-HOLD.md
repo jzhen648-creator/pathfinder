@@ -2,6 +2,8 @@
 
 The Next.js app in this repo still **deploys to Vercel** and serves **`/api/*`** for the mobile client. The **interactive tree map UI is not being built forward.**
 
+**Production web:** `/` is a mobile-only landing page. Legacy desktop routes (`/tree`, `/dashboard`, etc.) redirect to `/`. Local `npm run dev` still exposes desktop routes for reference.
+
 ## Do not edit unless explicitly asked
 
 | Area | Path |

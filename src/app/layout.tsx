@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
-import { MapDataProvider } from "@/contexts/map-data-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Pathfinder",
-  description: "A clean pursuit-tracking life map with subtle progression",
+  description: "Pathfinder API — mobile app for your personal life map",
 };
 
 export default function RootLayout({
@@ -30,9 +29,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0f0f0f] text-white">
-        <AuthSessionProvider>
-          <MapDataProvider>{children}</MapDataProvider>
-        </AuthSessionProvider>
+        <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import { WEB_HOME_PATH } from "@/lib/web-landing";
 
-/** Legacy route — onboarding now runs on /tree as overlays. */
+/** Legacy web route — onboarding runs on mobile. */
 export default function OnboardingPage() {
-  redirect("/tree");
+  redirect(WEB_HOME_PATH);
 }

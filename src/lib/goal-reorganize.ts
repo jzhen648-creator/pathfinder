@@ -9,7 +9,7 @@ import {
 } from "@/lib/branch-sequence";
 import type { GoalReorganizeBody } from "@/lib/validation/goal-reorganize";
 
-import { TREE_GOAL_MAX_CHILDREN_PER_NODE } from "@/components/tree/tree-view-constants";
+const MAX_NESTED_PURSUITS = 3;
 
 async function collectDescendantGoalIds(
   tx: Prisma.TransactionClient,
@@ -119,9 +119,9 @@ export async function reorganizeGoalForUser(
   const siblings = await prisma.goal.count({
     where: { parentGoalId: body.parentGoalId, archived: false, id: { not: goalId } },
   });
-  if (siblings >= TREE_GOAL_MAX_CHILDREN_PER_NODE) {
+  if (siblings >= MAX_NESTED_PURSUITS) {
     throw new ReorganizeError(
-      `A pursuit can have at most ${TREE_GOAL_MAX_CHILDREN_PER_NODE} nested pursuits`,
+      `A pursuit can have at most ${MAX_NESTED_PURSUITS} nested pursuits`,
       400,
     );
   }

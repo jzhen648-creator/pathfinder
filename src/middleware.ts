@@ -1,6 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isDesktopLegacyWebPath, isProductionWeb, WEB_HOME_PATH } from "@/lib/web-landing";
 
 const PUBLIC_FILE = /\.(?:ico|png|jpg|jpeg|svg|gif|webp|woff2?|ttf|eot|txt|webmanifest)$/i;
 
@@ -28,9 +29,7 @@ function finishApi(req: NextRequest, res: NextResponse): NextResponse {
 }
 
 const LOGIN_PATHS = ["/login"];
-const PUBLIC_PATHS = ["/reset-password"];
-const ONBOARDING_PATH = "/onboarding";
-const TREE_PATH = "/tree";
+const PUBLIC_PATHS = ["/reset-password", WEB_HOME_PATH];
 
 function isLoginPath(pathname: string): boolean {
   return LOGIN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -113,33 +112,18 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (isProductionWeb() && isDesktopLegacyWebPath(pathname)) {
+    const url = req.nextUrl.clone();
+    url.pathname = WEB_HOME_PATH;
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   if (!token) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("callbackUrl", `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(url);
-  }
-
-  // Dev uses a pinned session user; JWT can be stale until re-login. Server pages gate
-  // onboarding — skipping middleware onboarding redirects avoids /tree ↔ /onboarding loops.
-  const skipOnboardingRedirects = process.env.NODE_ENV === "development";
-
-  if (!skipOnboardingRedirects) {
-    const onboardingCompleted = token.onboardingCompleted === true;
-
-    if (!onboardingCompleted && pathname !== TREE_PATH && pathname !== ONBOARDING_PATH) {
-      const url = req.nextUrl.clone();
-      url.pathname = TREE_PATH;
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
-
-    if (onboardingCompleted && pathname === ONBOARDING_PATH) {
-      const url = req.nextUrl.clone();
-      url.pathname = TREE_PATH;
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
   }
 
   return NextResponse.next();
