@@ -1,15 +1,10 @@
 /**
- * Wipes tree-related data for every user, then:
- * - Re-seeds mygoals@pathfinder.test (password123) via seed:tree — empty canvas only
- * - Applies locked 17-hub taxonomy (no goals/marks) for all other accounts
+ * Wipes map-related data for every user, then re-syncs locked taxonomy (no pursuits/marks).
  *
  * Run: npm run reset:all-accounts
  */
 import { PrismaClient } from "@prisma/client";
 import { syncTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
-import { seedAllTreeTestProfiles } from "../src/lib/tree-test-profiles-seed";
-
-const DEMO_TREE_EMAILS = new Set(["mygoals@pathfinder.test"]);
 
 async function wipeUserTreeData(prisma: PrismaClient, userId: string): Promise<void> {
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
@@ -37,24 +32,20 @@ async function main() {
       return;
     }
 
-    console.log(`Resetting tree data for ${users.length} user(s)…\n`);
+    console.log(`Resetting map data for ${users.length} user(s)…\n`);
 
     for (const user of users) {
       await wipeUserTreeData(prisma, user.id);
       console.log(`  wiped  ${user.email}`);
     }
 
-    console.log("\nRe-seeding demo tree profiles…");
-    await seedAllTreeTestProfiles(prisma);
-
-    console.log("\nApplying fresh hub taxonomy for non-demo accounts…");
+    console.log("\nApplying fresh hub taxonomy for all accounts…");
     for (const user of users) {
-      if (DEMO_TREE_EMAILS.has(user.email)) continue;
       await syncTaxonomyForUser(prisma, user.id);
       console.log(`  hubs   ${user.email}`);
     }
 
-    console.log("\nDone. Demo login: mygoals@pathfinder.test — password123");
+    console.log("\nDone. Accounts have taxonomy only — add pursuits from the mobile app.");
   } finally {
     await prisma.$disconnect();
   }

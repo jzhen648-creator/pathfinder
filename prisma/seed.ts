@@ -3,8 +3,7 @@
  *
  * Run: npx prisma db seed
  *
- * Creates 4 test accounts (no tree data). For Branch/Mark fixtures use:
- *   npm run seed:tree
+ * Creates 4 test accounts (no map data). Use the mobile app or API to add pursuits.
  *
  * Password for all accounts: pathfinder123
  */

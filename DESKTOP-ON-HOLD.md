@@ -1,31 +1,28 @@
-# Desktop web UI — on hold
+# Desktop web UI — removed
 
-The Next.js app in this repo still **deploys to Vercel** and serves **`/api/*`** for the mobile client. The **interactive tree map UI is not being built forward.**
+The Next.js app in this repo **deploys to Vercel** and serves **`/api/*`** for the mobile client. The interactive tree map and desktop Stream UI have been **removed** (see commit `chore: remove desktop tree UI — mobile-only going forward`).
 
-**Production web:** `/` is a mobile-only landing page. Legacy desktop routes (`/tree`, `/dashboard`, etc.) redirect to `/`. Local `npm run dev` still exposes desktop routes for reference.
+**Production web:** `/` is a mobile-only landing page. Legacy desktop routes (`/tree`, `/dashboard`, etc.) redirect to `/`.
 
-## Do not edit unless explicitly asked
-
-| Area | Path |
-|------|------|
-| Tree map components | `src/components/tree/` |
-| Tree panels / rail | `src/components/tree/tree-panel.tsx`, related modals |
-| Tree dev previews | `src/app/dev/` (hub panel preview, etc.) |
-| Tree-first home | Routes that default to `/tree` after onboarding |
-
-## Safe to edit (mobile depends on these)
+## Active surfaces
 
 | Area | Path |
 |------|------|
 | API routes | `src/app/api/` |
-| Domain logic | `src/lib/` (taxonomy, Stream, branches, goals, marks) |
+| Domain logic | `src/lib/` (taxonomy, Stream, goals, marks) |
 | Database | `prisma/` |
-| Auth | `src/lib/auth.ts`, `src/app/api/auth/` |
+| Auth pages | `src/app/login/`, `src/app/reset-password/` |
+| Web landing | `src/components/MobileWebLanding.tsx`, `src/lib/web-landing.ts` |
 
 ## Mobile client
 
 `pathfinder-mobile/` — Expo SDK 54, primary product surface.
 
-## Future structural changes
+## Dev tooling
 
-See [docs/RENAME-MILESTONE.md](docs/RENAME-MILESTONE.md) before renaming this folder or deleting tree code.
+| Script | Purpose |
+|--------|---------|
+| `npm run fresh-start:mobile` | Wipe map data; reset mobile onboarding for dev account |
+| `npm run dogfood:stream` | Stress-test `POST /api/stream/extract` |
+| `npm run smoke-test` | Sequential API route smoke test |
+| `npx prisma db seed` | Empty test accounts (no map fixtures) |

@@ -19,7 +19,7 @@
   }
 }
 
-/* Native selects — explicit contrast everywhere (incl. portaled UI outside .pf-roadmap). */
+/* Native selects — explicit contrast on auth and dev pages. */
 select,
 select.pf-native-select {
   color: #1a1c1e;

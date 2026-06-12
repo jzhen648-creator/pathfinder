@@ -1,10 +1,9 @@
 import { Agent, CursorAgentError, type SDKAgent, type SDKMessage } from "@cursor/sdk";
 
 const TEST_TASK = `Run the following in order and report results:
-1. npm run seed:mandela
-2. npx tsx scripts/test-routing-cases.ts
-3. npx playwright test e2e/onboarding-six-scene.spec.ts
-4. npx playwright test e2e/theme-activation-mandela.spec.ts
+1. npx tsc --noEmit
+2. npm run smoke-test
+3. npx tsx scripts/test-routing-cases.ts
 Report PASS or FAIL for each with any error output.
 
 Do not edit files, commit changes, or open a pull request.`;

@@ -15,9 +15,9 @@ import { PrismaClient } from "@prisma/client";
 
 import {
   buildQueue,
+  streamCardVariant,
   type ConfirmationKind,
-} from "../src/components/stream/confirmation/stream-confirmation-types";
-import { streamCardVariant } from "../src/components/stream/confirmation/stream-confirmation-styles";
+} from "./lib/stream-dogfood-queue";
 import type { LifeAreaId } from "../src/lib/types";
 import { validHubLabelKeysForTheme } from "../src/lib/taxonomy";
 import { systemHubKey } from "../src/lib/system-hubs";
