@@ -7,8 +7,7 @@ import { runMapAiSync } from "@/lib/map/ai-sync";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import {
   insightPayloadStaleAfterSync,
-  isInsightRowStale,
-  isStoryRowStale,
+  isReadingDrift,
 } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { storyCacheToPayload } from "@/lib/story/parse-story-cache";
@@ -46,35 +45,30 @@ export async function POST(request: Request) {
   try {
     const result = await runMapAiSync(userId, { force: parsed.data.force === true });
 
-    const [mapVersion, memoryVersion, insightRow, storyRow, user] = await Promise.all([
+    const [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([
       computeMapVersion(userId),
       getMemoryVersion(userId),
       prisma.insightCache.findUnique({ where: { userId } }),
       prisma.storyCache.findUnique({ where: { userId } }),
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: { taxonomyVersion: true },
-      }),
     ]);
 
-    const taxonomyVersion = user?.taxonomyVersion ?? null;
-    const insightRowStale = insightRow
-      ? isInsightRowStale(insightRow, mapVersion, memoryVersion)
+    const insightDrift = insightRow
+      ? isReadingDrift(insightRow, mapVersion, memoryVersion)
       : false;
-    const storyRowStale = storyRow
-      ? isStoryRowStale(storyRow, mapVersion, memoryVersion, taxonomyVersion)
+    const storyDrift = storyRow
+      ? isReadingDrift(storyRow, mapVersion, memoryVersion)
       : false;
 
     const insightPayload = insightRow
       ? insightCacheToPayload(
           insightRow,
-          insightPayloadStaleAfterSync(result.insights.refreshed, insightRowStale),
+          insightPayloadStaleAfterSync(result.insights.refreshed, insightDrift),
         )
       : null;
     const storyPayload = storyRow
       ? storyCacheToPayload(
           storyRow,
-          insightPayloadStaleAfterSync(result.story.refreshed, storyRowStale),
+          insightPayloadStaleAfterSync(result.story.refreshed, storyDrift),
         )
       : null;
 

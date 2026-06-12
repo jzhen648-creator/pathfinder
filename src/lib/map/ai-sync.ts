@@ -179,6 +179,25 @@ export async function runMapAiSync(
     }
   }
 
+  // Re-stamp versions after refresh — digest may have queued memory updates during sync.
+  if (insightsRefreshed || storyRefreshed) {
+    const fresh = await resolveVersions(userId);
+    await Promise.all([
+      insightsRefreshed
+        ? prisma.insightCache.update({
+            where: { userId },
+            data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
+          })
+        : Promise.resolve(),
+      storyRefreshed
+        ? prisma.storyCache.update({
+            where: { userId },
+            data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
+          })
+        : Promise.resolve(),
+    ]);
+  }
+
   return {
     ok: true,
     mapVersion,

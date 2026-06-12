@@ -7,7 +7,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
-import { isStoryRowStale } from "@/lib/insights/reading-cache-stale";
+import { isReadingDrift, storyNeedsRegeneration } from "@/lib/insights/reading-cache-stale";
 
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
@@ -103,9 +103,9 @@ export async function GET() {
 
 
 
-  const stale = isStoryRowStale(row, mapVersion, memoryVersion, taxonomyVersion);
+  const drift = isReadingDrift(row, mapVersion, memoryVersion);
 
-  const story = storyCacheToPayload(row, stale);
+  const story = storyCacheToPayload(row, drift);
 
   if (!story) {
 
@@ -131,7 +131,7 @@ export async function GET() {
 
     story,
 
-    stale,
+    stale: drift,
 
     generatedAt: row.generatedAt.toISOString(),
 
@@ -139,7 +139,7 @@ export async function GET() {
 
     memoryVersion,
 
-    canAutoRefresh: stale,
+    canAutoRefresh: drift,
 
   });
 
@@ -205,7 +205,7 @@ export async function POST(request: Request) {
 
   if (existing && !force) {
 
-    const stale = isStoryRowStale(existing, mapVersion, memoryVersion, taxonomyVersion);
+    const stale = storyNeedsRegeneration(existing, mapVersion, memoryVersion, taxonomyVersion);
 
     const freshEnough = !isOlderThanOneDay(existing.generatedAt);
 
