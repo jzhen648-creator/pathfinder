@@ -95,21 +95,23 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function withRateLimitRetry<T>(operation: () => Promise<T>): Promise<T> {
-  const delaysMs = [1_500, 4_000];
+  const delaysMs = [2_000, 5_000, 12_000];
   let lastError: unknown;
   for (let attempt = 0; attempt <= delaysMs.length; attempt += 1) {
     try {
       return await operation();
     } catch (err) {
       lastError = err;
-      if (isRateLimitError(err)) {
+      const retryable =
+        isRateLimitError(err) || err instanceof AiUserRateLimitError;
+      if (!retryable || attempt >= delaysMs.length) {
         throw err;
       }
-      if (attempt >= delaysMs.length) {
-        throw err;
-      }
-      const jitter = Math.floor(Math.random() * 250);
-      await sleep(delaysMs[attempt] + jitter);
+      const delay =
+        err instanceof AiUserRateLimitError
+          ? err.retryAfterMs
+          : delaysMs[attempt] + Math.floor(Math.random() * 250);
+      await sleep(delay);
     }
   }
   throw lastError;
