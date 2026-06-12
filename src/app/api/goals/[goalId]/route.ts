@@ -1,8 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
-import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
-import { isInsightEligibleGoalType } from "@/lib/insights/merge-insight-cache";
+import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
@@ -141,11 +140,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     });
   }
 
-  if (isInsightEligibleGoalType(goal.goalType)) {
-    refreshInsightsInBackground(userId, { pursuitIds: [goal.id] });
-  } else {
-    refreshInsightsInBackground(userId);
-  }
+  await markPursuitReadingDirty(userId, goal.id, "pursuit_updated");
 
   return NextResponse.json({ goal });
 }
@@ -168,7 +163,7 @@ export async function DELETE(request: Request, { params }: RouteProps) {
     data: { archived: true },
   });
 
-  refreshInsightsInBackground(userId);
+  await markPursuitReadingDirty(userId, goalId, "pursuit_archived");
 
   return NextResponse.json({ ok: true });
 }

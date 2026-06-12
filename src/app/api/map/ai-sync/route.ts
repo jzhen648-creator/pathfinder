@@ -3,7 +3,7 @@ import { z } from "zod";
 import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
-import { runMapAiSync } from "@/lib/map/ai-sync";
+import { MapAiSyncRateLimitError, runMapAiSync } from "@/lib/map/ai-sync";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await runMapAiSync(userId, { force: parsed.data.force === true });
+    console.info("[POST /api/map/ai-sync] metrics", result.metrics);
 
     let [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([
       computeMapVersion(userId),
@@ -100,6 +101,20 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
+    if (err instanceof MapAiSyncRateLimitError) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          partial: err.partialResult,
+          progress: err.partialResult.progress,
+          metrics: err.partialResult.metrics,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(err.retryAfterMs / 1000)) },
+        },
+      );
+    }
     if (err instanceof GeminiNotConfiguredError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }

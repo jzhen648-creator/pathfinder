@@ -54,7 +54,13 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Capture:** Pursuit **Update** and **Add context** save pending `StreamRun` rows (`POST /api/goals/[goalId]/capture`, `/apply-context`, `/api/stream/pursuit/apply`) — no extract until sync.
 
-**Reflection:** One tap **Update readings** on Insights → `POST /api/map/ai-sync` digests pending notes, then regenerates `InsightCache` + `StoryCache`. Map utility bar shows **Update readings** chip when caches are stale. Per-user AI queue + 8 req/min cap.
+**Reflection:** One tap **Update AI reading** on Insights → `POST /api/map/ai-sync` (bounded digest, dirty-ledger incremental refresh, optional story delta). Manual-only in dev; see mobile `PLAN-REFLECTION-SYNC.md` §10 for release cadence / monetization. Per-user serialized AI queue + rate cap.
+
+## 2026-06-13 — Incremental AI sync pipeline
+
+**Shipped:** `AiReadingDirtyItem` ledger; bounded resumable digest (5/tap); `generateInsightsAndStory` on full refresh; incremental pursuit insights + `generateReadingDelta` on small edits; deferred memory updates; sync `metrics` + no mobile auto-retry on 429.
+
+**Future:** Reading delivery interval (e.g. hourly) on free tier; faster/on-demand as paid — see `pathfinder-mobile/PLAN-REFLECTION-SYNC.md` §10.
 
 **Retired:** Map-wide Stream UI, instant apply on note save, Stream as product word on mobile (+ tab is **add on map**).
 

@@ -3,7 +3,8 @@ import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
 import { activateCategoryForUser } from "@/lib/system-categories";
-import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
+import { deferMemoryUpdateAfterStream } from "@/lib/memory/deferred-memory-updates";
+import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import {
   loadPursuitStreamContext,
   runPursuitStreamExtract,
@@ -237,6 +238,7 @@ export async function applyPursuitStream(
 export async function digestPendingStreamRun(
   userId: string,
   runId: string,
+  options?: { deferMemory?: boolean; inputOverride?: string },
 ): Promise<PursuitStreamApplyResult> {
   const run = await prisma.streamRun.findFirst({
     where: { id: runId, userId, status: "pending" },
@@ -261,7 +263,7 @@ export async function digestPendingStreamRun(
   }
 
   const pursuitId = run.goalId;
-  const input = run.rawInput;
+  const input = options?.inputOverride?.trim() || run.rawInput;
   const ctx = await loadPursuitStreamContext(userId, pursuitId);
   if (!ctx) {
     return {
@@ -494,7 +496,14 @@ export async function digestPendingStreamRun(
       },
     });
 
-    queueMemoryUpdateAfterStream(userId, run.rawInput);
+    if (options?.deferMemory !== false) {
+      deferMemoryUpdateAfterStream(userId, run.rawInput);
+    } else {
+      const { queueMemoryUpdateAfterStream } = await import("@/lib/memory/queue-memory-update");
+      queueMemoryUpdateAfterStream(userId, run.rawInput);
+    }
+
+    await markPursuitReadingDirty(userId, run.goalId, "note_digested", run.id);
 
     return {
       ok: true,
@@ -521,11 +530,22 @@ export async function digestPendingStreamRun(
   }
 }
 
-export async function digestAllPendingCaptures(userId: string): Promise<{
+const DIGEST_BATCH_LIMIT = 5;
+
+export type DigestCapturesResult = {
   processed: number;
   failed: number;
   errors: string[];
-}> {
+  rateLimited: boolean;
+  remaining: number;
+  memoryTextsDeferred: number;
+};
+
+/** Digest up to `limit` pending captures — resumable across sync taps. */
+export async function digestPendingCapturesBounded(
+  userId: string,
+  limit = DIGEST_BATCH_LIMIT,
+): Promise<DigestCapturesResult> {
   const now = new Date();
   const pending = await prisma.streamRun.findMany({
     where: {
@@ -534,24 +554,140 @@ export async function digestAllPendingCaptures(userId: string): Promise<{
       expiresAt: { gt: now },
     },
     orderBy: { createdAt: "asc" },
-    select: { id: true },
+    select: { id: true, goalId: true },
   });
 
   let processed = 0;
   let failed = 0;
   const errors: string[] = [];
+  let rateLimited = false;
+  let memoryTextsDeferred = 0;
 
-  for (const row of pending) {
-    const result = await digestPendingStreamRun(userId, row.id);
-    if (result.ok) {
-      processed += 1;
-    } else {
-      failed += 1;
-      if (result.error) errors.push(result.error);
+  const batches = groupPendingByPursuit(pending);
+  let runsAttempted = 0;
+
+  for (const batch of batches) {
+    if (runsAttempted >= limit) break;
+
+    if (batch.runIds.length === 1) {
+      const result = await digestPendingStreamRun(userId, batch.runIds[0]!, { deferMemory: true });
+      runsAttempted += 1;
+      if (result.ok) {
+        processed += 1;
+        memoryTextsDeferred += 1;
+      } else {
+        failed += 1;
+        if (result.error) errors.push(result.error);
+        if (result.status === 429) {
+          rateLimited = true;
+          break;
+        }
+      }
+      continue;
     }
+
+    const batchResult = await digestPendingStreamRunsBatch(userId, batch.runIds, { deferMemory: true });
+    runsAttempted += batch.runIds.length;
+    processed += batchResult.processed;
+    failed += batchResult.failed;
+    errors.push(...batchResult.errors);
+    memoryTextsDeferred += batchResult.processed;
+    if (batchResult.rateLimited) {
+      rateLimited = true;
+      break;
+    }
+    if (runsAttempted >= limit) break;
   }
 
-  return { processed, failed, errors };
+  const remaining = await countPendingCaptures(userId);
+
+  return {
+    processed,
+    failed,
+    errors,
+    rateLimited,
+    remaining,
+    memoryTextsDeferred,
+  };
+}
+
+function groupPendingByPursuit(
+  pending: Array<{ id: string; goalId: string }>,
+): Array<{ goalId: string; runIds: string[] }> {
+  const byGoal = new Map<string, string[]>();
+  for (const row of pending) {
+    const list = byGoal.get(row.goalId) ?? [];
+    list.push(row.id);
+    byGoal.set(row.goalId, list);
+  }
+  return [...byGoal.entries()].map(([goalId, runIds]) => ({ goalId, runIds }));
+}
+
+async function digestPendingStreamRunsBatch(
+  userId: string,
+  runIds: string[],
+  options?: { deferMemory?: boolean },
+): Promise<{ processed: number; failed: number; errors: string[]; rateLimited: boolean }> {
+  const runs = await prisma.streamRun.findMany({
+    where: { id: { in: runIds }, userId, status: "pending" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (runs.length === 0) {
+    return { processed: 0, failed: 0, errors: [], rateLimited: false };
+  }
+
+  const combinedInput = runs.map((r) => r.rawInput.trim()).filter(Boolean).join("\n\n---\n\n").slice(0, 4000);
+  const primary = runs[0]!;
+  const single = await digestPendingStreamRun(userId, primary.id, {
+    deferMemory: options?.deferMemory,
+    inputOverride: combinedInput,
+  });
+  if (single.ok) {
+    for (const extra of runs.slice(1)) {
+      await prisma.streamRun.update({
+        where: { id: extra.id },
+        data: {
+          status: "applied",
+          summaryJson: { batchedInto: primary.id, items: [] },
+        },
+      });
+      await markPursuitReadingDirty(userId, extra.goalId, "note_digested_batch", extra.id);
+    }
+    return { processed: runs.length, failed: 0, errors: [], rateLimited: false };
+  }
+
+  if (single.status === 429) {
+    return { processed: 0, failed: 1, errors: single.error ? [single.error] : [], rateLimited: true };
+  }
+
+  let processed = 0;
+  let failed = 0;
+  const errors: string[] = [];
+  for (const run of runs) {
+    const result = await digestPendingStreamRun(userId, run.id, options);
+    if (result.ok) processed += 1;
+    else {
+      failed += 1;
+      if (result.error) errors.push(result.error);
+      if (result.status === 429) {
+        return { processed, failed, errors, rateLimited: true };
+      }
+    }
+  }
+  return { processed, failed, errors, rateLimited: false };
+}
+
+export async function digestAllPendingCaptures(userId: string): Promise<{
+  processed: number;
+  failed: number;
+  errors: string[];
+}> {
+  const result = await digestPendingCapturesBounded(userId, 999);
+  return {
+    processed: result.processed,
+    failed: result.failed,
+    errors: result.errors,
+  };
 }
 
 export async function countPendingCaptures(userId: string): Promise<number> {

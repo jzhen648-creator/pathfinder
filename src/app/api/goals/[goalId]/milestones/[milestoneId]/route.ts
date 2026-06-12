@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
+import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { prisma } from "@/lib/prisma";
 
 const patchBodySchema = z.union([
@@ -171,6 +172,7 @@ export async function PATCH(request: Request, props: RouteProps) {
 
     const payload = { ok: true as const, skippedBloomRecompute: skipBloomRecompute };
     console.info(logPrefix, "success response", payload);
+    await markPursuitReadingDirty(userId, goalId, "milestone_updated");
     return NextResponse.json(payload);
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));

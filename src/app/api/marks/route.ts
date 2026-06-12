@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { markMarkReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import {
   createMarkBodySchema,
   displayMarkTitleFromInput,
@@ -210,5 +211,6 @@ export async function POST(request: Request) {
       },
     });
   });
+  await markMarkReadingDirty(userId, mark.id, branch.themeId, "mark_created");
   return NextResponse.json({ mark });
 }

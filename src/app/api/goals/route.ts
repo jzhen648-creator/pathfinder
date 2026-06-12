@@ -21,6 +21,7 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
 import { activateCategoryForUser } from "@/lib/system-categories";
+import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
@@ -202,6 +203,8 @@ export async function POST(request: Request) {
     }
 
     const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
+
+    await markPursuitReadingDirty(userId, goal.id, "pursuit_created");
 
     return NextResponse.json(
       {

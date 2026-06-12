@@ -140,23 +140,31 @@ export async function generateText(input: {
   messages: TextMessage[];
   maxTokens?: number;
   temperature?: number;
+  /** Per-user queue key — serializes concurrent AI jobs for one account. */
+  queueKey?: string | null;
 }): Promise<string> {
-  const { client, config } = getAiClient();
-  const completion = await client.chat.completions.create({
-    model: config.model,
-    ...withGeminiReasoningEffort(config),
-    temperature: input.temperature ?? 0.7,
-    max_tokens: input.maxTokens ?? 1024,
-    messages: [
-      { role: "system", content: input.system },
-      ...input.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    ],
-  });
+  const { queueKey, ...textInput } = input;
+  return runSerializedAiJob(queueKey, async () => {
+    const { client, config } = getAiClient();
+    const completion = await withRateLimitRetry(async () => {
+      assertAiUserRateLimit(queueKey);
+      return client.chat.completions.create({
+        model: config.model,
+        ...withGeminiReasoningEffort(config),
+        temperature: textInput.temperature ?? 0.7,
+        max_tokens: textInput.maxTokens ?? 1024,
+        messages: [
+          { role: "system", content: textInput.system },
+          ...textInput.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        ],
+      });
+    });
 
-  return completion.choices[0]?.message?.content?.trim() ?? "";
+    return completion.choices[0]?.message?.content?.trim() ?? "";
+  });
 }
 
 /** Stream assistant prose token-by-token (Stream narrative phase). */
@@ -198,10 +206,10 @@ export async function generateJsonCompletion(input: {
 }): Promise<string> {
   const { queueKey, ...completionInput } = input;
   return runSerializedAiJob(queueKey, async () => {
-    assertAiUserRateLimit(queueKey);
     const { client, config } = getAiClient();
-    const completion = await withRateLimitRetry(() =>
-      client.chat.completions.create({
+    const completion = await withRateLimitRetry(async () => {
+      assertAiUserRateLimit(queueKey);
+      return client.chat.completions.create({
         model: config.model,
         ...withGeminiReasoningEffort(config),
         temperature: completionInput.temperature ?? 0.2,
@@ -211,8 +219,8 @@ export async function generateJsonCompletion(input: {
           { role: "system", content: completionInput.system },
           { role: "user", content: completionInput.user },
         ],
-      }),
-    );
+      });
+    });
 
     return completion.choices[0]?.message?.content?.trim() ?? "";
   });

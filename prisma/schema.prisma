@@ -56,6 +56,7 @@ model User {
   manualProfile              UserManualProfile?
   insightCache               InsightCache?
   storyCache                 StoryCache?
+  readingDirtyItems          AiReadingDirtyItem[]
   userMemory                 UserMemory?
   userMemoryHistory          UserMemoryHistory[]
 }
@@ -392,6 +393,29 @@ model StoryCache {
   mapVersion    String
   memoryVersion Int      @default(0)
   updatedAt     DateTime @updatedAt
+}
+
+enum AiReadingDirtyEntityType {
+  pursuit
+  theme
+  hub
+  mark
+  global
+}
+
+/// Tracks map entities that changed since the last successful AI reading sync.
+model AiReadingDirtyItem {
+  id          String                   @id @default(cuid())
+  userId      String
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityType  AiReadingDirtyEntityType
+  entityId    String
+  reason      String
+  streamRunId String?
+  createdAt   DateTime                 @default(now())
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId, createdAt])
 }
 
 model Goal {

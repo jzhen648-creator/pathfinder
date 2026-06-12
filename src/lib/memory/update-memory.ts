@@ -102,6 +102,7 @@ export async function updateUserMemory(
       ],
       maxTokens: 600,
       temperature: 0.3,
+      queueKey: userId,
     });
 
     if (!blob.trim()) {
