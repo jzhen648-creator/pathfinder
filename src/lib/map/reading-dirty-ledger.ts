@@ -146,6 +146,7 @@ export async function shouldUseFullReadingRefresh(
 ): Promise<boolean> {
   const total = await countEligiblePursuits(userId);
   if (total === 0) return false;
-  if (dirtyPursuitCount === 0) return true;
+  if (dirtyPursuitCount === 0) return false;
+  if (total <= 3) return false;
   return dirtyPursuitCount / total > thresholdRatio;
 }

@@ -1,6 +1,6 @@
 const ONE_MINUTE_MS = 60_000;
-/** Free-tier Gemini — cap outbound model calls per user per minute (best-effort on serverless). */
-const MAX_CALLS_PER_MINUTE = 16;
+/** Free-tier Gemini — stay under provider RPM (retries must not inflate this). */
+const MAX_CALLS_PER_MINUTE = 8;
 
 type Window = { count: number; resetAt: number };
 

@@ -91,8 +91,7 @@ async function upsertStoryCache(
 function canUseStoryDelta(dirty: ReadingDirtySummary): boolean {
   return (
     dirty.pursuitIds.length > 0 &&
-    dirty.pursuitIds.length <= STORY_DELTA_MAX_DIRTY_PURSUITS &&
-    !dirty.hasGlobal
+    dirty.pursuitIds.length <= STORY_DELTA_MAX_DIRTY_PURSUITS
   );
 }
 
@@ -129,13 +128,12 @@ export async function refreshReadingCachesSmart(
     storyPayloadInvalid ||
     taxonomyStale ||
     unexplainedDrift ||
-    dirty.hasGlobal ||
     (await shouldUseFullReadingRefresh(userId, dirty.pursuitIds.length));
 
   if (useFull) {
     options.metrics.fullRefresh = true;
     options.metrics.aiCallsPlanned += 1;
-    const { insights, story } = await generateInsightsAndStory(userId);
+    const { insights, story } = await generateInsightsAndStory(userId, { skipBackfill: true });
     options.metrics.aiCallsCompleted += 1;
     await Promise.all([
       upsertInsightCache(userId, insights, mapVersion, memoryVersion),

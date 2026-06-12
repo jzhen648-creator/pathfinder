@@ -102,15 +102,11 @@ async function withRateLimitRetry<T>(operation: () => Promise<T>): Promise<T> {
       return await operation();
     } catch (err) {
       lastError = err;
-      const retryable =
-        isRateLimitError(err) || err instanceof AiUserRateLimitError;
+      const retryable = err instanceof AiUserRateLimitError;
       if (!retryable || attempt >= delaysMs.length) {
         throw err;
       }
-      const delay =
-        err instanceof AiUserRateLimitError
-          ? err.retryAfterMs
-          : delaysMs[attempt] + Math.floor(Math.random() * 250);
+      const delay = err.retryAfterMs;
       await sleep(delay);
     }
   }

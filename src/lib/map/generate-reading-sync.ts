@@ -94,6 +94,7 @@ function buildCombinedUserMessage(
 /** Single Gemini call for insight cache + season read (ai-sync primary path). */
 export async function generateInsightsAndStory(
   userId: string,
+  options?: { skipBackfill?: boolean },
 ): Promise<ReadingSyncGenerationResult> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
@@ -139,19 +140,21 @@ export async function generateInsightsAndStory(
     );
   }
 
-  let insights: InsightGenerationResult;
-  try {
-    insights = await finalizeInsightGeneration(
-      userId,
-      mapContext,
-      userContext,
-      parsed.data.insights,
-    );
-  } catch (err) {
-    if (err instanceof InsightGenerationResponseError) throw err;
-    throw new ReadingSyncGenerationResponseError("Insight generation failed after reading sync.", {
-      cause: err,
-    });
+  let insights: InsightGenerationResult = parsed.data.insights;
+  if (!options?.skipBackfill) {
+    try {
+      insights = await finalizeInsightGeneration(
+        userId,
+        mapContext,
+        userContext,
+        parsed.data.insights,
+      );
+    } catch (err) {
+      if (err instanceof InsightGenerationResponseError) throw err;
+      throw new ReadingSyncGenerationResponseError("Insight generation failed after reading sync.", {
+        cause: err,
+      });
+    }
   }
 
   let story: StoryGenerationResult;
