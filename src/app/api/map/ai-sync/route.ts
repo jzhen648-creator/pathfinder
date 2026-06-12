@@ -11,6 +11,7 @@ import { storyCacheToPayload } from "@/lib/story/parse-story-cache";
 import { prisma } from "@/lib/prisma";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
 import { StoryGenerationResponseError } from "@/lib/story/generate-story";
+import { ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
 
 const bodySchema = z.object({
   force: z.boolean().optional(),
@@ -103,6 +104,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
     if (err instanceof InsightGenerationResponseError || err instanceof StoryGenerationResponseError) {
+      return NextResponse.json({ error: err.message }, { status: err.status ?? 502 });
+    }
+    if (err instanceof ReadingSyncGenerationResponseError) {
       return NextResponse.json({ error: err.message }, { status: err.status ?? 502 });
     }
     return aiRouteErrorResponse(err, "[POST /api/map/ai-sync]");

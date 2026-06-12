@@ -43,7 +43,7 @@ const STORY_PROMPT_BASE = [
   "Voice: direct, informed advisor — calm and map-native. Warm but not flattery. No hedging.",
 ].join("\n");
 
-function countMapPursuits(mapContext: FormattedMapContext): number {
+export function countMapPursuits(mapContext: FormattedMapContext): number {
   let total = 0;
   for (const theme of mapContext.themes) {
     for (const hub of theme.hubs) {
@@ -53,7 +53,7 @@ function countMapPursuits(mapContext: FormattedMapContext): number {
   return total;
 }
 
-function buildStorySystemPrompt(totalPursuitCount: number): string {
+export function buildStorySystemPrompt(totalPursuitCount: number): string {
   const depthRules =
     totalPursuitCount <= 2
       ? [

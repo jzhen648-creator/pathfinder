@@ -2,6 +2,7 @@ import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-
 import { generateInsights } from "@/lib/insights/generate-insights";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
+import { generateInsightsAndStory } from "@/lib/map/generate-reading-sync";
 import { prisma } from "@/lib/prisma";
 import { generateStory } from "@/lib/story/generate-story";
 import { isCurrentStoryPayload, storyCacheToPayload } from "@/lib/story/parse-story-cache";
@@ -59,6 +60,54 @@ function storyCacheStale(
   if (row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion) return true;
   if (taxonomyVersion && taxonomyVersion !== TAXONOMY_VERSION) return true;
   return !isCurrentStoryPayload(row.payload);
+}
+
+async function refreshReadingCaches(
+  userId: string,
+  mapVersion: string,
+  memoryVersion: number,
+) {
+  const { insights, story } = await generateInsightsAndStory(userId);
+  const payloadJson = JSON.stringify(story);
+
+  await Promise.all([
+    prisma.insightCache.upsert({
+      where: { userId },
+      create: {
+        userId,
+        globalInsight: JSON.stringify(insights.global),
+        themeInsights: insights.themes,
+        hubInsights: insights.hubs,
+        pursuitInsights: insights.pursuits,
+        mapVersion,
+        memoryVersion,
+      },
+      update: {
+        globalInsight: JSON.stringify(insights.global),
+        themeInsights: insights.themes,
+        hubInsights: insights.hubs,
+        pursuitInsights: insights.pursuits,
+        generatedAt: new Date(),
+        mapVersion,
+        memoryVersion,
+      },
+    }),
+    prisma.storyCache.upsert({
+      where: { userId },
+      create: {
+        userId,
+        payload: payloadJson,
+        mapVersion,
+        memoryVersion,
+      },
+      update: {
+        payload: payloadJson,
+        generatedAt: new Date(),
+        mapVersion,
+        memoryVersion,
+      },
+    }),
+  ]);
 }
 
 async function refreshInsightCache(userId: string, mapVersion: string, memoryVersion: number) {
@@ -155,12 +204,17 @@ export async function runMapAiSync(
   let insightsRefreshed = false;
   let storyRefreshed = false;
 
-  if (force || insightsStale || digested.processed > 0) {
+  const needInsights = force || insightsStale || digested.processed > 0;
+  const needStory = force || storyStale || digested.processed > 0;
+
+  if (needInsights && needStory) {
+    await refreshReadingCaches(userId, mapVersion, memoryVersion);
+    insightsRefreshed = true;
+    storyRefreshed = true;
+  } else if (needInsights) {
     await refreshInsightCache(userId, mapVersion, memoryVersion);
     insightsRefreshed = true;
-  }
-
-  if (force || storyStale || digested.processed > 0) {
+  } else if (needStory) {
     await refreshStoryCache(userId, mapVersion, memoryVersion);
     storyRefreshed = true;
   }

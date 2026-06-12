@@ -166,6 +166,8 @@ const SYSTEM_PROMPT = [
   "If the map is sparse, say so honestly and invite capture rather than inventing pursuits.",
 ].join("\n");
 
+export const INSIGHT_GENERATION_SYSTEM_PROMPT = SYSTEM_PROMPT;
+
 function buildUserMessage(mapJson: string, userContext: string): string {
   const themeIds = LIFE_AREA_IDS.join(", ");
   return [
@@ -430,6 +432,19 @@ export async function generateNodeInsights(
     hubs: themeHubPatch.hubs,
     pursuits: pursuitPatch.pursuits,
   };
+}
+
+export async function finalizeInsightGeneration(
+  userId: string,
+  mapContext: FormattedMapContext,
+  userContext: string,
+  generated: InsightGenerationResult,
+): Promise<InsightGenerationResult> {
+  return backfillMissingNodeInsights(userId, mapContext, userContext, generated);
+}
+
+export function buildInsightUserMessage(mapJson: string, userContext: string): string {
+  return buildUserMessage(mapJson, userContext);
 }
 
 async function backfillMissingNodeInsights(
