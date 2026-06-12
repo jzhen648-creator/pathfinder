@@ -16,7 +16,7 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
-const MAX_ENRICH_PER_RUN = 3;
+const MAX_ENRICH_PER_RUN = 1;
 
 const ENRICH_SYSTEM_PROMPT = [
   "You enrich a single pursuit on a personal life map.",

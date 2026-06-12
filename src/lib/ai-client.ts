@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { runSerializedAiJob } from "@/lib/ai/ai-job-queue";
-import { assertAiUserRateLimit, AiUserRateLimitError } from "@/lib/ai/ai-user-rate-limit";
+import { assertAiUserRateLimit, AiUserRateLimitError, recordAiUserRateLimitSuccess } from "@/lib/ai/ai-user-rate-limit";
 
 type AiProvider = "gemini" | "groq" | "deepseek";
 
@@ -159,6 +159,7 @@ export async function generateText(input: {
       });
     });
 
+    recordAiUserRateLimitSuccess(queueKey);
     return completion.choices[0]?.message?.content?.trim() ?? "";
   });
 }
@@ -218,6 +219,7 @@ export async function generateJsonCompletion(input: {
       });
     });
 
+    recordAiUserRateLimitSuccess(queueKey);
     return completion.choices[0]?.message?.content?.trim() ?? "";
   });
 }

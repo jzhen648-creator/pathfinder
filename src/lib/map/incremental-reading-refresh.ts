@@ -18,6 +18,12 @@ import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 import { prisma } from "@/lib/prisma";
 
 const STORY_DELTA_MAX_DIRTY_PURSUITS = 12;
+/** Max successful Gemini calls per single ai-sync tap (defer remainder to Continue). */
+const MAX_AI_CALLS_PER_SYNC = 2;
+
+function canMakeSyncAiCall(metrics: MapAiSyncMetrics): boolean {
+  return metrics.aiCallsCompleted < MAX_AI_CALLS_PER_SYNC;
+}
 
 export type IncrementalRefreshResult = {
   insightsRefreshed: boolean;
@@ -153,7 +159,7 @@ export async function refreshReadingCachesSmart(
   let insightsRefreshed = false;
   let storyRefreshed = false;
 
-  if (dirty.pursuitIds.length > 0) {
+  if (dirty.pursuitIds.length > 0 && canMakeSyncAiCall(options.metrics)) {
     options.metrics.aiCallsPlanned += Math.min(dirty.pursuitIds.length, 3);
     const enrichResult = await refreshPursuitEnrich(userId, dirty.pursuitIds);
     options.metrics.aiCallsCompleted += enrichResult.processedIds.length;
@@ -164,32 +170,37 @@ export async function refreshReadingCachesSmart(
     if (enrichResult.processedIds.length > 0) {
       await clearReadingDirtyForPursuits(userId, enrichResult.processedIds);
     }
+  } else if (dirty.pursuitIds.length > 0) {
+    options.metrics.morePending = true;
+  }
 
-    if (dirty.themeIds.length > 0 || dirty.hubIds.length > 0) {
-      options.metrics.aiCallsPlanned += 1;
-      const patch = await generateNodeInsights(userId, {
-        themeIds: dirty.themeIds,
-        hubIds: dirty.hubIds,
-        pursuitIds: [],
+  if (
+    (dirty.themeIds.length > 0 || dirty.hubIds.length > 0) &&
+    canMakeSyncAiCall(options.metrics)
+  ) {
+    options.metrics.aiCallsPlanned += 1;
+    const patch = await generateNodeInsights(userId, {
+      themeIds: dirty.themeIds,
+      hubIds: dirty.hubIds,
+      pursuitIds: [],
+    });
+    options.metrics.aiCallsCompleted += 1;
+    options.metrics.backfillCalls += 1;
+    if (insightRow) {
+      await prisma.insightCache.update({
+        where: { userId },
+        data: {
+          themeInsights: { ...(insightRow.themeInsights as object), ...patch.themes },
+          hubInsights: { ...(insightRow.hubInsights as object), ...patch.hubs },
+          generatedAt: new Date(),
+          mapVersion,
+          memoryVersion,
+        },
       });
-      options.metrics.aiCallsCompleted += 1;
-      options.metrics.backfillCalls += 1;
-      if (insightRow) {
-        await prisma.insightCache.update({
-          where: { userId },
-          data: {
-            themeInsights: { ...(insightRow.themeInsights as object), ...patch.themes },
-            hubInsights: { ...(insightRow.hubInsights as object), ...patch.hubs },
-            generatedAt: new Date(),
-            mapVersion,
-            memoryVersion,
-          },
-        });
-      }
     }
   }
 
-  if (storyRow && canUseStoryDelta(dirty)) {
+  if (storyRow && canUseStoryDelta(dirty) && canMakeSyncAiCall(options.metrics)) {
     const previousStory = parseStoryPayload(storyRow.payload);
 
     if (previousStory?.seasonRead?.trim()) {
@@ -205,12 +216,17 @@ export async function refreshReadingCachesSmart(
         await upsertStoryCache(userId, story, mapVersion, memoryVersion);
         storyRefreshed = true;
       } catch (err) {
-        if (err instanceof ReadingDeltaGenerationResponseError) {
+        if (
+          err instanceof ReadingDeltaGenerationResponseError &&
+          canMakeSyncAiCall(options.metrics)
+        ) {
           options.metrics.aiCallsPlanned += 1;
           const story = await generateStory(userId);
           options.metrics.aiCallsCompleted += 1;
           await upsertStoryCache(userId, story, mapVersion, memoryVersion);
           storyRefreshed = true;
+        } else if (err instanceof ReadingDeltaGenerationResponseError) {
+          options.metrics.morePending = true;
         } else {
           throw err;
         }
@@ -218,12 +234,14 @@ export async function refreshReadingCachesSmart(
     }
   }
 
-  if (!storyRefreshed && dirty.pursuitIds.length > 0) {
+  if (!storyRefreshed && dirty.pursuitIds.length > 0 && canMakeSyncAiCall(options.metrics)) {
     options.metrics.aiCallsPlanned += 1;
     const story = await generateStory(userId);
     options.metrics.aiCallsCompleted += 1;
     await upsertStoryCache(userId, story, mapVersion, memoryVersion);
     storyRefreshed = true;
+  } else if (!storyRefreshed && dirty.pursuitIds.length > 0) {
+    options.metrics.morePending = true;
   }
 
   if (insightsRefreshed || storyRefreshed) {

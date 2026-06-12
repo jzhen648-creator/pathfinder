@@ -27,18 +27,23 @@ export function aiRouteErrorResponse(err: unknown, logLabel: string): NextRespon
   }
 
   if (err instanceof AiUserRateLimitError) {
+    const seconds = Math.max(1, Math.ceil(err.retryAfterMs / 1000));
     return NextResponse.json(
-      { error: "AI is busy — wait a moment and try again." },
+      { error: `Pathfinder is spacing AI requests — try again in about ${seconds} seconds.` },
       {
         status: 429,
-        headers: { "Retry-After": String(Math.ceil(err.retryAfterMs / 1000)) },
+        headers: { "Retry-After": String(seconds) },
       },
     );
   }
 
   if (providerStatus(err) === 429) {
-    const message = err instanceof Error ? err.message : "Rate limit exceeded. Try again later.";
-    return NextResponse.json({ error: message }, { status: 429 });
+    const message =
+      err instanceof Error ? err.message : "Gemini rate limit — wait a minute and try again.";
+    return NextResponse.json(
+      { error: message.includes("429") ? "Gemini is busy — wait about a minute and try again." : message },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
   }
 
   const message = err instanceof Error ? err.message : "AI request failed";
