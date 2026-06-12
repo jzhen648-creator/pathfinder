@@ -1,12 +1,12 @@
 import { getLifeArea } from "@/lib/life-areas";
-import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
+import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { prisma } from "@/lib/prisma";
 import {
-  buildStreamHubContextInput,
+  buildStreamCategoryContextInput,
   formatPreviousStreamSessionSummary,
   runStreamExtract,
 } from "@/lib/ai/stream-extract";
-import type { StreamHubContextInput } from "@/types/stream";
+import type { StreamCategoryContextInput } from "@/types/stream";
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import type { StreamExtractResponse } from "@/types/stream";
@@ -49,7 +49,7 @@ export async function loadPursuitStreamContext(
   if (!goal?.categoryId) return null;
 
   const limbId = goal.themeId ?? goal.themeCategory?.themeId ?? "becoming";
-  const hubLabel = canonicalHubDisplayLabel(
+  const categoryLabel = canonicalCategoryDisplayLabel(
     limbId,
     goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId,
   );
@@ -60,7 +60,7 @@ export async function loadPursuitStreamContext(
     themeId: limbId,
     pursuitTitle: goal.title,
     pursuitDescription: goal.description?.trim() ?? "",
-    hubLabel,
+    hubLabel: categoryLabel,
     themeLabel: getLifeArea(limbId)?.label ?? limbId,
     milestones: goal.milestones.map((m) => ({
       id: m.id,
@@ -75,7 +75,7 @@ const EXPLICIT_COMPLETE =
 const EXPLICIT_HOLD =
   /\b(on hold|paused?|shelved|taking a break|put (this |it )?on hold)\b/i;
 
-export function allowPursuitBloomStatus(
+export function allowPursuitStatusFromInput(
   rawInput: string,
   status: string | undefined,
 ): "ACTIVE" | "PAUSED" | "COMPLETE" | undefined {
@@ -85,6 +85,9 @@ export function allowPursuitBloomStatus(
   if (normalized === "PAUSED" && !EXPLICIT_HOLD.test(rawInput)) return undefined;
   return normalized as "ACTIVE" | "PAUSED" | "COMPLETE";
 }
+
+/** @deprecated Use {@link allowPursuitStatusFromInput}. */
+export const allowPursuitBloomStatus = allowPursuitStatusFromInput;
 
 /** Keep only updates for this pursuit; never create/archive/delete pursuits. */
 export function filterPursuitStreamExtraction(
@@ -96,7 +99,7 @@ export function filterPursuitStreamExtraction(
     .filter((u) => u.goalId === goalId)
     .map((u) => ({
       ...u,
-      status: allowPursuitBloomStatus(rawInput, u.status),
+      status: allowPursuitStatusFromInput(rawInput, u.status),
     }))
     .filter((u) => u.description?.trim() || u.title?.trim() || u.status);
 
@@ -133,7 +136,7 @@ export async function runPursuitStreamExtract(
     where: { id: ctx.branchId, userId },
     select: { id: true, themeId: true, label: true },
   });
-  if (!branch) throw new Error("Hub not found");
+  if (!branch) throw new Error("Category not found");
 
   const [goals, archivedGoals, marks, archivedMarks, recentStreamMarks] = await Promise.all([
     prisma.goal.findMany({
@@ -175,10 +178,10 @@ export async function runPursuitStreamExtract(
     }),
   ]);
 
-  const hubContext: StreamHubContextInput = buildStreamHubContextInput({
+  const categoryContext: StreamCategoryContextInput = buildStreamCategoryContextInput({
     branchId: branch.id,
     themeId: branch.themeId,
-    hubLabel: ctx.hubLabel,
+    categoryLabel: ctx.hubLabel,
     existingPursuits: goals.map((g) => ({
       goalId: g.id,
       title: g.title,
@@ -232,7 +235,7 @@ export async function runPursuitStreamExtract(
     formatMapContext(userId, { themeId: ctx.themeId, hubId: ctx.branchId, pursuitId: ctx.goalId }),
   ]);
 
-  const result = await runStreamExtract(hubContext, pursuitFocus, {
+  const result = await runStreamExtract(categoryContext, pursuitFocus, {
     userContext,
     mapContext,
     queueKey: userId,

@@ -4,16 +4,16 @@ import { authOptions } from "@/lib/auth";
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import {
-  buildStreamHubContextInput,
+  buildStreamCategoryContextInput,
   formatPreviousStreamSessionSummary,
   runStreamExtract,
   runStreamGlobalExtract,
   runStreamThemeExtract,
 } from "@/lib/ai/stream-extract";
-import { commitAmbiguousItemsToBranch } from "@/lib/stream-commit-ambiguous";
+import { commitAmbiguousItemsToCategory } from "@/lib/stream-commit-ambiguous";
 import { isValidHubSlugForTheme, resolveBranchForHub } from "@/lib/resolve-category";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
-import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
+import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { prisma } from "@/lib/prisma";
 import { buildStreamThemeContextInput } from "@/lib/stream-theme-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
           byBranch.set(resolved.categoryId, entry);
         }
         for (const [branchId, entry] of byBranch) {
-          const { committed } = await commitAmbiguousItemsToBranch(
+          const { committed } = await commitAmbiguousItemsToCategory(
             userId,
             branchId,
             entry.limbId,
@@ -224,7 +224,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Hub not found" }, { status: 404 });
     }
 
-    const hubLabel = canonicalHubDisplayLabel(branch.themeId, branch.label ?? branch.id);
+    const categoryLabel = canonicalCategoryDisplayLabel(branch.themeId, branch.label ?? branch.id);
 
     const [goals, archivedGoals, marks, archivedMarks, recentStreamMarks] = await Promise.all([
       prisma.goal.findMany({
@@ -278,10 +278,10 @@ export async function POST(request: Request) {
       [...recentStreamMarks].reverse().map((m) => m.title),
     );
 
-    const hubContext = buildStreamHubContextInput({
+    const categoryContext = buildStreamCategoryContextInput({
       branchId: branch.id,
       themeId: branch.themeId,
-      hubLabel,
+      categoryLabel,
       existingPursuits: goals.map((g) => ({
         goalId: g.id,
         title: g.title,
@@ -311,9 +311,9 @@ export async function POST(request: Request) {
       ]);
       const placementNote =
         mapGridQ !== undefined && mapGridR !== undefined
-          ? `User claimed grid cell q=${mapGridQ}, r=${mapGridR} on theme ${branch.themeId}, track "${hubLabel}".`
+          ? `User claimed grid cell q=${mapGridQ}, r=${mapGridR} on theme ${branch.themeId}, category "${categoryLabel}".`
           : undefined;
-      const result = await runStreamExtract(hubContext, input, {
+      const result = await runStreamExtract(categoryContext, input, {
         userContext,
         mapContext,
         placementNote,
@@ -321,7 +321,7 @@ export async function POST(request: Request) {
       });
       let committedAmbiguousCount = 0;
       if (result.ambiguous.length > 0) {
-        const { committed } = await commitAmbiguousItemsToBranch(
+        const { committed } = await commitAmbiguousItemsToCategory(
           userId,
           branch.id,
           branch.themeId,

@@ -14,7 +14,7 @@ import {
   runStreamThemeExtract,
 } from "../src/lib/ai/stream-extract";
 import type { FormattedMapContext } from "../src/lib/ai/format-map-context";
-import { hubPanelCopy } from "../src/lib/category-catalog";
+import { categoryPanelCopy } from "../src/lib/category-catalog";
 import { hasGeminiKey } from "../src/lib/gemini";
 import { pickBestHubSlugForThemeInput } from "../src/lib/stream-theme-context";
 import { getLifeArea } from "../src/lib/life-areas";
@@ -113,17 +113,17 @@ function mockBranchId(): string {
 }
 
 function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
-  const hubs: StreamThemeHubContextInput[] = categoriesForTheme(themeId).map((t) => {
-    const copy = hubPanelCopy(themeId, t.threadType);
+  const categories: StreamThemeCategoryContextInput[] = categoriesForTheme(themeId).map((t) => {
+    const copy = categoryPanelCopy(themeId, t.threadType);
     return {
       categorySlug: normalizeStreamCategorySlug(t.threadType),
-      hubLabel: t.threadType,
+      categoryLabel: t.threadType,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,
       belongsHere: copy.belongsHere,
       doesNotBelongHere: copy.doesNotBelongHere,
       examples: copy.examples,
-      categoryId: mockBranchId(),
+      branchId: mockBranchId(),
       existingPursuits: [],
       existingMarks: [],
       removedPursuits: [],
@@ -133,7 +133,7 @@ function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
   return {
     themeId,
     themeName: getLifeArea(themeId)?.label ?? themeId,
-    hubs,
+    categories,
     previousThemeSessionContext: "None yet",
   };
 }

@@ -7,7 +7,7 @@ import {
   validCategoryLabelKeysForTheme,
   LIFE_AREA_IDS,
 } from "@/lib/taxonomy";
-import { systemHubKey } from "@/lib/system-categories";
+import { systemCategoryKey } from "@/lib/system-categories";
 
 export type ResolvedCategory = {
   categoryId: string;
@@ -57,7 +57,7 @@ export async function resolveBranchForHub(
   });
 
   const match = roots.find(
-    (b) => systemHubKey(b.themeId, b.label ?? b.name) === systemHubKey(themeId, template.threadType),
+    (b) => systemCategoryKey(b.themeId, b.label ?? b.name) === systemCategoryKey(themeId, template.threadType),
   );
   if (!match) return null;
 
@@ -84,12 +84,12 @@ export async function resolveAllHubBranchesForTheme(
 
   const byKey = new Map<string, (typeof roots)[number]>();
   for (const b of roots) {
-    byKey.set(systemHubKey(b.themeId, b.label ?? b.name), b);
+    byKey.set(systemCategoryKey(b.themeId, b.label ?? b.name), b);
   }
 
   const out: ResolvedCategory[] = [];
   for (const t of templates) {
-    const key = systemHubKey(t.limbId, t.threadType);
+    const key = systemCategoryKey(t.limbId, t.threadType);
     const branch = byKey.get(key);
     if (!branch) continue;
     out.push({

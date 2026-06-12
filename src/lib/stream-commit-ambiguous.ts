@@ -21,8 +21,8 @@ type AmbiguousMarkResult =
   | { ok: true; mark: UnresolvedAmbiguousMark }
   | { ok: false; error: string; status: number };
 
-/** Place ambiguous Stream items on the hub as unresolved marks (visible on tree). */
-export async function commitAmbiguousItemsToBranch(
+/** Place ambiguous Stream items on the category as unresolved marks (visible on tree). */
+export async function commitAmbiguousItemsToCategory(
   userId: string,
   categoryId: string,
   limbId: string,
@@ -108,55 +108,63 @@ async function getUnresolvedAmbiguousMark(
   return { ok: true, mark };
 }
 
-export async function moveUnresolvedMarkToBranch(
+export async function moveUnresolvedMarkToCategory(
   userId: string,
   markId: string,
-  targetBranchId: string,
+  targetCategoryId: string,
 ): Promise<AmbiguousMarkResult> {
   const current = await getUnresolvedAmbiguousMark(userId, markId);
   if (!current.ok) return current;
   const { mark } = current;
 
-  if (mark.categoryId === targetBranchId) {
+  if (mark.categoryId === targetCategoryId) {
     return { ok: true, mark };
   }
 
-  const targetBranch = await prisma.themeCategory.findFirst({
-    where: { id: targetBranchId, userId },
+  const targetCategory = await prisma.themeCategory.findFirst({
+    where: { id: targetCategoryId, userId },
     select: { id: true, themeId: true },
   });
-  if (!targetBranch) {
-    return { ok: false, error: "Target hub not found", status: 400 };
+  if (!targetCategory) {
+    return { ok: false, error: "Target category not found", status: 400 };
   }
 
   let moved: UnresolvedAmbiguousMark | null = null;
   await prisma.$transaction(async (tx) => {
-    const nodes = await loadCategorySequencedNodes(tx, targetBranch.id);
+    const nodes = await loadCategorySequencedNodes(tx, targetCategory.id);
     const seqRes = resolveSequenceAnchor(nodes, { kind: "append" });
     await applySequenceResolution(tx, seqRes);
 
     moved = await tx.mark.update({
       where: { id: mark.id },
       data: {
-        categoryId: targetBranch.id,
-        themeId: targetBranch.themeId,
+        categoryId: targetCategory.id,
+        themeId: targetCategory.themeId,
         sequencePosition: seqRes.sequencePosition,
       },
       select: { id: true, categoryId: true, themeId: true, title: true, description: true },
     });
   });
 
-  return { ok: true, mark: moved ?? { ...mark, categoryId: targetBranch.id, themeId: targetBranch.themeId } };
+  return {
+    ok: true,
+    mark: moved ?? { ...mark, categoryId: targetCategory.id, themeId: targetCategory.themeId },
+  };
 }
+
+/** @deprecated Use {@link commitAmbiguousItemsToCategory}. */
+export const commitAmbiguousItemsToBranch = commitAmbiguousItemsToCategory;
+/** @deprecated Use {@link moveUnresolvedMarkToCategory}. */
+export const moveUnresolvedMarkToBranch = moveUnresolvedMarkToCategory;
 
 export async function resolveAmbiguousMark(
   userId: string,
   markId: string,
   resolution: StreamAmbiguousResolution,
-  targetBranchId?: string,
+  targetCategoryId?: string,
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const markResult = targetBranchId
-    ? await moveUnresolvedMarkToBranch(userId, markId, targetBranchId)
+  const markResult = targetCategoryId
+    ? await moveUnresolvedMarkToCategory(userId, markId, targetCategoryId)
     : await getUnresolvedAmbiguousMark(userId, markId);
   if (!markResult.ok) return markResult;
 
@@ -184,7 +192,7 @@ export async function resolveAmbiguousMark(
 
   await prisma.$transaction(async (tx) => {
     const appendAnchor = { kind: "append" as const };
-    const nodes = await loadCategorySequencedNodes(tx, targetBranchId ?? mark.categoryId);
+    const nodes = await loadCategorySequencedNodes(tx, targetCategoryId ?? mark.categoryId);
     const seqRes = resolveSequenceAnchor(nodes, appendAnchor);
     await applySequenceResolution(tx, seqRes);
 

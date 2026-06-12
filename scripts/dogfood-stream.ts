@@ -20,7 +20,7 @@ import {
 } from "./lib/stream-dogfood-queue";
 import type { LifeAreaId } from "../src/lib/types";
 import { validCategoryLabelKeysForTheme } from "../src/lib/taxonomy";
-import { systemHubKey } from "../src/lib/system-categories";
+import { systemCategoryKey } from "../src/lib/system-categories";
 import type {
   ExtractedMilestone,
   ExtractedPursuit,
@@ -221,7 +221,7 @@ async function loadMap(): Promise<MapSnapshot> {
     id: b.id,
     themeId: b.themeId,
     label: b.label ?? b.name ?? "",
-    hubSlug: systemHubKey(b.themeId, b.label ?? b.name).split("::")[1] ?? "",
+    hubSlug: systemCategoryKey(b.themeId, b.label ?? b.name).split("::")[1] ?? "",
   }));
 
   const branchByThemeHub = new Map<string, string>();
@@ -247,9 +247,12 @@ async function loadMap(): Promise<MapSnapshot> {
   });
 
   const goals: MapGoal[] = goalsRaw.map((g) => {
-    const limbId = g.themeCategory?. ?? "work";
-    const hubSlug = g.branch
-      ? systemHubKey(limbId, g.themeCategory. ?? g.themeCategory.).split("::")[1] ?? null
+    const limbId = g.themeCategory?.themeId ?? "work";
+    const hubSlug = g.themeCategory
+      ? systemCategoryKey(
+          limbId,
+          g.themeCategory.label ?? g.themeCategory.name ?? "",
+        ).split("::")[1] ?? null
       : null;
     return {
       id: g.id,

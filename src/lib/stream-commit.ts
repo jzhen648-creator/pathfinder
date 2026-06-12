@@ -1,7 +1,7 @@
-import type { BloomStatus, Prisma } from "@prisma/client";
+import type { Prisma, PursuitStatus } from "@prisma/client";
 
-/** Stream must not overwrite terminal or user-set bloom states. */
-function isStreamProtectedBloom(status: BloomStatus): boolean {
+/** Stream must not overwrite terminal or user-set pursuit status values. */
+function isStreamProtectedStatus(status: PursuitStatus): boolean {
   return status === "COMPLETE" || status === "MAINTAINING";
 }
 import {
@@ -22,7 +22,7 @@ import {
   type CategoryResolver,
 } from "@/lib/resolve-category";
 import { dedupeDuplicateRootCategories } from "@/lib/category-dedupe";
-import { activateHubForUser } from "@/lib/system-categories";
+import { activateCategoryForUser } from "@/lib/system-categories";
 import {
   recordStreamGlobalSession,
   recordStreamThemeSession,
@@ -273,7 +273,7 @@ async function commitItemsToBranchInTx(
     const description = p.description?.trim() ?? "";
 
     const { goalType, status: normalizedStatus } = normalizeIngestedPursuitType(p);
-    const pursuitStatus = normalizedStatus as BloomStatus;
+    const pursuitStatus = normalizedStatus as PursuitStatus;
     const sequencePosition = await nextSequencePosition();
     const { iconName, shortLabel } = await assignPursuitVisualsSafe({
       title,
@@ -301,7 +301,7 @@ async function commitItemsToBranchInTx(
         year: defaultYear,
         month: defaultMonth,
         sequencePosition,
-        ...(pursuitStatus === "COMPLETE" ? { bloomedAt: new Date() } : {}),
+        ...(pursuitStatus === "COMPLETE" ? { completedAt: new Date() } : {}),
       },
     });
 
@@ -323,15 +323,15 @@ async function commitItemsToBranchInTx(
     const title = p.title.trim();
     const updateData: {
       title?: string;
-      status?: BloomStatus;
-      bloomedAt?: Date;
+      status?: PursuitStatus;
+      completedAt?: Date;
     } = {};
 
     const currentBloom = currentBloomByGoalId.get(goalId);
-    if (currentBloom && !isStreamProtectedBloom(currentBloom)) {
+    if (currentBloom && !isStreamProtectedStatus(currentBloom)) {
       if (p.status === "COMPLETE") {
         updateData.status = "COMPLETE";
-        updateData.bloomedAt = new Date();
+        updateData.completedAt = new Date();
         forceBloomedGoalIds.add(goalId);
         bloomedPursuits += 1;
       } else if (p.status === "PAUSED") {
@@ -511,16 +511,16 @@ async function applyStreamOperationsInTx(
     const data: {
       title?: string;
       description?: string;
-      status?: BloomStatus;
-      bloomedAt?: Date | null;
+      status?: PursuitStatus;
+      completedAt?: Date | null;
     } = {};
     if (op.title?.trim()) {
       data.title = op.title.trim();
       goalsNeedingShortLabel.add(op.goalId);
     }
-    if (op.status && !isStreamProtectedBloom(goal.status)) {
-      data.status = op.status as BloomStatus;
-      data.bloomedAt = op.status === "COMPLETE" ? new Date() : null;
+    if (op.status && !isStreamProtectedStatus(goal.status)) {
+      data.status = op.status as PursuitStatus;
+      data.completedAt = op.status === "COMPLETE" ? new Date() : null;
     }
     if (Object.keys(data).length === 0) continue;
 
@@ -589,7 +589,7 @@ export async function commitStreamToCategory(
   }
 
   if (!branch.isActive) {
-    await activateHubForUser(prisma, userId, branch.id);
+    await activateCategoryForUser(prisma, userId, branch.id);
   }
 
   const marks: ExtractedMark[] = [...payload.marks];
@@ -821,7 +821,7 @@ export async function commitStreamToTheme(
       select: { isActive: true },
     });
     if (row && !row.isActive) {
-      await activateHubForUser(prisma, userId, branch.id);
+      await activateCategoryForUser(prisma, userId, branch.id);
     }
   }
 
@@ -949,7 +949,7 @@ export async function commitStreamGlobal(
 
   for (const branch of branchById.values()) {
     if (!branch.isActive) {
-      await activateHubForUser(prisma, userId, branch.id);
+      await activateCategoryForUser(prisma, userId, branch.id);
     }
   }
 

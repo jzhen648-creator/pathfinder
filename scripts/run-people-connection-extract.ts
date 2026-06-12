@@ -13,7 +13,7 @@ import { PrismaClient } from "@prisma/client";
 import { formatMapContext } from "../src/lib/ai/format-map-context";
 import { formatUserContext } from "../src/lib/ai/format-user-context";
 import {
-  buildStreamHubContextInput,
+  buildStreamCategoryContextInput,
   formatPreviousStreamSessionSummary,
   runStreamExtract,
   runStreamThemeExtract,
@@ -65,9 +65,9 @@ async function loadHubContext(userId: string, hubSlug: string) {
     where: { userId, parentCategoryId: null, themeId: "people" },
     select: { id: true, themeId: true, label: true, name: true },
   });
-  const { systemHubKey } = await import("../src/lib/system-categories");
+  const { systemCategoryKey } = await import("../src/lib/system-categories");
   const match = branches.find(
-    (b) => systemHubKey(b.themeId, b.label ?? b.name).split("::")[1] === hubSlug,
+    (b) => systemCategoryKey(b.themeId, b.label ?? b.name).split("::")[1] === hubSlug,
   );
   if (!match) throw new Error(`Hub not found: people::${hubSlug}`);
 
@@ -116,10 +116,10 @@ async function loadHubContext(userId: string, hubSlug: string) {
     }),
   ]);
 
-  return buildStreamHubContextInput({
+  return buildStreamCategoryContextInput({
     categoryId: match.id,
     themeId: match.themeId,
-    hubLabel: match.label ?? match.name ?? hubSlug,
+    categoryLabel: match.label ?? match.name ?? hubSlug,
     existingPursuits: goals.map((g) => ({
       goalId: g.id,
       title: g.title,

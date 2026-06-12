@@ -1,8 +1,8 @@
 /**
- * Re-runs bloom lifecycle for every non-paused goal → **ACTIVE** / **COMPLETE**.
+ * Re-runs pursuit status lifecycle for every non-paused goal → **ACTIVE** / **COMPLETE**.
  * Safe to run multiple times. Repairs stale **ACTIVE** rows when milestones imply completion.
  *
- * Run from repo root: npm run backfill:goal-bloom
+ * Run from repo root: npm run backfill:goal-status
  */
 import { PrismaClient } from "@prisma/client";
 import { recomputeGoalStatus } from "../src/lib/goal-status-recompute";
@@ -23,7 +23,9 @@ async function main() {
       console.error(`recomputeGoalStatus failed for ${g.id}`, e);
     }
   }
-  console.log(`Backfill complete: recomputed ${ok} / ${goals.length} goals (excluding paused/maintaining/abandoned).`);
+  console.log(
+    `Backfill complete: recomputed ${ok} / ${goals.length} pursuits (excluding paused/maintaining/abandoned).`,
+  );
 }
 
 main()

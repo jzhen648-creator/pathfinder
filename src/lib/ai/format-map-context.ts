@@ -1,5 +1,5 @@
-import type { BloomStatus } from "@prisma/client";
-import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
+import type { PursuitStatus } from "@prisma/client";
+import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import { prisma } from "@/lib/prisma";
@@ -145,7 +145,7 @@ function buildPursuitRow(
 function pursuitStatusWhere(filter: MapContextFilter) {
   const excludePaused = filter.excludePaused ?? filter.excludeOnHold ?? false;
   const excludeAbandoned = filter.excludeAbandoned ?? false;
-  const notIn: BloomStatus[] = [];
+  const notIn: PursuitStatus[] = [];
   if (excludePaused) notIn.push("PAUSED");
   if (excludeAbandoned) notIn.push("ABANDONED");
   if (notIn.length === 0) return {};
@@ -242,7 +242,7 @@ export async function formatMapContext(
     }
 
     const hubRawLabel = branch.label ?? branch.name ?? branch.id;
-    const section = canonicalHubDisplayLabel(branch.themeId, hubRawLabel);
+    const section = canonicalCategoryDisplayLabel(branch.themeId, hubRawLabel);
     const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
 
     theme.hubs.push({
@@ -283,7 +283,7 @@ export async function formatPursuitContext(
   const themeId = goal.themeId ?? goal.themeCategory?.themeId ?? "becoming";
   const themeLabel = getLifeArea(themeId)?.label ?? themeId;
   const hubRawLabel = goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId;
-  const section = canonicalHubDisplayLabel(themeId, hubRawLabel);
+  const section = canonicalCategoryDisplayLabel(themeId, hubRawLabel);
 
   const siblingGoals = await prisma.goal.findMany({
     where: {
@@ -336,7 +336,7 @@ export async function formatPursuitContext(
       id: sibling.id,
       title: sibling.title,
       status: sibling.status,
-      section: canonicalHubDisplayLabel(
+      section: canonicalCategoryDisplayLabel(
         themeId,
         sibling.themeCategory?.label ?? sibling.themeCategory?.name ?? "",
       ),

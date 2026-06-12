@@ -1,6 +1,6 @@
 /**
- * 1. Wipes goals, marks, milestones, reframes, and non-system branches.
- *    Preserves system hub rows (isSystemCategory) and resets them to dormant.
+ * 1. Wipes goals, marks, milestones, reframes, and non-system categories.
+ *    Preserves system category rows (isSystemCategory) and resets them to dormant.
  * 2. Optionally deletes demo/test accounts.
  *
  * Run: npm run wipe:all-user-data
@@ -66,16 +66,16 @@ async function wipeAllUserData(): Promise<void> {
   console.log(`  marks:                 ${marks.count}`);
   console.log(`  goal evaluation cache: ${caches.count}`);
   console.log(`  goals (+ milestones):  ${goals.count}`);
-  console.log(`  custom branches:       ${customBranches.count}`);
+  console.log(`  custom categories:     ${customBranches.count}`);
   console.log(`  trunk entries:         ${trunkEntries.count}`);
   console.log(`  trunk segments:        ${trunkSegments.count}`);
-  console.log(`\nReset ${hubReset.count} system hub(s) to dormant.`);
+  console.log(`\nReset ${hubReset.count} system categor(ies) to dormant.`);
   console.log(`Cleared profile/onboarding on ${profileReset.count} user(s).`);
 
-  console.log("\nEnsuring 17 system hubs per user…");
+  console.log("\nEnsuring 17 system categories per user…");
   for (const user of users) {
     const created = await ensureSystemCategoriesForUser(prisma, user.id);
-    if (created > 0) console.log(`  ${user.email}: created ${created} hub(s)`);
+    if (created > 0) console.log(`  ${user.email}: created ${created} categor(ies)`);
   }
 }
 

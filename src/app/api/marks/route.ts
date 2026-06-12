@@ -15,7 +15,7 @@ import {
   loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
-import { activateHubForUser } from "@/lib/system-categories";
+import { activateCategoryForUser } from "@/lib/system-categories";
 
 function inferSentiment(input: {
   sentiment?: "positive" | "neutral" | "negative";
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     );
   }
   if (!branch.isActive) {
-    await activateHubForUser(prisma, userId, branch.id);
+    await activateCategoryForUser(prisma, userId, branch.id);
   }
   if (branch.themeId !== input.limbId) {
     return NextResponse.json(

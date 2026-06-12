@@ -1,19 +1,19 @@
 /**
- * Pure goal status lifecycle rules (no Prisma). Shared by server recomputation.
+ * Pure pursuit status lifecycle rules (no Prisma). Shared by server recomputation.
  *
  * Continuations (`parentGoalId` / successors) do **not** affect lifecycle — only planning + achievement do.
  */
 
-import type { BloomStatus } from "@prisma/client";
+import type { PursuitStatus } from "@prisma/client";
 import {
   milestoneDoneForSemantics,
   type MilestoneSemanticsInput,
 } from "@/lib/milestone-semantics";
 
-export type BloomBadgeBucket = "active" | "complete" | "on_hold";
+export type PursuitStatusBadgeBucket = "active" | "complete" | "on_hold";
 
 /** User-facing pursuit status label. */
-export function formatBloomStatusLabel(status: BloomStatus | string): string {
+export function formatPursuitStatusLabel(status: PursuitStatus | string): string {
   switch (status) {
     case "ACTIVE":
       return "Active";
@@ -31,14 +31,14 @@ export function formatBloomStatusLabel(status: BloomStatus | string): string {
   }
 }
 
-export function badgeBucketFromBloom(status: BloomStatus | string): BloomBadgeBucket {
+export function badgeBucketFromStatus(status: PursuitStatus | string): PursuitStatusBadgeBucket {
   if (status === "PAUSED" || status === "ON_HOLD") return "on_hold";
   if (status === "COMPLETE") return "complete";
   return "active";
 }
 
 /** Map legacy persisted values during transition (pre-migration rows and inbound JSON). */
-export function normalizeLegacyBloomStatus(status: string): BloomStatus | null {
+export function normalizeLegacyPursuitStatus(status: string): PursuitStatus | null {
   if (status === "ON_HOLD") return "PAUSED";
   if (
     status === "ACTIVE" ||
@@ -63,8 +63,8 @@ export function milestoneIsFullyCompleted(milestone: MilestoneLifecycleInput): b
   return milestoneDoneForSemantics(milestone);
 }
 
-/** Goal is achieved for lifecycle → COMPLETE (roadmap goals vs moment/event without milestones). */
-export function goalAchievedForBloomLifecycle(
+/** Pursuit (`Goal` row) is achieved for lifecycle → COMPLETE. */
+export function goalAchievedForLifecycle(
   goal: { goalType: string; future: boolean; year: number | null },
   milestones: MilestoneLifecycleInput[],
   nowYear: number,
@@ -78,14 +78,29 @@ export function goalAchievedForBloomLifecycle(
   return milestones.every(milestoneDoneForSemantics);
 }
 
-export type GoalLifecycleBloom = "ACTIVE" | "COMPLETE";
+export type GoalLifecycleStatus = "ACTIVE" | "COMPLETE";
 
-/** Canonical lifecycle states for an active (non-paused) goal. */
-export function computeGoalLifecycleBloom(
+/** Canonical lifecycle states for an active (non-paused) pursuit. */
+export function computeGoalLifecycleStatus(
   goal: { goalType: string; future: boolean; year: number | null },
   milestones: MilestoneLifecycleInput[],
   nowYear: number,
-): GoalLifecycleBloom {
-  if (goalAchievedForBloomLifecycle(goal, milestones, nowYear)) return "COMPLETE";
+): GoalLifecycleStatus {
+  if (goalAchievedForLifecycle(goal, milestones, nowYear)) return "COMPLETE";
   return "ACTIVE";
 }
+
+/** @deprecated Use {@link PursuitStatusBadgeBucket}. */
+export type BloomBadgeBucket = PursuitStatusBadgeBucket;
+/** @deprecated Use {@link formatPursuitStatusLabel}. */
+export const formatBloomStatusLabel = formatPursuitStatusLabel;
+/** @deprecated Use {@link badgeBucketFromStatus}. */
+export const badgeBucketFromBloom = badgeBucketFromStatus;
+/** @deprecated Use {@link normalizeLegacyPursuitStatus}. */
+export const normalizeLegacyBloomStatus = normalizeLegacyPursuitStatus;
+/** @deprecated Use {@link goalAchievedForLifecycle}. */
+export const goalAchievedForBloomLifecycle = goalAchievedForLifecycle;
+/** @deprecated Use {@link GoalLifecycleStatus}. */
+export type GoalLifecycleBloom = GoalLifecycleStatus;
+/** @deprecated Use {@link computeGoalLifecycleStatus}. */
+export const computeGoalLifecycleBloom = computeGoalLifecycleStatus;

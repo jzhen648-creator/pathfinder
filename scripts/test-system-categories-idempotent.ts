@@ -1,9 +1,12 @@
 /**
- * Minimal idempotency check: ensureSystemCategoriesForUser twice => 17 system hubs, no duplicates.
- * Run: npx tsx scripts/test-system-hubs-idempotent.ts
+ * Minimal idempotency check: ensureSystemCategoriesForUser twice => 17 system categories, no duplicates.
+ * Run: npx tsx scripts/test-system-categories-idempotent.ts
  */
 import { PrismaClient } from "@prisma/client";
-import { ensureSystemCategoriesForUser, listSystemHubKeysForUser } from "../src/lib/system-categories";
+import {
+  ensureSystemCategoriesForUser,
+  listSystemCategoryKeysForUser,
+} from "../src/lib/system-categories";
 import { LOCKED_CATEGORY_TEMPLATES } from "../src/lib/taxonomy";
 
 const prisma = new PrismaClient();
@@ -18,7 +21,7 @@ async function main() {
 
   const first = await ensureSystemCategoriesForUser(prisma, user.id);
   const second = await ensureSystemCategoriesForUser(prisma, user.id);
-  const keys = await listSystemHubKeysForUser(prisma, user.id);
+  const keys = await listSystemCategoryKeysForUser(prisma, user.id);
   const count = await prisma.themeCategory.count({
     where: { userId: user.id, isSystemCategory: true, parentCategoryId: null },
   });
@@ -26,7 +29,7 @@ async function main() {
   console.log(`User: ${user.email}`);
   console.log(`Created on 1st call: ${first}`);
   console.log(`Created on 2nd call: ${second} (expect 0)`);
-  console.log(`System hub rows: ${count} (expect ${LOCKED_CATEGORY_TEMPLATES.length})`);
+  console.log(`System category rows: ${count} (expect ${LOCKED_CATEGORY_TEMPLATES.length})`);
   console.log(`Unique keys: ${keys.length}`);
 
   if (second !== 0 || count !== LOCKED_CATEGORY_TEMPLATES.length || keys.length !== LOCKED_CATEGORY_TEMPLATES.length) {

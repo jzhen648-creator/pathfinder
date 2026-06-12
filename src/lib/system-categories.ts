@@ -132,9 +132,3 @@ export async function listSystemCategoryKeysForUser(
 }
 
 export { normLabel };
-
-export const systemHubKey = systemCategoryKey;
-export const isLockedSystemHub = isLockedSystemCategory;
-export const ensureSystemHubsForUser = ensureSystemCategoriesForUser;
-export const activateHubForUser = activateCategoryForUser;
-export const listSystemHubKeysForUser = listSystemCategoryKeysForUser;

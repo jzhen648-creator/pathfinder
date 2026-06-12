@@ -1,8 +1,8 @@
-import type { BloomStatus, Prisma } from "@prisma/client";
+import type { Prisma, PursuitStatus } from "@prisma/client";
 import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
-import { activateHubForUser } from "@/lib/system-categories";
+import { activateCategoryForUser } from "@/lib/system-categories";
 import { queueMemoryUpdateAfterStream } from "@/lib/memory/queue-memory-update";
 import {
   loadPursuitStreamContext,
@@ -181,7 +181,7 @@ export async function savePendingPursuitCapture(
         inputMode,
         status: "pending",
         previousDescription: goalRow.description,
-        previousBloomStatus: goalRow.status,
+        previousStatus: goalRow.status,
         expiresAt,
       },
     });
@@ -329,7 +329,7 @@ export async function digestPendingStreamRun(
     return { ok: false, streamRunId: run.id, rawInput: run.rawInput, error: "Hub not found", status: 404 };
   }
   if (!branchRow.isActive) {
-    await activateHubForUser(prisma, userId, branchRow.id);
+    await activateCategoryForUser(prisma, userId, branchRow.id);
   }
 
   try {
@@ -350,8 +350,8 @@ export async function digestPendingStreamRun(
         const data: {
           title?: string;
           description?: string;
-          status?: BloomStatus;
-          bloomedAt?: Date | null;
+          status?: PursuitStatus;
+          completedAt?: Date | null;
           sourceStreamRunId?: string;
           currentAmount?: number;
           unit?: string;
@@ -360,8 +360,8 @@ export async function digestPendingStreamRun(
         if (update.title?.trim()) data.title = update.title.trim();
         if (update.description?.trim()) data.description = update.description.trim();
         if (update.status && goalRow.status !== "MAINTAINING") {
-          data.status = update.status as BloomStatus;
-          data.bloomedAt = update.status === "COMPLETE" ? new Date() : null;
+          data.status = update.status as PursuitStatus;
+          data.completedAt = update.status === "COMPLETE" ? new Date() : null;
         }
 
         if (ctx.themeId === "finance" && data.description) {
@@ -385,12 +385,12 @@ export async function digestPendingStreamRun(
             newDescription: data.description,
           });
         }
-        if (data.status && data.status !== run.previousBloomStatus) {
+        if (data.status && data.status !== run.previousStatus) {
           items.push({
             kind: "status",
             goalId: pursuitId,
             previousStatus:
-              (run.previousBloomStatus as "ACTIVE" | "PAUSED" | "COMPLETE") ?? "ACTIVE",
+              (run.previousStatus as "ACTIVE" | "PAUSED" | "COMPLETE") ?? "ACTIVE",
             newStatus: data.status as "ACTIVE" | "PAUSED" | "COMPLETE",
           });
         }
@@ -611,17 +611,17 @@ export async function undoPursuitStreamRun(
         if (goal) {
           const data: {
             description?: string;
-            status?: BloomStatus;
-            bloomedAt?: Date | null;
+            status?: PursuitStatus;
+            completedAt?: Date | null;
             sourceStreamRunId?: null;
           } = { sourceStreamRunId: null };
 
           if (run.previousDescription != null) {
             data.description = run.previousDescription;
           }
-          if (run.previousBloomStatus != null) {
-            data.status = run.previousBloomStatus;
-            data.bloomedAt = run.previousBloomStatus === "COMPLETE" ? new Date() : null;
+          if (run.previousStatus != null) {
+            data.status = run.previousStatus;
+            data.completedAt = run.previousStatus === "COMPLETE" ? new Date() : null;
           }
 
           await tx.goal.update({ where: { id: goal.id }, data });

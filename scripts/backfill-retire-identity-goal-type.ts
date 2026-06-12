@@ -1,5 +1,5 @@
 /**
- * Retire goalType `identity` → `project` (preserve bloomStatus).
+ * Retire goalType `identity` → `project` (preserve status).
  *
  * Run from pathfinder/: npm run backfill:retire-identity
  */

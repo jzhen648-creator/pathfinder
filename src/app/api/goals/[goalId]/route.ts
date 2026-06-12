@@ -65,7 +65,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     future?: boolean;
     archived?: boolean;
     status?: "ACTIVE" | "PAUSED" | "COMPLETE" | "MAINTAINING" | "ABANDONED";
-    bloomedAt?: Date | null;
+    completedAt?: Date | null;
     endedAt?: Date | null;
     endReason?: string | null;
     mapGridQ?: number | null;
@@ -108,13 +108,13 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     if (pursuitStatus === "PAUSED" || pursuitStatus === "ABANDONED") {
       data.endedAt = new Date();
     } else if (pursuitStatus === "COMPLETE") {
-      data.bloomedAt = new Date();
+      data.completedAt = new Date();
       data.endedAt = null;
       data.endReason = null;
     } else {
       data.endedAt = null;
       data.endReason = null;
-      data.bloomedAt = null;
+      data.completedAt = null;
     }
   }
 

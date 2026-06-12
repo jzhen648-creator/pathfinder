@@ -364,11 +364,11 @@ export type AmbiguousItem = z.infer<typeof ambiguousItemSchema>;
 export type StreamItemOrderEntry = z.infer<typeof streamItemOrderEntrySchema>;
 export type StreamExtractResponse = z.infer<typeof streamExtractResponseSchema>;
 
-/** @deprecated Hub-scoped extract context — use {@link StreamThemeHubContextInput} for theme Stream. */
-export type StreamHubContextInput = {
+/** Category-scoped extract context for pursuit Stream. */
+export type StreamCategoryContextInput = {
   branchId: string;
   limbId: string;
-  hubLabel: string;
+  categoryLabel: string;
   themeLabel: string;
   existingPursuits: Array<{
     goalId: string;
@@ -388,19 +388,22 @@ export type StreamHubContextInput = {
   previousStreamSessionSummary: string;
 };
 
+/** @deprecated Use {@link StreamCategoryContextInput}. */
+export type StreamHubContextInput = StreamCategoryContextInput;
+
 /** One category slot within a theme — sent to theme-level extract. */
-export type StreamThemeHubContextInput = {
+export type StreamThemeCategoryContextInput = {
   /** Normalized slug (e.g. "job"). */
   categorySlug: string;
   /** Display label for confirmation UI only. */
-  hubLabel: string;
-  /** Catalog "about" copy for this hub. */
+  categoryLabel: string;
+  /** Catalog "about" copy for this category. */
   about: string;
-  /** Catalog AI routing note for this hub. */
+  /** Catalog AI routing note for this category. */
   aiRoutingNote: string;
   belongsHere: [string, string, string];
   doesNotBelongHere: [string, string, string];
-  /** Example pursuits from hub catalog — sent to the model in every extract. */
+  /** Example pursuits from category catalog — sent to the model in every extract. */
   examples: string[];
   /** Resolved server-side; included for commit/preview, not sent to the model. */
   branchId: string;
@@ -420,10 +423,13 @@ export type StreamThemeHubContextInput = {
   removedMarks: Array<{ title: string; date?: string }>;
 };
 
+/** @deprecated Use {@link StreamThemeCategoryContextInput}. */
+export type StreamThemeHubContextInput = StreamThemeCategoryContextInput;
+
 export type StreamThemeContextInput = {
   themeId: string;
   themeName: string;
-  hubs: StreamThemeHubContextInput[];
+  categories: StreamThemeCategoryContextInput[];
   /** Last 3 theme-level Stream session dumps (chronological), or "None yet". */
   previousThemeSessionContext: string;
 };

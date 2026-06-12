@@ -7,14 +7,14 @@
  * Restores the touched milestone's completedAt after the probe unless --keep-completion is passed.
  *
  * Flags:
- *   --exercise-bloom-update — complete every milestone on the goal, run recompute (hits prisma.goal.update), restore.
+ *   --exercise-status-update — complete every milestone on the goal, run recompute (hits prisma.goal.update), restore.
  */
 import { prisma } from "../src/lib/prisma";
 import { milestoneDoneForSemantics } from "../src/lib/milestone-semantics";
 import { recomputeGoalStatus } from "../src/lib/goal-status-recompute";
 
 const keep = process.argv.includes("--keep-completion");
-const exerciseBloomUpdate = process.argv.includes("--exercise-bloom-update");
+const exerciseStatusUpdate = process.argv.includes("--exercise-status-update");
 
 async function main() {
   const milestone = await prisma.milestone.findFirst({
@@ -35,7 +35,7 @@ async function main() {
 
   const goalId = milestone.goalId;
   const prevCompletedAt = milestone.completedAt;
-  const prevBloom = milestone.goal.status;
+  const prevStatus = milestone.goal.status;
 
   console.log("[diagnose-milestone-recompute] picked milestone", {
     milestoneId: milestone.id,
@@ -49,7 +49,7 @@ async function main() {
         title: s.title,
       })),
     }),
-    goalBloomBefore: prevBloom,
+    goalStatusBefore: prevStatus,
   });
 
   const markAt = new Date();
@@ -78,7 +78,7 @@ async function main() {
 
   const goalAfter = await prisma.goal.findUnique({
     where: { id: goalId },
-    select: { status: true, bloomedAt: true },
+    select: { status: true, completedAt: true },
   });
 
   console.log("[diagnose-milestone-recompute] after recomputeGoalStatus", {
@@ -88,11 +88,11 @@ async function main() {
       : recomputeErr instanceof Error
         ? { message: recomputeErr.message, stack: recomputeErr.stack }
         : recomputeErr,
-    goalBloomAfter: goalAfter?.status,
-    bloomedAtAfter: goalAfter?.bloomedAt?.toISOString() ?? null,
+    goalStatusAfter: goalAfter?.status,
+    completedAtAfter: goalAfter?.completedAt?.toISOString() ?? null,
   });
 
-  if (exerciseBloomUpdate) {
+  if (exerciseStatusUpdate) {
     const all = await prisma.milestone.findMany({
       where: { goalId },
       select: { id: true, completedAt: true },
@@ -107,7 +107,7 @@ async function main() {
         }),
       ),
     );
-    console.log("[diagnose-milestone-recompute] --exercise-bloom-update: marked all milestones complete", {
+    console.log("[diagnose-milestone-recompute] --exercise-status-update: marked all milestones complete", {
       count: all.length,
     });
     try {
@@ -115,11 +115,11 @@ async function main() {
     } catch (e) {
       console.error("[diagnose-milestone-recompute] recompute after full completion FAILED", e);
     }
-    const goalBloomFull = await prisma.goal.findUnique({
+    const goalStatusFull = await prisma.goal.findUnique({
       where: { id: goalId },
-      select: { status: true, bloomedAt: true },
+      select: { status: true, completedAt: true },
     });
-    console.log("[diagnose-milestone-recompute] goal after full milestone completion", goalBloomFull);
+    console.log("[diagnose-milestone-recompute] goal after full milestone completion", goalStatusFull);
     await prisma.$transaction(
       snapshot.map((s) =>
         prisma.milestone.update({
@@ -131,7 +131,7 @@ async function main() {
     await recomputeGoalStatus(goalId).catch((e) =>
       console.error("[diagnose-milestone-recompute] restore after exercise failed", e),
     );
-    console.log("[diagnose-milestone-recompute] --exercise-bloom-update: restored all milestone completedAt.");
+    console.log("[diagnose-milestone-recompute] --exercise-status-update: restored all milestone completedAt.");
     if (!keep) {
       await prisma.milestone.update({
         where: { id: milestone.id },
@@ -144,7 +144,7 @@ async function main() {
     }
   }
 
-  if (!keep && !exerciseBloomUpdate) {
+  if (!keep && !exerciseStatusUpdate) {
     await prisma.milestone.update({
       where: { id: milestone.id },
       data: { completedAt: prevCompletedAt },
@@ -153,7 +153,7 @@ async function main() {
       console.error("[diagnose-milestone-recompute] restore recompute failed", e),
     );
     console.log("[diagnose-milestone-recompute] restored milestone completedAt + reran recompute.");
-  } else if (keep && !exerciseBloomUpdate) {
+  } else if (keep && !exerciseStatusUpdate) {
     console.log("[diagnose-milestone-recompute] --keep-completion: left milestone completed.");
   }
 }

@@ -1,12 +1,15 @@
-import type { BloomStatus } from "@prisma/client";
-import { computeGoalLifecycleBloom } from "@/lib/goal-status-lifecycle";
+import type { PursuitStatus } from "@prisma/client";
+import { computeGoalLifecycleStatus } from "@/lib/goal-status-lifecycle";
 import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
 import { prisma } from "@/lib/prisma";
 
 const LOG = "[recomputeGoalStatus]";
 
 function debugRecompute(): boolean {
-  return process.env.PATHFINDER_DEBUG_RECOMPUTE_GOAL_BLOOM === "1";
+  return (
+    process.env.PATHFINDER_DEBUG_RECOMPUTE_GOAL_STATUS === "1" ||
+    process.env.PATHFINDER_DEBUG_RECOMPUTE_GOAL_BLOOM === "1"
+  );
 }
 
 function milestonePayloadSummary(
@@ -31,15 +34,15 @@ function milestonePayloadSummary(
 }
 
 /**
- * Recomputes and persists goal bloom lifecycle (**ACTIVE** / **COMPLETE**).
+ * Recomputes and persists pursuit lifecycle status (**ACTIVE** / **COMPLETE**).
  * Does not use continuation topology (`forkedGoals`).
- * Does not change PAUSED, ABANDONED, or MAINTAINING goals (user-set; never auto-computed).
+ * Does not change PAUSED, ABANDONED, or MAINTAINING pursuits (user-set; never auto-computed).
  *
- * Lifecycle milestone semantics are delegated to {@link computeGoalLifecycleBloom} →
+ * Lifecycle milestone semantics are delegated to {@link computeGoalLifecycleStatus} →
  * {@link milestoneDoneForSemantics} (explicit `completedAt` primary; subtask rollup only when subtasks exist).
  *
- * **Diagnostics:** `PATHFINDER_DEBUG_RECOMPUTE_GOAL_BLOOM=1` logs milestone shapes, per-milestone semantics,
- * computed bloom, and `prisma.goal.update` payload.
+ * **Diagnostics:** `PATHFINDER_DEBUG_RECOMPUTE_GOAL_STATUS=1` logs milestone shapes, per-milestone semantics,
+ * computed status, and `prisma.goal.update` payload.
  */
 export async function recomputeGoalStatus(goalId: string): Promise<void> {
   let goal;
@@ -76,51 +79,52 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
       goalType: goal.goalType,
       future: goal.future,
       year: goal.year,
-      persistedBloom: goal.status,
+      persistedStatus: goal.status,
       milestoneCount: milestones.length,
       milestones: milestonePayloadSummary(milestones),
     });
   }
 
-  let next: BloomStatus;
+  let next: PursuitStatus;
   try {
-    next = computeGoalLifecycleBloom(
+    next = computeGoalLifecycleStatus(
       { goalType: goal.goalType, future: goal.future, year: goal.year },
       milestones,
       nowYear,
-    ) as BloomStatus;
+    ) as PursuitStatus;
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
-    console.error(`${LOG} computeGoalLifecycleBloom threw`, {
+    console.error(`${LOG} computeGoalLifecycleStatus threw`, {
       goalId,
       message: err.message,
       stack: err.stack,
       milestones: milestonePayloadSummary(milestones),
     });
-    throw Object.assign(err, { phase: "recompute.computeGoalLifecycleBloom" });
+    throw Object.assign(err, { phase: "recompute.computeGoalLifecycleStatus" });
   }
 
-  let bloomedAt = goal.bloomedAt;
+  let completedAt = goal.completedAt;
   if (next === "COMPLETE" && goal.status !== "COMPLETE") {
-    bloomedAt = new Date();
+    completedAt = new Date();
   } else if (next === "ACTIVE") {
-    bloomedAt = null;
+    completedAt = null;
   }
 
-  const bloomChanged = next !== goal.status;
-  const bloomedAtChanged = bloomedAt?.getTime() !== goal.bloomedAt?.getTime();
+  const statusChanged = next !== goal.status;
+  const completedAtChanged = completedAt?.getTime() !== goal.completedAt?.getTime();
 
   if (debugRecompute()) {
     console.info(`${LOG} computed lifecycle`, {
       goalId,
       next,
-      bloomChanged,
-      bloomedAtChanged,
-      prismaGoalUpdate: bloomChanged || bloomedAtChanged ? { status: next, bloomedAt } : "(skip no-op)",
+      statusChanged,
+      completedAtChanged,
+      prismaGoalUpdate:
+        statusChanged || completedAtChanged ? { status: next, completedAt } : "(skip no-op)",
     });
   }
 
-  if (!bloomChanged && !bloomedAtChanged) {
+  if (!statusChanged && !completedAtChanged) {
     return;
   }
 
@@ -129,14 +133,14 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
       where: { id: goalId },
       data: {
         status: next,
-        bloomedAt,
+        completedAt,
       },
     });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
     console.error(`${LOG} prisma.goal.update FAILED`, {
       goalId,
-      data: { status: next, bloomedAt },
+      data: { status: next, completedAt },
       message: err.message,
       stack: err.stack,
     });
@@ -146,7 +150,7 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
   if (debugRecompute()) {
     const verify = await prisma.goal.findUnique({
       where: { id: goalId },
-      select: { status: true, bloomedAt: true },
+      select: { status: true, completedAt: true },
     });
     console.info(`${LOG} prisma.goal.update OK`, {
       goalId,

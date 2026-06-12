@@ -15,11 +15,11 @@ loadEnv({ path: ".env.local", override: true });
 
 import { runStreamThemeExtract } from "../src/lib/ai/stream-extract";
 import { hasGeminiKey } from "../src/lib/gemini";
-import { hubPanelCopy } from "../src/lib/category-catalog";
+import { categoryPanelCopy } from "../src/lib/category-catalog";
 import { LOCKED_CATEGORY_TEMPLATES, normalizeCategoryLabelKey } from "../src/lib/taxonomy";
 import { getLifeArea } from "../src/lib/life-areas";
 import type { LifeAreaId } from "../src/lib/types";
-import type { StreamThemeContextInput, StreamThemeHubContextInput } from "../src/types/stream";
+import type { StreamThemeCategoryContextInput, StreamThemeContextInput } from "../src/types/stream";
 
 // ---------------------------------------------------------------------------
 // Mock context builder — catalog-only (no user data)
@@ -32,17 +32,17 @@ function mockBranchId(): string {
 
 function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
   const templates = LOCKED_CATEGORY_TEMPLATES.filter((t) => t.limbId === themeId);
-  const hubs: StreamThemeHubContextInput[] = templates.map((t) => {
-    const copy = hubPanelCopy(themeId, t.threadType);
+  const categories: StreamThemeCategoryContextInput[] = templates.map((t) => {
+    const copy = categoryPanelCopy(themeId, t.threadType);
     return {
       categorySlug: normalizeCategoryLabelKey(t.threadType),
-      hubLabel: t.threadType,
+      categoryLabel: t.threadType,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,
       belongsHere: copy.belongsHere,
       doesNotBelongHere: copy.doesNotBelongHere,
       examples: copy.examples,
-      categoryId: mockBranchId(),
+      branchId: mockBranchId(),
       existingPursuits: [],
       existingMarks: [],
       removedPursuits: [],
@@ -51,7 +51,7 @@ function buildMockThemeContext(themeId: LifeAreaId): StreamThemeContextInput {
   });
 
   const themeName = getLifeArea(themeId)?.label ?? themeId;
-  return { themeId, themeName, hubs, previousThemeSessionContext: "None yet" };
+  return { themeId, themeName, categories, previousThemeSessionContext: "None yet" };
 }
 
 // ---------------------------------------------------------------------------

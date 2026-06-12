@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
+import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { generateJsonCompletion } from "@/lib/gemini";
 import { generateGoalShortLabel, resolvePursuitShortLabel } from "@/lib/goal-short-label";
 import { getLucideInstalledSlugs, isValidLucideSlug } from "@/lib/icons/enumerate-lucide-slugs";
@@ -171,7 +171,7 @@ export async function persistPursuitVisualsForGoal(goalId: string): Promise<void
   const themeId = row.themeId ?? row.themeCategory?.themeId ?? row.lifeArea;
   const hubLabel = row.themeCategory?.label ?? row.themeCategory?.name ?? "";
   const sectionLabel = themeId
-    ? canonicalHubDisplayLabel(themeId, hubLabel)
+    ? canonicalCategoryDisplayLabel(themeId, hubLabel)
     : hubLabel;
 
   const { iconName, shortLabel } = await assignPursuitVisualsSafe({

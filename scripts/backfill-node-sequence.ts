@@ -1,7 +1,7 @@
 /**
- * Backfill explicit branch-level node ordering across `Goal` + `Mark`.
+ * Backfill explicit category-level node ordering across `Goal` + `Mark`.
  *
- * For each `Branch`, list non-evolution `Goal` rows (`parentGoalId IS NULL`) plus non-archived `Mark` rows
+ * For each `ThemeCategory`, list non-evolution `Goal` rows (`parentGoalId IS NULL`) plus non-archived `Mark` rows
  * **and** `Goal{goalType: moment|event}` rows (the goal-typed moments stay visually correct on the
  * branch line until the separate retirement sprint runs). Sort by `(year ?? date-year, month ?? date-month,
  * createdAt)` ascending and assign `sequencePosition = 100, 200, 300, …` so future inserts have plenty

@@ -1,8 +1,8 @@
 /**
- * Runs hub taxonomy sync for users whose taxonomyVersion !== TAXONOMY_VERSION (or null).
+ * Runs taxonomy sync for users whose taxonomyVersion !== TAXONOMY_VERSION (or null).
  * Safe to re-run; current users are no-ops.
  *
- * Run from repo root: npm run backfill:hub-taxonomy
+ * Run from repo root: npm run backfill:taxonomy
  */
 import { PrismaClient } from "@prisma/client";
 import { dedupeDuplicateRootCategories } from "../src/lib/category-dedupe";

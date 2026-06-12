@@ -7,14 +7,14 @@ import {
 } from "@/lib/ai/stream-extract-normalize";
 import { truncateStreamNarrative } from "@/lib/ai/stream-extract-narrative";
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
-import { hubPanelCopy, type HubCatalogEntry } from "@/lib/category-catalog";
+import { categoryPanelCopy, type CategoryCatalogEntry } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { normalizeStreamCategorySlug } from "@/lib/resolve-category";
 import {
   parseStreamItemOrder,
   streamExtractResponseSchema,
   type StreamExtractResponse,
-  type StreamHubContextInput,
+  type StreamCategoryContextInput,
   type StreamThemeContextInput,
 } from "@/types/stream";
 
@@ -607,7 +607,7 @@ export function shouldIncludePriorContext(input: string): boolean {
   );
 }
 
-function formatHubCatalogForPrompt(copy: HubCatalogEntry): string {
+function formatCategoryCatalogForPrompt(copy: CategoryCatalogEntry): string {
   const lines = [
     `About: ${copy.about}`,
     `AI routing: ${copy.aiRoutingNote}`,
@@ -623,11 +623,13 @@ function formatHubCatalogForPrompt(copy: HubCatalogEntry): string {
 }
 
 export function buildStreamExtractUserMessage(
-  hub: StreamHubContextInput,
+  category: StreamCategoryContextInput,
   input: string,
   options: StreamExtractContextOptions = {},
 ): string {
-  const catalog = formatHubCatalogForPrompt(hubPanelCopy(hub.limbId, hub.hubLabel));
+  const catalog = formatCategoryCatalogForPrompt(
+    categoryPanelCopy(category.limbId, category.categoryLabel),
+  );
   const includePriorContext = shouldIncludePriorContext(input);
   return [
     `Today's date: ${todayYmdUtc()}`,
@@ -663,34 +665,34 @@ export function buildStreamExtractUserMessage(
       : []),
     "",
     "## Hub",
-    `- categorySlug (branchId): ${hub.branchId}`,
-    `- hubName: ${hub.hubLabel}`,
-    `- themeName: ${hub.themeLabel}`,
-    `- themeId (limbId): ${hub.limbId}`,
+    `- categorySlug (branchId): ${category.branchId}`,
+    `- categoryName: ${category.categoryLabel}`,
+    `- themeName: ${category.themeLabel}`,
+    `- themeId (limbId): ${category.limbId}`,
     "",
     "## Hub catalog (scope + routing)",
     catalog,
     "",
     "## Existing pursuits on this hub",
-    JSON.stringify(capPromptPursuits(hub.existingPursuits)),
+    JSON.stringify(capPromptPursuits(category.existingPursuits)),
     "",
     "## Existing marks on this hub",
-    JSON.stringify(capPromptMarks(hub.existingMarks)),
+    JSON.stringify(capPromptMarks(category.existingMarks)),
     "",
     ...(includePriorContext
       ? [
           "## Removed from map (dedup only — hidden pursuits)",
-          JSON.stringify(capPromptPursuits(hub.removedPursuits)),
+          JSON.stringify(capPromptPursuits(category.removedPursuits)),
           "",
           "## Removed from map (dedup only — hidden marks)",
-          JSON.stringify(capPromptMarks(hub.removedMarks)),
+          JSON.stringify(capPromptMarks(category.removedMarks)),
           "",
         ]
       : []),
     ...(includePriorContext
       ? [
           "## Previous Stream sessions on this hub (summary)",
-          hub.previousStreamSessionSummary,
+          category.previousStreamSessionSummary,
           "",
         ]
       : []),
@@ -744,13 +746,13 @@ function withTruncatedNarrative(data: StreamExtractResponse): StreamExtractRespo
 }
 
 export async function runStreamExtract(
-  hub: StreamHubContextInput,
+  category: StreamCategoryContextInput,
   input: string,
   options: StreamExtractContextOptions = {},
 ): Promise<StreamExtractResponse> {
   const raw = await generateJsonCompletion({
     system: STREAM_EXTRACT_SYSTEM_PROMPT,
-    user: buildStreamExtractUserMessage(hub, input, options),
+    user: buildStreamExtractUserMessage(category, input, options),
     maxTokens: 4000,
     temperature: 0.2,
     queueKey: options.queueKey,
@@ -866,37 +868,37 @@ export function buildStreamThemeExtractUserMessage(
   options: StreamExtractContextOptions = {},
 ): string {
   const includePriorContext = shouldIncludePriorContext(input);
-  const hubBlocks = theme.hubs.map((h) =>
+  const categoryBlocks = theme.categories.map((c) =>
     [
-      `### Hub: ${h.hubLabel}`,
-      `- categorySlug (slug, required on every item): ${h.categorySlug}`,
-      `- branchId (internal, do not echo in output): ${h.branchId}`,
+      `### Category: ${c.categoryLabel}`,
+      `- categorySlug (slug, required on every item): ${c.categorySlug}`,
+      `- branchId (internal, do not echo in output): ${c.branchId}`,
       "",
-      "#### Hub catalog (scope + routing)",
-      formatHubCatalogForPrompt({
-        about: h.about,
-        aiRoutingNote: h.aiRoutingNote,
-        belongsHere: h.belongsHere,
-        doesNotBelongHere: h.doesNotBelongHere,
+      "#### Category catalog (scope + routing)",
+      formatCategoryCatalogForPrompt({
+        about: c.about,
+        aiRoutingNote: c.aiRoutingNote,
+        belongsHere: c.belongsHere,
+        doesNotBelongHere: c.doesNotBelongHere,
         why: "",
-        examples: h.examples,
+        examples: c.examples,
         firstTimeQuestion: "",
         coachMarkHubInstruction: "",
       }),
       "",
       "#### Existing pursuits",
-      JSON.stringify(capPromptPursuits(h.existingPursuits)),
+      JSON.stringify(capPromptPursuits(c.existingPursuits)),
       "",
       "#### Existing marks",
-      JSON.stringify(capPromptMarks(h.existingMarks)),
+      JSON.stringify(capPromptMarks(c.existingMarks)),
       ...(includePriorContext
         ? [
             "",
             "#### Removed from map (dedup only — pursuits)",
-            JSON.stringify(capPromptPursuits(h.removedPursuits)),
+            JSON.stringify(capPromptPursuits(c.removedPursuits)),
             "",
             "#### Removed from map (dedup only — marks)",
-            JSON.stringify(capPromptMarks(h.removedMarks)),
+            JSON.stringify(capPromptMarks(c.removedMarks)),
           ]
         : []),
     ].join("\n"),
@@ -931,8 +933,8 @@ export function buildStreamThemeExtractUserMessage(
     `- themeId: ${theme.themeId}`,
     `- themeName: ${theme.themeName}`,
     "",
-    "## Relevant hubs in this theme",
-    hubBlocks.join("\n\n"),
+    "## Relevant categories in this theme",
+    categoryBlocks.join("\n\n"),
     "",
     ...(includePriorContext
       ? [
@@ -944,13 +946,16 @@ export function buildStreamThemeExtractUserMessage(
   ].join("\n");
 }
 
-function scoreHubForText(text: string, hub: StreamThemeContextInput["hubs"][number]): number {
+function scoreCategoryForText(
+  text: string,
+  category: StreamThemeContextInput["categories"][number],
+): number {
   const lower = text.toLowerCase();
   let score = 0;
-  if (lower.includes(hub.categorySlug.toLowerCase())) score += 4;
-  const label = hub.hubLabel.toLowerCase();
+  if (lower.includes(category.categorySlug.toLowerCase())) score += 4;
+  const label = category.categoryLabel.toLowerCase();
   if (label && lower.includes(label)) score += 3;
-  for (const token of `${hub.about} ${hub.aiRoutingNote}`
+  for (const token of `${category.about} ${category.aiRoutingNote}`
     .toLowerCase()
     .split(/\W+/)
     .filter((w) => w.length > 4)) {
@@ -963,32 +968,32 @@ function fillThemeExtractCategorySlugs(
   data: StreamExtractResponse,
   theme: StreamThemeContextInput,
 ): StreamExtractResponse {
-  const validHubSlugs = new Set(theme.hubs.map((h) => h.categorySlug));
-  const defaultHub = theme.hubs[0]?.categorySlug;
-  const goalIdToHub = new Map<string, string>();
-  for (const hub of theme.hubs) {
-    for (const p of hub.existingPursuits) {
-      goalIdToHub.set(p.goalId, hub.categorySlug);
+  const validCategorySlugs = new Set(theme.categories.map((c) => c.categorySlug));
+  const defaultCategory = theme.categories[0]?.categorySlug;
+  const goalIdToCategory = new Map<string, string>();
+  for (const category of theme.categories) {
+    for (const p of category.existingPursuits) {
+      goalIdToCategory.set(p.goalId, category.categorySlug);
     }
   }
 
   const resolveRawHub = (raw: string | undefined): string | null => {
     if (!raw?.trim()) return null;
     const slug = normalizeStreamCategorySlug(raw);
-    return validHubSlugs.has(slug) ? slug : null;
+    return validCategorySlugs.has(slug) ? slug : null;
   };
 
-  const inferHub = (title: string, hint?: string | null): string => {
+  const inferCategory = (title: string, hint?: string | null): string => {
     const fromHint = hint ? resolveRawHub(hint) : null;
     if (fromHint) return fromHint;
 
-    let best = defaultHub ?? "";
+    let best = defaultCategory ?? "";
     let bestScore = -1;
-    for (const hub of theme.hubs) {
-      const score = scoreHubForText(title, hub);
+    for (const category of theme.categories) {
+      const score = scoreCategoryForText(title, category);
       if (score > bestScore) {
         bestScore = score;
-        best = hub.categorySlug;
+        best = category.categorySlug;
       }
     }
     return best;
@@ -998,9 +1003,9 @@ function fillThemeExtractCategorySlugs(
   const pursuits = data.pursuits.map((p, i) => {
     let categorySlug =
       resolveRawHub(p.categorySlug) ??
-      (p.existingGoalId ? goalIdToHub.get(p.existingGoalId) ?? null : null);
+      (p.existingGoalId ? goalIdToCategory.get(p.existingGoalId) ?? null : null);
     if (!categorySlug) {
-      categorySlug = inferHub(p.title, p.categorySlug);
+      categorySlug = inferCategory(p.title, p.categorySlug);
       console.warn(`[runStreamThemeExtract] inferred categorySlug for pursuits[${i}]: ${categorySlug}`);
     }
     if (p.clientKey) clientKeyToHub.set(p.clientKey, categorySlug);
@@ -1010,7 +1015,7 @@ function fillThemeExtractCategorySlugs(
   const marks = data.marks.map((m, i) => {
     let categorySlug = resolveRawHub(m.categorySlug);
     if (!categorySlug) {
-      categorySlug = inferHub(m.title, m.categorySlug);
+      categorySlug = inferCategory(m.title, m.categorySlug);
       console.warn(`[runStreamThemeExtract] inferred categorySlug for marks[${i}]: ${categorySlug}`);
     }
     return { ...m, categorySlug };
@@ -1019,13 +1024,13 @@ function fillThemeExtractCategorySlugs(
   const milestones = data.milestones.map((ms, i) => {
     let categorySlug: string | null = null;
     if (ms.pursuitRef.kind === "existing") {
-      categorySlug = goalIdToHub.get(ms.pursuitRef.goalId) ?? null;
+      categorySlug = goalIdToCategory.get(ms.pursuitRef.goalId) ?? null;
     } else {
       categorySlug = clientKeyToHub.get(ms.pursuitRef.clientKey) ?? null;
     }
     categorySlug = categorySlug ?? resolveRawHub(ms.categorySlug);
     if (!categorySlug) {
-      categorySlug = inferHub(ms.title, ms.categorySlug);
+      categorySlug = inferCategory(ms.title, ms.categorySlug);
       console.warn(`[runStreamThemeExtract] inferred categorySlug for milestones[${i}]: ${categorySlug}`);
     }
     return { ...ms, categorySlug };
@@ -1188,21 +1193,21 @@ export async function runStreamGlobalExtract(
   return parseStreamExtractResponse(json);
 }
 
-export function buildStreamHubContextInput(args: {
+export function buildStreamCategoryContextInput(args: {
   branchId: string;
   themeId: string;
-  hubLabel: string;
-  existingPursuits: StreamHubContextInput["existingPursuits"];
-  existingMarks: StreamHubContextInput["existingMarks"];
-  removedPursuits: StreamHubContextInput["removedPursuits"];
-  removedMarks: StreamHubContextInput["removedMarks"];
+  categoryLabel: string;
+  existingPursuits: StreamCategoryContextInput["existingPursuits"];
+  existingMarks: StreamCategoryContextInput["existingMarks"];
+  removedPursuits: StreamCategoryContextInput["removedPursuits"];
+  removedMarks: StreamCategoryContextInput["removedMarks"];
   previousStreamSessionSummary: string;
-}): StreamHubContextInput {
+}): StreamCategoryContextInput {
   const themeLabel = getLifeArea(args.themeId)?.label ?? args.themeId;
   return {
     branchId: args.branchId,
     limbId: args.themeId,
-    hubLabel: args.hubLabel,
+    categoryLabel: args.categoryLabel,
     themeLabel,
     existingPursuits: args.existingPursuits,
     existingMarks: args.existingMarks,
@@ -1210,4 +1215,14 @@ export function buildStreamHubContextInput(args: {
     removedMarks: args.removedMarks,
     previousStreamSessionSummary: args.previousStreamSessionSummary,
   };
+}
+
+/** @deprecated Use {@link buildStreamCategoryContextInput}. */
+export function buildStreamHubContextInput(
+  args: Parameters<typeof buildStreamCategoryContextInput>[0] & { hubLabel?: string },
+): StreamCategoryContextInput {
+  return buildStreamCategoryContextInput({
+    ...args,
+    categoryLabel: args.categoryLabel ?? args.hubLabel ?? "",
+  });
 }

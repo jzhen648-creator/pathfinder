@@ -20,7 +20,7 @@ import {
   loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
-import { activateHubForUser } from "@/lib/system-categories";
+import { activateCategoryForUser } from "@/lib/system-categories";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   }
 
   if (!branchRecord.isActive) {
-    await activateHubForUser(prisma, userId, branchRecord.id);
+    await activateCategoryForUser(prisma, userId, branchRecord.id);
   }
 
   const title = input.title.trim();

@@ -9,7 +9,7 @@ import {
   type OnboardingScene,
 } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
-import { activateHubForUser } from "@/lib/system-categories";
+import { activateCategoryForUser } from "@/lib/system-categories";
 import { LIFE_AREA_IDS, normalizeCategoryLabelKey } from "@/lib/taxonomy";
 import type { LifeAreaId } from "@/lib/types";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       await unlockThemesForUser(prisma, userId, [themeId]);
     }
     if (selectedHub) {
-      await activateHubForUser(prisma, userId, selectedHub.id);
+      await activateCategoryForUser(prisma, userId, selectedHub.id);
     }
 
     const themeIdToSave =

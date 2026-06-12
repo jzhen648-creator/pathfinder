@@ -822,12 +822,3 @@ export function parseCategoryRedirectTarget(line: string): string | null {
   const m = /\(→\s*([^)]+)\)\s*$/.exec(line.trim());
   return m?.[1]?.trim() ?? null;
 }
-
-export type HubCatalogEntry = CategoryCatalogEntry;
-export const hubCatalogEntry = categoryCatalogEntry;
-export const hubCatalogFallback = categoryCatalogFallback;
-export const hubMapGoalNoun = categoryMapGoalNoun;
-export const hubFirstTimeQuestion = categoryFirstTimeQuestion;
-export const hubPanelCopy = categoryPanelCopy;
-export const canonicalHubDisplayLabel = canonicalCategoryDisplayLabel;
-export const parseHubRedirectTarget = parseCategoryRedirectTarget;

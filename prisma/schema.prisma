@@ -60,8 +60,8 @@ model User {
   userMemoryHistory          UserMemoryHistory[]
 }
 
-/// Goal (`Goal`) lifecycle + reused on `Branch` / timeline derivation.
-enum BloomStatus {
+/// Pursuit (`Goal`) lifecycle + reused on `ThemeCategory` / timeline derivation.
+enum PursuitStatus {
   ACTIVE
   PAUSED
   COMPLETE
@@ -176,8 +176,8 @@ model ThemeCategory {
   isActive            Boolean      @default(false)
   /// Locked taxonomy category (one of 22); protected from wipe scripts.
   isSystemCategory    Boolean      @default(false)
-  lifecycleStatus     BloomStatus  @default(ACTIVE)
-  bloomedAt           DateTime?
+  lifecycleStatus     PursuitStatus  @default(ACTIVE)
+  completedAt         DateTime?
   endedAt             DateTime?
   endReason           String?
   spawnedFromCategoryId String?
@@ -295,8 +295,8 @@ model StreamRun {
   status              StreamRunStatus @default(pending)
   /// Goal.description before this run (for revert).
   previousDescription String?         @db.Text
-  /// Goal.bloomStatus before this run (for revert).
-  previousBloomStatus BloomStatus?
+  /// Goal.status before this run (for revert).
+  previousStatus    PursuitStatus?
   summaryJson         Json?
   expiresAt           DateTime
   createdAt           DateTime        @default(now())
@@ -425,8 +425,8 @@ model Goal {
   /// Soft-removed from tree / timeline; hidden from map. Revive via PATCH `archived: false`.
   archived         Boolean     @default(false)
   /// Lifecycle maturity only (**BUD** / **GROWING** **BLOOMED** / **ENDED**). Not driven by continuation count; **`BRANCHED`** is legacy on goals.
-  status           BloomStatus @default(ACTIVE)
-  bloomedAt        DateTime?
+  status           PursuitStatus @default(ACTIVE)
+  completedAt      DateTime?
   endedAt          DateTime?
   endReason        String?
   /// Predecessor goal when this goal is a **continuation** (evolved from / next chapter). Not a subgoal hierarchy; multiple rows may share one parent.

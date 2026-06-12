@@ -2,7 +2,7 @@ import type { PrismaClient, StreamInputMode } from "@prisma/client";
 
 import { formatPreviousStreamSessionDumps } from "@/lib/ai/stream-extract";
 
-import { hubPanelCopy, parseHubRedirectTarget } from "@/lib/category-catalog";
+import { categoryPanelCopy, parseCategoryRedirectTarget } from "@/lib/category-catalog";
 
 import { getLifeArea } from "@/lib/life-areas";
 
@@ -12,7 +12,11 @@ import { resolveAllHubBranchesForTheme } from "@/lib/resolve-category";
 
 import type { LifeAreaId } from "@/lib/types";
 
-import type { StreamSessionCommitFields, StreamThemeContextInput, StreamThemeHubContextInput } from "@/types/stream";
+import type {
+  StreamSessionCommitFields,
+  StreamThemeCategoryContextInput,
+  StreamThemeContextInput,
+} from "@/types/stream";
 
 const HUB_INFERENCE_STOP_WORDS = new Set([
   "about",
@@ -75,7 +79,7 @@ function phraseMatches(input: string, phrase: string): boolean {
 }
 
 function scoreHubFromCatalog(input: string, themeId: LifeAreaId, hubLabel: string): number {
-  const copy = hubPanelCopy(themeId, hubLabel);
+  const copy = categoryPanelCopy(themeId, hubLabel);
   const hubKey = normalizeForHubInference(hubLabel);
   let score = 0;
 
@@ -94,7 +98,7 @@ function scoreHubFromCatalog(input: string, themeId: LifeAreaId, hubLabel: strin
 
   for (const phrase of copy.doesNotBelongHere) {
     if (phraseMatches(input, phrase) || hubInferenceTokens(stripRedirectHint(phrase)).some((token) => input.includes(token))) {
-      score -= parseHubRedirectTarget(phrase) ? 2 : 1;
+      score -= parseCategoryRedirectTarget(phrase) ? 2 : 1;
     }
   }
 
@@ -240,15 +244,15 @@ export async function buildStreamThemeContextInput(
     sessionQuery,
   ]);
 
-  const goalsByBranch = new Map<string, StreamThemeHubContextInput["existingPursuits"]>();
-  const removedGoalsByBranch = new Map<string, StreamThemeHubContextInput["removedPursuits"]>();
+  const goalsByCategory = new Map<string, StreamThemeCategoryContextInput["existingPursuits"]>();
+  const removedGoalsByCategory = new Map<string, StreamThemeCategoryContextInput["removedPursuits"]>();
   for (const id of branchIds) {
-    goalsByBranch.set(id, []);
-    removedGoalsByBranch.set(id, []);
+    goalsByCategory.set(id, []);
+    removedGoalsByCategory.set(id, []);
   }
   for (const g of goals) {
     if (!g.categoryId) continue;
-    goalsByBranch.get(g.categoryId)?.push({
+    goalsByCategory.get(g.categoryId)?.push({
       goalId: g.id,
       title: g.title,
       goalType: g.goalType,
@@ -258,43 +262,43 @@ export async function buildStreamThemeContextInput(
   }
   for (const g of archivedGoals) {
     if (!g.categoryId) continue;
-    removedGoalsByBranch.get(g.categoryId)?.push({ title: g.title });
+    removedGoalsByCategory.get(g.categoryId)?.push({ title: g.title });
   }
 
-  const marksByBranch = new Map<string, StreamThemeHubContextInput["existingMarks"]>();
-  const removedMarksByBranch = new Map<string, StreamThemeHubContextInput["removedMarks"]>();
+  const marksByCategory = new Map<string, StreamThemeCategoryContextInput["existingMarks"]>();
+  const removedMarksByCategory = new Map<string, StreamThemeCategoryContextInput["removedMarks"]>();
   for (const id of branchIds) {
-    marksByBranch.set(id, []);
-    removedMarksByBranch.set(id, []);
+    marksByCategory.set(id, []);
+    removedMarksByCategory.set(id, []);
   }
   for (const m of marks) {
-    marksByBranch.get(m.categoryId)?.push({
+    marksByCategory.get(m.categoryId)?.push({
       title: m.title,
       ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
     });
   }
   for (const m of archivedMarks) {
-    removedMarksByBranch.get(m.categoryId)?.push({
+    removedMarksByCategory.get(m.categoryId)?.push({
       title: m.title,
       ...(m.date ? { date: m.date.toISOString().slice(0, 10) } : {}),
     });
   }
 
-  const hubs: StreamThemeHubContextInput[] = scopedResolved.map((h) => {
-    const copy = hubPanelCopy(themeId, h.hubLabel);
+  const categories: StreamThemeCategoryContextInput[] = scopedResolved.map((h) => {
+    const copy = categoryPanelCopy(themeId, h.hubLabel);
     return {
       categorySlug: h.hubSlug,
-      hubLabel: h.hubLabel,
+      categoryLabel: h.hubLabel,
       about: copy.about,
       aiRoutingNote: copy.aiRoutingNote,
       belongsHere: copy.belongsHere,
       doesNotBelongHere: copy.doesNotBelongHere,
       examples: copy.examples,
       branchId: h.categoryId,
-      existingPursuits: goalsByBranch.get(h.categoryId) ?? [],
-      existingMarks: marksByBranch.get(h.categoryId) ?? [],
-      removedPursuits: removedGoalsByBranch.get(h.categoryId) ?? [],
-      removedMarks: removedMarksByBranch.get(h.categoryId) ?? [],
+      existingPursuits: goalsByCategory.get(h.categoryId) ?? [],
+      existingMarks: marksByCategory.get(h.categoryId) ?? [],
+      removedPursuits: removedGoalsByCategory.get(h.categoryId) ?? [],
+      removedMarks: removedMarksByCategory.get(h.categoryId) ?? [],
     };
   });
 
@@ -308,7 +312,7 @@ export async function buildStreamThemeContextInput(
   return {
     themeId,
     themeName,
-    hubs,
+    categories,
     previousThemeSessionContext: formatPreviousStreamSessionDumps(chronologicalSessions),
   };
 }
