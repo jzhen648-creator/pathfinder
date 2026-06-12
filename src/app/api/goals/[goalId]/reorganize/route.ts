@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { ReorganizeError, reorganizeGoalForUser } from "@/lib/goal-reorganize";
+import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { goalReorganizeBodySchema } from "@/lib/validation/goal-reorganize";
 
 type RouteProps = { params: Promise<{ goalId: string }> };
@@ -25,6 +26,7 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   try {
     const result = await reorganizeGoalForUser(auth.userId, goalId, parsed.data);
+    await markPursuitReadingDirty(auth.userId, goalId, "pursuit_reorganized");
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof ReorganizeError) {
