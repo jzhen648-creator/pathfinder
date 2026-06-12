@@ -11,7 +11,7 @@ import {
   runStreamThemeExtract,
 } from "@/lib/ai/stream-extract";
 import { commitAmbiguousItemsToBranch } from "@/lib/stream-commit-ambiguous";
-import { isValidHubSlugForTheme, resolveBranchForHub } from "@/lib/resolve-hub-branch";
+import { isValidHubSlugForTheme, resolveBranchForHub } from "@/lib/resolve-category";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { canonicalHubDisplayLabel } from "@/lib/category-catalog";
 import { prisma } from "@/lib/prisma";

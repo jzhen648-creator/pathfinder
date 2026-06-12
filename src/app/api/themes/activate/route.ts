@@ -9,8 +9,11 @@ import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 
 const bodySchema = z.object({
   limbIds: z.array(z.enum(LIFE_AREA_IDS)).min(1),
+  /** Phase C alias — same values as `limbIds`. */
+  themeIds: z.array(z.enum(LIFE_AREA_IDS)).min(1).optional(),
 });
 
+/** Activate taxonomy categories for selected themes (canonical route). */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
@@ -33,7 +36,8 @@ export async function POST(request: Request) {
     );
   }
 
+  const themeIds = parsed.data.themeIds ?? parsed.data.limbIds;
   await ensureTaxonomyCurrent(prisma, userId);
-  const activated = await activateLimbsForUser(prisma, userId, parsed.data.limbIds);
+  const activated = await activateLimbsForUser(prisma, userId, themeIds);
   return NextResponse.json({ activated });
 }

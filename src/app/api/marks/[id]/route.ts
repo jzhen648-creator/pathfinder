@@ -5,7 +5,7 @@ import {
   applySequenceResolution,
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import { prisma } from "@/lib/prisma";
 
 type RouteProps = {

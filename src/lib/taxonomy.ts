@@ -184,4 +184,4 @@ export {
   HUB_LUCIDE_ICON_SLUGS,
   hubLucideIconSlug,
   type HubLucideIconSlug,
-} from "./hub-lucide-icons";
+} from "./category-lucide-icons";

@@ -6,7 +6,7 @@ import {
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
   type SequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import type { GoalReorganizeBody } from "@/lib/validation/goal-reorganize";
 
 const MAX_NESTED_PURSUITS = 3;
@@ -70,7 +70,7 @@ export async function reorganizeGoalForUser(
   });
   if (!goal) throw new ReorganizeError("Goal not found", 404);
 
-  if (body.op === "moveToHub") {
+  if (body.op === "moveToCategory" || body.op === "moveToHub") {
     const branch = await prisma.themeCategory.findFirst({
       where: { id: body.categoryId, userId },
       select: { id: true, themeId: true },

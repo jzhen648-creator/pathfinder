@@ -36,8 +36,8 @@ model User {
   lifeWheelHistory           Json?
   lifeWheelAchievementAt     DateTime?
   /// Last applied {@link TAXONOMY_VERSION} from taxonomy-sync; null = never synced.
-  taxonomyVersion            String?               @map("hubTaxonomyVersion")
-  taxonomySyncedAt           DateTime?             @map("hubTaxonomySyncedAt")
+  taxonomyVersion            String?
+  taxonomySyncedAt           DateTime?
   /// Life-area ids unlocked on the tree (`finance` | `work` | …). Hubs under a theme stay dormant until opened individually.
   unlockedLimbIds            Json?
   createdAt                  DateTime              @default(now())
@@ -160,7 +160,7 @@ model ThemeCategory {
   /// Life area id (`finance` | `work` | `becoming` | `people` | `health` | `pleasures`).
   themeId             String
   label               String?
-  parentCategoryId    String?      @map("parentBranchId")
+  parentCategoryId    String?
   turningPointId      String?
   mapAngleOffset      Float        @default(0)
   marks               Mark[]
@@ -175,12 +175,12 @@ model ThemeCategory {
   /// Progressive reveal: visible on tree/roadmap when true.
   isActive            Boolean      @default(false)
   /// Locked taxonomy category (one of 22); protected from wipe scripts.
-  isSystemCategory    Boolean      @default(false) @map("isSystemHub")
+  isSystemCategory    Boolean      @default(false)
   bloomStatus         BloomStatus  @default(ACTIVE)
   bloomedAt           DateTime?
   endedAt             DateTime?
   endReason           String?
-  spawnedFromCategoryId String?    @map("spawnedFromBranchId")
+  spawnedFromCategoryId String?
   spawnedFromCategory ThemeCategory? @relation("CategorySpawn", fields: [spawnedFromCategoryId], references: [id], onDelete: SetNull)
   categoriesSpawnedHere ThemeCategory[] @relation("CategorySpawn")
   createdAt           DateTime     @default(now())
@@ -189,7 +189,6 @@ model ThemeCategory {
   @@index([userId])
   @@index([userId, themeId])
   @@index([userId, isActive])
-  @@map("Branch")
 }
 
 model Mark {
@@ -426,7 +425,7 @@ model Goal {
   /// Soft-removed from tree / timeline; hidden from map. Revive via PATCH `archived: false`.
   archived         Boolean     @default(false)
   /// Lifecycle maturity only (**BUD** / **GROWING** **BLOOMED** / **ENDED**). Not driven by continuation count; **`BRANCHED`** is legacy on goals.
-  status           BloomStatus @default(ACTIVE) @map("bloomStatus")
+  status           BloomStatus @default(ACTIVE)
   bloomedAt        DateTime?
   endedAt          DateTime?
   endReason        String?

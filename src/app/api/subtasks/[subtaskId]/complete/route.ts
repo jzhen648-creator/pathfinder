@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
 import { getGoalWithProgress } from "@/lib/roadmap";
 
 type RouteProps = {

@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { syncTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
+import { syncTaxonomyForUser } from "../src/lib/taxonomy-sync";
 
 const prisma = new PrismaClient();
 

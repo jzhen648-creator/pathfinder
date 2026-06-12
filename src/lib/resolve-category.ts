@@ -9,7 +9,7 @@ import {
 } from "@/lib/taxonomy";
 import { systemHubKey } from "@/lib/system-categories";
 
-export type ResolvedHubBranch = {
+export type ResolvedCategory = {
   categoryId: string;
   hubSlug: string;
   hubLabel: string;
@@ -17,9 +17,15 @@ export type ResolvedHubBranch = {
   updatedAt?: Date;
 };
 
-export function normalizeStreamHubSlug(hubSlugOrLabel: string): string {
-  return normalizeHubLabelKey(hubSlugOrLabel);
+/** @deprecated Use {@link ResolvedCategory}. */
+export type ResolvedHubBranch = ResolvedCategory;
+
+export function normalizeStreamCategorySlug(slugOrLabel: string): string {
+  return normalizeHubLabelKey(slugOrLabel);
 }
+
+/** @deprecated Use {@link normalizeStreamCategorySlug}. */
+export const normalizeStreamHubSlug = normalizeStreamCategorySlug;
 
 export function isValidHubSlugForTheme(themeId: LifeAreaId, hubSlug: string): boolean {
   const key = normalizeStreamHubSlug(hubSlug);
@@ -42,7 +48,7 @@ export async function resolveBranchForHub(
   userId: string,
   themeId: LifeAreaId,
   hubSlug: string,
-): Promise<ResolvedHubBranch | null> {
+): Promise<ResolvedCategory | null> {
   const hubSlugNorm = normalizeStreamHubSlug(hubSlug);
   if (!isValidHubSlugForTheme(themeId, hubSlugNorm)) {
     return null;
@@ -75,7 +81,7 @@ export async function resolveAllHubBranchesForTheme(
   prisma: PrismaClient,
   userId: string,
   themeId: LifeAreaId,
-): Promise<ResolvedHubBranch[]> {
+): Promise<ResolvedCategory[]> {
   const templates = hubsForTheme(themeId);
   const roots = await prisma.themeCategory.findMany({
     where: { userId, themeId: themeId, parentCategoryId: null },
@@ -87,7 +93,7 @@ export async function resolveAllHubBranchesForTheme(
     byKey.set(systemHubKey(b.themeId, b.label ?? b.name), b);
   }
 
-  const out: ResolvedHubBranch[] = [];
+  const out: ResolvedCategory[] = [];
   for (const t of templates) {
     const key = systemHubKey(t.limbId, t.threadType);
     const branch = byKey.get(key);
@@ -103,17 +109,20 @@ export async function resolveAllHubBranchesForTheme(
   return out;
 }
 
-export type HubBranchResolver = {
+export type CategoryResolver = {
   resolve(hubIdOrSlug: string, preferredThemeId?: LifeAreaId): string | null;
   /** Normalized taxonomy slug for theme-scoped Stream items. */
   resolveSlug(hubIdOrSlug: string, preferredThemeId?: LifeAreaId): string | null;
 };
 
-/** Resolve branch ids or hub slugs to canonical root hub ids (handles deduped / legacy labels). */
-export async function buildHubBranchResolver(
+/** @deprecated Use {@link CategoryResolver}. */
+export type HubBranchResolver = CategoryResolver;
+
+/** Resolve category ids or taxonomy slugs to canonical root category ids (handles deduped / legacy labels). */
+export async function buildCategoryResolver(
   prisma: PrismaClient,
   userId: string,
-): Promise<HubBranchResolver> {
+): Promise<CategoryResolver> {
   const roots = await prisma.themeCategory.findMany({
     where: { userId, parentCategoryId: null },
     select: {
@@ -172,3 +181,6 @@ export async function buildHubBranchResolver(
     },
   };
 }
+
+/** @deprecated Use {@link buildCategoryResolver}. */
+export const buildHubBranchResolver = buildCategoryResolver;

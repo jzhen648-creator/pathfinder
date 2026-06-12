@@ -8,7 +8,7 @@ import { getLifeArea } from "@/lib/life-areas";
 
 import { getStreamSessionDelegate } from "@/lib/prisma-stream-session";
 
-import { resolveAllHubBranchesForTheme } from "@/lib/resolve-hub-branch";
+import { resolveAllHubBranchesForTheme } from "@/lib/resolve-category";
 
 import type { LifeAreaId } from "@/lib/types";
 

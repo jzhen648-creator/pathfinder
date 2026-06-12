@@ -1,5 +1,5 @@
 import type { BloomStatus } from "@prisma/client";
-import { computeGoalLifecycleBloom } from "@/lib/goal-bloom-lifecycle";
+import { computeGoalLifecycleBloom } from "@/lib/goal-status-lifecycle";
 import { milestoneDoneForSemantics } from "@/lib/milestone-semantics";
 import { prisma } from "@/lib/prisma";
 

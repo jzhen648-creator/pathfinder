@@ -40,7 +40,7 @@ export type BranchNodeRow = {
  * participate in ordering until the separately-scoped retirement sprint runs. Sorted by current
  * `sequencePosition` (nulls last); rows missing a position sort to the tail in a deterministic order.
  */
-export async function loadBranchSequencedNodes(
+export async function loadCategorySequencedNodes(
   prisma: PrismaClient | Prisma.TransactionClient,
   categoryId: string,
 ): Promise<BranchNodeRow[]> {
@@ -229,3 +229,6 @@ export async function applySequenceResolution(
     }
   }
 }
+
+/** @deprecated Use {@link loadCategorySequencedNodes}. */
+export const loadBranchSequencedNodes = loadCategorySequencedNodes;

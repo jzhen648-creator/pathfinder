@@ -4,7 +4,7 @@
  * Run: npm run reset:all-accounts
  */
 import { PrismaClient } from "@prisma/client";
-import { syncTaxonomyForUser } from "../src/lib/hub-taxonomy-sync";
+import { syncTaxonomyForUser } from "../src/lib/taxonomy-sync";
 
 async function wipeUserTreeData(prisma: PrismaClient, userId: string): Promise<void> {
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });

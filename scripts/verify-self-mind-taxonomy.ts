@@ -14,7 +14,7 @@ import {
   runStreamThemeExtract,
 } from "../src/lib/ai/stream-extract";
 import type { FormattedMapContext } from "../src/lib/ai/format-map-context";
-import { hubPanelCopy } from "../src/lib/hub-catalog";
+import { hubPanelCopy } from "../src/lib/category-catalog";
 import { hasGeminiKey } from "../src/lib/gemini";
 import { pickBestHubSlugForThemeInput } from "../src/lib/stream-theme-context";
 import { getLifeArea } from "../src/lib/life-areas";
@@ -25,8 +25,8 @@ import {
   normalizeHubLabelKey,
   hubsForTheme,
 } from "../src/lib/taxonomy";
-import { normLabel } from "../src/lib/system-hubs";
-import { normalizeStreamHubSlug } from "../src/lib/resolve-hub-branch";
+import { normLabel } from "../src/lib/system-categories";
+import { normalizeStreamHubSlug } from "../src/lib/resolve-category";
 import type { LifeAreaId } from "../src/lib/types";
 import type { StreamThemeContextInput, StreamThemeHubContextInput } from "../src/types/stream";
 

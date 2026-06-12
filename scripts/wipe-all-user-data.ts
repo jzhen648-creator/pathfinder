@@ -6,7 +6,7 @@
  * Run: npm run wipe:all-user-data
  */
 import { Prisma, PrismaClient } from "@prisma/client";
-import { ensureSystemCategoriesForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser } from "../src/lib/system-categories";
 
 const KEEP_EMAIL = "jzhen648@gmail.com";
 

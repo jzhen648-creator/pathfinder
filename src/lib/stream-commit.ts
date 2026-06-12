@@ -8,9 +8,9 @@ import {
   applySequenceResolution,
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import { getLifeArea } from "@/lib/life-areas";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones, normalizeIngestedPursuitType } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
 import {
@@ -20,7 +20,7 @@ import {
   resolveAllHubBranchesForTheme,
   resolveBranchForHub,
   type HubBranchResolver,
-} from "@/lib/resolve-hub-branch";
+} from "@/lib/resolve-category";
 import { dedupeDuplicateRootCategories } from "@/lib/category-dedupe";
 import { activateHubForUser } from "@/lib/system-categories";
 import {
@@ -39,7 +39,7 @@ import {
   displayMarkTitleFromInput,
   isMarkDateInTheFuture,
   resolveMarkInputDate,
-} from "@/lib/validation/marks-and-branches";
+} from "@/lib/validation/marks-and-categories";
 import type {
   ExtractedMark,
   ExtractedMilestone,

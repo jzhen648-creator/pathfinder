@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
 import { getLifeArea } from "@/lib/life-areas";
 import {
   buildFallbackRoadmap,
@@ -19,7 +19,7 @@ import {
   applySequenceResolution,
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import { activateHubForUser } from "@/lib/system-categories";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 

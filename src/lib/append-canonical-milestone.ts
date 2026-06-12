@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 
 function maxMilestonePosition(milestones: { position: number }[]): number {
@@ -8,8 +8,8 @@ function maxMilestonePosition(milestones: { position: number }[]): number {
 
 type AppendResult = { ok: true } | { ok: false; error: string; status: number };
 
-/** Append one canonical `Milestone` from the tree panel (POST `/api/goals/[id]/milestones`). */
-export async function appendCanonicalTreeMilestoneForGoal(
+/** Append one canonical `Milestone` (POST `/api/goals/[id]/milestones`). */
+export async function appendCanonicalMilestoneForGoal(
   goalId: string,
   userId: string,
   title: string,
@@ -57,7 +57,10 @@ export async function appendCanonicalTreeMilestoneForGoal(
         : null;
     if (code === "NOT_FOUND") return { ok: false, error: "Not found", status: 404 };
     if (code === "GOAL_TYPE") return { ok: false, error: "Not found", status: 404 };
-    console.error("[appendCanonicalTreeMilestoneForGoal]", e);
+    console.error("[appendCanonicalMilestoneForGoal]", e);
     return { ok: false, error: "Could not add milestone", status: 500 };
   }
 }
+
+/** @deprecated Use {@link appendCanonicalMilestoneForGoal}. */
+export const appendCanonicalTreeMilestoneForGoal = appendCanonicalMilestoneForGoal;

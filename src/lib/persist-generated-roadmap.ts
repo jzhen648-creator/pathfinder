@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { GeneratedRoadmap } from "@/lib/milestone-generator";
 import { prisma } from "@/lib/prisma";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
 
 type PersistResult = { ok: true } | { ok: false; error: string; status: number };
 

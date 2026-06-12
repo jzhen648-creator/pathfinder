@@ -11,7 +11,7 @@
  */
 import { prisma } from "../src/lib/prisma";
 import { milestoneDoneForSemantics } from "../src/lib/milestone-semantics";
-import { recomputeGoalBloomStatus } from "../src/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "../src/lib/goal-status-recompute";
 
 const keep = process.argv.includes("--keep-completion");
 const exerciseBloomUpdate = process.argv.includes("--exercise-bloom-update");

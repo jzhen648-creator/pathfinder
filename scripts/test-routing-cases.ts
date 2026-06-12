@@ -15,7 +15,7 @@ loadEnv({ path: ".env.local", override: true });
 
 import { runStreamThemeExtract } from "../src/lib/ai/stream-extract";
 import { hasGeminiKey } from "../src/lib/gemini";
-import { hubPanelCopy } from "../src/lib/hub-catalog";
+import { hubPanelCopy } from "../src/lib/category-catalog";
 import { LOCKED_HUB_TEMPLATES, normalizeHubLabelKey } from "../src/lib/taxonomy";
 import { getLifeArea } from "../src/lib/life-areas";
 import type { LifeAreaId } from "../src/lib/types";

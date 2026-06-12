@@ -9,7 +9,7 @@ import { truncateStreamNarrative } from "@/lib/ai/stream-extract-narrative";
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 import { hubPanelCopy, type HubCatalogEntry } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
-import { normalizeStreamHubSlug } from "@/lib/resolve-hub-branch";
+import { normalizeStreamHubSlug } from "@/lib/resolve-category";
 import {
   parseStreamItemOrder,
   streamExtractResponseSchema,

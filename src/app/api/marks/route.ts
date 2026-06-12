@@ -9,12 +9,12 @@ import {
   isMarkDateInTheFuture,
   resolveMarkInputDate,
   zodErrorMessage,
-} from "@/lib/validation/marks-and-branches";
+} from "@/lib/validation/marks-and-categories";
 import {
   applySequenceResolution,
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import { activateHubForUser } from "@/lib/system-categories";
 
 function inferSentiment(input: {

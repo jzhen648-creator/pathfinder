@@ -5,7 +5,7 @@
  * Run from repo root: npm run backfill:goal-bloom
  */
 import { PrismaClient } from "@prisma/client";
-import { recomputeGoalBloomStatus } from "../src/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "../src/lib/goal-status-recompute";
 
 const prisma = new PrismaClient();
 

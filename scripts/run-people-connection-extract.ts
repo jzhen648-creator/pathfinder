@@ -65,7 +65,7 @@ async function loadHubContext(userId: string, hubSlug: string) {
     where: { userId, parentCategoryId: null, themeId: "people" },
     select: { id: true, themeId: true, label: true, name: true },
   });
-  const { systemHubKey } = await import("../src/lib/system-hubs");
+  const { systemHubKey } = await import("../src/lib/system-categories");
   const match = branches.find(
     (b) => systemHubKey(b.themeId, b.label ?? b.name).split("::")[1] === hubSlug,
   );

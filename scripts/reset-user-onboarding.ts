@@ -3,7 +3,7 @@
  * Run: npx tsx scripts/reset-user-onboarding.ts [email]
  */
 import { Prisma, PrismaClient } from "@prisma/client";
-import { ensureSystemCategoriesForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser } from "../src/lib/system-categories";
 
 const email = process.argv[2] ?? "jzhen648@gmail.com";
 const prisma = new PrismaClient();

@@ -3,11 +3,7 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { refreshInsightsInBackground } from "@/lib/insights/refresh-insights-background";
 import { isInsightEligibleGoalType } from "@/lib/insights/merge-insight-cache";
-import { withCategoryIdMirror } from "@/lib/category-id";
-import {
-  resolvePursuitStatusFromBody,
-  withPursuitStatusMirror,
-} from "@/lib/pursuit-status-api";
+import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 
@@ -151,9 +147,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     refreshInsightsInBackground(userId);
   }
 
-  return NextResponse.json({
-    goal: withPursuitStatusMirror(withCategoryIdMirror(goal)),
-  });
+  return NextResponse.json({ goal });
 }
 
 export async function DELETE(request: Request, { params }: RouteProps) {

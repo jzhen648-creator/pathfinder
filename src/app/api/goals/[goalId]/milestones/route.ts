@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { appendCanonicalTreeMilestoneForGoal } from "@/lib/append-canonical-tree-milestone";
-import { appendCanonicalTreeMilestoneBodySchema } from "@/lib/validation/append-canonical-tree-milestone";
+import { appendCanonicalMilestoneForGoal } from "@/lib/append-canonical-milestone";
+import { appendCanonicalTreeMilestoneBodySchema } from "@/lib/validation/append-canonical-milestone";
 
 type RouteProps = { params: Promise<{ goalId: string }> };
 
@@ -29,7 +29,7 @@ export async function POST(request: Request, props: RouteProps) {
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
   }
 
-  const result = await appendCanonicalTreeMilestoneForGoal(goalId, userId, parsed.data.title);
+  const result = await appendCanonicalMilestoneForGoal(goalId, userId, parsed.data.title);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

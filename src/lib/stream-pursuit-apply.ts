@@ -1,5 +1,5 @@
 import type { BloomStatus, Prisma } from "@prisma/client";
-import { recomputeGoalBloomStatus } from "@/lib/goal-bloom";
+import { recomputeGoalBloomStatus } from "@/lib/goal-status-recompute";
 import { goalAllowsStreamMilestones } from "@/lib/goal-type";
 import { prisma } from "@/lib/prisma";
 import { activateHubForUser } from "@/lib/system-categories";
@@ -13,12 +13,12 @@ import {
   applySequenceResolution,
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import {
   displayMarkTitleFromInput,
   isMarkDateInTheFuture,
   resolveMarkInputDate,
-} from "@/lib/validation/marks-and-branches";
+} from "@/lib/validation/marks-and-categories";
 import {
   generalizePursuitTitle,
   mergePursuitContextDescription,

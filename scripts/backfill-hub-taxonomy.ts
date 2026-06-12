@@ -5,8 +5,8 @@
  * Run from repo root: npm run backfill:hub-taxonomy
  */
 import { PrismaClient } from "@prisma/client";
-import { dedupeDuplicateRootCategories } from "../src/lib/hub-dedupe";
-import { ensureTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
+import { dedupeDuplicateRootCategories } from "../src/lib/category-dedupe";
+import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
 import { TAXONOMY_VERSION } from "../src/lib/taxonomy";
 
 const prisma = new PrismaClient();

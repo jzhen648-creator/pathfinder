@@ -20,7 +20,6 @@
     "reset:all-accounts": "npx tsx scripts/reset-all-accounts-fresh.ts",
     "wipe:all-user-data": "npx tsx scripts/wipe-all-user-data.ts",
     "fresh-start:mobile": "npx tsx scripts/fresh-start-mobile.ts",
-    "test:system-hubs": "npx tsx scripts/test-system-hubs-idempotent.ts",
     "test:system-categories": "npx tsx scripts/test-system-hubs-idempotent.ts",
     "clear-goals": "npx tsx scripts/clear-all-goals.ts",
     "backfill:tree-milestones": "npx tsx scripts/backfill-tree-milestones-to-relational.ts",

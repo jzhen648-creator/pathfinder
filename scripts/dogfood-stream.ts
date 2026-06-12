@@ -20,7 +20,7 @@ import {
 } from "./lib/stream-dogfood-queue";
 import type { LifeAreaId } from "../src/lib/types";
 import { validHubLabelKeysForTheme } from "../src/lib/taxonomy";
-import { systemHubKey } from "../src/lib/system-hubs";
+import { systemHubKey } from "../src/lib/system-categories";
 import type {
   ExtractedMilestone,
   ExtractedPursuit,

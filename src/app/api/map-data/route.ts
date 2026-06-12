@@ -16,10 +16,6 @@ import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 
-import { withCategoryIdMirrors } from "@/lib/category-id";
-import { withMapEntityMirrors, withMapEntityMirrorsList } from "@/lib/theme-id";
-
-import { withPursuitStatusMirrors } from "@/lib/pursuit-status-api";
 
 import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
 
@@ -219,12 +215,8 @@ export async function GET(request: Request) {
 
     ]);
 
-        const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
-    const mirroredCategories = withMapEntityMirrorsList(
-      categories.map((c) => withMapEntityMirrors({ ...c, categoryId: c.id })),
-    );
-    const mirroredGoals = withMapEntityMirrorsList(withPursuitStatusMirrors(withCategoryIdMirrors(goals)));
-    const mirroredMarks = withMapEntityMirrorsList(withCategoryIdMirrors(marks));
+    const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
+    const mapCategories = categories.map((c) => ({ ...c, categoryId: c.id }));
 
     const pendingRuns = await prisma.streamRun.findMany({
       where: {
@@ -238,12 +230,10 @@ export async function GET(request: Request) {
     const pendingCaptureGoalIds = pendingRuns.map((row) => row.goalId);
 
     return NextResponse.json({
-      categories: mirroredCategories,
-      /** @deprecated Legacy mirror — same rows as `categories`. */
-      branches: mirroredCategories,
-      goals: mirroredGoals,
-      archivedGoals: withCategoryIdMirrors(archivedGoals),
-      marks: mirroredMarks,
+      categories: mapCategories,
+      goals,
+      archivedGoals,
+      marks,
       unlockedLimbIds,
       pendingCaptureGoalIds,
     });
@@ -256,7 +246,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
 
-      { error: message, categories: [], branches: [], goals: [] },
+      { error: message, categories: [], goals: [] },
 
       { status: 500 },
 

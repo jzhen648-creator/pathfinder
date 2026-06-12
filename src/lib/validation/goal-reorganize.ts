@@ -11,11 +11,19 @@ const sequenceAnchorSchema = z.union([
   }),
 ]);
 
+const moveToCategorySchema = z.object({
+  categoryId: z.string().min(1),
+  sequenceAnchor: sequenceAnchorSchema.optional(),
+});
+
 export const goalReorganizeBodySchema = z.discriminatedUnion("op", [
   z.object({
+    op: z.literal("moveToCategory"),
+    ...moveToCategorySchema.shape,
+  }),
+  z.object({
     op: z.literal("moveToHub"),
-    categoryId: z.string().min(1),
-    sequenceAnchor: sequenceAnchorSchema.optional(),
+    ...moveToCategorySchema.shape,
   }),
   z.object({
     op: z.literal("reparent"),

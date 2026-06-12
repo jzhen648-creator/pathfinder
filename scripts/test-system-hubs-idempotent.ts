@@ -3,7 +3,7 @@
  * Run: npx tsx scripts/test-system-hubs-idempotent.ts
  */
 import { PrismaClient } from "@prisma/client";
-import { ensureSystemCategoriesForUser, listSystemHubKeysForUser } from "../src/lib/system-hubs";
+import { ensureSystemCategoriesForUser, listSystemHubKeysForUser } from "../src/lib/system-categories";
 import { LOCKED_HUB_TEMPLATES } from "../src/lib/taxonomy";
 
 const prisma = new PrismaClient();

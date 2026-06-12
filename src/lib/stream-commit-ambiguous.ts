@@ -2,11 +2,11 @@ import {
   applySequenceResolution,
   loadBranchSequencedNodes,
   resolveSequenceAnchor,
-} from "@/lib/branch-sequence";
+} from "@/lib/category-sequence";
 import { getLifeArea } from "@/lib/life-areas";
 import { assignPursuitVisualsSafe } from "@/lib/ai/assign-pursuit-icon";
 import { prisma } from "@/lib/prisma";
-import { displayMarkTitleFromInput } from "@/lib/validation/marks-and-branches";
+import { displayMarkTitleFromInput } from "@/lib/validation/marks-and-categories";
 import type { AmbiguousItem, StreamAmbiguousResolution } from "@/types/stream";
 
 type UnresolvedAmbiguousMark = {

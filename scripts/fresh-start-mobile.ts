@@ -11,7 +11,7 @@
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveDevLoginEmail } from "../src/lib/dev-login-credentials";
-import { ensureTaxonomyCurrent } from "../src/lib/hub-taxonomy-sync";
+import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
 import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
 
 const prisma = new PrismaClient();
