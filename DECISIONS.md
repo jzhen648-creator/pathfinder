@@ -4,6 +4,42 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-12 — Unlock ceremony removed
+
+**Product:** Themes no longer require manual unlock. Creating a pursuit in a dormant theme auto-unlocks it (`unlockedLimbIds` set on first pursuit create). Retired: unlock tap, “Theme dormant” card, “Tap to unlock” copy.
+
+**Rationale:** Ceremony with no cost is friction without meaning; “Tap to unlock” reads as paywall on iOS.
+
+## 2026-06-12 — Sparse-map reading policy
+
+**Product:** Readings scale with map depth. **1–2 pursuits:** short factual reading — names pursuits verbatim, one observation, one question; no life narrative. **3+ pursuits:** full panoramic reading.
+
+**Prompt rules (all map sizes):** Verbatim-title rule (e.g. “£500,000 ISA” not “a significant ISA”). Filler ban: “it will be interesting”, “journey”, “keep building”, “as they take shape”.
+
+**Rationale:** One-pursuit maps were being inflated into false life narratives, failing the “could this appear in someone else's app” test.
+
+## 2026-06-12 — Marks confirmed staying
+
+**Product:** Marks remain in the model. Pursuits are what you're doing; marks are what's true (life facts: “Passed CeMAP”, “Dad”, “Moved to London”). Marks ground readings in reality; removing them would blind every reading.
+
+**Rationale:** UX simplification (introduce during onboarding) planned instead of model change.
+
+## 2026-06-12 — Reading cadence: cooldown not schedule
+
+**Product:** Free regeneration when `mapVersion` has changed (map meaningfully different). **Reading is current** quiet state when nothing changed. Hard floor: max one regeneration per 2 hours regardless. Dev bypass flag for testing (`EXPO_PUBLIC` dev flag or similar — implementation detail for later build).
+
+**Rationale:** Fixed-day push rejected (punishes burst usage); unlimited refresh rejected (cost + slot-machine behaviour). Cooldown tied to `mapVersion` gives both freshness and restraint.
+
+## 2026-06-12 — Copy fixes
+
+**Product:** Insights footer **Rewrite** → **Update reading**. Settings benchmark caption “Used by Story for benchmarking context” → “Used by Insights for benchmarking context”. Debug section in Settings hidden in production builds.
+
+## 2026-06-12 — Onboarding direction (planned, not built)
+
+**Product:** Guided first-build onboarding approved in principle: welcome → about-you → “plant your first three” (one proud achievement marked Complete, one active pursuit, one mark) → first reading that names all three. Includes teaching card after first pursuit name: specific names make better readings (“£500k ISA” beats “savings goal”).
+
+**Rationale:** Tutorial uses real user data, not placeholders. First map node is a win, not a task. Design session before implementation.
+
 ## 2026-06-11 — Insights auto-reading on tab focus (first visit + stale refresh)
 
 **Product:** Opening **Insights** auto-runs **Update readings** when (a) the user has pursuits but **no whole-map reading yet**, or (b) the story API reports `canAutoRefresh` (map changed since last reading). **Not** a background sync on every tab switch — one attempt per focus; manual button remains for forced refresh.

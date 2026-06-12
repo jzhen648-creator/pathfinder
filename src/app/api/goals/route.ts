@@ -21,6 +21,7 @@ import {
   resolveSequenceAnchor,
 } from "@/lib/branch-sequence";
 import { activateHubForUser } from "@/lib/system-categories";
+import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -156,6 +157,10 @@ export async function POST(request: Request) {
       await recomputeGoalBloomStatus(goal.id);
     } catch (recErr) {
       console.error("[POST /api/goals] recomputeGoalBloomStatus failed", recErr);
+    }
+
+    if (isLifeAreaId(branchRecord.themeId)) {
+      await unlockThemesForUser(prisma, userId, [branchRecord.themeId]);
     }
 
     if (
