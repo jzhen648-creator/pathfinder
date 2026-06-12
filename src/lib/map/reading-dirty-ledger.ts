@@ -113,6 +113,21 @@ export async function clearReadingDirtyLedger(userId: string): Promise<void> {
   await prisma.aiReadingDirtyItem.deleteMany({ where: { userId } });
 }
 
+export async function clearReadingDirtyForPursuits(
+  userId: string,
+  pursuitIds: string[],
+): Promise<void> {
+  const ids = [...new Set(pursuitIds.filter(Boolean))];
+  if (ids.length === 0) return;
+  await prisma.aiReadingDirtyItem.deleteMany({
+    where: {
+      userId,
+      entityType: "pursuit",
+      entityId: { in: ids },
+    },
+  });
+}
+
 export async function countEligiblePursuits(userId: string): Promise<number> {
   return prisma.goal.count({
     where: {

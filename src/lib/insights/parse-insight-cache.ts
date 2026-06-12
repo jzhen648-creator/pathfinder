@@ -3,12 +3,14 @@ import type { InsightCache } from "@prisma/client";
 import {
   globalNowInsightSchema,
   insightLevelSchema,
-  pursuitInsightSchema,
   type GlobalNowInsight,
   type InsightCachePayload,
   type InsightLevelPayload,
-  type PursuitInsightPayload,
 } from "./insight-types";
+import {
+  pursuitEnrichCacheSchema,
+  type PursuitEnrichCachePayload,
+} from "@/lib/pursuit/pursuit-enrich-types";
 
 export function parseInsightLevelRecord(
   raw: unknown,
@@ -29,11 +31,11 @@ export function parseInsightLevelRecord(
 export function parsePursuitInsightRecord(
   raw: unknown,
   label: string,
-): Record<string, PursuitInsightPayload> {
+): Record<string, PursuitEnrichCachePayload> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const out: Record<string, PursuitInsightPayload> = {};
+  const out: Record<string, PursuitEnrichCachePayload> = {};
   for (const [key, value] of Object.entries(raw)) {
-    const parsed = pursuitInsightSchema.safeParse(value);
+    const parsed = pursuitEnrichCacheSchema.safeParse(value);
     if (parsed.success) {
       out[key] = parsed.data;
       continue;

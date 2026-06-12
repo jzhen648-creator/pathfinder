@@ -1,10 +1,11 @@
 import { generateNodeInsights } from "@/lib/insights/generate-insights";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
-import { refreshPursuitInsights } from "@/lib/insights/merge-insight-cache";
 import { generateInsightsAndStory } from "@/lib/map/generate-reading-sync";
 import { generateReadingDelta, ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
 import type { MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
+import { refreshPursuitEnrich } from "@/lib/pursuit/generate-pursuit-enrich";
 import {
+  clearReadingDirtyForPursuits,
   clearReadingDirtyLedger,
   listReadingDirtySummary,
   shouldUseFullReadingRefresh,
@@ -155,10 +156,16 @@ export async function refreshReadingCachesSmart(
   let storyRefreshed = false;
 
   if (dirty.pursuitIds.length > 0) {
-    options.metrics.aiCallsPlanned += 1;
-    await refreshPursuitInsights(userId, dirty.pursuitIds);
-    options.metrics.aiCallsCompleted += 1;
-    insightsRefreshed = true;
+    options.metrics.aiCallsPlanned += Math.min(dirty.pursuitIds.length, 3);
+    const enrichResult = await refreshPursuitEnrich(userId, dirty.pursuitIds);
+    options.metrics.aiCallsCompleted += enrichResult.processedIds.length;
+    insightsRefreshed = enrichResult.processedIds.length > 0;
+    if (enrichResult.remainingIds.length > 0) {
+      options.metrics.morePending = true;
+    }
+    if (enrichResult.processedIds.length > 0) {
+      await clearReadingDirtyForPursuits(userId, enrichResult.processedIds);
+    }
 
     if (dirty.themeIds.length > 0 || dirty.hubIds.length > 0) {
       options.metrics.aiCallsPlanned += 1;
@@ -222,7 +229,9 @@ export async function refreshReadingCachesSmart(
   }
 
   if (insightsRefreshed || storyRefreshed) {
-    await clearReadingDirtyLedger(userId);
+    if (!options.metrics.morePending) {
+      await clearReadingDirtyLedger(userId);
+    }
   }
 
   if (insightRow && !insightsRefreshed) {
