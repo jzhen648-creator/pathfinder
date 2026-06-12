@@ -1,4 +1,7 @@
-# Stream — Feature Specification
+> **SUPERSEDED for mobile product review.** Desktop tree Stream UI (confirmation cards, map-wide extract).  
+> **Mobile today:** capture → pending `StreamRun` → **Update readings** → `ai-sync` digest. See [`../../PATHFINDER-AI.md`](../../PATHFINDER-AI.md).
+
+# Stream — Feature Specification (desktop tree era)
 
 *Reconciled with repo: 2026-05-19. See [`DECISIONS.md`](../DECISIONS.md) and [`CHANGELOG.md`](../CHANGELOG.md) for dated engineering notes.*
 

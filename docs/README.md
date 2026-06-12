@@ -14,7 +14,8 @@
 | [`../AGENTS.md`](../AGENTS.md) | Agent rules (domain language; API + legacy tree notes) |
 | [`current-focus.md`](./current-focus.md) | What to work on now (mobile-first) |
 | [`STREAM.md`](./STREAM.md) | Stream feature spec (extract, confirm, ambiguous) |
-| [`architecture.md`](./architecture.md) | System architecture (API, taxonomy sync) |
+| [`../../PATHFINDER-ARCHITECTURE.md`](../../PATHFINDER-ARCHITECTURE.md) | **Mobile-first** system architecture (Claude audit) |
+| [`architecture.md`](./architecture.md) | **Superseded** — desktop tree era; see PATHFINDER-ARCHITECTURE |
 | [`STABILIZATION.md`](./STABILIZATION.md) | QA checklist (shared backend behaviors) |
 | [`BACKLOG.md`](./BACKLOG.md) | Deferred backend / desktop ideas |
 | [`../PROMPTS.md`](../PROMPTS.md) | AI prompts (Stream, Story) |

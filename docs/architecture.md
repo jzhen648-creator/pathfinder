@@ -1,4 +1,7 @@
-# Architecture (compressed)
+> **SUPERSEDED for mobile / Claude review.** Desktop tree architecture (May 2026).  
+> **Use instead:** [`../../PATHFINDER-ARCHITECTURE.md`](../../PATHFINDER-ARCHITECTURE.md) (mobile-first) · [`../../PATHFINDER-CONTEXT.md`](../../PATHFINDER-CONTEXT.md) (product + screens).
+
+# Architecture (compressed) — desktop tree era
 
 Pathfinder is a **tree-first personal life map**: messy human input → durable structure on an SVG canvas. The architecture optimizes for **symbolic coherence** (milestones, bloom, spatial grammar) over CRUD completeness, and accepts **parallel layout grammars** behind flags rather than big-bang rewrites.
 
