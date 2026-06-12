@@ -570,11 +570,11 @@ Replaces the fixed-orbit **domain-cluster** layout with a **sequence-driven long
 
 ## 2026-05-16 — AI Stream (extract + confirmation commit)
 
-Implements the product concept in **Stream** below. Per-hub overlay: user dumps text/voice → **`POST /api/stream/extract`** classifies items (pursuits, timeline notes, ambiguous) with hub/branch context and optional prior-session summary → **`StreamConfirmation`** card queue → **`POST /api/stream/commit`** writes accepted rows (goals/marks with `anchor` / sequence when longitudinal flag is on). `Mark.kind = stream` records provenance. Requires `GEMINI_API_KEY`. Unified insertion can also use **`POST /api/branches/[branchId]/nodes`**. See [`CHANGELOG.md`](./CHANGELOG.md) (2026-05-16).
+Implements the product concept in **Stream** below. Per-category overlay: user dumps text/voice → **`POST /api/stream/extract`** classifies items (pursuits, timeline notes, ambiguous) with theme/category context → confirmation queue → **`POST /api/stream/commit`** writes accepted rows. `Mark.kind = stream` records provenance. Requires `GEMINI_API_KEY`. Unified insertion uses **`POST /api/categories/[categoryId]/nodes`**. See [`CHANGELOG.md`](./CHANGELOG.md) (2026-05-16).
 
 ## 2026-05-16 — Progressive hub reveal (`isActive` / `isSystemHub`)
 
-New profiles get **17** system hubs from `LOCKED_HUB_TEMPLATES` (`system-hubs.ts`) with `isSystemHub = true`, `isActive = false`. Onboarding (or **`POST /api/branches/activate`**) sets `isActive` for user-chosen themes. Tree data and APIs filter to active roots so the map grows with the user. Hubs that already had goals/marks are backfilled active in migration `20260517100000_add_branch_hub_visibility`. System hubs are protected from wipe scripts.
+New profiles get **17** system categories from `LOCKED_CATEGORY_TEMPLATES` (`system-categories.ts`) with `isSystemCategory = true`, `isActive = false`. Onboarding (or **`POST /api/themes/activate`**) sets `isActive` for user-chosen themes. Map data and APIs filter to active roots so the canopy grows with the user. Categories that already had goals/marks are backfilled active in migration `20260517100000_add_branch_hub_visibility`. System categories are protected from wipe scripts.
 
 ## 2026-05-15 — Tree Layout Terminology (render-only glossary)
 

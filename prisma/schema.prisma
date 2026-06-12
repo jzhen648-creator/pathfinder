@@ -176,7 +176,7 @@ model ThemeCategory {
   isActive            Boolean      @default(false)
   /// Locked taxonomy category (one of 22); protected from wipe scripts.
   isSystemCategory    Boolean      @default(false)
-  lifecycleStatus     BloomStatus  @default(ACTIVE) @map("bloomStatus")
+  lifecycleStatus     BloomStatus  @default(ACTIVE)
   bloomedAt           DateTime?
   endedAt             DateTime?
   endReason           String?

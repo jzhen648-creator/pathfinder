@@ -68,7 +68,7 @@ Prefer **small pure modules** over framework indirection. Tree code is intention
 
 ## Important constraints
 
-- **Five themes, 17 system hubs** (`LOCKED_HUB_TEMPLATES`, `TAXONOMY_VERSION`) — hub taxonomy sync runs on register, onboarding complete, hub activate, and `npm run backfill:hub-taxonomy`; keyed by `User.hubTaxonomyVersion` vs `TAXONOMY_VERSION`.
+- **Six themes, locked category templates** (`LOCKED_CATEGORY_TEMPLATES`, `TAXONOMY_VERSION`) — taxonomy sync runs on register, onboarding, theme activate, and `GET /api/map-data`; keyed by `User.taxonomyVersion` vs `TAXONOMY_VERSION`.
 - **No new hub splits from timeline** — `parentBranchId` / turning points are legacy only.
 - **Marks never on pursuits** — Stream prompts enforce; UI has no pursuit “add mark”.
 - **Continuation children opt out of sequence** — `parentGoalId` goals use satellite layout (`continuationChildScreenPosition`).
