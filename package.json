@@ -21,6 +21,7 @@
     "wipe:all-user-data": "npx tsx scripts/wipe-all-user-data.ts",
     "fresh-start:mobile": "npx tsx scripts/fresh-start-mobile.ts",
     "cancel-pending-stream-runs": "npx tsx scripts/cancel-pending-stream-runs.ts",
+    "list-pending-stream-runs": "npx tsx scripts/list-pending-stream-runs.ts",
     "test:system-categories": "npx tsx scripts/test-system-categories-idempotent.ts",
     "clear-goals": "npx tsx scripts/clear-all-goals.ts",
     "backfill:tree-milestones": "npx tsx scripts/backfill-tree-milestones-to-relational.ts",
