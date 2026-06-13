@@ -1,6 +1,11 @@
 import type { FormattedMapContext, FormattedMapMark, FormattedMapPursuit } from "@/lib/ai/format-map-context";
 
-export type SpineEventKind = "mark" | "pursuit_deadline" | "pursuit_complete" | "pursuit_abandoned";
+export type SpineEventKind =
+  | "mark"
+  | "milestone_complete"
+  | "pursuit_deadline"
+  | "pursuit_complete"
+  | "pursuit_abandoned";
 
 export type SpineEvent = {
   kind: SpineEventKind;
@@ -12,6 +17,8 @@ export type SpineEvent = {
   themeLabel: string;
   significance?: number;
   categoryLabel?: string;
+  /** Parent pursuit title for milestone_complete rows. */
+  pursuitTitle?: string;
 };
 
 export type SpineEventView = {
@@ -159,10 +166,27 @@ export function buildSpineEventsFromMapContext(
         });
       }
     }
+
+    for (const milestone of pursuit.milestones) {
+      if (!milestone.completed || !milestone.completedAt) continue;
+      const completedDate = parseCalendarDate(milestone.completedAt);
+      if (!completedDate) continue;
+      events.push({
+        kind: "milestone_complete",
+        date: toCalendarDate(completedDate),
+        placement: "past",
+        title: milestone.title,
+        pursuitTitle: pursuit.title,
+        ...meta,
+      });
+    }
   }
 
   const filtered = events.filter((event) => {
     if (event.kind === "mark") return true;
+    if (event.kind === "milestone_complete") {
+      return (event.significance ?? 1) >= minSignificance;
+    }
     return (event.significance ?? 1) >= minSignificance;
   });
 

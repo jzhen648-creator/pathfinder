@@ -6,7 +6,12 @@ import type { InsightGenerationResult } from "@/lib/insights/insight-types";
 import { generateInsightsAndStory, ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
 import { generateReadingDelta, ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
 import type { MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
+import { canMakeSyncGeminiCall } from "@/lib/map/sync-gemini-budget";
 import { refreshPursuitEnrich } from "@/lib/pursuit/generate-pursuit-enrich";
+import {
+  DEFAULT_PURSUIT_ENRICH_OPTIONS,
+  type PursuitEnrichOptions,
+} from "@/lib/pursuit/enrich-options";
 import { pruneArchivedPursuitsFromInsightCache } from "@/lib/insights/merge-insight-cache";
 import {
   analyzeReadingDirty,
@@ -28,11 +33,9 @@ import { prisma } from "@/lib/prisma";
 
 const STORY_DELTA_MAX_DIRTY_PURSUITS = 12;
 const LITE_FIRST_READING_MAX_PURSUITS = 3;
-/** Max successful Gemini calls per single ai-sync tap (defer remainder to follow-up). */
-const MAX_AI_CALLS_PER_SYNC = 2;
 
 function canMakeSyncAiCall(metrics: MapAiSyncMetrics): boolean {
-  return metrics.aiCallsCompleted < MAX_AI_CALLS_PER_SYNC;
+  return canMakeSyncGeminiCall(metrics);
 }
 
 function isGemini429(err: unknown): boolean {
@@ -143,6 +146,7 @@ async function runPursuitEnrichLoop(
   options: {
     metrics: MapAiSyncMetrics;
     geminiRateLimited: boolean;
+    enrichOptions?: PursuitEnrichOptions;
   },
 ): Promise<{ insightsRefreshed: boolean; geminiRateLimited: boolean; remainingIds: string[] }> {
   let insightsRefreshed = false;
@@ -152,8 +156,17 @@ async function runPursuitEnrichLoop(
   while (remainingToEnrich.length > 0 && canMakeSyncAiCall(options.metrics) && !geminiRateLimited) {
     options.metrics.aiCallsPlanned += 1;
     try {
-      const enrichResult = await refreshPursuitEnrich(userId, remainingToEnrich);
+      const enrichResult = await refreshPursuitEnrich(
+        userId,
+        remainingToEnrich,
+        options.enrichOptions ?? DEFAULT_PURSUIT_ENRICH_OPTIONS,
+      );
       options.metrics.aiCallsCompleted += enrichResult.geminiCallsMade;
+      if (enrichResult.geminiCallsMade > 0 && enrichResult.processedIds.length === 0) {
+        options.metrics.enrichErrors.push(
+          "Pursuit insight could not be saved — tap Finish to retry.",
+        );
+      }
       insightsRefreshed = insightsRefreshed || enrichResult.processedIds.length > 0;
       if (enrichResult.processedIds.length > 0) {
         await clearReadingDirtyForPursuits(userId, enrichResult.processedIds);
@@ -166,6 +179,7 @@ async function runPursuitEnrichLoop(
         options.metrics.morePending = true;
       } else if (err instanceof InsightGenerationResponseError) {
         console.warn("[incremental-reading-refresh] pursuit enrich failed", err.message);
+        options.metrics.enrichErrors.push(err.message);
         options.metrics.morePending = true;
       } else {
         throw err;
@@ -207,6 +221,7 @@ export async function refreshReadingCachesSmart(
   options: {
     forceFull?: boolean;
     metrics: MapAiSyncMetrics;
+    enrichOptions?: PursuitEnrichOptions;
   },
 ): Promise<IncrementalRefreshResult> {
   const dirtyAnalysis = await analyzeReadingDirty(userId);
@@ -234,6 +249,8 @@ export async function refreshReadingCachesSmart(
   ) {
     options.metrics.liteFirstReading = true;
     options.metrics.aiCallsPlanned += 1;
+    let insightsRefreshed = false;
+    let geminiRateLimited = false;
     try {
       const story = await generateStory(userId);
       options.metrics.aiCallsCompleted += 1;
@@ -241,15 +258,33 @@ export async function refreshReadingCachesSmart(
         upsertInsightCache(userId, emptyInsightCachePayload(), mapVersion, memoryVersion),
         upsertStoryCache(userId, story, mapVersion, memoryVersion),
       ]);
-      options.metrics.morePending = dirty.totalItems > 0;
+
+      const pursuitIds = dirty.activeDirtyPursuitIds;
+      if (pursuitIds.length > 0 && canMakeSyncAiCall(options.metrics)) {
+        const enrichLoop = await runPursuitEnrichLoop(userId, pursuitIds, {
+          metrics: options.metrics,
+          geminiRateLimited,
+          enrichOptions: options.enrichOptions,
+        });
+        insightsRefreshed = enrichLoop.insightsRefreshed;
+        geminiRateLimited = enrichLoop.geminiRateLimited;
+      } else if (pursuitIds.length > 0) {
+        options.metrics.morePending = true;
+        options.metrics.pendingInsightCount = pursuitIds.length;
+      }
+
+      if (!options.metrics.morePending) {
+        await clearReadingDirtyLedger(userId);
+      }
+
       return {
-        insightsRefreshed: false,
+        insightsRefreshed,
         storyRefreshed: true,
         insightsPruned: false,
         fullRefresh: false,
         incrementalRefresh: false,
         backfillCalls: 0,
-        geminiRateLimited: false,
+        geminiRateLimited,
       };
     } catch (err) {
       if (isGemini429(err)) {
@@ -344,6 +379,7 @@ export async function refreshReadingCachesSmart(
     const enrichLoop = await runPursuitEnrichLoop(userId, dirty.activeDirtyPursuitIds, {
       metrics: options.metrics,
       geminiRateLimited,
+      enrichOptions: options.enrichOptions,
     });
     insightsRefreshed = enrichLoop.insightsRefreshed;
     geminiRateLimited = enrichLoop.geminiRateLimited;
@@ -503,6 +539,7 @@ export async function refreshReadingCachesSmart(
     const enrichLoop = await runPursuitEnrichLoop(userId, dirty.activeDirtyPursuitIds, {
       metrics: options.metrics,
       geminiRateLimited,
+      enrichOptions: options.enrichOptions,
     });
     insightsRefreshed = insightsRefreshed || enrichLoop.insightsRefreshed;
     geminiRateLimited = enrichLoop.geminiRateLimited;

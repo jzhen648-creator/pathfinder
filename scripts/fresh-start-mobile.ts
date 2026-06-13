@@ -45,6 +45,7 @@ async function wipeUserContent(userId: string, dryRun: boolean): Promise<void> {
       trunkEnt,
       evalCache,
       reframes,
+      dirtyItems,
     ] = await Promise.all([
       prisma.goal.count({ where: { userId } }),
       prisma.mark.count({ where: { userId } }),
@@ -60,14 +61,16 @@ async function wipeUserContent(userId: string, dryRun: boolean): Promise<void> {
       prisma.trunkEntry.count({ where: { userId } }),
       prisma.goalEvaluationCache.count({ where: { userId } }),
       prisma.reframe.count({ where: { mark: { userId } } }),
+      prisma.aiReadingDirtyItem.count({ where: { userId } }),
     ]);
     console.log(`  would delete: goals=${goals} marks=${marks} streamRuns=${streamRuns} streamSessions=${streamSessions}`);
     console.log(`  would delete: userMemory=${memory}+${memoryHist} caches=${insight + story} profileFacts=${facts} manualProfile=${manual}`);
-    console.log(`  would delete: trunk=${trunkSeg}+${trunkEnt} evalCache=${evalCache} reframes=${reframes}`);
+    console.log(`  would delete: trunk=${trunkSeg}+${trunkEnt} evalCache=${evalCache} reframes=${reframes} dirtyLedger=${dirtyItems}`);
     return;
   }
 
   await prisma.reframe.deleteMany({ where: { mark: { userId } } });
+  await prisma.aiReadingDirtyItem.deleteMany({ where: { userId } });
   await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   await prisma.streamRun.deleteMany({ where: { userId } });
   if (streamSession) {
@@ -107,6 +110,7 @@ async function resetUserForMobileOnboarding(userId: string, dryRun: boolean): Pr
     lifeWheelAchievementAt: null,
     taxonomyVersion: null,
     taxonomySyncedAt: null,
+    lastReadingDeliveredAt: null,
   };
 
   if (dryRun) {

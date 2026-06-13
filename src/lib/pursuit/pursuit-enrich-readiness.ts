@@ -1,4 +1,6 @@
 import type { PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
+import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
+import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 
 type PursuitSignal = {
   title: string;
@@ -25,9 +27,12 @@ export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
 export function gateEnrichResult(
   result: PursuitEnrichResult,
   signal: PursuitSignal,
+  enrichOptions?: PursuitEnrichOptions,
 ): PursuitEnrichResult {
-  const clarifiers =
-    signal.enrichAnswerCount >= 3 || signal.description.trim().length >= 120
+  const options = resolvePursuitEnrichOptions(enrichOptions);
+  const clarifiers = !options.clarifyTitles
+    ? []
+    : signal.enrichAnswerCount >= 3 || signal.description.trim().length >= 120
       ? []
       : result.clarifiers;
 

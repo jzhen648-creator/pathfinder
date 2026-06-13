@@ -288,6 +288,7 @@ export async function formatMapContext(
 export async function formatPursuitContext(
   userId: string,
   pursuitId: string,
+  options?: { includeMarks?: boolean },
 ): Promise<FormattedPursuitContext | null> {
   const goal = await prisma.goal.findFirst({
     where: {
@@ -328,19 +329,25 @@ export async function formatPursuitContext(
     take: 12,
   });
 
-  const hubMarks = await prisma.mark.findMany({
-    where: { userId, categoryId: goal.categoryId, archived: false },
-    select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
-    orderBy: [{ sequencePosition: "asc" }, { date: "asc" }],
-    take: 20,
-  });
+  const includeMarks = options?.includeMarks === true;
 
-  const themeMarks = await prisma.mark.findMany({
-    where: { userId, themeId: themeId, archived: false },
-    select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: 15,
-  });
+  const hubMarks = includeMarks
+    ? await prisma.mark.findMany({
+        where: { userId, categoryId: goal.categoryId, archived: false },
+        select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
+        orderBy: [{ sequencePosition: "asc" }, { date: "asc" }],
+        take: 20,
+      })
+    : [];
+
+  const themeMarks = includeMarks
+    ? await prisma.mark.findMany({
+        where: { userId, themeId: themeId, archived: false },
+        select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        take: 15,
+      })
+    : [];
 
   const markById = new Map<string, FormattedMapMark>();
   for (const mark of [...hubMarks, ...themeMarks]) {

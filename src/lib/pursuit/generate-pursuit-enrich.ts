@@ -15,32 +15,65 @@ import {
   type PursuitEnrichCachePayload,
   type PursuitEnrichResult,
 } from "@/lib/pursuit/pursuit-enrich-types";
+import {
+  DEFAULT_PURSUIT_ENRICH_OPTIONS,
+  resolvePursuitEnrichOptions,
+  type PursuitEnrichOptions,
+} from "@/lib/pursuit/enrich-options";
 import { prisma } from "@/lib/prisma";
 
 const MAX_ENRICH_PER_RUN = 1;
 
-const ENRICH_SYSTEM_PROMPT = [
-  "You enrich a single pursuit on a personal life map.",
-  "Return ONLY valid JSON matching the schema.",
-  "",
-  "OUTPUT:",
-  "- clarifiers: 0-3 multiple-choice questions when the title is ambiguous AND existing context does not already disambiguate.",
-  "  Each clarifier: id (short slug), prompt (question), options (2-4 short labels, <=6 words each).",
-  "  Skip clarifiers when theme + category + deadline + description already make the pursuit specific.",
-  "  Example — title 'Project manager', Work theme, Job category, empty description:",
-  '  prompt "What kind of project management?" options ["Tech / software","Construction","Marketing / agency","Not sure"]',
-  "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars) + tone.",
-  "  Body structure when data supports it (each on its own line):",
-  '  - \"From your map: \" + one sentence on cross-pursuit connections (siblings, marks) when present in context.',
-  '  - \"Comparison: \" + one benchmark sentence when user profile has age AND location; omit if either is unknown.',
-  "  - Remaining lines: pursuit-specific detail beyond headline. Never restate the title alone.",
-  "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
-  "  Otherwise return null for suggestedMilestones.",
-  "",
-  "RULES:",
-  "- Ground every field in provided scoped context JSON only.",
-  "- Null/empty arrays are correct when unsure.",
+const ENRICH_TONE_RULES = [
+  "- insight tone MUST be exactly one of: celebratory | encouraging | nudge | reality_check | informational",
+  "- Use informational when map context is sparse or only a title is known",
+  "- Use celebratory only when milestones completed or status is COMPLETE",
 ].join("\n");
+
+function buildEnrichSystemPrompt(options: Required<PursuitEnrichOptions>): string {
+  const clarifierRules = options.clarifyTitles
+    ? [
+        "- clarifiers: 0-3 multiple-choice questions when the title is ambiguous AND existing context does not already disambiguate.",
+        "  Each clarifier: id (short slug), prompt (question), options (2-4 short labels, <=6 words each).",
+        "  Skip clarifiers when theme + category + deadline + description already make the pursuit specific.",
+        '  Example — title "Project manager", Work theme, Job category, empty description:',
+        '  prompt "What kind of project management?" options ["Tech / software","Construction","Marketing / agency","Not sure"]',
+      ]
+    : ["- clarifiers: always return an empty array — do not generate quick questions."];
+
+  const connectionRules = options.suggestConnections
+    ? [
+        "- You MAY add at most ONE clarifier about how this pursuit relates to a named sibling pursuit in context.",
+        "  Only use pursuit titles that appear in siblingPursuits — never invent pursuits.",
+        '  Options must include "Unrelated" or "Not sure".',
+      ]
+    : [
+        "- Do NOT ask relationship or cross-pursuit connection questions in clarifiers.",
+        "  Cross-pursuit links belong only in insight body when already supported by context.",
+      ];
+
+  return [
+    "You enrich a single pursuit on a personal life map.",
+    "Return ONLY valid JSON matching the schema.",
+    "Quick questions must improve accuracy — never invent facts or pursuits not in context.",
+    "",
+    "OUTPUT:",
+    ...clarifierRules,
+    ...connectionRules,
+    "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars) + tone.",
+    ENRICH_TONE_RULES,
+    "  Body structure when data supports it (each on its own line):",
+    '  - "From your map: " + one sentence on cross-pursuit connections (sibling pursuits) when present in context.',
+    '  - "Comparison: " + one benchmark sentence when user profile has age AND location; omit if either is unknown.',
+    "  - Remaining lines: pursuit-specific detail beyond headline. Never restate the title alone.",
+    "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
+    "  Otherwise return null for suggestedMilestones.",
+    "",
+    "RULES:",
+    "- Ground every field in provided scoped context JSON only.",
+    "- Null/empty arrays are correct when unsure.",
+  ].join("\n");
+}
 
 function stripMarkdownFence(raw: string): string {
   const trimmed = raw.trim();
@@ -67,7 +100,7 @@ function buildPursuitEnrichUserMessage(
       ? "Milestones: allowed — suggest only if concrete and specific."
       : "Milestones: NOT allowed — set suggestedMilestones to null.",
     "",
-    "Scoped pursuit context JSON (focal pursuit + sibling pursuits + related marks):",
+    "Scoped pursuit context JSON (focal pursuit + sibling pursuits):",
     contextJson,
   ].join("\n");
 }
@@ -133,16 +166,19 @@ async function generateOnePursuitEnrich(
   pursuitId: string,
   userContext: string,
   signal: PursuitSignal,
+  enrichOptions: Required<PursuitEnrichOptions>,
 ): Promise<PursuitEnrichResult> {
   const milestonesAllowed = shouldSuggestMilestones(signal);
-  const pursuitContext = await formatPursuitContext(userId, pursuitId);
+  const pursuitContext = await formatPursuitContext(userId, pursuitId, {
+    includeMarks: enrichOptions.includeMarks,
+  });
   if (!pursuitContext) {
     throw new InsightGenerationResponseError("Pursuit enrich missing pursuit context.");
   }
   const contextJson = JSON.stringify(pursuitContext, null, 2);
 
   const raw = await generateJsonCompletion({
-    system: ENRICH_SYSTEM_PROMPT,
+    system: buildEnrichSystemPrompt(enrichOptions),
     user: buildPursuitEnrichUserMessage(pursuitId, contextJson, userContext, milestonesAllowed),
     maxTokens: 2048,
     queueKey: userId,
@@ -172,14 +208,16 @@ async function generateOnePursuitEnrich(
     throw new InsightGenerationResponseError("Pursuit enrich missing target pursuit entry.");
   }
 
-  return gateEnrichResult(result, signal);
+  return gateEnrichResult(result, signal, enrichOptions);
 }
 
 /** Serialized per-pursuit enrich — clarifiers, insight, gated milestones. */
 export async function refreshPursuitEnrich(
   userId: string,
   pursuitIds: string[],
+  options?: PursuitEnrichOptions,
 ): Promise<{ processedIds: string[]; remainingIds: string[]; geminiCallsMade: number }> {
+  const enrichOptions = resolvePursuitEnrichOptions(options ?? DEFAULT_PURSUIT_ENRICH_OPTIONS);
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
   }
@@ -198,26 +236,34 @@ export async function refreshPursuitEnrich(
   ]);
 
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
+  const writtenIds: string[] = [];
   let geminiCallsMade = 0;
 
   for (const pursuitId of batchIds) {
     const signal = signals.get(pursuitId);
     if (!signal) continue;
-    const result = await generateOnePursuitEnrich(userId, pursuitId, userContext, signal);
+    const result = await generateOnePursuitEnrich(userId, pursuitId, userContext, signal, enrichOptions);
     geminiCallsMade += 1;
     const payload = toCachePayload(result);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
+      writtenIds.push(pursuitId);
     }
   }
 
   if (Object.keys(pursuits).length > 0) {
     await mergeNodeInsightsIntoCache(userId, { themes: {}, hubs: {}, pursuits }, {
-      stampMapVersion: remainingIds.length === 0,
+      stampMapVersion: remainingIds.length === 0 && writtenIds.length === batchIds.length,
     });
   }
 
-  return { processedIds: batchIds, remainingIds, geminiCallsMade };
+  const unwrittenBatchIds = batchIds.filter((id) => !writtenIds.includes(id));
+
+  return {
+    processedIds: writtenIds,
+    remainingIds: [...remainingIds, ...unwrittenBatchIds],
+    geminiCallsMade,
+  };
 }
 
 export { MAX_ENRICH_PER_RUN };

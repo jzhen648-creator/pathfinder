@@ -547,13 +547,27 @@ export type DigestCapturesResult = {
   rateLimited: boolean;
   remaining: number;
   memoryTextsDeferred: number;
+  /** Actual Gemini extract calls made (not batched run count). */
+  geminiCallsMade: number;
 };
 
-/** Digest up to `limit` pending captures — resumable across sync taps. */
+export type DigestCapturesOptions = {
+  /** Max pending runs to attempt this sync (default 5). */
+  runLimit?: number;
+  /** Max Gemini calls for digest this sync — shares unified ai-sync budget. */
+  maxGeminiCalls?: number;
+};
+
+/** Digest pending captures — resumable across sync taps; respects Gemini budget. */
 export async function digestPendingCapturesBounded(
   userId: string,
-  limit = DIGEST_BATCH_LIMIT,
+  options?: DigestCapturesOptions | number,
 ): Promise<DigestCapturesResult> {
+  const opts: DigestCapturesOptions =
+    typeof options === "number" ? { runLimit: options } : (options ?? {});
+  const runLimit = opts.runLimit ?? DIGEST_BATCH_LIMIT;
+  const maxGeminiCalls = opts.maxGeminiCalls ?? runLimit;
+
   const now = new Date();
   const pending = await prisma.streamRun.findMany({
     where: {
@@ -570,12 +584,14 @@ export async function digestPendingCapturesBounded(
   const errors: string[] = [];
   let rateLimited = false;
   let memoryTextsDeferred = 0;
+  let geminiCallsMade = 0;
 
   const batches = groupPendingByPursuit(pending);
   let runsAttempted = 0;
 
   for (const batch of batches) {
-    if (runsAttempted >= limit) break;
+    if (runsAttempted >= runLimit) break;
+    if (geminiCallsMade >= maxGeminiCalls) break;
 
     if (batch.runIds.length === 1) {
       const result = await digestPendingStreamRun(userId, batch.runIds[0]!, { deferMemory: true });
@@ -583,6 +599,7 @@ export async function digestPendingCapturesBounded(
       if (result.ok) {
         processed += 1;
         memoryTextsDeferred += 1;
+        geminiCallsMade += 1;
       } else {
         failed += 1;
         if (result.error) errors.push(result.error);
@@ -600,11 +617,12 @@ export async function digestPendingCapturesBounded(
     failed += batchResult.failed;
     errors.push(...batchResult.errors);
     memoryTextsDeferred += batchResult.processed;
+    geminiCallsMade += batchResult.geminiCallsMade;
     if (batchResult.rateLimited) {
       rateLimited = true;
       break;
     }
-    if (runsAttempted >= limit) break;
+    if (runsAttempted >= runLimit) break;
   }
 
   const remaining = await countPendingCaptures(userId);
@@ -616,6 +634,7 @@ export async function digestPendingCapturesBounded(
     rateLimited,
     remaining,
     memoryTextsDeferred,
+    geminiCallsMade,
   };
 }
 
@@ -635,13 +654,13 @@ async function digestPendingStreamRunsBatch(
   userId: string,
   runIds: string[],
   options?: { deferMemory?: boolean },
-): Promise<{ processed: number; failed: number; errors: string[]; rateLimited: boolean }> {
+): Promise<{ processed: number; failed: number; errors: string[]; rateLimited: boolean; geminiCallsMade: number }> {
   const runs = await prisma.streamRun.findMany({
     where: { id: { in: runIds }, userId, status: "pending" },
     orderBy: { createdAt: "asc" },
   });
   if (runs.length === 0) {
-    return { processed: 0, failed: 0, errors: [], rateLimited: false };
+    return { processed: 0, failed: 0, errors: [], rateLimited: false, geminiCallsMade: 0 };
   }
 
   const combinedInput = runs.map((r) => r.rawInput.trim()).filter(Boolean).join("\n\n---\n\n").slice(0, 4000);
@@ -663,28 +682,37 @@ async function digestPendingStreamRunsBatch(
         streamRunId: extra.id,
       });
     }
-    return { processed: runs.length, failed: 0, errors: [], rateLimited: false };
+    return { processed: runs.length, failed: 0, errors: [], rateLimited: false, geminiCallsMade: 1 };
   }
 
   if (single.status === 429) {
-    return { processed: 0, failed: 1, errors: single.error ? [single.error] : [], rateLimited: true };
+    return {
+      processed: 0,
+      failed: 1,
+      errors: single.error ? [single.error] : [],
+      rateLimited: true,
+      geminiCallsMade: 0,
+    };
   }
 
   let processed = 0;
   let failed = 0;
   const errors: string[] = [];
+  let geminiCallsMade = 0;
   for (const run of runs) {
     const result = await digestPendingStreamRun(userId, run.id, options);
-    if (result.ok) processed += 1;
-    else {
+    if (result.ok) {
+      processed += 1;
+      geminiCallsMade += 1;
+    } else {
       failed += 1;
       if (result.error) errors.push(result.error);
       if (result.status === 429) {
-        return { processed, failed, errors, rateLimited: true };
+        return { processed, failed, errors, rateLimited: true, geminiCallsMade };
       }
     }
   }
-  return { processed, failed, errors, rateLimited: false };
+  return { processed, failed, errors, rateLimited: false, geminiCallsMade };
 }
 
 export async function digestAllPendingCaptures(userId: string): Promise<{
@@ -692,7 +720,7 @@ export async function digestAllPendingCaptures(userId: string): Promise<{
   failed: number;
   errors: string[];
 }> {
-  const result = await digestPendingCapturesBounded(userId, 999);
+  const result = await digestPendingCapturesBounded(userId, { runLimit: 999 });
   return {
     processed: result.processed,
     failed: result.failed,

@@ -17,6 +17,9 @@ import {
 import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 
 import { refreshReadingCachesSmart } from "@/lib/map/incremental-reading-refresh";
+import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
+import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
+import { remainingSyncGeminiBudget } from "@/lib/map/sync-gemini-budget";
 
 import {
   checkReadingDeliveryGate,
@@ -237,7 +240,7 @@ async function runMapAiSyncInner(
 
   userId: string,
 
-  options?: { force?: boolean },
+  options?: { force?: boolean; enrichOptions?: PursuitEnrichOptions },
 
 ): Promise<MapAiSyncResult> {
 
@@ -250,137 +253,90 @@ async function runMapAiSyncInner(
 
 
   const force = options?.force === true;
+  const enrichOptions = resolvePursuitEnrichOptions(options?.enrichOptions);
 
   const metrics = emptyMapAiSyncMetrics();
 
-  const pendingBefore = await countPendingCaptures(userId);
-
-
-
-  let digested = {
-
-    runs: 0,
-
-    failed: 0,
-
-    errors: [] as string[],
-
-  };
-
-
-
-  if (pendingBefore > 0) {
-
-    metrics.startedWork = true;
-
-    metrics.aiCallsPlanned += Math.min(pendingBefore, 5);
-
-    const digestResult = await digestPendingCapturesBounded(userId);
-
-    digested = {
-
-      runs: digestResult.processed,
-
-      failed: digestResult.failed,
-
-      errors: digestResult.errors,
-
-    };
-
-    metrics.digestRunsProcessed = digestResult.processed;
-
-    metrics.digestRunsFailed = digestResult.failed;
-
-    metrics.digestRunsRemaining = digestResult.remaining;
-
-    metrics.morePending = digestResult.remaining > 0;
-
-    metrics.memoryUpdatesDeferred = digestResult.memoryTextsDeferred;
-
-    metrics.aiCallsCompleted += digestResult.processed;
-
-    metrics.rateLimited = digestResult.rateLimited;
-
-
-
-    if (digestResult.rateLimited) {
-
-      discardDeferredMemoryUpdates(userId);
-
-      const { mapVersion } = await resolveVersions(userId);
-
-      const partial = buildBaseResult(mapVersion, metrics, digested);
-
-      throw new MapAiSyncRateLimitError(60_000, partial);
-
-    }
-
-  }
-
-
-
   const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
 
-
+  const pendingBefore = await countPendingCaptures(userId);
 
   const [insightRow, storyRow, dirtySummary] = await Promise.all([
-
     prisma.insightCache.findUnique({ where: { userId } }),
-
     prisma.storyCache.findUnique({ where: { userId } }),
-
     listReadingDirtySummary(userId),
-
   ]);
 
-
-
-  metrics.dirtyItems = dirtySummary.totalItems;
-
-  metrics.dirtyPursuits = dirtySummary.pursuitIds.length;
-
-
-
   const insightsStale =
-
     !insightRow || insightCacheStale(insightRow, mapVersion, memoryVersion);
-
   const storyStale =
-
     !storyRow ||
-
     storyCacheStale(storyRow, mapVersion, memoryVersion, taxonomyVersion);
-
-
-
-  const readingWorkNeeded =
-
-    force ||
-
-    digested.runs > 0 ||
-
-    insightsStale ||
-
-    storyStale ||
-
-    dirtySummary.totalItems > 0;
-
-
-
-  if (!readingWorkNeeded && pendingBefore === 0) {
-
-    return buildBaseResult(mapVersion, metrics, digested);
-
-  }
-
-
 
   const enrichOnlyFollowUp =
     !insightsStale &&
     !storyStale &&
     dirtySummary.pursuitIds.length > 0;
 
+  /** Finish tap — drain pursuit panels only; defer legacy note digest. */
+  const skipDigestForFinishTap = force && enrichOnlyFollowUp;
 
+  let digested = {
+    runs: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
+  if (pendingBefore > 0 && !skipDigestForFinishTap) {
+    const digestBudget = remainingSyncGeminiBudget(metrics);
+    if (digestBudget > 0) {
+      metrics.startedWork = true;
+      metrics.aiCallsPlanned += Math.min(pendingBefore, digestBudget);
+
+      const digestResult = await digestPendingCapturesBounded(userId, {
+        maxGeminiCalls: digestBudget,
+      });
+
+      digested = {
+        runs: digestResult.processed,
+        failed: digestResult.failed,
+        errors: digestResult.errors,
+      };
+
+      metrics.digestRunsProcessed = digestResult.processed;
+      metrics.digestRunsFailed = digestResult.failed;
+      metrics.digestRunsRemaining = digestResult.remaining;
+      metrics.morePending = digestResult.remaining > 0;
+      metrics.memoryUpdatesDeferred = digestResult.memoryTextsDeferred;
+      metrics.aiCallsCompleted += digestResult.geminiCallsMade;
+      metrics.rateLimited = digestResult.rateLimited;
+
+      if (digestResult.rateLimited) {
+        discardDeferredMemoryUpdates(userId);
+        const partial = buildBaseResult(mapVersion, metrics, digested);
+        throw new MapAiSyncRateLimitError(60_000, partial);
+      }
+    } else {
+      metrics.digestRunsRemaining = pendingBefore;
+      metrics.morePending = true;
+    }
+  } else if (pendingBefore > 0 && skipDigestForFinishTap) {
+    metrics.digestRunsRemaining = pendingBefore;
+  }
+
+  metrics.dirtyItems = dirtySummary.totalItems;
+  metrics.dirtyPursuits = dirtySummary.pursuitIds.length;
+
+  const readingWorkNeeded =
+    force ||
+    digested.runs > 0 ||
+    insightsStale ||
+    storyStale ||
+    dirtySummary.totalItems > 0;
+
+  if (!readingWorkNeeded && pendingBefore === 0) {
+    return buildBaseResult(mapVersion, metrics, digested);
+  }
 
   const deliveryGate = await checkReadingDeliveryGate(userId, {
     force: force || enrichOnlyFollowUp,
@@ -424,6 +380,8 @@ async function runMapAiSyncInner(
       forceFull: false,
 
       metrics,
+
+      enrichOptions,
 
     });
 
@@ -595,7 +553,7 @@ async function runMapAiSyncInner(
 /** Serialize ai-sync per user so debounced + manual taps never run Gemini in parallel. */
 export async function runMapAiSync(
   userId: string,
-  options?: { force?: boolean },
+  options?: { force?: boolean; enrichOptions?: PursuitEnrichOptions },
 ): Promise<MapAiSyncResult> {
   const key = userId.trim();
   const previous = syncChains.get(key) ?? Promise.resolve();

@@ -42,25 +42,25 @@ function isLoginPath(pathname: string): boolean {
  * from cookies only. We forward the request with the bearer token re-attached
  * as the cookie NextAuth would have set itself — one place, every API route works.
  */
-function withBearerCookieForwarded(req: NextRequest): NextResponse | null {
+function withBearerCookieForwarded(req: NextRequest): NextResponse {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) return null;
-
-  const raw = authHeader.slice(7).trim();
-  if (!raw) return null;
+  const raw =
+    authHeader?.toLowerCase().startsWith("bearer ") === true ? authHeader.slice(7).trim() : "";
+  if (!raw) return NextResponse.next();
 
   const isHttps = req.nextUrl.protocol === "https:";
   const cookieName = isHttps
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
 
-  const existingCookie = req.headers.get("cookie") ?? "";
-  if (existingCookie.includes(`${cookieName}=`)) return null;
-
   const requestHeaders = new Headers(req.headers);
-  const merged = existingCookie
-    ? `${existingCookie}; ${cookieName}=${raw}`
-    : `${cookieName}=${raw}`;
+  const existingCookie = req.headers.get("cookie") ?? "";
+  const stripped = existingCookie
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part && !part.startsWith(`${cookieName}=`))
+    .join("; ");
+  const merged = stripped ? `${stripped}; ${cookieName}=${raw}` : `${cookieName}=${raw}`;
   requestHeaders.set("cookie", merged);
 
   return NextResponse.next({ request: { headers: requestHeaders } });
@@ -97,7 +97,7 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       return finishApi(req, NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
     }
-    return finishApi(req, withBearerCookieForwarded(req) ?? NextResponse.next());
+    return finishApi(req, withBearerCookieForwarded(req));
   }
 
   if (isLoginPath(pathname)) {

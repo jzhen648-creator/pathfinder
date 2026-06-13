@@ -16,6 +16,9 @@ import { ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-
 
 const bodySchema = z.object({
   force: z.boolean().optional(),
+  clarifyTitles: z.boolean().optional(),
+  suggestConnections: z.boolean().optional(),
+  includeMarks: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -42,7 +45,14 @@ export async function POST(request: Request) {
   const userId = auth.userId;
 
   try {
-    const result = await runMapAiSync(userId, { force: parsed.data.force === true });
+    const result = await runMapAiSync(userId, {
+      force: parsed.data.force === true,
+      enrichOptions: {
+        clarifyTitles: parsed.data.clarifyTitles,
+        suggestConnections: parsed.data.suggestConnections,
+        includeMarks: parsed.data.includeMarks,
+      },
+    });
     console.info("[POST /api/map/ai-sync] metrics", result.metrics);
 
     let [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([

@@ -22,6 +22,8 @@ export type MapAiSyncMetrics = {
   liteFirstReading: boolean;
   storyFullRegen: boolean;
   readingPacketChars: number;
+  /** Pursuit enrich failures surfaced to mobile (non-fatal). */
+  enrichErrors: string[];
 };
 
 export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
@@ -47,5 +49,6 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     liteFirstReading: false,
     storyFullRegen: false,
     readingPacketChars: 0,
+    enrichErrors: [],
   };
 }

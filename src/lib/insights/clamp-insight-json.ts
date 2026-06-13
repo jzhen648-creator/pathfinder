@@ -2,6 +2,42 @@
 export const PURSUIT_INSIGHT_HEADLINE_MAX = 100;
 export const PURSUIT_INSIGHT_BODY_MAX = 500;
 
+export type PursuitInsightTone =
+  | "celebratory"
+  | "encouraging"
+  | "nudge"
+  | "reality_check"
+  | "informational";
+
+const PURSUIT_INSIGHT_TONES: PursuitInsightTone[] = [
+  "celebratory",
+  "encouraging",
+  "nudge",
+  "reality_check",
+  "informational",
+];
+
+/** Coerce Gemini tone drift before Zod — avoids enrich hard-fail on synonym/hyphen variants. */
+export function normalizePursuitInsightTone(raw: unknown): PursuitInsightTone {
+  if (typeof raw !== "string" || !raw.trim()) return "informational";
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^a-z_]/g, "");
+
+  if (normalized === "realitycheck") return "reality_check";
+  if ((PURSUIT_INSIGHT_TONES as string[]).includes(normalized)) {
+    return normalized as PursuitInsightTone;
+  }
+  if (normalized.includes("celebrat")) return "celebratory";
+  if (normalized.includes("nudge")) return "nudge";
+  if (normalized.includes("encourag")) return "encouraging";
+  if (normalized.includes("reality")) return "reality_check";
+  if (normalized.includes("inform")) return "informational";
+  return "informational";
+}
+
 function truncateString(value: unknown, max: number): unknown {
   if (typeof value !== "string") return value;
   if (value.length <= max) return value;
@@ -9,6 +45,9 @@ function truncateString(value: unknown, max: number): unknown {
 }
 
 function clampPursuitInsightFields(row: Record<string, unknown>): void {
+  if ("tone" in row) {
+    row.tone = normalizePursuitInsightTone(row.tone);
+  }
   if ("headline" in row) {
     row.headline = truncateString(row.headline, PURSUIT_INSIGHT_HEADLINE_MAX);
   }

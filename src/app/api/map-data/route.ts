@@ -205,6 +205,8 @@ export async function GET(request: Request) {
 
           sentiment: true,
 
+          significance: true,
+
           createdAt: true,
 
           updatedAt: true,

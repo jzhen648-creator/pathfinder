@@ -44,6 +44,8 @@ export type ReadingPacket = {
     recentCompletions90d: number;
     highSignificanceActive: string[];
   };
+  /** Deterministic milestone progress lines for AI grounding. */
+  milestonePaceFacts: string[];
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -242,6 +244,47 @@ export function buildMapAggregates(
   };
 }
 
+export function buildMilestonePaceFacts(
+  pursuits: ReturnType<typeof flattenPursuits>,
+  now = Date.now(),
+): string[] {
+  const facts: string[] = [];
+  for (const pursuit of pursuits) {
+    const milestones = pursuit.milestones ?? [];
+    if (milestones.length === 0) continue;
+    const completed = milestones.filter((m) => m.completed && m.completedAt);
+    if (completed.length === 0) continue;
+
+    const dates = completed
+      .map((m) => parseCalendarDate(m.completedAt))
+      .filter((d): d is Date => d != null)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    let line = `${pursuit.title}: ${completed.length}/${milestones.length} milestones complete`;
+    if (dates.length >= 2) {
+      const spanDays = Math.max(
+        1,
+        Math.round((dates[dates.length - 1]!.getTime() - dates[0]!.getTime()) / MS_PER_DAY),
+      );
+      line += `; completions over ~${spanDays}d`;
+    } else if (dates[0]) {
+      const daysAgo = Math.max(
+        0,
+        Math.round((now - dates[0].getTime()) / MS_PER_DAY),
+      );
+      line += `; last milestone ${daysAgo}d ago`;
+    }
+    facts.push(line);
+  }
+  return facts.slice(0, 8);
+}
+
+function parseCalendarDate(value?: string | null): Date | null {
+  if (!value?.trim()) return null;
+  const date = new Date(`${value.trim().slice(0, 10)}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function resolveFocusCategoryIds(
   userId: string,
   dirty: ReadingDirtyAnalysis,
@@ -290,6 +333,7 @@ export async function compileReadingPacket(
       upcoming: spine.future,
     },
     mapAggregates: buildMapAggregates(pursuits),
+    milestonePaceFacts: buildMilestonePaceFacts(pursuits),
   };
 }
 
