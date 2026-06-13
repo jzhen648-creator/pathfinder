@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
 import { StoryGenerationResponseError } from "@/lib/story/generate-story";
 import { ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
+import { ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
 
 const bodySchema = z.object({
   force: z.boolean().optional(),
@@ -119,10 +120,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
     if (err instanceof InsightGenerationResponseError || err instanceof StoryGenerationResponseError) {
-      return NextResponse.json({ error: err.message }, { status: err.status ?? 502 });
+      console.error("[POST /api/map/ai-sync] insight/story generation failed", err.message);
+      return NextResponse.json({ error: err.message }, { status: 502 });
     }
     if (err instanceof ReadingSyncGenerationResponseError) {
-      return NextResponse.json({ error: err.message }, { status: err.status ?? 502 });
+      console.error("[POST /api/map/ai-sync] reading sync generation failed", err.message);
+      return NextResponse.json({ error: err.message }, { status: 502 });
+    }
+    if (err instanceof ReadingDeltaGenerationResponseError) {
+      console.error("[POST /api/map/ai-sync] reading delta generation failed", err.message);
+      return NextResponse.json({ error: err.message }, { status: 502 });
     }
     return aiRouteErrorResponse(err, "[POST /api/map/ai-sync]");
   }

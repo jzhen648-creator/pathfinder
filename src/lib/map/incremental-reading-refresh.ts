@@ -1,4 +1,7 @@
-import { generateNodeInsights } from "@/lib/insights/generate-insights";
+import {
+  generateNodeInsights,
+  InsightGenerationResponseError,
+} from "@/lib/insights/generate-insights";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
 import { generateInsightsAndStory } from "@/lib/map/generate-reading-sync";
 import { generateReadingDelta, ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
@@ -14,7 +17,7 @@ import {
   shouldUseFullReadingRefresh,
   type ReadingDirtySummary,
 } from "@/lib/map/reading-dirty-ledger";
-import { generateStory } from "@/lib/story/generate-story";
+import { generateStory, StoryGenerationResponseError } from "@/lib/story/generate-story";
 import { isCurrentStoryPayload } from "@/lib/story/parse-story-cache";
 import type { StoryGenerationResult } from "@/lib/story/story-types";
 import { GeminiProviderError } from "@/lib/gemini";
@@ -24,7 +27,7 @@ import { prisma } from "@/lib/prisma";
 const STORY_DELTA_MAX_DIRTY_PURSUITS = 12;
 const LITE_FIRST_READING_MAX_PURSUITS = 3;
 /** Max successful Gemini calls per single ai-sync tap (defer remainder to Continue). */
-const MAX_AI_CALLS_PER_SYNC = 2;
+const MAX_AI_CALLS_PER_SYNC = 3;
 
 function canMakeSyncAiCall(metrics: MapAiSyncMetrics): boolean {
   return metrics.aiCallsCompleted < MAX_AI_CALLS_PER_SYNC;
@@ -277,6 +280,92 @@ export async function refreshReadingCachesSmart(
     options.metrics.morePending = true;
   }
 
+  const deltaDirty: ReadingDirtySummary = {
+    ...dirty,
+    pursuitIds: dirty.activeDirtyPursuitIds,
+  };
+
+  // Story refresh first — Insights tab reading beats pursuit enrich on budget.
+  if (
+    !geminiRateLimited &&
+    storyRow &&
+    canUseStoryDelta(deltaDirty) &&
+    canMakeSyncAiCall(options.metrics)
+  ) {
+    const previousStory = parseStoryPayload(storyRow.payload);
+
+    if (previousStory?.seasonRead?.trim()) {
+      try {
+        options.metrics.aiCallsPlanned += 1;
+        const story = await generateReadingDelta(
+          userId,
+          previousStory,
+          storyRow.generatedAt,
+          dirtyAnalysis,
+          options.metrics,
+        );
+        options.metrics.aiCallsCompleted += 1;
+        await upsertStoryCache(userId, story, mapVersion, memoryVersion);
+        storyRefreshed = true;
+      } catch (err) {
+        if (err instanceof ReadingDeltaGenerationResponseError) {
+          try {
+            options.metrics.aiCallsPlanned += 1;
+            const story = await generateStory(userId);
+            options.metrics.aiCallsCompleted += 1;
+            await upsertStoryCache(userId, story, mapVersion, memoryVersion);
+            storyRefreshed = true;
+          } catch (inner) {
+            if (isGemini429(inner)) {
+              geminiRateLimited = true;
+              options.metrics.rateLimited = true;
+              options.metrics.morePending = true;
+            } else if (inner instanceof StoryGenerationResponseError) {
+              console.warn("[incremental-reading-refresh] delta + full story fallback failed", inner.message);
+              options.metrics.morePending = true;
+            } else {
+              throw inner;
+            }
+          }
+        } else if (isGemini429(err)) {
+          geminiRateLimited = true;
+          options.metrics.rateLimited = true;
+          options.metrics.morePending = true;
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  if (
+    !geminiRateLimited &&
+    !storyRefreshed &&
+    dirty.activeDirtyPursuitIds.length > 0 &&
+    canMakeSyncAiCall(options.metrics)
+  ) {
+    options.metrics.aiCallsPlanned += 1;
+    try {
+      const story = await generateStory(userId);
+      options.metrics.aiCallsCompleted += 1;
+      await upsertStoryCache(userId, story, mapVersion, memoryVersion);
+      storyRefreshed = true;
+    } catch (err) {
+      if (isGemini429(err)) {
+        geminiRateLimited = true;
+        options.metrics.rateLimited = true;
+        options.metrics.morePending = true;
+      } else if (err instanceof StoryGenerationResponseError) {
+        console.warn("[incremental-reading-refresh] full story regen failed", err.message);
+        options.metrics.morePending = true;
+      } else {
+        throw err;
+      }
+    }
+  } else if (!storyRefreshed && dirty.activeDirtyPursuitIds.length > 0) {
+    options.metrics.morePending = true;
+  }
+
   if (dirty.activeDirtyPursuitIds.length > 0 && canMakeSyncAiCall(options.metrics)) {
     options.metrics.aiCallsPlanned += Math.min(dirty.activeDirtyPursuitIds.length, 3);
     try {
@@ -294,6 +383,9 @@ export async function refreshReadingCachesSmart(
         geminiRateLimited = true;
         options.metrics.rateLimited = true;
         options.metrics.morePending = true;
+      } else if (err instanceof InsightGenerationResponseError) {
+        console.warn("[incremental-reading-refresh] pursuit enrich failed", err.message);
+        options.metrics.morePending = true;
       } else {
         throw err;
       }
@@ -301,11 +393,6 @@ export async function refreshReadingCachesSmart(
   } else if (dirty.activeDirtyPursuitIds.length > 0) {
     options.metrics.morePending = true;
   }
-
-  const deltaDirty: ReadingDirtySummary = {
-    ...dirty,
-    pursuitIds: dirty.activeDirtyPursuitIds,
-  };
 
   if (
     !geminiRateLimited &&
@@ -339,89 +426,13 @@ export async function refreshReadingCachesSmart(
         geminiRateLimited = true;
         options.metrics.rateLimited = true;
         options.metrics.morePending = true;
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  if (
-    !geminiRateLimited &&
-    storyRow &&
-    canUseStoryDelta(deltaDirty) &&
-    canMakeSyncAiCall(options.metrics)
-  ) {
-    const previousStory = parseStoryPayload(storyRow.payload);
-
-    if (previousStory?.seasonRead?.trim()) {
-      try {
-        options.metrics.aiCallsPlanned += 1;
-        const story = await generateReadingDelta(
-          userId,
-          previousStory,
-          storyRow.generatedAt,
-          dirtyAnalysis,
-          options.metrics,
-        );
-        options.metrics.aiCallsCompleted += 1;
-        await upsertStoryCache(userId, story, mapVersion, memoryVersion);
-        storyRefreshed = true;
-      } catch (err) {
-        if (
-          err instanceof ReadingDeltaGenerationResponseError &&
-          canMakeSyncAiCall(options.metrics)
-        ) {
-          try {
-            options.metrics.aiCallsPlanned += 1;
-            const story = await generateStory(userId);
-            options.metrics.aiCallsCompleted += 1;
-            await upsertStoryCache(userId, story, mapVersion, memoryVersion);
-            storyRefreshed = true;
-          } catch (inner) {
-            if (isGemini429(inner)) {
-              geminiRateLimited = true;
-              options.metrics.rateLimited = true;
-              options.metrics.morePending = true;
-            } else {
-              throw inner;
-            }
-          }
-        } else if (err instanceof ReadingDeltaGenerationResponseError) {
-          options.metrics.morePending = true;
-        } else if (isGemini429(err)) {
-          geminiRateLimited = true;
-          options.metrics.rateLimited = true;
-          options.metrics.morePending = true;
-        } else {
-          throw err;
-        }
-      }
-    }
-  }
-
-  if (
-    !geminiRateLimited &&
-    !storyRefreshed &&
-    dirty.activeDirtyPursuitIds.length > 0 &&
-    canMakeSyncAiCall(options.metrics)
-  ) {
-    options.metrics.aiCallsPlanned += 1;
-    try {
-      const story = await generateStory(userId);
-      options.metrics.aiCallsCompleted += 1;
-      await upsertStoryCache(userId, story, mapVersion, memoryVersion);
-      storyRefreshed = true;
-    } catch (err) {
-      if (isGemini429(err)) {
-        geminiRateLimited = true;
-        options.metrics.rateLimited = true;
+      } else if (err instanceof InsightGenerationResponseError) {
+        console.warn("[incremental-reading-refresh] theme/hub insight patch failed", err.message);
         options.metrics.morePending = true;
       } else {
         throw err;
       }
     }
-  } else if (!storyRefreshed && dirty.activeDirtyPursuitIds.length > 0) {
-    options.metrics.morePending = true;
   }
 
   if (insightsRefreshed || storyRefreshed) {
