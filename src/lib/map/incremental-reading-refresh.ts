@@ -28,8 +28,8 @@ import { prisma } from "@/lib/prisma";
 
 const STORY_DELTA_MAX_DIRTY_PURSUITS = 12;
 const LITE_FIRST_READING_MAX_PURSUITS = 3;
-/** Max successful Gemini calls per single ai-sync tap (defer remainder to Continue). */
-const MAX_AI_CALLS_PER_SYNC = 3;
+/** Max successful Gemini calls per single ai-sync tap (defer remainder to follow-up). */
+const MAX_AI_CALLS_PER_SYNC = 2;
 
 function canMakeSyncAiCall(metrics: MapAiSyncMetrics): boolean {
   return metrics.aiCallsCompleted < MAX_AI_CALLS_PER_SYNC;
@@ -153,7 +153,7 @@ async function runPursuitEnrichLoop(
     options.metrics.aiCallsPlanned += 1;
     try {
       const enrichResult = await refreshPursuitEnrich(userId, remainingToEnrich);
-      options.metrics.aiCallsCompleted += enrichResult.processedIds.length;
+      options.metrics.aiCallsCompleted += enrichResult.geminiCallsMade;
       insightsRefreshed = insightsRefreshed || enrichResult.processedIds.length > 0;
       if (enrichResult.processedIds.length > 0) {
         await clearReadingDirtyForPursuits(userId, enrichResult.processedIds);
@@ -251,9 +251,9 @@ export async function refreshReadingCachesSmart(
     }
   }
 
+  const editOnlyDirty = await isEditOnlyDirtyBatch(userId);
   const createBurst = await shouldUseCreateBurstFullRefresh(userId);
   const ratioFull = await shouldUseFullReadingRefresh(userId, dirty.pursuitIds.length);
-  const editOnlyDirty = await isEditOnlyDirtyBatch(userId);
 
   const useFull =
     options.forceFull === true ||
@@ -455,13 +455,19 @@ export async function refreshReadingCachesSmart(
     options.metrics.morePending = true;
   }
 
-  if (dirty.activeDirtyPursuitIds.length > 0) {
+  // Edit-only map changes (status, dates, restore) — refresh Reading first; defer panel enrich.
+  const deferEnrichAfterStory = storyRefreshed && editOnlyDirty;
+
+  if (dirty.activeDirtyPursuitIds.length > 0 && !deferEnrichAfterStory) {
     const enrichLoop = await runPursuitEnrichLoop(userId, dirty.activeDirtyPursuitIds, {
       metrics: options.metrics,
       geminiRateLimited,
     });
     insightsRefreshed = insightsRefreshed || enrichLoop.insightsRefreshed;
     geminiRateLimited = enrichLoop.geminiRateLimited;
+  } else if (deferEnrichAfterStory) {
+    options.metrics.morePending = true;
+    options.metrics.pendingInsightCount = dirty.activeDirtyPursuitIds.length;
   }
 
   if (

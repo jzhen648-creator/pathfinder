@@ -1,6 +1,6 @@
 const ONE_MINUTE_MS = 60_000;
 /** Successful Gemini calls per user per minute (failed attempts do not count). */
-const MAX_SUCCESSFUL_CALLS_PER_MINUTE = 10;
+const MAX_SUCCESSFUL_CALLS_PER_MINUTE = 12;
 
 type Window = { count: number; resetAt: number };
 

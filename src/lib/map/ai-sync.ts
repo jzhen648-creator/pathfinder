@@ -231,7 +231,9 @@ function buildBaseResult(
 
 
 
-export async function runMapAiSync(
+const syncChains = new Map<string, Promise<unknown>>();
+
+async function runMapAiSyncInner(
 
   userId: string,
 
@@ -581,6 +583,27 @@ export async function runMapAiSync(
 
   };
 
+}
+
+/** Serialize ai-sync per user so debounced + manual taps never run Gemini in parallel. */
+export async function runMapAiSync(
+  userId: string,
+  options?: { force?: boolean },
+): Promise<MapAiSyncResult> {
+  const key = userId.trim();
+  const previous = syncChains.get(key) ?? Promise.resolve();
+  const run = previous.then(
+    () => runMapAiSyncInner(userId, options),
+    () => runMapAiSyncInner(userId, options),
+  );
+  syncChains.set(
+    key,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return run;
 }
 
 

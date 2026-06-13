@@ -179,14 +179,14 @@ async function generateOnePursuitEnrich(
 export async function refreshPursuitEnrich(
   userId: string,
   pursuitIds: string[],
-): Promise<{ processedIds: string[]; remainingIds: string[] }> {
+): Promise<{ processedIds: string[]; remainingIds: string[]; geminiCallsMade: number }> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
   }
 
   const uniqueIds = [...new Set(pursuitIds.filter(Boolean))];
   if (uniqueIds.length === 0) {
-    return { processedIds: [], remainingIds: [] };
+    return { processedIds: [], remainingIds: [], geminiCallsMade: 0 };
   }
 
   const batchIds = uniqueIds.slice(0, MAX_ENRICH_PER_RUN);
@@ -198,11 +198,13 @@ export async function refreshPursuitEnrich(
   ]);
 
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
+  let geminiCallsMade = 0;
 
   for (const pursuitId of batchIds) {
     const signal = signals.get(pursuitId);
     if (!signal) continue;
     const result = await generateOnePursuitEnrich(userId, pursuitId, userContext, signal);
+    geminiCallsMade += 1;
     const payload = toCachePayload(result);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
@@ -215,7 +217,7 @@ export async function refreshPursuitEnrich(
     });
   }
 
-  return { processedIds: batchIds, remainingIds };
+  return { processedIds: batchIds, remainingIds, geminiCallsMade };
 }
 
 export { MAX_ENRICH_PER_RUN };
