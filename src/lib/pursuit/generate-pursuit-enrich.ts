@@ -3,6 +3,7 @@ import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
+import { normalizePursuitEnrichBatch } from "@/lib/pursuit/normalize-pursuit-enrich";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import {
   gateEnrichResult,
@@ -68,6 +69,10 @@ function buildEnrichSystemPrompt(options: Required<PursuitEnrichOptions>): strin
     "  - Remaining lines: pursuit-specific detail beyond headline. Never restate the title alone.",
     "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
     "  Otherwise return null for suggestedMilestones.",
+    "  Each item: { title: string, order: 0-based integer } — order is required.",
+    "",
+    "JSON shape (single pursuit under pursuits map):",
+    '{ "pursuits": { "<pursuitId>": { "clarifiers": [], "insight": { "tone": "informational", "headline": "...", "body": "..." }, "suggestedMilestones": null } } }',
     "",
     "RULES:",
     "- Ground every field in provided scoped context JSON only.",
@@ -196,14 +201,21 @@ async function generateOnePursuitEnrich(
       ? json
       : { pursuits: { [pursuitId]: json } };
 
-  const parsed = pursuitEnrichBatchSchema.safeParse(wrapped);
+  const normalized = normalizePursuitEnrichBatch(wrapped);
+  const parsed = pursuitEnrichBatchSchema.safeParse(normalized);
   if (!parsed.success) {
     throw new InsightGenerationResponseError(
       parsed.error.issues[0]?.message ?? "Invalid pursuit enrich shape.",
     );
   }
 
-  const result = parsed.data.pursuits[pursuitId];
+  let result = parsed.data.pursuits[pursuitId];
+  if (!result) {
+    const entries = Object.values(parsed.data.pursuits);
+    if (entries.length === 1) {
+      result = entries[0];
+    }
+  }
   if (!result) {
     throw new InsightGenerationResponseError("Pursuit enrich missing target pursuit entry.");
   }
