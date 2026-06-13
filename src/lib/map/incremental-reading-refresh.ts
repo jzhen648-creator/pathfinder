@@ -3,7 +3,7 @@ import {
   InsightGenerationResponseError,
 } from "@/lib/insights/generate-insights";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
-import { generateInsightsAndStory } from "@/lib/map/generate-reading-sync";
+import { generateInsightsAndStory, ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
 import { generateReadingDelta, ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
 import type { MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 import { refreshPursuitEnrich } from "@/lib/pursuit/generate-pursuit-enrich";
@@ -285,6 +285,31 @@ export async function refreshReadingCachesSmart(
         geminiRateLimited: false,
       };
     } catch (err) {
+      if (err instanceof ReadingSyncGenerationResponseError && canMakeSyncAiCall(options.metrics)) {
+        console.warn("[incremental-reading-refresh] combined reading failed — story-only fallback", err.message);
+        options.metrics.aiCallsPlanned += 1;
+        try {
+          const story = await generateStory(userId);
+          options.metrics.aiCallsCompleted += 1;
+          await upsertStoryCache(userId, story, mapVersion, memoryVersion);
+          options.metrics.morePending = dirty.totalItems > 0;
+          return {
+            insightsRefreshed: false,
+            storyRefreshed: true,
+            insightsPruned: false,
+            fullRefresh: false,
+            incrementalRefresh: true,
+            backfillCalls: 0,
+            geminiRateLimited: false,
+          };
+        } catch (inner) {
+          if (isGemini429(inner)) {
+            options.metrics.rateLimited = true;
+            options.metrics.morePending = true;
+          }
+          throw inner;
+        }
+      }
       if (isGemini429(err)) {
         options.metrics.rateLimited = true;
         options.metrics.morePending = true;

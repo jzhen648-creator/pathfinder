@@ -239,8 +239,8 @@ export async function analyzeReadingDirty(userId: string): Promise<ReadingDirtyA
 
 /** True when the season read must be regenerated from the full map — not story delta. */
 export function needsFullStoryRegen(dirty: ReadingDirtyAnalysis): boolean {
-  if (dirty.hasPursuitArchivedReason) return true;
   if (dirty.staleDirtyPursuitIds.length > 0) return true;
+  if (dirty.hasPursuitArchivedReason && dirty.activeDirtyPursuitIds.length === 0) return true;
   if (dirty.hasGlobal && dirty.activeDirtyPursuitIds.length === 0) return true;
   return false;
 }

@@ -31,9 +31,29 @@ function clampPursuitsMap(pursuits: unknown): void {
   }
 }
 
+/** Gemini sometimes returns global.sections as an object — coerce to the array Zod expects. */
+function normalizeGlobalSections(global: unknown): void {
+  if (!global || typeof global !== "object" || Array.isArray(global)) return;
+  const row = global as Record<string, unknown>;
+  const sections = row.sections;
+  if (Array.isArray(sections)) return;
+  if (!sections || typeof sections !== "object") return;
+
+  const entries = Object.entries(sections as Record<string, unknown>);
+  row.sections = entries.map(([title, body]) => ({
+    title,
+    body: typeof body === "string" ? body : typeof body === "object" && body && "body" in (body as object)
+      ? String((body as { body?: unknown }).body ?? "")
+      : JSON.stringify(body),
+  }));
+}
+
 function clampInsightsBranch(insights: unknown): void {
   if (!insights || typeof insights !== "object" || Array.isArray(insights)) return;
   const branch = insights as Record<string, unknown>;
+  if (branch.global) {
+    normalizeGlobalSections(branch.global);
+  }
   if (branch.pursuits) {
     clampPursuitsMap(branch.pursuits);
   }

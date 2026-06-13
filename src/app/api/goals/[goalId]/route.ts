@@ -1,7 +1,10 @@
 import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
-import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
+import {
+  clearReadingDirtyForPursuits,
+  markPursuitReadingDirty,
+} from "@/lib/map/reading-dirty-ledger";
 import { buildFieldChanges } from "@/lib/map/reading-dirty-details";
 import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
@@ -182,6 +185,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   const restored = input.archived === false && existing.archived === true;
   if (restored) {
+    await clearReadingDirtyForPursuits(userId, [goal.id]);
     await markPursuitReadingDirty(userId, goal.id, "pursuit_restored", {
       details: { event: "restored", title: goal.title },
     });

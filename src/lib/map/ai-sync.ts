@@ -421,7 +421,7 @@ async function runMapAiSyncInner(
 
     const refresh = await refreshReadingCachesSmart(userId, mapVersion, memoryVersion, {
 
-      forceFull: force,
+      forceFull: false,
 
       metrics,
 
