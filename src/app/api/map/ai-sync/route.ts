@@ -51,16 +51,16 @@ export async function POST(request: Request) {
       prisma.storyCache.findUnique({ where: { userId } }),
     ]);
 
-    // Align cache stamps with the live fingerprint so GET drift clears after sync.
+    // Only align cache stamps when content was actually regenerated.
     if (!result.skipped) {
       await Promise.all([
-        insightRow
+        insightRow && result.insights.refreshed
           ? prisma.insightCache.update({
               where: { userId },
               data: { mapVersion, memoryVersion },
             })
           : Promise.resolve(),
-        storyRow
+        storyRow && result.story.refreshed
           ? prisma.storyCache.update({
               where: { userId },
               data: { mapVersion, memoryVersion },

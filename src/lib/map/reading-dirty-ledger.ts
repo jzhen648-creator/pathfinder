@@ -65,12 +65,18 @@ export async function markGlobalReadingDirty(userId: string, reason: string): Pr
   await markReadingDirty(userId, "global", "map", reason);
 }
 
-export async function listReadingDirtySummary(userId: string): Promise<ReadingDirtySummary> {
-  const rows = await prisma.aiReadingDirtyItem.findMany({
-    where: { userId },
-    select: { entityType: true, entityId: true },
-  });
+export type ReadingDirtyAnalysis = ReadingDirtySummary & {
+  /** Any dirty row recorded a pursuit archive/delete. */
+  hasPursuitArchivedReason: boolean;
+  /** Dirty pursuit ids that no longer exist or are archived — deletions not visible to delta. */
+  staleDirtyPursuitIds: string[];
+  /** Dirty pursuit ids still on the live map. */
+  activeDirtyPursuitIds: string[];
+};
 
+function summarizeDirtyRows(
+  rows: Array<{ entityType: string; entityId: string }>,
+): ReadingDirtySummary {
   const pursuitIds: string[] = [];
   const themeIds: string[] = [];
   const hubIds: string[] = [];
@@ -107,6 +113,59 @@ export async function listReadingDirtySummary(userId: string): Promise<ReadingDi
     hasGlobal,
     totalItems: rows.length,
   };
+}
+
+export async function listReadingDirtySummary(userId: string): Promise<ReadingDirtySummary> {
+  const rows = await prisma.aiReadingDirtyItem.findMany({
+    where: { userId },
+    select: { entityType: true, entityId: true },
+  });
+  return summarizeDirtyRows(rows);
+}
+
+/** Dirty ledger plus deletion/stale pursuit analysis for sync routing. */
+export async function analyzeReadingDirty(userId: string): Promise<ReadingDirtyAnalysis> {
+  const rows = await prisma.aiReadingDirtyItem.findMany({
+    where: { userId },
+    select: { entityType: true, entityId: true, reason: true },
+  });
+
+  const summary = summarizeDirtyRows(rows);
+  const hasPursuitArchivedReason = rows.some((row) => row.reason.includes("pursuit_archived"));
+
+  const pursuitIds = summary.pursuitIds;
+  const goals =
+    pursuitIds.length > 0
+      ? await prisma.goal.findMany({
+          where: { userId, id: { in: pursuitIds } },
+          select: { id: true, archived: true },
+        })
+      : [];
+  const goalById = new Map(goals.map((goal) => [goal.id, goal]));
+
+  const activeDirtyPursuitIds = pursuitIds.filter((id) => {
+    const goal = goalById.get(id);
+    return Boolean(goal && !goal.archived);
+  });
+  const staleDirtyPursuitIds = pursuitIds.filter((id) => {
+    const goal = goalById.get(id);
+    return !goal || goal.archived;
+  });
+
+  return {
+    ...summary,
+    hasPursuitArchivedReason,
+    staleDirtyPursuitIds,
+    activeDirtyPursuitIds,
+  };
+}
+
+/** True when the season read must be regenerated from the full map — not story delta. */
+export function needsFullStoryRegen(dirty: ReadingDirtyAnalysis): boolean {
+  if (dirty.hasPursuitArchivedReason) return true;
+  if (dirty.staleDirtyPursuitIds.length > 0) return true;
+  if (dirty.hasGlobal && dirty.activeDirtyPursuitIds.length === 0) return true;
+  return false;
 }
 
 export async function clearReadingDirtyLedger(userId: string): Promise<void> {

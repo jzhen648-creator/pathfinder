@@ -14,6 +14,8 @@ export type MapAiSyncMetrics = {
   morePending: boolean;
   memoryUpdatesDeferred: number;
   memoryUpdatesFlushed: number;
+  liteFirstReading: boolean;
+  storyFullRegen: boolean;
 };
 
 export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
@@ -33,5 +35,7 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     morePending: false,
     memoryUpdatesDeferred: 0,
     memoryUpdatesFlushed: 0,
+    liteFirstReading: false,
+    storyFullRegen: false,
   };
 }
