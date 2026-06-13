@@ -17,6 +17,7 @@ import {
 import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 
 import { refreshReadingCachesSmart } from "@/lib/map/incremental-reading-refresh";
+import { isReflectCallEnabled, runReflectSync } from "@/lib/ai/generate-reflect";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { remainingSyncGeminiBudget } from "@/lib/map/sync-gemini-budget";
@@ -273,13 +274,16 @@ async function runMapAiSyncInner(
     !storyRow ||
     storyCacheStale(storyRow, mapVersion, memoryVersion, taxonomyVersion);
 
+  const reflectEnabled = isReflectCallEnabled();
+
   const enrichOnlyFollowUp =
+    !reflectEnabled &&
     !insightsStale &&
     !storyStale &&
     dirtySummary.pursuitIds.length > 0;
 
   /** Finish tap — drain pursuit panels only; defer legacy note digest. */
-  const skipDigestForFinishTap = force && enrichOnlyFollowUp;
+  const skipDigestForFinishTap = !reflectEnabled && force && enrichOnlyFollowUp;
 
   let digested = {
     runs: 0,
@@ -287,7 +291,7 @@ async function runMapAiSyncInner(
     errors: [] as string[],
   };
 
-  if (pendingBefore > 0 && !skipDigestForFinishTap) {
+  if (pendingBefore > 0 && !reflectEnabled && !skipDigestForFinishTap) {
     const digestBudget = remainingSyncGeminiBudget(metrics);
     if (digestBudget > 0) {
       metrics.startedWork = true;
@@ -375,34 +379,57 @@ async function runMapAiSyncInner(
 
   try {
 
-    const refresh = await refreshReadingCachesSmart(userId, mapVersion, memoryVersion, {
+    if (reflectEnabled) {
+      const reflect = await runReflectSync(userId, mapVersion, memoryVersion, {
+        force,
+        storyStale,
+        insightsStale,
+        metrics,
+        enrichOptions,
+      });
 
-      forceFull: false,
+      insightsRefreshed = reflect.insightsRefreshed;
+      storyRefreshed = reflect.storyRefreshed;
 
-      metrics,
+      if (reflect.geminiRateLimited) {
+        metrics.rateLimited = true;
+        metrics.morePending = true;
+      }
 
-      enrichOptions,
+      await flushDeferredMemoryUpdates(userId);
+      metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
+    } else {
+      const refresh = await refreshReadingCachesSmart(userId, mapVersion, memoryVersion, {
 
-    });
+        forceFull: false,
 
-    insightsRefreshed = refresh.insightsRefreshed || refresh.insightsPruned;
+        force,
 
-    storyRefreshed = refresh.storyRefreshed;
+        metrics,
 
-    metrics.fullRefresh = refresh.fullRefresh;
+        enrichOptions,
 
-    metrics.incrementalRefresh = refresh.incrementalRefresh;
+      });
 
-    metrics.backfillCalls = refresh.backfillCalls;
+      insightsRefreshed = refresh.insightsRefreshed || refresh.insightsPruned;
 
-    if (refresh.geminiRateLimited) {
-      metrics.rateLimited = true;
-      metrics.morePending = true;
+      storyRefreshed = refresh.storyRefreshed;
+
+      metrics.fullRefresh = refresh.fullRefresh;
+
+      metrics.incrementalRefresh = refresh.incrementalRefresh;
+
+      metrics.backfillCalls = refresh.backfillCalls;
+
+      if (refresh.geminiRateLimited) {
+        metrics.rateLimited = true;
+        metrics.morePending = true;
+      }
+
+      await flushDeferredMemoryUpdates(userId);
+
+      metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
     }
-
-    await flushDeferredMemoryUpdates(userId);
-
-    metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
 
   } catch (err) {
 
@@ -498,7 +525,9 @@ async function runMapAiSyncInner(
 
     ]);
 
-    await clearReadingDirtyLedger(userId);
+    if (!reflectEnabled) {
+      await clearReadingDirtyLedger(userId);
+    }
 
   } else if (digested.runs > 0) {
 

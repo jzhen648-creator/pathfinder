@@ -22,6 +22,7 @@ import {
   shouldUseFullReadingRefresh,
   shouldUseCreateBurstFullRefresh,
   isEditOnlyDirtyBatch,
+  isEnrichDrainOnlyBatch,
   type ReadingDirtySummary,
 } from "@/lib/map/reading-dirty-ledger";
 import { generateStory, StoryGenerationResponseError } from "@/lib/story/generate-story";
@@ -220,6 +221,8 @@ export async function refreshReadingCachesSmart(
   memoryVersion: number,
   options: {
     forceFull?: boolean;
+    /** Manual Update AI reading — refresh Reading when dirty ledger is clean after panel drain. */
+    force?: boolean;
     metrics: MapAiSyncMetrics;
     enrichOptions?: PursuitEnrichOptions;
   },
@@ -369,11 +372,13 @@ export async function refreshReadingCachesSmart(
   let geminiRateLimited = false;
 
   const storyAlreadyCurrent = storyReadyForEnrichDrain(storyRow);
+  const enrichDrainOnlyBatch = await isEnrichDrainOnlyBatch(userId);
 
   const enrichOnlyDrain =
     storyAlreadyCurrent &&
     dirty.activeDirtyPursuitIds.length > 0 &&
-    !needsFullStoryRegen(dirtyAnalysis);
+    !needsFullStoryRegen(dirtyAnalysis) &&
+    enrichDrainOnlyBatch;
 
   if (enrichOnlyDrain) {
     const enrichLoop = await runPursuitEnrichLoop(userId, dirty.activeDirtyPursuitIds, {
@@ -592,6 +597,36 @@ export async function refreshReadingCachesSmart(
   if (insightsRefreshed || storyRefreshed) {
     if (!options.metrics.morePending) {
       await clearReadingDirtyLedger(userId);
+    }
+  }
+
+  // Manual Update after Finish drain — dirty ledger clean but user expects Reading refresh.
+  if (
+    options.force === true &&
+    !storyRefreshed &&
+    !geminiRateLimited &&
+    dirty.totalItems === 0 &&
+    storyRow &&
+    canMakeSyncAiCall(options.metrics)
+  ) {
+    options.metrics.aiCallsPlanned += 1;
+    try {
+      const story = await generateStory(userId);
+      options.metrics.aiCallsCompleted += 1;
+      await upsertStoryCache(userId, story, mapVersion, memoryVersion);
+      storyRefreshed = true;
+      await clearReadingDirtyLedger(userId);
+    } catch (err) {
+      if (isGemini429(err)) {
+        geminiRateLimited = true;
+        options.metrics.rateLimited = true;
+        options.metrics.morePending = true;
+      } else if (err instanceof StoryGenerationResponseError) {
+        console.warn("[incremental-reading-refresh] forced story refresh failed", err.message);
+        options.metrics.morePending = true;
+      } else {
+        throw err;
+      }
     }
   }
 

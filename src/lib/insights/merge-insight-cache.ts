@@ -5,7 +5,10 @@ import {
   parsePursuitInsightRecord,
 } from "@/lib/insights/parse-insight-cache";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
+import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import { prisma } from "@/lib/prisma";
+
+export { pruneOffMapPursuitsFromInsightCache, pruneArchivedPursuitsFromInsightCache } from "@/lib/insights/invalidate-reading-caches";
 
 function mergeLevelRecords<T extends Record<string, unknown>>(base: Record<string, T>, patch: Record<string, T>) {
   return { ...base, ...patch };
@@ -68,8 +71,7 @@ export async function mergeNodeInsightsIntoCache(
     const eligibleGoals = await prisma.goal.findMany({
       where: {
         userId,
-        archived: false,
-        goalType: { notIn: ["moment", "event"] },
+        ...interpretationEligiblePursuitWhere,
       },
       select: { id: true },
     });
@@ -106,34 +108,4 @@ export async function refreshPursuitInsights(userId: string, pursuitIds: string[
 
 export function isInsightEligibleGoalType(goalType: string): boolean {
   return goalType !== "moment" && goalType !== "event";
-}
-
-/** Drop per-pursuit insight cache entries for archived or deleted goals. */
-export async function pruneArchivedPursuitsFromInsightCache(userId: string): Promise<boolean> {
-  const existing = await prisma.insightCache.findUnique({ where: { userId } });
-  if (!existing) return false;
-
-  const activeGoals = await prisma.goal.findMany({
-    where: {
-      userId,
-      archived: false,
-      goalType: { notIn: ["moment", "event"] },
-    },
-    select: { id: true },
-  });
-  const activeIds = new Set(activeGoals.map((goal) => goal.id));
-
-  const pursuits = parsePursuitInsightRecord(existing.pursuitInsights, "pursuit");
-  const prunedEntries = Object.entries(pursuits).filter(([id]) => activeIds.has(id));
-  if (prunedEntries.length === Object.keys(pursuits).length) return false;
-
-  const pruned = Object.fromEntries(prunedEntries);
-  await prisma.insightCache.update({
-    where: { userId },
-    data: {
-      pursuitInsights: pruned,
-      generatedAt: new Date(),
-    },
-  });
-  return true;
 }

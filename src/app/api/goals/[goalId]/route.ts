@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
+import { excludePursuitFromInterpretation } from "@/lib/insights/invalidate-reading-caches";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import {
   clearReadingDirtyForPursuits,
@@ -184,10 +185,20 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   );
 
   const restored = input.archived === false && existing.archived === true;
+  const abandoned =
+    pursuitStatus === "ABANDONED" && existing.status !== "ABANDONED";
+  const archived = input.archived === true && existing.archived === false;
+
   if (restored) {
     await clearReadingDirtyForPursuits(userId, [goal.id]);
     await markPursuitReadingDirty(userId, goal.id, "pursuit_restored", {
       details: { event: "restored", title: goal.title },
+    });
+  } else if (abandoned || archived) {
+    await clearReadingDirtyForPursuits(userId, [goal.id]);
+    await excludePursuitFromInterpretation(userId, goal.id);
+    await markPursuitReadingDirty(userId, goal.id, "pursuit_updated", {
+      details: { changes, title: goal.title },
     });
   } else {
     await markPursuitReadingDirty(userId, goal.id, "pursuit_updated", {
@@ -216,6 +227,8 @@ export async function DELETE(request: Request, { params }: RouteProps) {
     data: { archived: true },
   });
 
+  await clearReadingDirtyForPursuits(userId, [goalId]);
+  await excludePursuitFromInterpretation(userId, goalId);
   await markPursuitReadingDirty(userId, goalId, "pursuit_archived", {
     details: { event: "archived", title: existing.title },
   });

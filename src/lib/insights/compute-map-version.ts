@@ -1,15 +1,16 @@
 import { createHash } from "crypto";
+import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import { prisma } from "@/lib/prisma";
 
 export async function computeMapVersion(userId: string): Promise<string> {
   const [goals, milestones, marks, branches] = await Promise.all([
     prisma.goal.aggregate({
-      where: { userId, archived: false, goalType: { notIn: ["moment", "event"] } },
+      where: { userId, ...interpretationEligiblePursuitWhere },
       _count: { id: true },
       _max: { updatedAt: true },
     }),
     prisma.milestone.aggregate({
-      where: { goal: { userId, archived: false } },
+      where: { goal: { userId, ...interpretationEligiblePursuitWhere } },
       _count: { id: true },
       _max: { completedAt: true },
     }),

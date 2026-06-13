@@ -106,7 +106,6 @@ export function buildChangeEventsFromDirtyRows(rows: ReadingDirtyRow[]): string[
       continue;
     }
     if (details.event === "archived") {
-      events.push(`Pursuit archived: "${label}"`);
       continue;
     }
     if (details.event === "restored") {

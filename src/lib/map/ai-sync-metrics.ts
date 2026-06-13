@@ -24,6 +24,8 @@ export type MapAiSyncMetrics = {
   readingPacketChars: number;
   /** Pursuit enrich failures surfaced to mobile (non-fatal). */
   enrichErrors: string[];
+  /** Unified reflect call replaced reading delta + enrich drain. */
+  reflectCall: boolean;
 };
 
 export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
@@ -50,5 +52,6 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     storyFullRegen: false,
     readingPacketChars: 0,
     enrichErrors: [],
+    reflectCall: false,
   };
 }
