@@ -4,6 +4,12 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-14 — Reflect Phase 1 (unified single Gemini call)
+
+**Shipped:** `USE_REFLECT_CALL=true` on production — one `POST /api/map/ai-sync` tap runs `runReflectSync()` (Reading + all dirty pursuit panels in one Gemini call). Legacy two-call + enrich drain remains as fallback when flag is off. Mobile hides Finish/drain UX only when server returns `metrics.reflectCall: true` (not client flag alone). `AI_READING_DELIVERY_BYPASS=true` on production for QA cadence.
+
+**Rationale:** Multi-pursuit status edits should update Reading and all panels in one tap; client-only reflect flag was hiding Finish while server still drained one pursuit per call.
+
 ## 2026-06-14 — Sync router + free-tier delivery interval
 
 **Shipped:** Pursuit enrich loops within 3-call ai-sync budget; enrich-only drain when story already current; create-burst full refresh (≥4 `pursuit_created` dirty rows); `pendingInsightCount` on sync response; `lastReadingDeliveredAt` + 2h free-tier delivery gate (`AI_READING_DELIVERY_INTERVAL_MS`, bypass `AI_READING_DELIVERY_BYPASS=true` for dev). Dirty ledger no longer cleared when `morePending`. Mobile: delivery cooldown UX, “finishing insights (N left)” copy.
