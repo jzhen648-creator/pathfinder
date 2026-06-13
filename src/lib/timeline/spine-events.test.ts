@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 import {
@@ -35,7 +35,14 @@ const mapContext: FormattedMapContext = {
               status: "COMPLETE",
               significance: 4,
               completedAt: "2026-08-01",
-              milestones: [{ id: "ms1", title: "Offer signed", completed: true, completedAt: "2026-08-05" }],
+              milestones: [
+                {
+                  id: "ms1",
+                  title: "Offer signed",
+                  completed: true,
+                  completedAt: "2026-08-05",
+                },
+              ],
             },
             {
               id: "g2",
@@ -53,20 +60,31 @@ const mapContext: FormattedMapContext = {
   ],
 };
 
-const spine = buildSpineEventsFromMapContext(mapContext, { now: Date.parse("2026-08-20T00:00:00.000Z") });
-assert.equal(spine.past.length, 2);
-assert.equal(spine.future.length, 1);
-assert.equal(spine.past[0]?.kind, "pursuit_complete");
-assert.equal(spine.past[0]?.date, "2026-08-05");
-assert.equal(spine.future[0]?.kind, "pursuit_deadline");
+describe("spine-events", () => {
+  it("builds past and future spine events", () => {
+    const spine = buildSpineEventsFromMapContext(mapContext, {
+      now: Date.parse("2026-08-20T00:00:00.000Z"),
+    });
+    expect(spine.past).toHaveLength(3);
+    expect(spine.future).toHaveLength(1);
+    expect(spine.past.some((e) => e.kind === "pursuit_complete")).toBe(true);
+    expect(spine.past.find((e) => e.kind === "pursuit_complete")?.date).toBe("2026-08-05");
+    expect(spine.future[0]?.kind).toBe("pursuit_deadline");
+  });
 
-assert.equal(
-  resolvePursuitCompleteDate(mapContext.themes[0]!.hubs[0]!.pursuits[0]!),
-  "2026-08-05",
-);
+  it("resolves pursuit complete date from milestones", () => {
+    expect(
+      resolvePursuitCompleteDate(mapContext.themes[0]!.hubs[0]!.pursuits[0]!),
+    ).toBe("2026-08-05");
+  });
 
-const pursuits = mapContext.themes[0]!.hubs[0]!.pursuits;
-assert.equal(countRecentCompletions(pursuits, { now: Date.parse("2026-08-20T00:00:00.000Z") }), 1);
-assert.equal(countRecentCompletions(pursuits, { now: Date.parse("2027-01-01T00:00:00.000Z") }), 0);
-
-console.log("spine-events.test.ts ok");
+  it("counts recent completions within 90 days", () => {
+    const pursuits = mapContext.themes[0]!.hubs[0]!.pursuits;
+    expect(
+      countRecentCompletions(pursuits, { now: Date.parse("2026-08-20T00:00:00.000Z") }),
+    ).toBe(1);
+    expect(
+      countRecentCompletions(pursuits, { now: Date.parse("2027-01-01T00:00:00.000Z") }),
+    ).toBe(0);
+  });
+});

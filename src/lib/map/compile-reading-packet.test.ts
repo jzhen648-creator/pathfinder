@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 
 import {
   buildCategorySignals,
@@ -36,34 +36,42 @@ const twoJobPursuits = [
   },
 ];
 
-const categorySignals = buildCategorySignals(twoJobPursuits, new Set(["cat-job"]));
-assert.equal(categorySignals.length, 1);
-assert.ok(categorySignals[0]?.facts.some((f) => f.includes("1 complete and 1 in progress")));
-assert.ok(categorySignals[0]?.facts.some((f) => f.includes("Product Lead search")));
+describe("compile-reading-packet", () => {
+  it("builds category signals for dirty categories", () => {
+    const categorySignals = buildCategorySignals(twoJobPursuits, new Set(["cat-job"]));
+    expect(categorySignals).toHaveLength(1);
+    expect(categorySignals[0]?.facts.some((f) => f.includes("1 complete and 1 in progress"))).toBe(
+      true,
+    );
+    expect(categorySignals[0]?.facts.some((f) => f.includes("Product Lead search"))).toBe(true);
+  });
 
-const statusChangeRows: ReadingDirtyRow[] = [
-  {
-    entityType: "pursuit",
-    entityId: "a",
-    reason: "pursuit_updated",
-    details: {
-      title: "Senior Engineer at Acme",
-      changes: [{ field: "status", from: "ACTIVE", to: "COMPLETE" }],
-    },
-  },
-];
+  it("formats status change events from dirty rows", () => {
+    const statusChangeRows: ReadingDirtyRow[] = [
+      {
+        entityType: "pursuit",
+        entityId: "a",
+        reason: "pursuit_updated",
+        details: {
+          title: "Senior Engineer at Acme",
+          changes: [{ field: "status", from: "ACTIVE", to: "COMPLETE" }],
+        },
+      },
+    ];
 
-const changeEvents = buildChangeEventsFromDirtyRows(statusChangeRows);
-assert.equal(
-  changeEvents[0],
-  '"Senior Engineer at Acme": status ACTIVE → COMPLETE',
-);
+    const changeEvents = buildChangeEventsFromDirtyRows(statusChangeRows);
+    expect(changeEvents[0]).toBe('"Senior Engineer at Acme": status ACTIVE → COMPLETE');
+  });
 
-const aggregates = buildMapAggregates(twoJobPursuits, Date.parse("2026-08-20T00:00:00.000Z"));
-assert.equal(aggregates.totalPursuits, 2);
-assert.equal(aggregates.recentCompletions90d, 1);
-assert.equal(aggregates.upcomingDeadlines30d, 1);
-assert.equal(aggregates.upcomingDeadlines14d, 1);
-assert.deepEqual(aggregates.highSignificanceActive, ["Product Lead search"]);
-
-console.log("compile-reading-packet.test.ts ok");
+  it("aggregates map stats for reading packet", () => {
+    const aggregates = buildMapAggregates(
+      twoJobPursuits,
+      Date.parse("2026-08-20T00:00:00.000Z"),
+    );
+    expect(aggregates.totalPursuits).toBe(2);
+    expect(aggregates.recentCompletions90d).toBe(1);
+    expect(aggregates.upcomingDeadlines30d).toBe(1);
+    expect(aggregates.upcomingDeadlines14d).toBe(1);
+    expect(aggregates.highSignificanceActive).toEqual(["Product Lead search"]);
+  });
+});

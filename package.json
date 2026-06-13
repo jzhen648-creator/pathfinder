@@ -42,6 +42,9 @@
     "audit:legacy-data": "npx tsx scripts/audit-legacy-data.ts",
     "benchmark:api": "npx tsx scripts/benchmark-api.ts",
     "smoke-test": "npx tsx scripts/smoke-test.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live-gemini": "npx tsx scripts/test-live-gemini.ts",
     "test:agent": "npx tsx scripts/cursor-run-tests.ts"
   },
   "dependencies": {
@@ -78,7 +81,8 @@
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

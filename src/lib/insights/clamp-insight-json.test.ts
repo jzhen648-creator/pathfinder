@@ -1,22 +1,27 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
+
 import {
   normalizePursuitInsightTone,
   clampInsightGenerationJson,
 } from "@/lib/insights/clamp-insight-json";
 
-assert.equal(normalizePursuitInsightTone("reality check"), "reality_check");
-assert.equal(normalizePursuitInsightTone("one-off"), "informational");
-assert.equal(normalizePursuitInsightTone("encouraging"), "encouraging");
+describe("clamp-insight-json", () => {
+  it("normalizes pursuit insight tone drift", () => {
+    expect(normalizePursuitInsightTone("reality check")).toBe("reality_check");
+    expect(normalizePursuitInsightTone("one-off")).toBe("informational");
+    expect(normalizePursuitInsightTone("encouraging")).toBe("encouraging");
+  });
 
-const clamped = clampInsightGenerationJson({
-  pursuits: {
-    g1: {
-      insight: { tone: "Reality Check", headline: "x".repeat(120), body: "ok" },
-    },
-  },
-}) as { pursuits: { g1: { insight: { tone: string; headline: string } } } };
+  it("clamps headline length on pursuit insight", () => {
+    const clamped = clampInsightGenerationJson({
+      pursuits: {
+        g1: {
+          insight: { tone: "Reality Check", headline: "x".repeat(120), body: "ok" },
+        },
+      },
+    }) as { pursuits: { g1: { insight: { tone: string; headline: string } } } };
 
-assert.equal(clamped.pursuits.g1.insight.tone, "reality_check");
-assert.equal(clamped.pursuits.g1.insight.headline.length, 100);
-
-console.log("clamp-insight-json.test.ts ok");
+    expect(clamped.pursuits.g1.insight.tone).toBe("reality_check");
+    expect(clamped.pursuits.g1.insight.headline.length).toBe(100);
+  });
+});

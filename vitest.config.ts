@@ -1,0 +1,21 @@
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: [
+      "src/lib/map/**/*.test.ts",
+      "src/lib/pursuit/normalize-pursuit-enrich.test.ts",
+      "src/lib/insights/clamp-insight-json.test.ts",
+      "src/lib/story/validate-reading-output.test.ts",
+      "src/lib/timeline/spine-events.test.ts",
+    ],
+    globals: false,
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+});

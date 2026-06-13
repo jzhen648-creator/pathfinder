@@ -1,4 +1,5 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
+
 import { pursuitEnrichBatchSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import {
   normalizePursuitEnrichBatch,
@@ -7,70 +8,122 @@ import {
 
 const pursuitId = "p1";
 
-// Missing milestone order — assign from index
-const milestonesOnly = normalizePursuitEnrichEntry({
-  clarifiers: [],
-  insight: null,
-  suggestedMilestones: [{ title: "First step" }, { title: "Second", position: 2 }],
-}) as {
-  suggestedMilestones: Array<{ title: string; order: number }> | null;
-};
-assert.equal(milestonesOnly.suggestedMilestones?.[0].order, 0);
-assert.equal(milestonesOnly.suggestedMilestones?.[1].order, 2);
-
-// String milestone list
-const stringMilestones = normalizePursuitEnrichEntry({
-  clarifiers: [],
-  insight: null,
-  suggestedMilestones: ["Apply", "Interview"],
-});
-assert.deepEqual(stringMilestones?.suggestedMilestones, [
-  { title: "Apply", order: 0 },
-  { title: "Interview", order: 1 },
-]);
-
-// Flat insight fields at top level
-const flatInsight = normalizePursuitEnrichEntry({
-  tone: "reality check",
-  headline: "Behind pace",
-  body: "Two milestones remain.",
-  clarifiers: [],
-  suggestedMilestones: null,
-});
-assert.deepEqual(flatInsight?.insight, {
-  tone: "reality_check",
-  headline: "Behind pace",
-  body: "Two milestones remain.",
-});
-
-// Clarifier option drift — object labels, single option padded
-const clarifiers = normalizePursuitEnrichEntry({
-  clarifiers: [
-    {
-      prompt: "What kind of role?",
-      options: [{ label: "Tech" }],
-    },
-  ],
-  insight: null,
-  suggestedMilestones: null,
-}) as { clarifiers: Array<{ id: string; options: string[] }> };
-assert.equal(clarifiers.clarifiers.length, 1);
-assert.deepEqual(clarifiers.clarifiers[0].options, ["Tech", "Not sure"]);
-assert.ok(clarifiers.clarifiers[0].id);
-
-// Full batch passes Zod after normalize
-const batch = normalizePursuitEnrichBatch({
-  pursuits: {
-    [pursuitId]: {
-      tone: "encouraging",
-      headline: "Good momentum",
-      body: "Keep going.",
+describe("normalizePursuitEnrichEntry", () => {
+  it("assigns milestone order from index when missing", () => {
+    const milestonesOnly = normalizePursuitEnrichEntry({
       clarifiers: [],
-      suggestedMilestones: [{ title: "Next step" }],
-    },
-  },
-});
-const parsed = pursuitEnrichBatchSchema.safeParse(batch);
-assert.ok(parsed.success, parsed.success ? "" : JSON.stringify(parsed.error.issues));
+      insight: null,
+      suggestedMilestones: [{ title: "First step" }, { title: "Second", position: 2 }],
+    }) as {
+      suggestedMilestones: Array<{ title: string; order: number }> | null;
+    };
+    expect(milestonesOnly.suggestedMilestones?.[0].order).toBe(0);
+    expect(milestonesOnly.suggestedMilestones?.[1].order).toBe(2);
+  });
 
-console.log("normalize-pursuit-enrich.test.ts ok");
+  it("coerces string milestone list", () => {
+    const stringMilestones = normalizePursuitEnrichEntry({
+      clarifiers: [],
+      insight: null,
+      suggestedMilestones: ["Apply", "Interview"],
+    });
+    expect(stringMilestones?.suggestedMilestones).toEqual([
+      { title: "Apply", order: 0 },
+      { title: "Interview", order: 1 },
+    ]);
+  });
+
+  it("nests flat insight fields at top level", () => {
+    const flatInsight = normalizePursuitEnrichEntry({
+      tone: "reality check",
+      headline: "Behind pace",
+      body: "Two milestones remain.",
+      clarifiers: [],
+      suggestedMilestones: null,
+    });
+    expect(flatInsight?.insight).toEqual({
+      tone: "reality_check",
+      headline: "Behind pace",
+      body: "Two milestones remain.",
+    });
+  });
+
+  it("normalizes clarifier option drift", () => {
+    const clarifiers = normalizePursuitEnrichEntry({
+      clarifiers: [
+        {
+          prompt: "What kind of role?",
+          options: [{ label: "Tech" }],
+        },
+      ],
+      insight: null,
+      suggestedMilestones: null,
+    }) as { clarifiers: Array<{ id: string; options: string[] }> };
+    expect(clarifiers.clarifiers).toHaveLength(1);
+    expect(clarifiers.clarifiers[0].options).toEqual(["Tech", "Not sure"]);
+    expect(clarifiers.clarifiers[0].id).toBeTruthy();
+  });
+
+  it("drops clarifiers with fewer than two options", () => {
+    const result = normalizePursuitEnrichEntry({
+      clarifiers: [{ prompt: "Empty?", options: [] }],
+      insight: null,
+      suggestedMilestones: null,
+    }) as { clarifiers: unknown[] };
+    expect(result.clarifiers).toEqual([]);
+  });
+
+  it("truncates long insight headline and body", () => {
+    const result = normalizePursuitEnrichEntry({
+      headline: "x".repeat(150),
+      body: "y".repeat(600),
+      clarifiers: [],
+      suggestedMilestones: null,
+    }) as { insight: { headline: string; body: string } };
+    expect(result.insight.headline.length).toBe(100);
+    expect(result.insight.body.length).toBe(500);
+  });
+
+  it("coerces milestone order from string position", () => {
+    const result = normalizePursuitEnrichEntry({
+      clarifiers: [],
+      insight: null,
+      suggestedMilestones: [{ title: "Step", position: "3" }],
+    }) as { suggestedMilestones: Array<{ order: number }> | null };
+    expect(result.suggestedMilestones?.[0].order).toBe(3);
+  });
+});
+
+describe("normalizePursuitEnrichBatch", () => {
+  it("passes Zod after normalize", () => {
+    const batch = normalizePursuitEnrichBatch({
+      pursuits: {
+        [pursuitId]: {
+          tone: "encouraging",
+          headline: "Good momentum",
+          body: "Keep going.",
+          clarifiers: [],
+          suggestedMilestones: [{ title: "Next step" }],
+        },
+      },
+    });
+    const parsed = pursuitEnrichBatchSchema.safeParse(batch);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("drops invalid pursuit entries", () => {
+    const batch = normalizePursuitEnrichBatch({
+      pursuits: {
+        valid: {
+          tone: "encouraging",
+          headline: "Ok",
+          body: "Body",
+          clarifiers: [],
+          suggestedMilestones: null,
+        },
+        invalid: null,
+      },
+    }) as { pursuits: Record<string, unknown> };
+    expect(Object.keys(batch.pursuits)).toEqual(["valid"]);
+  });
+});
