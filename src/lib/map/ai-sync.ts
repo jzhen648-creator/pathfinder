@@ -375,8 +375,15 @@ async function runMapAiSyncInner(
 
 
 
+  const enrichOnlyFollowUp =
+    !insightsStale &&
+    !storyStale &&
+    dirtySummary.pursuitIds.length > 0;
+
+
+
   const deliveryGate = await checkReadingDeliveryGate(userId, {
-    force,
+    force: force || enrichOnlyFollowUp,
     hasStoryCache: Boolean(storyRow),
   });
 
