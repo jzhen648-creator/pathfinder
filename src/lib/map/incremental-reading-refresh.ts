@@ -191,6 +191,15 @@ function isStoryCurrentForMap(
   return isCurrentStoryPayload(storyRow.payload);
 }
 
+/** Valid season read exists — used for enrich drain even when cache stamp lags after a partial sync. */
+function storyReadyForEnrichDrain(
+  storyRow: { mapVersion: string; payload: string } | null,
+): boolean {
+  if (!storyRow || !isCurrentStoryPayload(storyRow.payload)) return false;
+  const previousStory = parseStoryPayload(storyRow.payload);
+  return Boolean(previousStory?.seasonRead?.trim());
+}
+
 export async function refreshReadingCachesSmart(
   userId: string,
   mapVersion: string,
@@ -324,8 +333,10 @@ export async function refreshReadingCachesSmart(
   let storyRefreshed = false;
   let geminiRateLimited = false;
 
+  const storyAlreadyCurrent = storyReadyForEnrichDrain(storyRow);
+
   const enrichOnlyDrain =
-    isStoryCurrentForMap(storyRow, mapVersion) &&
+    storyAlreadyCurrent &&
     dirty.activeDirtyPursuitIds.length > 0 &&
     !needsFullStoryRegen(dirtyAnalysis);
 
@@ -337,7 +348,7 @@ export async function refreshReadingCachesSmart(
     insightsRefreshed = enrichLoop.insightsRefreshed;
     geminiRateLimited = enrichLoop.geminiRateLimited;
 
-    if (insightsRefreshed && !options.metrics.morePending) {
+    if (!options.metrics.morePending) {
       await clearReadingDirtyLedger(userId);
     }
 
@@ -399,9 +410,10 @@ export async function refreshReadingCachesSmart(
     pursuitIds: dirty.activeDirtyPursuitIds,
   };
 
-  // Story refresh first — Insights tab reading beats pursuit enrich on budget.
+  // Story refresh first — skip redundant delta when Reading is already current (Continue / enrich drain).
   if (
     !geminiRateLimited &&
+    !storyAlreadyCurrent &&
     storyRow &&
     canUseStoryDelta(deltaDirty) &&
     canMakeSyncAiCall(options.metrics)
@@ -480,8 +492,12 @@ export async function refreshReadingCachesSmart(
     options.metrics.morePending = true;
   }
 
-  // Edit-only map changes (status, dates, restore) — refresh Reading first; defer panel enrich.
-  const deferEnrichAfterStory = storyRefreshed && editOnlyDirty;
+  // Single pursuit: finish panel insight in the same tap when budget allows. Multi-pursuit: defer enrich.
+  const deferEnrichAfterStory =
+    storyRefreshed &&
+    editOnlyDirty &&
+    dirty.activeDirtyPursuitIds.length > 1 &&
+    !canMakeSyncAiCall(options.metrics);
 
   if (dirty.activeDirtyPursuitIds.length > 0 && !deferEnrichAfterStory) {
     const enrichLoop = await runPursuitEnrichLoop(userId, dirty.activeDirtyPursuitIds, {
