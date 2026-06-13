@@ -29,6 +29,26 @@ export async function mergeNodeInsightsIntoCache(
 
   const existing = await prisma.insightCache.findUnique({ where: { userId } });
   if (!existing) {
+    const pursuitOnlyPatch =
+      Object.keys(patch.pursuits).length > 0 &&
+      Object.keys(patch.themes).length === 0 &&
+      Object.keys(patch.hubs).length === 0;
+
+    if (pursuitOnlyPatch) {
+      await prisma.insightCache.create({
+        data: {
+          userId,
+          globalInsight: JSON.stringify({ greeting: "", sections: [] }),
+          themeInsights: {},
+          hubInsights: {},
+          pursuitInsights: patch.pursuits,
+          mapVersion,
+          memoryVersion,
+        },
+      });
+      return;
+    }
+
     const generated = await generateInsights(userId);
     await prisma.insightCache.create({
       data: {
