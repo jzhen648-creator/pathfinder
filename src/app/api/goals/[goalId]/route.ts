@@ -50,6 +50,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       deadline: true,
       significance: true,
       archived: true,
+      completedAt: true,
     },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -109,6 +110,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     data.iconName =
       input.iconName == null ? null : input.iconName.trim().toLowerCase() || null;
   }
+  if (input.completedAt !== undefined) {
+    data.completedAt = new Date(`${input.completedAt}T00:00:00.000Z`);
+  }
 
   const pursuitStatus = input.status ?? input.bloomStatus;
   if (pursuitStatus !== undefined) {
@@ -116,7 +120,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     if (pursuitStatus === "PAUSED" || pursuitStatus === "ABANDONED") {
       data.endedAt = new Date();
     } else if (pursuitStatus === "COMPLETE") {
-      data.completedAt = new Date();
+      if (input.completedAt === undefined) {
+        data.completedAt = new Date();
+      }
       data.endedAt = null;
       data.endReason = null;
     } else {
@@ -138,6 +144,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       goalType: true,
       status: true,
       iconName: true,
+      completedAt: true,
     },
   });
 
@@ -156,13 +163,22 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     dirtyUpdates.deadline = data.deadline ? data.deadline.toISOString().slice(0, 10) : null;
   }
   if (input.significance !== undefined) dirtyUpdates.significance = data.significance;
+  if (input.completedAt !== undefined || pursuitStatus === "COMPLETE") {
+    dirtyUpdates.completedAt = goal.completedAt
+      ? goal.completedAt.toISOString().slice(0, 10)
+      : null;
+  }
 
-  const changes = buildFieldChanges(existing, dirtyUpdates, [
-    "title",
-    "status",
-    "deadline",
-    "significance",
-  ]);
+  const changes = buildFieldChanges(
+    {
+      ...existing,
+      completedAt: existing.completedAt
+        ? existing.completedAt.toISOString().slice(0, 10)
+        : null,
+    },
+    dirtyUpdates,
+    ["title", "status", "deadline", "significance", "completedAt"],
+  );
 
   const restored = input.archived === false && existing.archived === true;
   if (restored) {

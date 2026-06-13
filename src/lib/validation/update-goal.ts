@@ -18,6 +18,8 @@ export const updateGoalPayloadSchema = z
     timelineStart: calendarDaySchema.nullable().optional(),
     /** Target end date; `null` clears deadline. */
     deadline: calendarDaySchema.nullable().optional(),
+    /** Calendar day the pursuit was completed — use with `status: COMPLETE`. */
+    completedAt: calendarDaySchema.optional(),
     /** `false` revives a pursuit removed from the map. */
     archived: z.boolean().optional(),
     /** Canonical pursuit status (preferred over bloomStatus). */
@@ -38,6 +40,7 @@ export const updateGoalPayloadSchema = z
       data.significance !== undefined ||
       data.timelineStart !== undefined ||
       data.deadline !== undefined ||
+      data.completedAt !== undefined ||
       data.archived !== undefined ||
       data.status !== undefined ||
       data.bloomStatus !== undefined ||
