@@ -23,6 +23,8 @@ export type FormattedMapMark = {
   /** ISO calendar date (YYYY-MM-DD) when known; omitted from JSON when absent. */
   date?: string;
   sentiment: string;
+  /** When true, treat as upcoming even if date is in the past. */
+  future?: boolean;
 };
 
 export type FormattedMapPursuit = {
@@ -36,6 +38,8 @@ export type FormattedMapPursuit = {
     id: string;
     title: string;
     completed: boolean;
+    /** ISO calendar date when milestone was completed. */
+    completedAt?: string;
   }>;
   iconName?: string;
   shortLabel?: string;
@@ -45,6 +49,10 @@ export type FormattedMapPursuit = {
   currentAmount?: number;
   unit?: string;
   deadline?: string;
+  /** ISO calendar date when pursuit was marked complete. */
+  completedAt?: string;
+  /** ISO calendar date when pursuit span begins (optional). */
+  timelineStart?: string;
 };
 
 export type FormattedMapContext = {
@@ -84,6 +92,7 @@ function serializeMarkRow(mark: {
   description: string | null;
   date: Date | null;
   sentiment: string;
+  future?: boolean;
 }): FormattedMapMark {
   const row: FormattedMapMark = {
     id: mark.id,
@@ -93,6 +102,9 @@ function serializeMarkRow(mark: {
   };
   if (mark.date) {
     row.date = mark.date.toISOString().slice(0, 10);
+  }
+  if (mark.future) {
+    row.future = true;
   }
   return row;
 }
@@ -111,6 +123,8 @@ function buildPursuitRow(
     deadline: Date | null;
     iconName: string | null;
     shortLabel: string | null;
+    completedAt?: Date | null;
+    timelineStart?: Date | null;
     milestones: Array<{ id: string; title: string; completedAt: Date | null }>;
   },
   pursuitTitleById: Map<string, string>,
@@ -121,11 +135,17 @@ function buildPursuitRow(
     description: goal.description?.trim() ?? "",
     status: goal.status,
     significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
-    milestones: goal.milestones.map((milestone) => ({
-      id: milestone.id,
-      title: milestone.title,
-      completed: Boolean(milestone.completedAt),
-    })),
+    milestones: goal.milestones.map((milestone) => {
+      const row: FormattedMapPursuit["milestones"][number] = {
+        id: milestone.id,
+        title: milestone.title,
+        completed: Boolean(milestone.completedAt),
+      };
+      if (milestone.completedAt) {
+        row.completedAt = milestone.completedAt.toISOString().slice(0, 10);
+      }
+      return row;
+    }),
   };
 
   if (goal.parentGoalId) {
@@ -136,6 +156,8 @@ function buildPursuitRow(
   if (goal.currentAmount != null) pursuit.currentAmount = goal.currentAmount;
   if (goal.unit?.trim()) pursuit.unit = goal.unit.trim();
   if (goal.deadline) pursuit.deadline = goal.deadline.toISOString().slice(0, 10);
+  if (goal.completedAt) pursuit.completedAt = goal.completedAt.toISOString().slice(0, 10);
+  if (goal.timelineStart) pursuit.timelineStart = goal.timelineStart.toISOString().slice(0, 10);
   if (goal.iconName?.trim()) pursuit.iconName = goal.iconName.trim();
   if (goal.shortLabel?.trim()) pursuit.shortLabel = goal.shortLabel.trim();
 
@@ -163,6 +185,8 @@ const goalSelect = {
   currentAmount: true,
   unit: true,
   deadline: true,
+  completedAt: true,
+  timelineStart: true,
   iconName: true,
   shortLabel: true,
   milestones: {
@@ -213,6 +237,7 @@ export async function formatMapContext(
             description: true,
             date: true,
             sentiment: true,
+            future: true,
             sequencePosition: true,
           },
           orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
@@ -305,14 +330,14 @@ export async function formatPursuitContext(
 
   const hubMarks = await prisma.mark.findMany({
     where: { userId, categoryId: goal.categoryId, archived: false },
-    select: { id: true, title: true, description: true, date: true, sentiment: true },
+    select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
     orderBy: [{ sequencePosition: "asc" }, { date: "asc" }],
     take: 20,
   });
 
   const themeMarks = await prisma.mark.findMany({
     where: { userId, themeId: themeId, archived: false },
-    select: { id: true, title: true, description: true, date: true, sentiment: true },
+    select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: 15,
   });

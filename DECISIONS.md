@@ -4,6 +4,18 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-14 — Sync router + free-tier delivery interval
+
+**Shipped:** Pursuit enrich loops within 3-call ai-sync budget; enrich-only drain when story already current; create-burst full refresh (≥4 `pursuit_created` dirty rows); `pendingInsightCount` on sync response; `lastReadingDeliveredAt` + 2h free-tier delivery gate (`AI_READING_DELIVERY_INTERVAL_MS`, bypass `AI_READING_DELIVERY_BYPASS=true` for dev). Dirty ledger no longer cleared when `morePending`. Mobile: delivery cooldown UX, “finishing insights (N left)” copy.
+
+**Rationale:** Two-pursuit edits should complete in one tap; large create bursts should full-batch; idle users should not spam Gemini; queued state stays visible when delivery is interval-blocked.
+
+## 2026-06-14 — Week 1 AI consolidation
+
+**Product:** After map edits, the app schedules a **debounced background** `POST /api/map/ai-sync` (~45s idle, single-flight, 429-safe). Map utility chip shows **Reading queued** / **Reading map** / **Changes waiting**; Insights tab indicator unchanged. Pull-to-refresh on Insights (when stale) and pursuit panel flush sync immediately. Pursuit panel copy no longer routes users to Insights for routine updates. Enrich prompt may label body lines `From your map:` / `Comparison:` for layered pursuit insight display.
+
+**Rationale:** Week 0 compiler reduced typical sync to 1 delta call; Week 1 removes navigation friction and batches session edits into 1–2 calls. Manual **Update AI reading** retained as override. Deferred: `apply-context` route, standalone `/enrich` endpoint.
+
 ## 2026-06-12 — Unlock ceremony removed
 
 **Product:** Themes no longer require manual unlock. Creating a pursuit in a dormant theme auto-unlocks it (`unlockedLimbIds` set on first pursuit create). Retired: unlock tap, “Theme dormant” card, “Tap to unlock” copy.

@@ -12,6 +12,11 @@ export type MapAiSyncMetrics = {
   rateLimited: boolean;
   startedWork: boolean;
   morePending: boolean;
+  /** Pursuit enrich backlog remaining after this sync tap. */
+  pendingInsightCount: number;
+  deliveryBlocked: boolean;
+  /** Ms until next free-tier delivery when deliveryBlocked. */
+  deliveryRetryAfterMs: number;
   memoryUpdatesDeferred: number;
   memoryUpdatesFlushed: number;
   liteFirstReading: boolean;
@@ -34,6 +39,9 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     rateLimited: false,
     startedWork: false,
     morePending: false,
+    pendingInsightCount: 0,
+    deliveryBlocked: false,
+    deliveryRetryAfterMs: 0,
     memoryUpdatesDeferred: 0,
     memoryUpdatesFlushed: 0,
     liteFirstReading: false,

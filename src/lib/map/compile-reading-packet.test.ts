@@ -14,6 +14,7 @@ const twoJobPursuits = [
     description: "",
     status: "COMPLETE",
     significance: 4,
+    completedAt: "2026-08-01",
     milestones: [],
     themeId: "work",
     themeLabel: "Work & Career",
@@ -60,7 +61,7 @@ assert.equal(
 
 const aggregates = buildMapAggregates(twoJobPursuits, Date.parse("2026-08-20T00:00:00.000Z"));
 assert.equal(aggregates.totalPursuits, 2);
-assert.equal(aggregates.recentCompletions, 1);
+assert.equal(aggregates.recentCompletions90d, 1);
 assert.equal(aggregates.upcomingDeadlines30d, 1);
 assert.equal(aggregates.upcomingDeadlines14d, 1);
 assert.deepEqual(aggregates.highSignificanceActive, ["Product Lead search"]);

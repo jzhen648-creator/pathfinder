@@ -38,6 +38,8 @@ model User {
   /// Last applied {@link TAXONOMY_VERSION} from taxonomy-sync; null = never synced.
   taxonomyVersion            String?
   taxonomySyncedAt           DateTime?
+  /// Last successful AI reading delivery (Gemini-bearing ai-sync); free-tier interval gate.
+  lastReadingDeliveredAt     DateTime?
   /// Life-area ids unlocked on the tree (`finance` | `work` | …). Hubs under a theme stay dormant until opened individually.
   unlockedLimbIds            Json?
   createdAt                  DateTime              @default(now())

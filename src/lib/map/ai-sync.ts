@@ -19,6 +19,11 @@ import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-
 import { refreshReadingCachesSmart } from "@/lib/map/incremental-reading-refresh";
 
 import {
+  checkReadingDeliveryGate,
+  recordReadingDelivery,
+} from "@/lib/map/reading-delivery-cadence";
+
+import {
 
   clearReadingDirtyLedger,
 
@@ -89,6 +94,10 @@ export type MapAiSyncResult = {
     morePending: boolean;
 
     retryableAt: string | null;
+
+    deliveryBlocked: boolean;
+
+    pendingInsightCount: number;
 
   };
 
@@ -202,7 +211,15 @@ function buildBaseResult(
 
         ? new Date(Date.now() + 60_000).toISOString()
 
-        : null,
+        : metrics.deliveryBlocked && metrics.deliveryRetryAfterMs > 0
+
+          ? new Date(Date.now() + metrics.deliveryRetryAfterMs).toISOString()
+
+          : null,
+
+      deliveryBlocked: metrics.deliveryBlocked,
+
+      pendingInsightCount: metrics.pendingInsightCount,
 
     },
 
@@ -356,6 +373,21 @@ export async function runMapAiSync(
 
 
 
+  const deliveryGate = await checkReadingDeliveryGate(userId, {
+    force,
+    hasStoryCache: Boolean(storyRow),
+  });
+
+  if (!deliveryGate.allowed && readingWorkNeeded) {
+    metrics.deliveryBlocked = true;
+    metrics.deliveryRetryAfterMs = deliveryGate.retryAfterMs;
+    metrics.morePending = dirtySummary.totalItems > 0 || dirtySummary.pursuitIds.length > 0;
+    metrics.pendingInsightCount = dirtySummary.pursuitIds.length;
+    return buildBaseResult(mapVersion, metrics, digested);
+  }
+
+
+
   if (digested.failed > 0 && digested.runs === 0) {
 
     discardDeferredMemoryUpdates(userId);
@@ -467,7 +499,7 @@ export async function runMapAiSync(
 
 
 
-  if (insightsRefreshed || storyRefreshed) {
+  if ((insightsRefreshed || storyRefreshed) && !metrics.morePending) {
 
     const fresh = await resolveVersions(userId);
 
@@ -509,6 +541,14 @@ export async function runMapAiSync(
 
 
 
+  if (metrics.aiCallsCompleted > 0) {
+
+    await recordReadingDelivery(userId);
+
+  }
+
+
+
   return {
 
     ok: true,
@@ -530,6 +570,10 @@ export async function runMapAiSync(
       morePending: metrics.morePending,
 
       retryableAt: null,
+
+      deliveryBlocked: false,
+
+      pendingInsightCount: metrics.pendingInsightCount,
 
     },
 

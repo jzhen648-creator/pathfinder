@@ -5,6 +5,12 @@ import {
   type ReadingDirtyAnalysis,
   type ReadingDirtyRow,
 } from "@/lib/map/reading-dirty-ledger";
+import {
+  buildSpineEventsFromMapContext,
+  capSpineEventsForPacket,
+  countRecentCompletions,
+  type SpineEvent,
+} from "@/lib/timeline/spine-events";
 import { prisma } from "@/lib/prisma";
 
 export type ReadingPacketPursuit = {
@@ -25,11 +31,17 @@ export type ReadingPacketCategorySignal = {
 export type ReadingPacket = {
   changeEvents: string[];
   categorySignals: ReadingPacketCategorySignal[];
+  /** Chronological spine — same derivation rules as mobile Timeline tab. */
+  recentEvents: {
+    past: SpineEvent[];
+    upcoming: SpineEvent[];
+  };
   mapAggregates: {
     totalPursuits: number;
     upcomingDeadlines14d: number;
     upcomingDeadlines30d: number;
-    recentCompletions: number;
+    /** Completions within the last 90 days (not all-time complete count). */
+    recentCompletions90d: number;
     highSignificanceActive: string[];
   };
 };
@@ -95,9 +107,15 @@ export function buildChangeEventsFromDirtyRows(rows: ReadingDirtyRow[]): string[
       events.push(`Pursuit archived: "${label}"`);
       continue;
     }
+    if (details.event === "restored") {
+      events.push(`Pursuit restored: "${label}"`);
+      continue;
+    }
     if (row.entityType === "mark") {
       if (details.event === "created") {
         events.push(`Mark added: "${label}"`);
+      } else if (details.event === "archived") {
+        events.push(`Mark archived: "${label}"`);
       } else if (details.event === "updated") {
         events.push(`Mark updated: "${label}"`);
       }
@@ -196,13 +214,9 @@ export function buildMapAggregates(
 ): ReadingPacket["mapAggregates"] {
   let upcomingDeadlines14d = 0;
   let upcomingDeadlines30d = 0;
-  let recentCompletions = 0;
   const highSignificanceActive: string[] = [];
 
   for (const pursuit of pursuits) {
-    if (pursuit.status === "COMPLETE") {
-      recentCompletions += 1;
-    }
     if (
       (pursuit.status === "ACTIVE" || pursuit.status === "MAINTAINING") &&
       pursuit.significance >= 4
@@ -223,7 +237,7 @@ export function buildMapAggregates(
     totalPursuits: pursuits.length,
     upcomingDeadlines14d,
     upcomingDeadlines30d,
-    recentCompletions,
+    recentCompletions90d: countRecentCompletions(pursuits, { now }),
     highSignificanceActive: highSignificanceActive.slice(0, 6),
   };
 }
@@ -266,9 +280,15 @@ export async function compileReadingPacket(
     ),
   );
 
+  const spine = capSpineEventsForPacket(buildSpineEventsFromMapContext(mapContext));
+
   return {
     changeEvents,
     categorySignals: buildCategorySignals(pursuits, focusCategoryIds),
+    recentEvents: {
+      past: spine.past,
+      upcoming: spine.future,
+    },
     mapAggregates: buildMapAggregates(pursuits),
   };
 }

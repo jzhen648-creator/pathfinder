@@ -10,6 +10,7 @@ import {
   type InsightGenerationResult,
   type InsightLevelPayload,
 } from "./insight-types";
+import { clampInsightGenerationJson } from "./clamp-insight-json";
 
 export class InsightGenerationResponseError extends Error {
   status = 503;
@@ -312,7 +313,7 @@ async function generateThemeHubNodeInsights(
 
   let json: unknown;
   try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+    json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
     console.error("[insights] theme/hub insight generation returned invalid JSON", { err, raw });
     throw new InsightGenerationResponseError(
@@ -367,7 +368,7 @@ async function generatePursuitNodeInsights(
 
   let json: unknown;
   try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+    json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
     console.error("[insights] pursuit insight generation returned invalid JSON", { err, raw });
     throw new InsightGenerationResponseError(
@@ -516,7 +517,7 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
 
   let json: unknown;
   try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+    json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
     console.error("[insights] Gemini returned invalid/truncated JSON", { raw });
     throw new InsightGenerationResponseError(

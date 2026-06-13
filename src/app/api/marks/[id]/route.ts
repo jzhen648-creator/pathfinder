@@ -143,10 +143,16 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       archived: input.archived,
     },
   });
-  await markMarkReadingDirty(userId, mark.id, mark.themeId, "mark_updated", {
-    event: "updated",
-    title: mark.title,
-  });
+  await markMarkReadingDirty(
+    userId,
+    mark.id,
+    mark.themeId,
+    input.archived === true ? "mark_archived" : "mark_updated",
+    {
+      event: input.archived === true ? "archived" : "updated",
+      title: mark.title,
+    },
+  );
   return NextResponse.json({ mark });
 }
 
@@ -163,6 +169,10 @@ export async function DELETE(request: Request, { params }: RouteProps) {
   await prisma.mark.update({
     where: { id },
     data: { archived: true },
+  });
+  await markMarkReadingDirty(userId, id, existing.themeId, "mark_archived", {
+    event: "archived",
+    title: existing.title,
   });
   return NextResponse.json({ ok: true });
 }

@@ -161,6 +161,45 @@ export async function listReadingDirtyRows(userId: string): Promise<ReadingDirty
   }));
 }
 
+/** Minimum dirty `pursuit_created` rows to prefer a full batch refresh. */
+export const CREATE_BURST_DIRTY_THRESHOLD = 4;
+
+export async function countDirtyPursuitsByReason(
+  userId: string,
+  reason: string,
+): Promise<number> {
+  return prisma.aiReadingDirtyItem.count({
+    where: {
+      userId,
+      entityType: "pursuit",
+      reason,
+    },
+  });
+}
+
+export async function shouldUseCreateBurstFullRefresh(userId: string): Promise<boolean> {
+  const count = await countDirtyPursuitsByReason(userId, "pursuit_created");
+  return count >= CREATE_BURST_DIRTY_THRESHOLD;
+}
+
+const EDIT_ONLY_DIRTY_REASONS = new Set([
+  "pursuit_updated",
+  "milestone_updated",
+  "clarifier_answered",
+  "pursuit_reorganized",
+  "pursuit_restored",
+]);
+
+/** True when every dirty pursuit row is a metadata edit — prefer delta + enrich over combined full refresh. */
+export async function isEditOnlyDirtyBatch(userId: string): Promise<boolean> {
+  const rows = await prisma.aiReadingDirtyItem.findMany({
+    where: { userId, entityType: "pursuit" },
+    select: { reason: true },
+  });
+  if (rows.length === 0) return false;
+  return rows.every((row) => EDIT_ONLY_DIRTY_REASONS.has(row.reason));
+}
+
 /** Dirty ledger plus deletion/stale pursuit analysis for sync routing. */
 export async function analyzeReadingDirty(userId: string): Promise<ReadingDirtyAnalysis> {
   const rows = await prisma.aiReadingDirtyItem.findMany({

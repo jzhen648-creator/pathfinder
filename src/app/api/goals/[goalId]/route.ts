@@ -49,6 +49,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       status: true,
       deadline: true,
       significance: true,
+      archived: true,
     },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -163,9 +164,16 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     "significance",
   ]);
 
-  await markPursuitReadingDirty(userId, goal.id, "pursuit_updated", {
-    details: changes.length > 0 ? { changes, title: goal.title } : { title: goal.title },
-  });
+  const restored = input.archived === false && existing.archived === true;
+  if (restored) {
+    await markPursuitReadingDirty(userId, goal.id, "pursuit_restored", {
+      details: { event: "restored", title: goal.title },
+    });
+  } else {
+    await markPursuitReadingDirty(userId, goal.id, "pursuit_updated", {
+      details: changes.length > 0 ? { changes, title: goal.title } : { title: goal.title },
+    });
+  }
 
   return NextResponse.json({ goal });
 }

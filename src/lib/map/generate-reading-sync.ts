@@ -20,6 +20,7 @@ import {
   storyGenerationSchema,
   type StoryGenerationResult,
 } from "@/lib/story/story-types";
+import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 
 export class ReadingSyncGenerationResponseError extends Error {
   status = 503;
@@ -118,7 +119,7 @@ export async function generateInsightsAndStory(
 
   let json: unknown;
   try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+    json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
     console.error("[reading-sync] Gemini returned invalid/truncated JSON", { raw });
     throw new ReadingSyncGenerationResponseError(

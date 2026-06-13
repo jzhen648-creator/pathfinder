@@ -2,6 +2,7 @@ import { formatPursuitContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
+import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import {
   gateEnrichResult,
@@ -29,7 +30,10 @@ const ENRICH_SYSTEM_PROMPT = [
   "  Example — title 'Project manager', Work theme, Job category, empty description:",
   '  prompt "What kind of project management?" options ["Tech / software","Construction","Marketing / agency","Not sure"]',
   "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars) + tone.",
-  "  Use sibling pursuits and marks in context for cross-map links. Never restate the title alone.",
+  "  Body structure when data supports it (each on its own line):",
+  '  - \"From your map: \" + one sentence on cross-pursuit connections (siblings, marks) when present in context.',
+  '  - \"Comparison: \" + one benchmark sentence when user profile has age AND location; omit if either is unknown.',
+  "  - Remaining lines: pursuit-specific detail beyond headline. Never restate the title alone.",
   "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
   "  Otherwise return null for suggestedMilestones.",
   "",
@@ -146,7 +150,7 @@ async function generateOnePursuitEnrich(
 
   let json: unknown;
   try {
-    json = JSON.parse(stripMarkdownFence(raw)) as unknown;
+    json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
     throw new InsightGenerationResponseError("Pursuit enrich returned invalid JSON.", { cause: err });
   }

@@ -33,10 +33,12 @@ Pursuit fields (title, status, deadline, significance, category, milestones)
         ↓
 compileReadingPacket()
         ↓
-ReadingPacket { changeEvents, categorySignals, mapAggregates }
+ReadingPacket { changeEvents, categorySignals, recentEvents, mapAggregates }
         ↓
 generateReadingDelta (story) · generate-pursuit-enrich (scoped context)
 ```
+
+`recentEvents` uses the same spine derivation rules as the mobile Timeline tab (`spine-events.ts`).
 
 ---
 
@@ -52,11 +54,15 @@ generateReadingDelta (story) · generate-pursuit-enrich (scoped context)
     pursuits: Array<{ title; status; deadline?; significance }>;
     facts: string[];                // "1 complete, 1 active with deadline Sep 2026"
   }>;
+  recentEvents: {
+    past: Array<{ kind; date; placement; title; themeLabel; significance? }>;
+    upcoming: Array<{ kind; date; placement; title; themeLabel; significance? }>;
+  };
   mapAggregates: {
     totalPursuits: number;
     upcomingDeadlines14d: number;
     upcomingDeadlines30d: number;
-    recentCompletions: number;
+    recentCompletions90d: number;   // completions in last 90 days, not all-time
     highSignificanceActive: string[];
   };
 }
@@ -123,9 +129,10 @@ Normal Reading packets should describe the **live map**. Archived rows remain av
 
 Open follow-ups:
 
-- Add an explicit **restore** dirty event (`Pursuit restored: "..."`) so re-added pursuits are visible to the Reading as lifecycle changes.
-- Mark mark-archive/delete operations dirty so removed marks stop influencing stale readings cleanly.
+- ~~Add an explicit **restore** dirty event~~ — shipped: `pursuit_restored` on PATCH `archived: false`.
+- ~~Mark mark-archive/delete operations dirty~~ — shipped: `mark_archived` on DELETE/PATCH archive.
 - Decide whether permanent delete should also clear historical cache fragments, audit metrics, and pending dirty rows.
+- **Mobile Timeline** should eventually import shared spine rules from `spine-events.ts` (today: parallel client derivation in `build-timeline-spine.ts`).
 
 ---
 
