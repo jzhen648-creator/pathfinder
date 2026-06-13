@@ -411,6 +411,7 @@ model AiReadingDirtyItem {
   entityType  AiReadingDirtyEntityType
   entityId    String
   reason      String
+  details     Json?
   streamRunId String?
   createdAt   DateTime                 @default(now())
 

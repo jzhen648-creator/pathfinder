@@ -408,6 +408,14 @@ export async function digestPendingStreamRun(
         });
         if (!goal || !goalAllowsStreamMilestones(goal)) continue;
 
+        const existingMilestone = await tx.milestone.findFirst({
+          where: {
+            goalId: pursuitId,
+            title: { equals: title, mode: "insensitive" },
+          },
+        });
+        if (existingMilestone) continue;
+
         const rows = await tx.milestone.findMany({
           where: { goalId: pursuitId },
           select: { position: true },
@@ -503,7 +511,7 @@ export async function digestPendingStreamRun(
       queueMemoryUpdateAfterStream(userId, run.rawInput);
     }
 
-    await markPursuitReadingDirty(userId, run.goalId, "note_digested", run.id);
+    await markPursuitReadingDirty(userId, run.goalId, "note_digested", { streamRunId: run.id });
 
     return {
       ok: true,
@@ -651,7 +659,9 @@ async function digestPendingStreamRunsBatch(
           summaryJson: { batchedInto: primary.id, items: [] },
         },
       });
-      await markPursuitReadingDirty(userId, extra.goalId, "note_digested_batch", extra.id);
+      await markPursuitReadingDirty(userId, extra.goalId, "note_digested_batch", {
+        streamRunId: extra.id,
+      });
     }
     return { processed: runs.length, failed: 0, errors: [], rateLimited: false };
   }

@@ -1,14 +1,19 @@
-import { formatMapContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
+import {
+  compileReadingPacket,
+  readingPacketToJson,
+} from "@/lib/map/compile-reading-packet";
+import type { ReadingDirtyAnalysis } from "@/lib/map/reading-dirty-ledger";
+import type { MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 import { buildStorySystemPrompt, countMapPursuits } from "@/lib/story/generate-story";
+import { formatMapContext } from "@/lib/ai/format-map-context";
 import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
 import {
   STORY_SCHEMA_VERSION,
   storyGenerationSchema,
   type StoryGenerationResult,
 } from "@/lib/story/story-types";
-import type { ReadingDirtySummary } from "@/lib/map/reading-dirty-ledger";
 
 export class ReadingDeltaGenerationResponseError extends Error {
   status = 503;
@@ -25,41 +30,15 @@ function stripMarkdownFence(raw: string): string {
   return m?.[1]?.trim() ?? t;
 }
 
-function filterMapContextForDirty(
-  mapContext: Awaited<ReturnType<typeof formatMapContext>>,
-  dirty: ReadingDirtySummary,
-) {
-  const pursuitSet = new Set(dirty.pursuitIds);
-  const themeSet = new Set(dirty.themeIds);
-  const markSet = new Set(dirty.markIds);
-
-  return {
-    themes: mapContext.themes
-      .filter((theme) => themeSet.has(theme.id) || theme.hubs.some((hub) =>
-        hub.pursuits.some((p) => pursuitSet.has(p.id)),
-      ))
-      .map((theme) => ({
-        ...theme,
-        marks: theme.marks.filter((m) => markSet.has(m.id) || themeSet.has(theme.id)),
-        hubs: theme.hubs
-          .map((hub) => ({
-            ...hub,
-            pursuits: hub.pursuits.filter((p) => pursuitSet.has(p.id)),
-            marks: hub.marks.filter((m) => markSet.has(m.id)),
-          }))
-          .filter((hub) => hub.pursuits.length > 0 || dirty.hubIds.includes(hub.id)),
-      })),
-  };
-}
-
 function buildDeltaSystemPrompt(totalPursuitCount: number): string {
   return [
     "You revise an existing whole-map Insights reading for Pathfinder.",
     "Return ONLY valid JSON with schemaVersion and seasonRead.",
     "Preserve stable interpretation from the previous reading.",
-    "Update only where the changed map data requires it.",
+    "Ground on the reading packet facts — do not re-derive status counts, category mixes, or deadlines.",
+    "Update only where the packet change events and category signals require it.",
     "Do not re-audit the entire map or invent facts.",
-    "Do not duplicate per-pursuit sparkle insight copy verbatim.",
+    "Do not duplicate per-pursuit panel Insight copy verbatim.",
     "",
     buildStorySystemPrompt(totalPursuitCount),
   ].join("\n");
@@ -69,8 +48,7 @@ function buildDeltaUserMessage(input: {
   previousSeasonRead: string;
   previousGeneratedAt: string;
   userContext: string;
-  changedContextJson: string;
-  mapSummary: string;
+  readingPacketJson: string;
 }): string {
   return [
     userContextOrPlaceholder(input.userContext),
@@ -78,14 +56,11 @@ function buildDeltaUserMessage(input: {
     `Previous reading (generated ${input.previousGeneratedAt}):`,
     input.previousSeasonRead,
     "",
-    "Changed map context since last reading:",
-    input.changedContextJson,
-    "",
-    "Brief whole-map summary for grounding:",
-    input.mapSummary,
+    "Reading packet since last reading (deterministic facts — trust these):",
+    input.readingPacketJson,
     "",
     `Return JSON: { "schemaVersion": "${STORY_SCHEMA_VERSION}", "seasonRead": "..." }`,
-    "Revise the previous reading — do not start from scratch unless the changes are substantial.",
+    "Revise the previous reading — do not start from scratch unless the packet changes are substantial.",
   ].join("\n");
 }
 
@@ -97,27 +72,25 @@ export async function generateReadingDelta(
   userId: string,
   previousStory: StoryGenerationResult,
   previousGeneratedAt: Date,
-  dirty: ReadingDirtySummary,
+  dirty: ReadingDirtyAnalysis,
+  metrics?: MapAiSyncMetrics,
 ): Promise<StoryGenerationResult> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
   }
 
-  const [mapContext, userContext] = await Promise.all([
+  const [mapContext, userContext, readingPacket] = await Promise.all([
     formatMapContext(userId, { excludeAbandoned: true }),
     formatUserContext(userId),
+    compileReadingPacket(userId, dirty),
   ]);
 
+  const readingPacketJson = readingPacketToJson(readingPacket);
+  if (metrics) {
+    metrics.readingPacketChars = readingPacketJson.length;
+  }
+
   const totalPursuitCount = countMapPursuits(mapContext);
-  const changedContext = filterMapContextForDirty(mapContext, dirty);
-  const mapSummary = JSON.stringify(
-    {
-      totalPursuits: totalPursuitCount,
-      themeCount: mapContext.themes.length,
-    },
-    null,
-    2,
-  );
 
   const raw = await generateJsonCompletion({
     system: buildDeltaSystemPrompt(totalPursuitCount),
@@ -125,8 +98,7 @@ export async function generateReadingDelta(
       previousSeasonRead: previousStory.seasonRead,
       previousGeneratedAt: previousGeneratedAt.toISOString(),
       userContext,
-      changedContextJson: JSON.stringify(changedContext, null, 2),
-      mapSummary,
+      readingPacketJson,
     }),
     maxTokens: 2048,
     temperature: 0.4,

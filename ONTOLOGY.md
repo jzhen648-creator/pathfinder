@@ -11,22 +11,29 @@ The product is **four categories**, not five competing information sets. Three u
 | **Map** | Store (structured) | Yes | Pursuits + marks + progress | Yes (via **+** and theme detail) |
 | **Settings** | Benchmark fields | Yes | Name, age, location only | Yes (direct) |
 | **Insights** (tab) | View — whole-map scope | Reading: no (regenerated) | nothing | No |
-| **Insight** (✦ sparkle) | View — node scope | No (regenerated) | nothing | No |
+| **Insight** (inline panel) | View — theme/pursuit scope | No (regenerated) | nothing | No |
 | **Timeline** (tab) | View — chronological | No (derived from map + marks) | nothing | No |
 | **+** (add pursuit) | Input verb | No | nothing | n/a |
 | **Map status filter** | View — spatial highlight | No (derived from map) | nothing | No |
 
 - **One store.** Map = structured truth: **pursuits** on the surface (what you're building) and **marks** in theme detail (facts, events, people, skills — theme context). Settings holds three benchmark fields for the Insights reading (name, age, location).
-- **Views at three scopes.** Insights tab = one whole-map **reading** (AI prose). Insight ✦ = per theme/pursuit sparkle on map sheets. Timeline tab = chronological spine (marks, upcoming target dates, completed pursuits — not past milestone rows, not a status inventory). Map **Filter** dropdown = spatial status highlight on hexes (Active / Maintaining / On hold / Completed).
+- **Views at three scopes.** Insights tab = one whole-map **reading** (AI prose). **Insight** = inline AI block in theme/pursuit detail panels (`DetailInsightSection`). Timeline tab = chronological spine (marks, upcoming target dates, completed pursuits — not past milestone rows, not a status inventory). Map **Filter** dropdown = spatial status highlight on hexes (Active / Maintaining / On hold / Completed).
 - **One input verb.** Centre **+** creates pursuits. Marks are added in theme detail panels. The map **Self node** is decorative only.
 
 **Decision test (check every new feature):**
 
 1. Can the user edit it? → map store (pursuits, marks) or settings (name/age/location).
-2. Does it regenerate from data? → view (Insights tab, Insight ✦, or Timeline).
+2. Does it regenerate from data? → view (Insights tab Reading, panel Insight, or Timeline).
 3. Nothing originates in a view.
 
-**Retired (2026-06):** Profile tab and `UserMemory` blob; **Story** tab name (route redirects to Insights). Season read no longer uses a prose identity summary; map marks + settings fields replace that layer.
+**Retired (2026-06):** Profile tab and `UserMemory` blob; **Story** tab name (route redirects to Insights). Season read no longer uses a prose identity summary; map marks + settings fields replace that layer. **Insight ✦ / sparkle button** — replaced by inline **Insight** in detail panels.
+
+## Derived backend (not a user surface)
+
+| Layer | Implementation | Notes |
+|-------|----------------|-------|
+| **Reading compiler** | `compile-reading-packet.ts` | Deterministic facts from pursuit attribute layers before Gemini. Feeds story delta and enrich prompts. See [`docs/READING-COMPILER.md`](./docs/READING-COMPILER.md). |
+| **Dirty ledger** | `AiReadingDirtyItem` | Tracks entities changed since last successful sync. |
 
 ## Core entities
 

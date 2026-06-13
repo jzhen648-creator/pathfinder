@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
+import { buildFieldChanges } from "@/lib/map/reading-dirty-details";
 import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
@@ -41,7 +42,14 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   const existing = await prisma.goal.findFirst({
     where: { id: goalId, userId },
-    select: { id: true, goalType: true, title: true },
+    select: {
+      id: true,
+      goalType: true,
+      title: true,
+      status: true,
+      deadline: true,
+      significance: true,
+    },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (existing.goalType === "moment" || existing.goalType === "event") {
@@ -140,7 +148,24 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     });
   }
 
-  await markPursuitReadingDirty(userId, goal.id, "pursuit_updated");
+  const dirtyUpdates: Record<string, unknown> = {};
+  if (input.title !== undefined) dirtyUpdates.title = data.title;
+  if (pursuitStatus !== undefined) dirtyUpdates.status = data.status;
+  if (input.deadline !== undefined) {
+    dirtyUpdates.deadline = data.deadline ? data.deadline.toISOString().slice(0, 10) : null;
+  }
+  if (input.significance !== undefined) dirtyUpdates.significance = data.significance;
+
+  const changes = buildFieldChanges(existing, dirtyUpdates, [
+    "title",
+    "status",
+    "deadline",
+    "significance",
+  ]);
+
+  await markPursuitReadingDirty(userId, goal.id, "pursuit_updated", {
+    details: changes.length > 0 ? { changes, title: goal.title } : { title: goal.title },
+  });
 
   return NextResponse.json({ goal });
 }
@@ -154,7 +179,7 @@ export async function DELETE(request: Request, { params }: RouteProps) {
 
   const existing = await prisma.goal.findFirst({
     where: { id: goalId, userId },
-    select: { id: true },
+    select: { id: true, title: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -163,7 +188,9 @@ export async function DELETE(request: Request, { params }: RouteProps) {
     data: { archived: true },
   });
 
-  await markPursuitReadingDirty(userId, goalId, "pursuit_archived");
+  await markPursuitReadingDirty(userId, goalId, "pursuit_archived", {
+    details: { event: "archived", title: existing.title },
+  });
 
   return NextResponse.json({ ok: true });
 }

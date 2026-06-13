@@ -16,6 +16,7 @@ export type MapAiSyncMetrics = {
   memoryUpdatesFlushed: number;
   liteFirstReading: boolean;
   storyFullRegen: boolean;
+  readingPacketChars: number;
 };
 
 export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
@@ -37,5 +38,6 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     memoryUpdatesFlushed: 0,
     liteFirstReading: false,
     storyFullRegen: false,
+    readingPacketChars: 0,
   };
 }

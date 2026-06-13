@@ -1,4 +1,4 @@
-import { formatMapContext } from "@/lib/ai/format-map-context";
+import { formatPursuitContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
@@ -29,12 +29,12 @@ const ENRICH_SYSTEM_PROMPT = [
   "  Example — title 'Project manager', Work theme, Job category, empty description:",
   '  prompt "What kind of project management?" options ["Tech / software","Construction","Marketing / agency","Not sure"]',
   "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars) + tone.",
-  "  Use cross-map context. Never restate the title alone. Null only if truly nothing useful.",
+  "  Use sibling pursuits and marks in context for cross-map links. Never restate the title alone.",
   "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
   "  Otherwise return null for suggestedMilestones.",
   "",
   "RULES:",
-  "- Ground every field in provided map JSON only.",
+  "- Ground every field in provided scoped context JSON only.",
   "- Null/empty arrays are correct when unsure.",
 ].join("\n");
 
@@ -51,7 +51,7 @@ function parseEnrichAnswers(raw: unknown): { clarifierId: string; prompt: string
 
 function buildPursuitEnrichUserMessage(
   pursuitId: string,
-  mapJson: string,
+  contextJson: string,
   userContext: string,
   milestonesAllowed: boolean,
 ): string {
@@ -63,8 +63,8 @@ function buildPursuitEnrichUserMessage(
       ? "Milestones: allowed — suggest only if concrete and specific."
       : "Milestones: NOT allowed — set suggestedMilestones to null.",
     "",
-    "Full life map JSON:",
-    mapJson,
+    "Scoped pursuit context JSON (focal pursuit + sibling pursuits + related marks):",
+    contextJson,
   ].join("\n");
 }
 
@@ -127,15 +127,19 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
 async function generateOnePursuitEnrich(
   userId: string,
   pursuitId: string,
-  mapJson: string,
   userContext: string,
   signal: PursuitSignal,
 ): Promise<PursuitEnrichResult> {
   const milestonesAllowed = shouldSuggestMilestones(signal);
+  const pursuitContext = await formatPursuitContext(userId, pursuitId);
+  if (!pursuitContext) {
+    throw new InsightGenerationResponseError("Pursuit enrich missing pursuit context.");
+  }
+  const contextJson = JSON.stringify(pursuitContext, null, 2);
 
   const raw = await generateJsonCompletion({
     system: ENRICH_SYSTEM_PROMPT,
-    user: buildPursuitEnrichUserMessage(pursuitId, mapJson, userContext, milestonesAllowed),
+    user: buildPursuitEnrichUserMessage(pursuitId, contextJson, userContext, milestonesAllowed),
     maxTokens: 2048,
     queueKey: userId,
   });
@@ -184,25 +188,17 @@ export async function refreshPursuitEnrich(
   const batchIds = uniqueIds.slice(0, MAX_ENRICH_PER_RUN);
   const remainingIds = uniqueIds.slice(MAX_ENRICH_PER_RUN);
 
-  const [mapContext, userContext, signals] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+  const [userContext, signals] = await Promise.all([
     formatUserContext(userId),
     loadPursuitSignals(userId, batchIds),
   ]);
-  const mapJson = JSON.stringify(mapContext, null, 2);
 
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
 
   for (const pursuitId of batchIds) {
     const signal = signals.get(pursuitId);
     if (!signal) continue;
-    const result = await generateOnePursuitEnrich(
-      userId,
-      pursuitId,
-      mapJson,
-      userContext,
-      signal,
-    );
+    const result = await generateOnePursuitEnrich(userId, pursuitId, userContext, signal);
     const payload = toCachePayload(result);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;

@@ -211,6 +211,9 @@ export async function POST(request: Request) {
       },
     });
   });
-  await markMarkReadingDirty(userId, mark.id, branch.themeId, "mark_created");
+  await markMarkReadingDirty(userId, mark.id, branch.themeId, "mark_created", {
+    event: "created",
+    title: mark.title,
+  });
   return NextResponse.json({ mark });
 }

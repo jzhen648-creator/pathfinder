@@ -143,7 +143,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       archived: input.archived,
     },
   });
-  await markMarkReadingDirty(userId, mark.id, mark.themeId, "mark_updated");
+  await markMarkReadingDirty(userId, mark.id, mark.themeId, "mark_updated", {
+    event: "updated",
+    title: mark.title,
+  });
   return NextResponse.json({ mark });
 }
 

@@ -98,7 +98,7 @@ export async function PATCH(request: Request, props: RouteProps) {
     const milestone = await prisma.milestone.findFirst({
       where: { id: milestoneId, goalId },
       include: {
-        goal: { select: { id: true, userId: true, goalType: true } },
+        goal: { select: { id: true, userId: true, goalType: true, title: true } },
       },
     });
 
@@ -172,7 +172,22 @@ export async function PATCH(request: Request, props: RouteProps) {
 
     const payload = { ok: true as const, skippedBloomRecompute: skipBloomRecompute };
     console.info(logPrefix, "success response", payload);
-    await markPursuitReadingDirty(userId, goalId, "milestone_updated");
+    await markPursuitReadingDirty(userId, goalId, "milestone_updated", {
+      details: {
+        title: milestone.goal.title,
+        milestoneTitle: updated.title,
+        changes:
+          completedAt !== undefined
+            ? [
+                {
+                  field: "milestoneCompleted",
+                  from: milestone.completedAt ? "true" : "false",
+                  to: updated.completedAt ? "true" : "false",
+                },
+              ]
+            : undefined,
+      },
+    });
     return NextResponse.json(payload);
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
@@ -219,7 +234,7 @@ export async function DELETE(_request: Request, props: RouteProps) {
     const milestone = await prisma.milestone.findFirst({
       where: { id: milestoneId, goalId },
       include: {
-        goal: { select: { id: true, userId: true, goalType: true } },
+        goal: { select: { id: true, userId: true, goalType: true, title: true } },
       },
     });
 

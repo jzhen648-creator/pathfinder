@@ -40,13 +40,13 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Rationale:** Tutorial uses real user data, not placeholders. First map node is a win, not a task. Design session before implementation.
 
-## 2026-06-11 — Insights auto-reading on tab focus (first visit + stale refresh)
+## 2026-06-11 — Insights reading sync (manual)
 
-**Product:** Opening **Insights** auto-runs **Update readings** when (a) the user has pursuits but **no whole-map reading yet**, or (b) the story API reports `canAutoRefresh` (map changed since last reading). **Not** a background sync on every tab switch — one attempt per focus; manual button remains for forced refresh.
+**Product:** **Update AI reading** on Insights is **manual only** — user taps the button (`POST /api/map/ai-sync`). Map **Changes waiting** chip navigates to Insights but does **not** auto-start sync. `canAutoRefresh` flags stale state only.
 
-**Still deliberate:** Map mutations (create pursuit, save pending note) do **not** trigger AI until Insights focus or explicit **Update readings** / map stale chip. Creation mode unchanged.
+**Still deliberate:** Map mutations do **not** trigger AI until explicit **Update AI reading**. Creation mode unchanged.
 
-**Implementation:** `useInsightsReadingsSync` + `?sync=1` deep link from map utility bar.
+**Supersedes:** 2026-06-11 “auto-reading on tab focus” entry below — that approach was not shipped on mobile.
 
 ## 2026-06-11 — Creation mode · Reflection sync
 
@@ -55,6 +55,18 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 **Capture:** Pursuit **Update** and **Add context** save pending `StreamRun` rows (`POST /api/goals/[goalId]/capture`, `/apply-context`, `/api/stream/pursuit/apply`) — no extract until sync.
 
 **Reflection:** One tap **Update AI reading** on Insights → `POST /api/map/ai-sync` (bounded digest, dirty-ledger incremental refresh, optional story delta). Manual-only in dev; see mobile `PLAN-REFLECTION-SYNC.md` §10 for release cadence / monetization. Per-user serialized AI queue + rate cap.
+
+## 2026-06-13 — Map Reading Compiler + terminology alignment
+
+**Shipped (backend):** `compile-reading-packet.ts` — deterministic facts from pursuit attribute layers (status, deadline, significance, category, milestones) before Gemini. Feeds `generateReadingDelta` (compact packet vs nested changed JSON) and slimmed pursuit enrich prompts (`formatPursuitContext`). Dirty ledger extended with optional `details` JSON for before/after change events.
+
+**AI interpretation ladder:** (1) app facts via compiler — silent; (2) **Quick questions** when pursuit title/context ambiguous; (3) AI prose for **Reading** + panel **Insight**.
+
+**Terminology:** Retire user-facing **Insight ✦ / sparkle**. Use **Reading** (Insights tab), **Insight** (inline panel, `DetailInsightSection`), **Update AI reading**. Internal alias: **panel insight**.
+
+**Docs:** `pathfinder/docs/READING-COMPILER.md`, updated TERMINOLOGY, ONTOLOGY, PLAN-REFLECTION-SYNC.
+
+**Future:** Relationship Quick questions (MC between two pursuits) — not built yet.
 
 ## 2026-06-13 — Incremental AI sync pipeline
 

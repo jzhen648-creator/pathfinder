@@ -204,7 +204,9 @@ export async function POST(request: Request) {
 
     const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
 
-    await markPursuitReadingDirty(userId, goal.id, "pursuit_created");
+    await markPursuitReadingDirty(userId, goal.id, "pursuit_created", {
+      details: { event: "created", title: goal.title },
+    });
 
     return NextResponse.json(
       {

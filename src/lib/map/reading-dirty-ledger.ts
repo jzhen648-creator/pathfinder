@@ -1,5 +1,6 @@
-import type { AiReadingDirtyEntityType } from "@prisma/client";
+import type { AiReadingDirtyEntityType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { ReadingDirtyDetails } from "@/lib/map/reading-dirty-details";
 
 export type ReadingDirtySummary = {
   pursuitIds: string[];
@@ -10,15 +11,27 @@ export type ReadingDirtySummary = {
   totalItems: number;
 };
 
+export type ReadingDirtyRow = {
+  entityType: string;
+  entityId: string;
+  reason: string;
+  details: ReadingDirtyDetails | null;
+};
+
 export async function markReadingDirty(
   userId: string,
   entityType: AiReadingDirtyEntityType,
   entityId: string,
   reason: string,
-  streamRunId?: string | null,
+  options?: {
+    streamRunId?: string | null;
+    details?: ReadingDirtyDetails | null;
+  },
 ): Promise<void> {
   const id = entityId.trim();
   if (!id) return;
+  const detailsJson =
+    options?.details != null ? (options.details as Prisma.InputJsonValue) : undefined;
   await prisma.aiReadingDirtyItem.upsert({
     where: {
       userId_entityType_entityId: { userId, entityType, entityId: id },
@@ -28,11 +41,13 @@ export async function markReadingDirty(
       entityType,
       entityId: id,
       reason: reason.slice(0, 500),
-      streamRunId: streamRunId ?? null,
+      details: detailsJson,
+      streamRunId: options?.streamRunId ?? null,
     },
     update: {
       reason: reason.slice(0, 500),
-      streamRunId: streamRunId ?? undefined,
+      details: detailsJson,
+      streamRunId: options?.streamRunId ?? undefined,
       createdAt: new Date(),
     },
   });
@@ -42,9 +57,12 @@ export async function markPursuitReadingDirty(
   userId: string,
   pursuitId: string,
   reason: string,
-  streamRunId?: string | null,
+  options?: {
+    streamRunId?: string | null;
+    details?: ReadingDirtyDetails | null;
+  },
 ): Promise<void> {
-  await markReadingDirty(userId, "pursuit", pursuitId, reason, streamRunId);
+  await markReadingDirty(userId, "pursuit", pursuitId, reason, options);
   await markReadingDirty(userId, "global", "map", "pursuit_changed");
 }
 
@@ -53,10 +71,11 @@ export async function markMarkReadingDirty(
   markId: string,
   themeId: string,
   reason: string,
+  details?: ReadingDirtyDetails | null,
 ): Promise<void> {
-  await markReadingDirty(userId, "mark", markId, reason);
+  await markReadingDirty(userId, "mark", markId, reason, { details });
   if (themeId.trim()) {
-    await markReadingDirty(userId, "theme", themeId, reason);
+    await markReadingDirty(userId, "theme", themeId, reason, { details });
   }
   await markReadingDirty(userId, "global", "map", "mark_changed");
 }
@@ -115,12 +134,31 @@ function summarizeDirtyRows(
   };
 }
 
+function parseDetails(raw: unknown): ReadingDirtyDetails | null {
+  if (!raw || typeof raw !== "object") return null;
+  return raw as ReadingDirtyDetails;
+}
+
 export async function listReadingDirtySummary(userId: string): Promise<ReadingDirtySummary> {
   const rows = await prisma.aiReadingDirtyItem.findMany({
     where: { userId },
     select: { entityType: true, entityId: true },
   });
   return summarizeDirtyRows(rows);
+}
+
+export async function listReadingDirtyRows(userId: string): Promise<ReadingDirtyRow[]> {
+  const rows = await prisma.aiReadingDirtyItem.findMany({
+    where: { userId },
+    select: { entityType: true, entityId: true, reason: true, details: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map((row) => ({
+    entityType: row.entityType,
+    entityId: row.entityId,
+    reason: row.reason,
+    details: parseDetails(row.details),
+  }));
 }
 
 /** Dirty ledger plus deletion/stale pursuit analysis for sync routing. */

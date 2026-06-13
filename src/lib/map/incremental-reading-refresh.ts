@@ -360,7 +360,8 @@ export async function refreshReadingCachesSmart(
           userId,
           previousStory,
           storyRow.generatedAt,
-          deltaDirty,
+          dirtyAnalysis,
+          options.metrics,
         );
         options.metrics.aiCallsCompleted += 1;
         await upsertStoryCache(userId, story, mapVersion, memoryVersion);
