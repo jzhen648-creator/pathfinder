@@ -9,9 +9,11 @@
  * Idempotent: deletes and recreates only @qa-seed.test users.
  * No AI, Stream, or marks.
  */
-import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+/** Fixed QA password — override with QA_SEED_PASSWORD env for local runs. */
+const DEFAULT_QA_SEED_PASSWORD = "pathfinder-qa";
 
 import { PrismaClient, type PursuitStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -62,8 +64,9 @@ function dbHost(): string {
   }
 }
 
-function generateSeedPassword(): string {
-  return randomBytes(18).toString("base64url");
+function resolveSeedPassword(): string {
+  const fromEnv = process.env.QA_SEED_PASSWORD?.trim();
+  return fromEnv || DEFAULT_QA_SEED_PASSWORD;
 }
 
 type ProfileConfig = {
@@ -167,7 +170,7 @@ async function main(): Promise<void> {
   }
 
   const prisma = new PrismaClient();
-  const password = generateSeedPassword();
+  const password = resolveSeedPassword();
   const passwordHash = await bcrypt.hash(password, 12);
 
   console.log("Pathfinder AI QA seed");
@@ -210,7 +213,7 @@ async function main(): Promise<void> {
     console.log(`Milestones: ${samMilestones.total}`);
 
     console.log("\n=== Login (mobile: POST /api/auth/mobile-login) ===");
-    console.log(`Password (generated this run): ${password}`);
+    console.log(`Password: ${password}`);
     console.log(`  ${ALEX_PROFILE.email}`);
     console.log(`  ${SAM_PROFILE.email}`);
     console.log("\n§5 gate: login → Insights → Update AI reading (live Gemini).");
