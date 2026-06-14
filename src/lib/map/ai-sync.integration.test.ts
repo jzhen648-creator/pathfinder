@@ -279,6 +279,32 @@ describe("runMapAiSync integration", () => {
     expect(mocks.runReflectSync).toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(1);
     expect(result.metrics.reflectCall).toBe(true);
+    expect(result.metrics.digestRunsRemaining).toBe(0);
+  });
+
+  it("reflect on with zero pending StreamRuns skips digest", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(true);
+    mocks.countPendingCaptures.mockResolvedValue(0);
+    mocks.listReadingDirtySummary.mockResolvedValue(
+      baseDirtySummary({ pursuitIds: ["p1"], totalItems: 1 }),
+    );
+
+    const result = await runMapAiSync(USER_ID, { force: true });
+
+    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
+    expect(mocks.runReflectSync).toHaveBeenCalled();
+    expect(result.metrics.digestRunsRemaining).toBe(0);
+  });
+
+  it("legacy path with zero pending StreamRuns never runs digest", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(false);
+    mocks.countPendingCaptures.mockResolvedValue(0);
+
+    const result = await runMapAiSync(USER_ID, { force: true });
+
+    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
+    expect(result.metrics.digestRunsProcessed).toBe(0);
+    expect(result.metrics.digestRunsRemaining).toBe(0);
   });
 
   it("makes zero Gemini calls on rapid create with fresh caches and empty dirty ledger", async () => {

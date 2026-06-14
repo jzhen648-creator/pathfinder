@@ -291,7 +291,15 @@ async function runMapAiSyncInner(
     errors: [] as string[],
   };
 
-  if (pendingBefore > 0 && !reflectEnabled && !skipDigestForFinishTap) {
+  /**
+   * Legacy digest — only when reflect is off and pending StreamRun rows exist.
+   * Reflect mode (USE_REFLECT_CALL) never burns Gemini on digest; clean accounts
+   * (pendingBefore === 0) skip this block entirely.
+   */
+  const shouldRunLegacyDigest =
+    pendingBefore > 0 && !reflectEnabled && !skipDigestForFinishTap;
+
+  if (shouldRunLegacyDigest) {
     const digestBudget = remainingSyncGeminiBudget(metrics);
     if (digestBudget > 0) {
       metrics.startedWork = true;
@@ -324,7 +332,7 @@ async function runMapAiSyncInner(
       metrics.digestRunsRemaining = pendingBefore;
       metrics.morePending = true;
     }
-  } else if (pendingBefore > 0 && skipDigestForFinishTap) {
+  } else if (pendingBefore > 0 && !reflectEnabled && skipDigestForFinishTap) {
     metrics.digestRunsRemaining = pendingBefore;
   }
 
