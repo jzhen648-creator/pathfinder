@@ -328,16 +328,20 @@ model ProfileFact {
 }
 
 model UserManualProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  displayName String?
-  dateOfBirth DateTime?
-  location    String?
-  languages   String[]
-  occupation  String?
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName      String?
+  dateOfBirth      DateTime?
+  location         String?
+  languages        String[]
+  occupation       String?
+  educationLevel   String?
+  employmentStatus String?
+  industry         String?
+  jobTitle         String?
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
 }
 
 /// AI-observed personal context (WHO). Separate from map data (WHAT).

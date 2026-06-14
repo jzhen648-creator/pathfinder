@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import { completeOnboardingForUser } from "@/lib/complete-onboarding";
 import { completeOnboarding } from "@/lib/onboarding-progress";
 import { prisma } from "@/lib/prisma";
@@ -20,18 +19,14 @@ const sceneCompleteSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
 
   try {
     const body = await request.json();
     const sceneComplete = sceneCompleteSchema.safeParse(body);
     if (sceneComplete.success) {
-      await completeOnboarding(prisma, userId);
+      await completeOnboarding(prisma, auth.userId);
       return NextResponse.json({ ok: true });
     }
 
@@ -43,12 +38,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: auth.userId } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    await completeOnboardingForUser(prisma, userId, {
+    await completeOnboardingForUser(prisma, auth.userId, {
       name: parsed.data.name,
       activeLimbIds: parsed.data.activeLimbIds,
     });

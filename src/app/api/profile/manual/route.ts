@@ -3,12 +3,26 @@ import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
+const employmentStatusSchema = z.enum([
+  "EMPLOYED",
+  "SELF_EMPLOYED",
+  "STUDENT",
+  "SEEKING_WORK",
+  "PREFER_NOT_TO_SAY",
+]);
+
+const educationLevelSchema = z.enum(["secondary", "further", "higher"]);
+
 const manualProfileInputSchema = z.object({
   displayName: z.string().trim().max(120).nullable().optional(),
   dateOfBirth: z.string().trim().nullable().optional(),
   location: z.string().trim().max(160).nullable().optional(),
   languages: z.array(z.string().trim().max(80)).max(20).optional(),
   occupation: z.string().trim().max(160).nullable().optional(),
+  educationLevel: educationLevelSchema.nullable().optional(),
+  employmentStatus: employmentStatusSchema.nullable().optional(),
+  industry: z.string().trim().max(120).nullable().optional(),
+  jobTitle: z.string().trim().max(160).nullable().optional(),
 });
 
 type ManualProfileRow = {
@@ -19,6 +33,10 @@ type ManualProfileRow = {
   location: string | null;
   languages: string[];
   occupation: string | null;
+  educationLevel: string | null;
+  employmentStatus: string | null;
+  industry: string | null;
+  jobTitle: string | null;
   updatedAt: Date;
   createdAt: Date;
 };
@@ -65,6 +83,10 @@ function serializeManualProfile(profile: ManualProfileRow | null) {
     location: profile.location,
     languages: profile.languages,
     occupation: profile.occupation,
+    educationLevel: profile.educationLevel,
+    employmentStatus: profile.employmentStatus,
+    industry: profile.industry,
+    jobTitle: profile.jobTitle,
     updatedAt: profile.updatedAt.toISOString(),
     createdAt: profile.createdAt.toISOString(),
   };
@@ -106,12 +128,20 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  const jobTitle = nullableText(parsed.data.jobTitle);
+  const occupation =
+    nullableText(parsed.data.occupation) ?? (jobTitle === undefined ? undefined : jobTitle);
+
   const data = {
     displayName: nullableText(parsed.data.displayName),
     dateOfBirth,
     location: nullableText(parsed.data.location),
     languages: normalizeLanguages(parsed.data.languages),
-    occupation: nullableText(parsed.data.occupation),
+    occupation,
+    educationLevel: nullableText(parsed.data.educationLevel),
+    employmentStatus: nullableText(parsed.data.employmentStatus),
+    industry: nullableText(parsed.data.industry),
+    jobTitle,
   };
 
   const profile = await prisma.userManualProfile.upsert({
@@ -123,6 +153,10 @@ export async function PUT(request: Request) {
       location: data.location ?? null,
       languages: data.languages ?? [],
       occupation: data.occupation ?? null,
+      educationLevel: data.educationLevel ?? null,
+      employmentStatus: data.employmentStatus ?? null,
+      industry: data.industry ?? null,
+      jobTitle: data.jobTitle ?? null,
     },
     update: data,
   });

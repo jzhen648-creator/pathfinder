@@ -74,6 +74,10 @@ type ProfileConfig = {
   displayName: string;
   age: number;
   location: string;
+  educationLevel?: string | null;
+  employmentStatus?: string | null;
+  industry?: string | null;
+  jobTitle?: string | null;
   unlockThemes: readonly PursuitSpec["themeId"][];
   pursuits: readonly PursuitSpec[];
 };
@@ -106,6 +110,11 @@ async function seedProfile(
       displayName: profile.displayName,
       dateOfBirth: dateOfBirthForAge(profile.age),
       location: profile.location,
+      educationLevel: profile.educationLevel ?? null,
+      employmentStatus: profile.employmentStatus ?? null,
+      industry: profile.industry ?? null,
+      jobTitle: profile.jobTitle ?? null,
+      occupation: profile.jobTitle ?? null,
     },
   });
 
@@ -217,6 +226,7 @@ async function main(): Promise<void> {
     console.log(`  ${ALEX_PROFILE.email}`);
     console.log(`  ${SAM_PROFILE.email}`);
     console.log("\n§5 gate: login → Insights → Update AI reading (live Gemini).");
+    console.log("  Mobile: EXPO_PUBLIC_USE_REFLECT_CALL=true; npx expo start --clear");
     console.log("  Alex: expect room for Distribution + Gap + Arrival.");
     console.log("  Sam: expect short factual reading; no arrival/distribution padding.");
   } finally {

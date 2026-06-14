@@ -29,7 +29,11 @@ export const ALEX_PROFILE = {
   email: "alex@qa-seed.test",
   displayName: "Alex Carter",
   age: 31,
-  location: "London, UK",
+  location: "United Kingdom",
+  educationLevel: "higher",
+  employmentStatus: "EMPLOYED",
+  industry: "Finance",
+  jobTitle: "Senior Engineer",
   /** Themes with pursuits — pleasures stays empty for Distribution lens. */
   unlockThemes: [
     "work",
@@ -225,7 +229,9 @@ export const SAM_PROFILE = {
   email: "sam@qa-seed.test",
   displayName: "Sam Chen",
   age: 27,
-  location: "London, UK",
+  location: "United Kingdom",
+  educationLevel: "secondary",
+  employmentStatus: "STUDENT",
   unlockThemes: ["work"] as LifeAreaId[],
   pursuits: [
     {
