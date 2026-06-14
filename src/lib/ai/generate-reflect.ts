@@ -1,6 +1,6 @@
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
-import { isReflectCallEnabled } from "@/lib/ai/reflect-call";
+import { isReflectCallEnabled, REFLECT_MAX_OUTPUT_TOKENS } from "@/lib/ai/reflect-call";
 import { normalizeReflectResponse } from "@/lib/ai/normalize-reflect-response";
 import { reflectResponseSchema, type ReflectResponse } from "@/lib/ai/reflect-types";
 import { applyReflectOutput } from "@/lib/ai/apply-reflect-output";
@@ -201,7 +201,7 @@ async function generateReflectResponse(
       dirtyPursuitIds: pursuitIds,
       enrichOptions,
     }),
-    maxTokens: 2048,
+    maxTokens: REFLECT_MAX_OUTPUT_TOKENS,
     temperature: 0.4,
     queueKey: userId,
   });

@@ -133,12 +133,12 @@ describe("generateReflectResponse", () => {
     expect(metrics.reflectResponseChars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
   });
 
-  it("documents truncation risk: schema-max 12-dirty output exceeds safe char budget", () => {
+  it("schema-max 12-dirty output fits within 8192-token reflect budget", () => {
     const maxLoaded = buildMaxLoadedDenseReflectResponse(DENSE_DIRTY_PURSUIT_IDS);
     const chars = JSON.stringify(maxLoaded).length;
 
-    // 12 dirty × ~600–900 chars + 900 reading ≈ 8–11 panels before 2048-token ceiling.
-    expect(chars).toBeGreaterThan(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
+    // Prior 2048-token ceiling truncated 15-pursuit Alex first refresh into invalid JSON.
     expect(chars).toBe(21834);
+    expect(chars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
   });
 });

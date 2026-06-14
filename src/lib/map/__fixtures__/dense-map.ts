@@ -322,12 +322,20 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
   };
 }
 
-/** Max safe output chars (~75% of 2048-token budget estimate). */
-export const REFLECT_OUTPUT_CHAR_SAFE_LIMIT = 6000;
+import { REFLECT_MAX_OUTPUT_TOKENS } from "@/lib/ai/reflect-call";
+
+const LEGACY_REFLECT_MAX_OUTPUT_TOKENS = 2048;
+const LEGACY_REFLECT_OUTPUT_CHAR_SAFE_LIMIT = 6000;
+
+/** Max safe output chars (~75% of reflect token budget estimate). */
+export const REFLECT_OUTPUT_CHAR_SAFE_LIMIT = Math.floor(
+  LEGACY_REFLECT_OUTPUT_CHAR_SAFE_LIMIT *
+    (REFLECT_MAX_OUTPUT_TOKENS / LEGACY_REFLECT_MAX_OUTPUT_TOKENS),
+);
 
 /**
  * Schema-max per pursuit (~600–900 chars): headline 100, body 500, 3 clarifiers, 6 milestones.
- * Used to measure whether a dense dirty run approaches the 2048-token truncation ceiling.
+ * Used to measure whether a dense dirty run approaches the reflect truncation ceiling.
  */
 export function buildMaxLoadedDenseReflectResponse(dirtyIds: string[]): {
   reading: string;
