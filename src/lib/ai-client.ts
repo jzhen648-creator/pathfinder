@@ -73,7 +73,8 @@ function getProviderApiKey(config: ProviderConfig) {
 function getAiClient() {
   const config = getProviderConfig();
   const apiKey = getProviderApiKey(config);
-  return { client: new OpenAI({ apiKey, baseURL: config.baseURL }), config };
+  // Gemini free tier: one failed 429 must not become 3 HTTP calls (SDK default maxRetries is 2).
+  return { client: new OpenAI({ apiKey, baseURL: config.baseURL, maxRetries: 0 }), config };
 }
 
 function providerStatus(err: unknown): number | null {
