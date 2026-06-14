@@ -22,6 +22,8 @@ export type MapAiSyncMetrics = {
   liteFirstReading: boolean;
   storyFullRegen: boolean;
   readingPacketChars: number;
+  /** Reflect response JSON char count after successful parse. */
+  reflectResponseChars: number;
   /** Pursuit enrich failures surfaced to mobile (non-fatal). */
   enrichErrors: string[];
   /** Unified reflect call replaced reading delta + enrich drain. */
@@ -51,6 +53,7 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     liteFirstReading: false,
     storyFullRegen: false,
     readingPacketChars: 0,
+    reflectResponseChars: 0,
     enrichErrors: [],
     reflectCall: false,
   };

@@ -278,6 +278,32 @@ export function buildMilestonePaceFacts(
   return facts.slice(0, 8);
 }
 
+/** Starve rubric facts the map cannot support — conditionality lives in the packet, not the prompt. */
+export function thinPacketForMapDepth(packet: ReadingPacket): ReadingPacket {
+  let categorySignals = packet.categorySignals;
+  let recentEvents = packet.recentEvents;
+
+  if (packet.mapAggregates.totalPursuits <= 2) {
+    categorySignals = packet.categorySignals.map((signal) => ({
+      ...signal,
+      facts: [],
+    }));
+  }
+
+  if (packet.mapAggregates.recentCompletions90d === 0) {
+    recentEvents = {
+      ...packet.recentEvents,
+      past: [],
+    };
+  }
+
+  return {
+    ...packet,
+    categorySignals,
+    recentEvents,
+  };
+}
+
 function parseCalendarDate(value?: string | null): Date | null {
   if (!value?.trim()) return null;
   const date = new Date(`${value.trim().slice(0, 10)}T00:00:00.000Z`);
@@ -324,7 +350,7 @@ export async function compileReadingPacket(
 
   const spine = capSpineEventsForPacket(buildSpineEventsFromMapContext(mapContext));
 
-  return {
+  const packet: ReadingPacket = {
     changeEvents,
     categorySignals: buildCategorySignals(pursuits, focusCategoryIds),
     recentEvents: {
@@ -334,6 +360,8 @@ export async function compileReadingPacket(
     mapAggregates: buildMapAggregates(pursuits),
     milestonePaceFacts: buildMilestonePaceFacts(pursuits),
   };
+
+  return thinPacketForMapDepth(packet);
 }
 
 export function readingPacketToJson(packet: ReadingPacket): string {

@@ -280,4 +280,13 @@ describe("runMapAiSync integration", () => {
     expect(result.metrics.aiCallsCompleted).toBe(1);
     expect(result.metrics.reflectCall).toBe(true);
   });
+
+  it("makes zero Gemini calls on rapid create with fresh caches and empty dirty ledger", async () => {
+    const result = await runMapAiSync(USER_ID);
+
+    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
+    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
+    expect(mocks.runReflectSync).not.toHaveBeenCalled();
+    expect(result.metrics.aiCallsCompleted).toBe(0);
+  });
 });

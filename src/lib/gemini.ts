@@ -1,17 +1,53 @@
-import { AiNotConfiguredError } from "./ai-client";
-
-export {
-  generateJsonCompletion,
-  generateStructured,
-  generateText,
-  generateTextStream,
-  hasAiKey as hasGeminiKey,
-  AiNotConfiguredError as GeminiNotConfiguredError,
+import {
+  AiNotConfiguredError,
+  generateJsonCompletion as generateJsonCompletionRaw,
+  generateStructured as generateStructuredRaw,
+  generateText as generateTextRaw,
+  generateTextStream as generateTextStreamRaw,
+  hasAiKey,
 } from "./ai-client";
+
+export { hasAiKey as hasGeminiKey, AiNotConfiguredError as GeminiNotConfiguredError };
 
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
 // gemini-1.5-flash is no longer served; use a current flash model on the same endpoint.
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+
+async function withNormalizedGeminiError<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (err) {
+    throw normalizeGeminiError(err);
+  }
+}
+
+export async function generateJsonCompletion(
+  input: Parameters<typeof generateJsonCompletionRaw>[0],
+): Promise<string> {
+  return withNormalizedGeminiError(() => generateJsonCompletionRaw(input));
+}
+
+export async function generateStructured<T = unknown>(
+  input: Parameters<typeof generateStructuredRaw>[0],
+): Promise<T> {
+  return withNormalizedGeminiError(() => generateStructuredRaw<T>(input));
+}
+
+export async function generateText(
+  input: Parameters<typeof generateTextRaw>[0],
+): Promise<string> {
+  return withNormalizedGeminiError(() => generateTextRaw(input));
+}
+
+export async function* generateTextStream(
+  input: Parameters<typeof generateTextStreamRaw>[0],
+): AsyncGenerator<string> {
+  try {
+    yield* generateTextStreamRaw(input);
+  } catch (err) {
+    throw normalizeGeminiError(err);
+  }
+}
 
 export class GeminiProviderError extends Error {
   status: number | null;

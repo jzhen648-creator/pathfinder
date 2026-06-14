@@ -10,13 +10,23 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Rationale:** Multi-pursuit status edits should update Reading and all panels in one tap; client-only reflect flag was hiding Finish while server still drained one pursuit per call.
 
+## 2026-06-14 — Known divergence: `timelineStart` (UI vs AI packet)
+
+**Observed:** `timelineStart` exists on pursuit rows (`schema.prisma`) but is **null on create** — never populated by create UX. The **Timeline tab** renders a null-`timelineStart` pursuit as starting at `createdAt`. The **AI packet** (`format-map-context.ts`) emits `timelineStart` only when truthy — so the model sees no start date at all. UI and AI disagree on when the pursuit began.
+
+**Not patched this brief:** Option (a) — populate `timelineStart` at create from user input — is the eventual correct fix. Packet plumbing already exists; only create-surface SET is missing.
+
 ## 2026-06-14 — Sync router + free-tier delivery interval
+
+> **Superseded (2026-06-14 brief):** Budget is **2** (`MAX_GEMINI_CALLS_PER_SYNC` in `sync-gemini-budget.ts`), not 3. Entry preserved for history.
 
 **Shipped:** Pursuit enrich loops within 3-call ai-sync budget; enrich-only drain when story already current; create-burst full refresh (≥4 `pursuit_created` dirty rows); `pendingInsightCount` on sync response; `lastReadingDeliveredAt` + 2h free-tier delivery gate (`AI_READING_DELIVERY_INTERVAL_MS`, bypass `AI_READING_DELIVERY_BYPASS=true` for dev). Dirty ledger no longer cleared when `morePending`. Mobile: delivery cooldown UX, “finishing insights (N left)” copy.
 
 **Rationale:** Two-pursuit edits should complete in one tap; large create bursts should full-batch; idle users should not spam Gemini; queued state stays visible when delivery is interval-blocked.
 
 ## 2026-06-14 — Week 1 AI consolidation
+
+> **Not current (2026-06-14 brief):** `BACKGROUND_AI_SYNC_ENABLED = false` in mobile; background sync stays off until explicitly revisited post-TestFlight. Code and AGENTS.md agree it is off.
 
 **Product:** After map edits, the app schedules a **debounced background** `POST /api/map/ai-sync` (~45s idle, single-flight, 429-safe). Map utility chip shows **Reading queued** / **Reading map** / **Changes waiting**; Insights tab indicator unchanged. Pull-to-refresh on Insights (when stale) and pursuit panel flush sync immediately. Pursuit panel copy no longer routes users to Insights for routine updates. Enrich prompt may label body lines `From your map:` / `Comparison:` for layered pursuit insight display.
 

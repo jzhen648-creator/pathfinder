@@ -58,4 +58,30 @@ describe("validateReadingOutput", () => {
     );
     expect(panoramic.ok).toBe(true);
   });
+
+  it("flags arrival language when noArrivalLanguage is set", () => {
+    const result = validateReadingOutput(
+      "Looking back, Product Lead search shows an arc of momentum built recently.",
+      {
+        pursuitTitles: ["Product Lead search"],
+        depthMode: "sparse",
+        noArrivalLanguage: true,
+      },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((i) => i.code === "arrival_language")).toBe(true);
+  });
+
+  it("flags gap pursuit not named via requiredGapTitles", () => {
+    const result = validateReadingOutput(
+      "A near-deadline pursuit needs movement.",
+      {
+        pursuitTitles: ["Product Lead search"],
+        depthMode: "sparse",
+        requiredGapTitles: ["Product Lead search"],
+      },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((i) => i.code === "gap_not_named")).toBe(true);
+  });
 });

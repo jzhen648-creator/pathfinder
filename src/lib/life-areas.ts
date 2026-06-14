@@ -16,7 +16,7 @@ export const LIFE_AREAS: LifeArea[] = [
     id: "work",
     label: "Work & Career",
     sublabel: "Your professional journey",
-    color: "#EF9F27",
+    color: "#D4A12A",
     angle: -36,
     emptyPrompt: "What do you do and how did you get here?",
     firstMarkQuestion: "What was your first meaningful work or learning turning point?",

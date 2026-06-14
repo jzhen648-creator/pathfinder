@@ -4,7 +4,10 @@ import {
   buildCategorySignals,
   buildChangeEventsFromDirtyRows,
   buildMapAggregates,
+  buildMilestonePaceFacts,
+  thinPacketForMapDepth,
 } from "@/lib/map/compile-reading-packet";
+import type { ReadingPacket } from "@/lib/map/compile-reading-packet";
 import type { ReadingDirtyRow } from "@/lib/map/reading-dirty-ledger";
 
 const twoJobPursuits = [
@@ -73,5 +76,86 @@ describe("compile-reading-packet", () => {
     expect(aggregates.upcomingDeadlines30d).toBe(1);
     expect(aggregates.upcomingDeadlines14d).toBe(1);
     expect(aggregates.highSignificanceActive).toEqual(["Product Lead search"]);
+  });
+
+  it("emits no pace fact when pursuit has milestones but zero completions", () => {
+    const facts = buildMilestonePaceFacts([
+      {
+        id: "c",
+        title: "CeMAP qualification",
+        description: "",
+        status: "ACTIVE",
+        significance: 5,
+        milestones: [
+          { id: "m1", title: "Unit 1", completed: false },
+          { id: "m2", title: "Unit 2", completed: false },
+        ],
+        themeId: "work",
+        themeLabel: "Work & Career",
+        categoryLabel: "Job",
+        categoryId: "cat-job",
+      },
+    ]);
+    expect(facts).toEqual([]);
+  });
+
+  it("clears distribution facts on a 1–2 pursuit map", () => {
+    const packet: ReadingPacket = {
+      changeEvents: [],
+      categorySignals: [
+        {
+          themeLabel: "Work & Career",
+          categoryLabel: "Job",
+          byStatus: { ACTIVE: 1 },
+          pursuits: [{ title: "CeMAP qualification", status: "ACTIVE", significance: 5 }],
+          facts: ["Work & Career · Job: 1 in progress"],
+        },
+      ],
+      recentEvents: { past: [], upcoming: [] },
+      mapAggregates: {
+        totalPursuits: 1,
+        upcomingDeadlines14d: 1,
+        upcomingDeadlines30d: 1,
+        recentCompletions90d: 0,
+        highSignificanceActive: ["CeMAP qualification"],
+      },
+      milestonePaceFacts: [],
+    };
+
+    const thinned = thinPacketForMapDepth(packet);
+    expect(thinned.categorySignals[0]?.facts).toEqual([]);
+    expect(thinned.recentEvents.past).toEqual([]);
+    expect(thinned.mapAggregates.highSignificanceActive).toEqual(["CeMAP qualification"]);
+  });
+
+  it("omits arrival spine when map has zero recent completions", () => {
+    const packet: ReadingPacket = {
+      changeEvents: [],
+      categorySignals: [],
+      recentEvents: {
+        past: [
+          {
+            kind: "milestone_complete",
+            date: "2026-05-01",
+            placement: "past",
+            title: "Done",
+            themeId: "work",
+            themeLabel: "Work & Career",
+          },
+        ],
+        upcoming: [],
+      },
+      mapAggregates: {
+        totalPursuits: 5,
+        upcomingDeadlines14d: 0,
+        upcomingDeadlines30d: 0,
+        recentCompletions90d: 0,
+        highSignificanceActive: [],
+      },
+      milestonePaceFacts: [],
+    };
+
+    const thinned = thinPacketForMapDepth(packet);
+    expect(thinned.recentEvents.past).toEqual([]);
   });
 });

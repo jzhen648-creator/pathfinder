@@ -46,6 +46,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live-gemini": "npx tsx scripts/test-live-gemini.ts",
+    "seed:ai-qa": "npx tsx scripts/seed-ai-qa.ts",
     "test:agent": "npx tsx scripts/cursor-run-tests.ts"
   },
   "dependencies": {

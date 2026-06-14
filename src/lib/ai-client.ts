@@ -17,7 +17,7 @@ const AI_PROVIDER_CONFIGS: Record<AiProvider, ProviderConfig> = {
     id: "gemini",
     label: "Gemini",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    model: "gemini-2.5-flash",
+    model: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
     apiKeyEnvVar: "GEMINI_API_KEY",
   },
   groq: {

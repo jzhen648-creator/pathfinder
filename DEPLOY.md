@@ -6,6 +6,7 @@
    - `USE_REFLECT_CALL=true`
    - `AI_READING_DELIVERY_BYPASS=true` (QA / pre-TestFlight)
    - `GEMINI_API_KEY` set
+   - Optional free-tier QA: `GEMINI_MODEL=gemini-2.5-flash-lite` (higher RPM/RPD than `gemini-2.5-flash`)
 
 2. **Redeploy** after any env change (env does not apply to running lambdas until redeploy).
 

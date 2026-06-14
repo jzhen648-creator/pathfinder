@@ -76,6 +76,12 @@ function buildReflectSystemPrompt(totalPursuitCount: number, options: Required<P
     "- Be honest about gaps and sparse maps.",
     "- Use age/location for contextual benchmarking only when data supports it.",
     "",
+    "READING LENSES (not a checklist — one continuous voice, no sections):",
+    "- Distribution: is the map lopsided? Which themes carry weight; which are quiet?",
+    "- Gap: where is significance high but movement absent, especially near a deadline?",
+    "- Arrival: what's been completed, and what does the arc say about direction?",
+    "Address only lenses the reading packet facts support. A reading may answer only one lens.",
+    "",
     "OUTPUT:",
     '- "reading": whole-map reflective prose, 3-5 sentences, 100-140 words. Not a task list.',
     "  If map has 1-2 pursuits: short factual, one question.",
@@ -195,7 +201,7 @@ async function generateReflectResponse(
       dirtyPursuitIds: pursuitIds,
       enrichOptions,
     }),
-    maxTokens: 4096,
+    maxTokens: 2048,
     temperature: 0.4,
     queueKey: userId,
   });
@@ -215,11 +221,27 @@ async function generateReflectResponse(
     );
   }
 
+  if (metrics) {
+    metrics.reflectResponseChars = JSON.stringify(parsed.data).length;
+  }
+
   return parsed.data;
 }
 
-function isGemini429(err: unknown): boolean {
-  return err instanceof GeminiProviderError && err.status === 429;
+/** Gemini quota (429) or transient overload (503) — safe to retry after a pause. */
+function isGeminiBusy(err: unknown): boolean {
+  if (err instanceof GeminiProviderError && (err.status === 429 || err.status === 503)) {
+    return true;
+  }
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  return (
+    message.includes("429") ||
+    message.includes("503") ||
+    message.includes("rate limit") ||
+    message.includes("quota") ||
+    message.includes("resource_exhausted") ||
+    message.includes("temporarily unavailable")
+  );
 }
 
 /** Single-call reflect sync — Reading + all dirty pursuit panels. */
@@ -287,7 +309,7 @@ export async function runReflectSync(
       geminiRateLimited: false,
     };
   } catch (err) {
-    if (isGemini429(err)) {
+    if (isGeminiBusy(err)) {
       options.metrics.rateLimited = true;
       options.metrics.morePending = pursuitIds.length > 0;
       options.metrics.pendingInsightCount = pursuitIds.length;
@@ -314,3 +336,6 @@ export async function runReflectSync(
 }
 
 export { isReflectCallEnabled };
+
+/** @internal Exported for vitest completeness / output-size assertions. */
+export { generateReflectResponse };

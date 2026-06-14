@@ -213,7 +213,7 @@ function buildBaseResult(
 
       retryableAt: metrics.rateLimited
 
-        ? new Date(Date.now() + 60_000).toISOString()
+        ? new Date(Date.now() + 120_000).toISOString()
 
         : metrics.deliveryBlocked && metrics.deliveryRetryAfterMs > 0
 
@@ -318,7 +318,7 @@ async function runMapAiSyncInner(
       if (digestResult.rateLimited) {
         discardDeferredMemoryUpdates(userId);
         const partial = buildBaseResult(mapVersion, metrics, digested);
-        throw new MapAiSyncRateLimitError(60_000, partial);
+        throw new MapAiSyncRateLimitError(120_000, partial);
       }
     } else {
       metrics.digestRunsRemaining = pendingBefore;
@@ -461,7 +461,7 @@ async function runMapAiSyncInner(
 
     partial.skipped = false;
 
-    throw new MapAiSyncRateLimitError(60_000, partial);
+    throw new MapAiSyncRateLimitError(120_000, partial);
 
   }
 

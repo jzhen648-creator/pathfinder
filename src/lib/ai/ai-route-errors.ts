@@ -38,11 +38,19 @@ export function aiRouteErrorResponse(err: unknown, logLabel: string): NextRespon
   }
 
   if (providerStatus(err) === 429) {
-    const message =
-      err instanceof Error ? err.message : "Gemini rate limit — wait a minute and try again.";
     return NextResponse.json(
-      { error: message.includes("429") ? "Gemini is busy — wait about a minute and try again." : message },
-      { status: 429, headers: { "Retry-After": "60" } },
+      {
+        error:
+          "Gemini quota reached. Wait a few minutes and try again — or check AI Studio if the daily limit is exhausted.",
+      },
+      { status: 429, headers: { "Retry-After": "120" } },
+    );
+  }
+
+  if (providerStatus(err) === 503) {
+    return NextResponse.json(
+      { error: "Gemini is temporarily overloaded. Wait a couple of minutes, then try again." },
+      { status: 503, headers: { "Retry-After": "120" } },
     );
   }
 
