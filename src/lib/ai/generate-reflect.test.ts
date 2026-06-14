@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateReflectResponse } from "@/lib/ai/generate-reflect";
+import { generateReflectResponse, buildReflectMilestoneOptions } from "@/lib/ai/generate-reflect";
+import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { emptyMapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 import type { ReadingDirtyAnalysis } from "@/lib/map/reading-dirty-ledger";
@@ -74,6 +75,52 @@ export function assertReflectPursuitCompleteness(
     expect(reflect.pursuits[id], `missing pursuit panel for ${id}`).toBeDefined();
   }
 }
+
+describe("buildReflectMilestoneOptions", () => {
+  it("marks pursuits with enough signal as milestones allowed", () => {
+    const signals = new Map<string, PursuitSignal>([
+      [
+        "p-rich",
+        {
+          title: "CeMAP qualification",
+          description: "x".repeat(80),
+          enrichAnswerCount: 0,
+          milestoneCount: 0,
+          hasDeadline: true,
+          status: "ACTIVE",
+        },
+      ],
+      [
+        "p-full",
+        {
+          title: "Already has three milestones",
+          description: "Plenty of context",
+          enrichAnswerCount: 2,
+          milestoneCount: 3,
+          hasDeadline: true,
+          status: "ACTIVE",
+        },
+      ],
+      [
+        "p-sparse",
+        {
+          title: "Hi",
+          description: "",
+          enrichAnswerCount: 0,
+          milestoneCount: 0,
+          hasDeadline: false,
+          status: "ACTIVE",
+        },
+      ],
+    ]);
+
+    const block = buildReflectMilestoneOptions(["p-rich", "p-full", "p-sparse"], signals);
+
+    expect(block).toContain("p-rich: Milestones allowed");
+    expect(block).toContain("p-full: Milestones NOT allowed");
+    expect(block).toContain("p-sparse: Milestones NOT allowed");
+  });
+});
 
 describe("generateReflectResponse", () => {
   beforeEach(() => {

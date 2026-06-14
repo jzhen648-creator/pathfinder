@@ -23,6 +23,11 @@ import {
   resolvePursuitEnrichOptions,
   type PursuitEnrichOptions,
 } from "@/lib/pursuit/enrich-options";
+import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import {
+  shouldSuggestMilestones,
+  type PursuitSignal,
+} from "@/lib/pursuit/pursuit-enrich-readiness";
 import { generateJsonCompletion, GeminiNotConfiguredError, GeminiProviderError, hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 
@@ -97,14 +102,71 @@ function buildReflectSystemPrompt(totalPursuitCount: number, options: Required<P
   ].join("\n");
 }
 
+function parseEnrichAnswers(raw: unknown): { clarifierId: string; prompt: string; selectedOption: string }[] {
+  const parsed = enrichAnswersSchema.safeParse(raw);
+  return parsed.success ? parsed.data : [];
+}
+
+async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise<Map<string, PursuitSignal>> {
+  if (pursuitIds.length === 0) return new Map();
+
+  const goals = await prisma.goal.findMany({
+    where: { userId, id: { in: pursuitIds }, archived: false },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      enrichAnswers: true,
+      deadline: true,
+      status: true,
+      _count: { select: { milestones: true } },
+    },
+  });
+
+  return new Map(
+    goals.map((goal) => [
+      goal.id,
+      {
+        title: goal.title,
+        description: goal.description ?? "",
+        enrichAnswerCount: parseEnrichAnswers(goal.enrichAnswers).length,
+        milestoneCount: goal._count.milestones,
+        hasDeadline: goal.deadline != null,
+        status: goal.status,
+      },
+    ]),
+  );
+}
+
+/** @internal Exported for vitest — per-pursuit milestone policy in reflect user message. */
+export function buildReflectMilestoneOptions(
+  pursuitIds: string[],
+  signals: Map<string, PursuitSignal>,
+): string {
+  if (pursuitIds.length === 0) return "";
+
+  const lines = pursuitIds.map((pursuitId) => {
+    const signal = signals.get(pursuitId);
+    const milestonesAllowed = signal ? shouldSuggestMilestones(signal) : false;
+    return milestonesAllowed
+      ? `- ${pursuitId}: Milestones allowed — suggest only if concrete and specific.`
+      : `- ${pursuitId}: Milestones NOT allowed — set suggestedMilestones to null.`;
+  });
+
+  return ["<milestone_options>", ...lines, "</milestone_options>"].join("\n");
+}
+
 function buildReflectUserMessage(input: {
   userContext: string;
   readingPacketJson: string;
   mapContextJson: string;
   previousReading: string;
   dirtyPursuitIds: string[];
+  pursuitSignals: Map<string, PursuitSignal>;
   enrichOptions: Required<PursuitEnrichOptions>;
 }): string {
+  const milestoneOptions = buildReflectMilestoneOptions(input.dirtyPursuitIds, input.pursuitSignals);
+
   return [
     input.userContext || "(No profile context yet.)",
     "",
@@ -124,6 +186,8 @@ function buildReflectUserMessage(input: {
     JSON.stringify(input.dirtyPursuitIds),
     "</dirty_pursuits>",
     "",
+    milestoneOptions,
+    milestoneOptions ? "" : null,
     "<options>",
     `clarifyTitles: ${input.enrichOptions.clarifyTitles}`,
     `suggestConnections: ${input.enrichOptions.suggestConnections}`,
@@ -133,7 +197,9 @@ function buildReflectUserMessage(input: {
     "Only include pursuit entries for the dirty pursuit IDs listed above.",
     "Always include \"reading\" — it reflects the whole map.",
     "Respond with ONLY a JSON object: { \"reading\": \"...\", \"pursuits\": { ... } }",
-  ].join("\n");
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 }
 
 async function resolveReflectPursuitIds(
@@ -177,10 +243,11 @@ async function generateReflectResponse(
     throw new GeminiNotConfiguredError();
   }
 
-  const [mapContext, userContext, readingPacket] = await Promise.all([
+  const [mapContext, userContext, readingPacket, pursuitSignals] = await Promise.all([
     formatMapContext(userId, { excludeAbandoned: true }),
     formatUserContext(userId),
     compileReadingPacket(userId, dirty),
+    loadPursuitSignals(userId, pursuitIds),
   ]);
 
   const readingPacketJson = readingPacketToJson(readingPacket);
@@ -199,6 +266,7 @@ async function generateReflectResponse(
       mapContextJson,
       previousReading,
       dirtyPursuitIds: pursuitIds,
+      pursuitSignals,
       enrichOptions,
     }),
     maxTokens: REFLECT_MAX_OUTPUT_TOKENS,
