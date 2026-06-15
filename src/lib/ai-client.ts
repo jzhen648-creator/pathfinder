@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { runSerializedAiJob } from "@/lib/ai/ai-job-queue";
 import { assertAiUserRateLimit, AiUserRateLimitError, recordAiUserRateLimitSuccess } from "@/lib/ai/ai-user-rate-limit";
+import { isFakeProviderEnabled, resolveFakeJsonCompletion } from "@/lib/ai/__fixtures__/fake-provider";
 
 type AiProvider = "gemini" | "groq" | "deepseek";
 
@@ -204,6 +205,10 @@ export async function generateJsonCompletion(input: {
 }): Promise<string> {
   const { queueKey, ...completionInput } = input;
   return runSerializedAiJob(queueKey, async () => {
+    if (isFakeProviderEnabled()) {
+      return resolveFakeJsonCompletion({ user: completionInput.user });
+    }
+
     const { client, config } = getAiClient();
     const completion = await withRateLimitRetry(async () => {
       assertAiUserRateLimit(queueKey);
@@ -233,6 +238,20 @@ export async function generateStructured<T = unknown>(input: {
   schema: Record<string, unknown>;
   maxTokens?: number;
 }): Promise<T> {
+  if (isFakeProviderEnabled()) {
+    const content = await resolveFakeJsonCompletion({ user: input.user });
+    if (!content) {
+      throw new Error(`Fake provider returned an empty JSON response for ${input.toolName}.`);
+    }
+    try {
+      return JSON.parse(content) as T;
+    } catch (err) {
+      throw new Error(`Fake provider returned invalid JSON for ${input.toolName}: ${content}`, {
+        cause: err,
+      });
+    }
+  }
+
   const { client, config } = getAiClient();
 
   const completion = await withRateLimitRetry(() =>

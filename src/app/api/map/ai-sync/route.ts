@@ -58,9 +58,11 @@ export async function POST(request: Request) {
     });
     console.info("[POST /api/map/ai-sync] metrics", result.metrics);
 
-    let [mapVersion, memoryVersion, insightRow, storyRow] = await Promise.all([
+    const [mapVersion, memoryVersion] = await Promise.all([
       computeMapVersion(userId),
       getMemoryVersion(userId),
+    ]);
+    let [insightRow, storyRow] = await Promise.all([
       prisma.insightCache.findUnique({ where: { userId } }),
       prisma.storyCache.findUnique({ where: { userId } }),
     ]);

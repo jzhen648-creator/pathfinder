@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   prismaUserFindUnique: vi.fn(),
   prismaInsightFindUnique: vi.fn(),
   prismaStoryFindUnique: vi.fn(),
+  prismaAiReadingDirtyFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/stream-pursuit-apply", () => ({
@@ -47,11 +48,15 @@ vi.mock("@/lib/insights/compute-map-version", () => ({
   getMemoryVersion: mocks.getMemoryVersion,
 }));
 
-vi.mock("@/lib/map/reading-dirty-ledger", () => ({
-  listReadingDirtySummary: mocks.listReadingDirtySummary,
-  clearReadingDirtyLedger: vi.fn(),
-  markGlobalReadingDirty: mocks.markGlobalReadingDirty,
-}));
+vi.mock("@/lib/map/reading-dirty-ledger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/map/reading-dirty-ledger")>();
+  return {
+    ...actual,
+    listReadingDirtySummary: mocks.listReadingDirtySummary,
+    clearReadingDirtyLedger: vi.fn(),
+    markGlobalReadingDirty: mocks.markGlobalReadingDirty,
+  };
+});
 
 vi.mock("@/lib/map/reading-delivery-cadence", () => ({
   checkReadingDeliveryGate: mocks.checkReadingDeliveryGate,
@@ -80,6 +85,9 @@ vi.mock("@/lib/prisma", () => ({
     storyCache: {
       findUnique: mocks.prismaStoryFindUnique,
       update: vi.fn(),
+    },
+    aiReadingDirtyItem: {
+      findMany: mocks.prismaAiReadingDirtyFindMany,
     },
   },
 }));
@@ -118,12 +126,13 @@ function setupFreshCaches() {
     pursuitInsights: "{}",
     generatedAt: new Date(),
   });
-  mocks.prismaStoryFindUnique.mockResolvedValue({
-    mapVersion: MAP_VERSION,
-    memoryVersion: MEMORY_VERSION,
-    payload: freshStoryPayload(),
-    generatedAt: new Date(),
-  });
+    mocks.prismaStoryFindUnique.mockResolvedValue({
+      mapVersion: MAP_VERSION,
+      memoryVersion: MEMORY_VERSION,
+      payload: freshStoryPayload(),
+      generatedAt: new Date(),
+    });
+    mocks.prismaAiReadingDirtyFindMany.mockResolvedValue([]);
   mocks.checkReadingDeliveryGate.mockResolvedValue({
     allowed: true,
     retryAfterMs: 0,
@@ -314,5 +323,50 @@ describe("runMapAiSync integration", () => {
     expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
     expect(mocks.runReflectSync).not.toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(0);
+  });
+
+  it("clean map + force skips reflect with 0 calls", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(true);
+    mocks.prismaInsightFindUnique.mockResolvedValue({
+      mapVersion: "stale-map",
+      memoryVersion: MEMORY_VERSION,
+      globalInsight: JSON.stringify({ greeting: "", sections: [] }),
+      themeInsights: "{}",
+      hubInsights: "{}",
+      pursuitInsights: "{}",
+      generatedAt: new Date(),
+    });
+    mocks.runReflectSync.mockResolvedValue({
+      skipped: true,
+      insightsRefreshed: false,
+      storyRefreshed: false,
+      geminiCallsMade: 0,
+      geminiRateLimited: false,
+    });
+
+    const result = await runMapAiSync(USER_ID, { force: true });
+
+    expect(mocks.runReflectSync).toHaveBeenCalledTimes(1);
+    expect(result.metrics.aiCallsCompleted).toBe(0);
+    expect(result.skipped).toBe(true);
+  });
+
+  it("single Update tap invokes reflect once for dirty + stale story", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(true);
+    mocks.countPendingCaptures.mockResolvedValue(0);
+    mocks.listReadingDirtySummary.mockResolvedValue(
+      baseDirtySummary({ pursuitIds: ["p1", "p2"], totalItems: 2 }),
+    );
+    mocks.prismaStoryFindUnique.mockResolvedValue({
+      mapVersion: "stale",
+      memoryVersion: MEMORY_VERSION,
+      payload: freshStoryPayload(),
+      generatedAt: new Date(),
+    });
+
+    await runMapAiSync(USER_ID, { force: true });
+
+    expect(mocks.runReflectSync).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
   });
 });

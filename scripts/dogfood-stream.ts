@@ -2351,7 +2351,7 @@ async function main(): Promise<void> {
     `Map: ${map.goals.length} goals, ${map.marks.length} marks, ${map.branches.length} active branches`,
   );
 
-  let { cases, fixturesUsed } = buildAllCases(map);
+  const { cases, fixturesUsed } = buildAllCases(map);
   const onlyIdx = process.argv.indexOf("--only");
   if (onlyIdx >= 0) {
     const onlyCategory = process.argv[onlyIdx + 1] as ScenarioCategory | undefined;

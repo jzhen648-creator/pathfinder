@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MILESTONE_MAP_CAP,
+  gateEnrichResult,
   shouldSuggestMilestones,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
@@ -71,5 +72,41 @@ describe("shouldSuggestMilestones", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("gateEnrichResult", () => {
+  it("allows clarifiers when description cleared but enrichAnswers remain", () => {
+    const signal: PursuitSignal = {
+      title: "Invisalign",
+      description: "",
+      enrichAnswerCount: 3,
+      milestoneCount: 0,
+      completedMilestoneCount: 0,
+      hasDeadline: true,
+      hasQuantifiedTarget: false,
+      status: "ACTIVE",
+    };
+    const gated = gateEnrichResult(
+      {
+        clarifiers: [
+          {
+            id: "ctx-1",
+            prompt: "Where do you plan to get treatment?",
+            options: ["UK", "Abroad", "Not sure yet"],
+          },
+        ],
+        insight: {
+          tone: "informational",
+          headline: "Invisalign needs treatment context",
+          body: "Provider and country would sharpen this panel.",
+        },
+        suggestedMilestones: null,
+      },
+      signal,
+      { clarifyTitles: true },
+    );
+
+    expect(gated.clarifiers).toHaveLength(1);
   });
 });

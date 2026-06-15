@@ -17,6 +17,25 @@ import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { prisma } from "@/lib/prisma";
 
+function dedupeMilestoneTitles<T extends { title: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.title.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** @internal Exported for vitest — strips duplicate milestone titles from reflect output. */
+export function dedupeSuggestedMilestones<T extends { title: string }>(
+  suggestions: T[] | null | undefined,
+): T[] | null {
+  if (!suggestions?.length) return suggestions ?? null;
+  const unique = dedupeMilestoneTitles(suggestions);
+  return unique.length > 0 ? unique : null;
+}
+
 async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise<Map<string, PursuitSignal>> {
   const goals = await prisma.goal.findMany({
     where: { userId, id: { in: pursuitIds }, archived: false },
@@ -132,7 +151,9 @@ export async function applyReflectOutput(
         ...(entry.fromMap?.trim() ? { fromMap: entry.fromMap.trim() } : {}),
         ...(entry.comparison?.trim() ? { comparison: entry.comparison.trim() } : {}),
       },
-      suggestedMilestones: shouldSuggestMilestones(signal) ? entry.suggestedMilestones ?? null : null,
+      suggestedMilestones: shouldSuggestMilestones(signal)
+        ? dedupeSuggestedMilestones(entry.suggestedMilestones ?? null)
+        : null,
     };
 
     const gated = gateEnrichResult(rawResult, signal, options);

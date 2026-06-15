@@ -74,9 +74,11 @@ export function gateEnrichResult(
   const options = resolvePursuitEnrichOptions(enrichOptions);
   const clarifiers = !options.clarifyTitles
     ? []
-    : signal.enrichAnswerCount >= 3 || signal.description.trim().length >= 120
-      ? []
-      : result.clarifiers;
+    : signal.description.trim().length === 0
+      ? result.clarifiers
+      : signal.enrichAnswerCount >= 3 || signal.description.trim().length >= 120
+        ? []
+        : result.clarifiers;
 
   const suggestedMilestones = shouldSuggestMilestones(signal)
     ? result.suggestedMilestones
