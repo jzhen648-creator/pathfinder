@@ -7,6 +7,7 @@ export default defineConfig({
     include: [
       "src/lib/map/**/*.test.ts",
       "src/lib/ai/generate-reflect.test.ts",
+      "src/lib/ai/reflect-sync-plan.test.ts",
       "src/lib/ai/reflect-reading-quality.test.ts",
       "src/lib/pursuit/normalize-pursuit-enrich.test.ts",
       "src/lib/insights/clamp-insight-json.test.ts",

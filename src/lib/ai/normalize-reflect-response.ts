@@ -29,6 +29,12 @@ export function normalizeReflectResponse(json: unknown): unknown {
         tone: insight.tone,
         headline: insight.headline,
         body: insight.body,
+        ...(typeof insight.fromMap === "string" && insight.fromMap.trim()
+          ? { fromMap: insight.fromMap.trim().slice(0, 200) }
+          : {}),
+        ...(typeof insight.comparison === "string" && insight.comparison.trim()
+          ? { comparison: insight.comparison.trim().slice(0, 200) }
+          : {}),
         clarifiers: row.clarifiers ?? [],
         suggestedMilestones: row.suggestedMilestones ?? null,
       };

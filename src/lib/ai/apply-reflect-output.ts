@@ -143,6 +143,8 @@ export async function applyReflectOutput(
         tone: entry.tone,
         headline: entry.headline,
         body: entry.body,
+        ...(entry.fromMap?.trim() ? { fromMap: entry.fromMap.trim() } : {}),
+        ...(entry.comparison?.trim() ? { comparison: entry.comparison.trim() } : {}),
       },
       suggestedMilestones: shouldSuggestMilestones(signal) ? entry.suggestedMilestones ?? null : null,
     };

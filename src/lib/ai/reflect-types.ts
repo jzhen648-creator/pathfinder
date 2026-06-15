@@ -8,6 +8,8 @@ export const reflectPursuitEntrySchema = z.object({
   tone: pursuitInsightToneSchema,
   headline: z.string().max(100),
   body: z.string().max(500),
+  fromMap: z.string().max(200).optional(),
+  comparison: z.string().max(200).optional(),
   clarifiers: z.array(clarifierSchema).max(3).optional(),
   suggestedMilestones: z.array(suggestedMilestoneSchema).max(6).nullable().optional(),
 });

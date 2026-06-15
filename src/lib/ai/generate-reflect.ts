@@ -18,7 +18,7 @@ import { buildStorySystemPrompt, countMapPursuits } from "@/lib/story/generate-s
 import { isCurrentStoryPayload } from "@/lib/story/parse-story-cache";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
-import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
+import { planReflectWork } from "@/lib/ai/reflect-sync-plan";
 import {
   resolvePursuitEnrichOptions,
   type PursuitEnrichOptions,
@@ -45,6 +45,7 @@ export type ReflectSyncResult = {
   storyRefreshed: boolean;
   geminiCallsMade: number;
   geminiRateLimited: boolean;
+  skipped?: boolean;
 };
 
 function stripMarkdownFence(raw: string): string {
@@ -72,8 +73,9 @@ function buildReflectPursuitsOnlySystemPrompt(options: Required<PursuitEnrichOpt
     "",
     "OUTPUT:",
     '- "reading": always return an empty string "".',
-    '- "pursuits": map of pursuitId -> { tone, headline, body, clarifiers?, suggestedMilestones? }',
+    '- "pursuits": map of pursuitId -> { tone, headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  tone MUST be one of: celebratory | encouraging | nudge | reality_check | informational",
+    "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
     "- Do NOT include themes.",
   ].join("\n");
 }
@@ -130,11 +132,11 @@ function buildReflectSystemPrompt(
     "",
     "OUTPUT:",
     '- "reading": whole-map reflective prose per WHOLE-MAP READING rules above.',
-    '- "pursuits": map of pursuitId -> { tone, headline, body, clarifiers?, suggestedMilestones? }',
+    '- "pursuits": map of pursuitId -> { tone, headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  tone MUST be one of: celebratory | encouraging | nudge | reality_check | informational",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
-    "  When age AND location are in user context, body MAY include optional lines:",
-    '    \"From your map: …\" (one map-specific detail) and/or \"Comparison: …\" (one grounded benchmark).',
+    "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
+    "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields.",
     ...clarifierRules,
     ...connectionRules,
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
@@ -276,23 +278,184 @@ function buildReflectUserMessage(input: {
   return lines.filter((line) => line !== null).join("\n");
 }
 
-async function resolveReflectPursuitIds(
+function validateReflectBatch(
+  batchPursuitIds: string[],
+  reflect: ReflectResponse,
+  options: { requireReading?: boolean },
+): void {
+  for (const pursuitId of batchPursuitIds) {
+    if (!reflect.pursuits[pursuitId]) {
+      throw new ReflectGenerationResponseError(
+        `Reflect call missing pursuit panel for ${pursuitId}. Please try again.`,
+      );
+    }
+  }
+  if (options.requireReading && !reflect.reading.trim()) {
+    throw new ReflectGenerationResponseError(
+      "Reflect call returned no whole-map reading. Please try again.",
+    );
+  }
+}
+
+async function runReflectBatchesIncremental(
   userId: string,
   dirty: ReadingDirtyAnalysis,
-  options: { force?: boolean; storyStale: boolean; insightsStale: boolean },
-): Promise<string[]> {
-  if (dirty.activeDirtyPursuitIds.length > 0) {
-    return dirty.activeDirtyPursuitIds;
+  plan: { pursuitIds: string[]; themeIds: string[]; mode: import("@/lib/ai/reflect-sync-plan").ReflectWorkMode },
+  enrichOptions: Required<PursuitEnrichOptions>,
+  previousReading: string,
+  mapVersion: string,
+  memoryVersion: number,
+  metrics: MapAiSyncMetrics,
+  options: { needsReadingRefresh: boolean },
+): Promise<ReflectSyncResult> {
+  const batches = chunkReflectPursuitIds(plan.pursuitIds);
+  metrics.aiCallsPlanned += batches.length;
+
+  let insightsRefreshed = false;
+  let storyRefreshed = false;
+  let callsMade = 0;
+  const completedPursuitIds: string[] = [];
+
+  for (let i = 0; i < batches.length; i += 1) {
+    const batch = batches[i];
+    const isFullBatch = i === 0 && options.needsReadingRefresh;
+    try {
+      const reflect = await generateReflectResponse(
+        userId,
+        dirty,
+        batch,
+        isFullBatch ? plan.themeIds : [],
+        enrichOptions,
+        previousReading,
+        metrics,
+        { scope: isFullBatch ? "full" : "pursuits-only" },
+      );
+
+      validateReflectBatch(batch, reflect, { requireReading: isFullBatch });
+
+      callsMade += 1;
+      metrics.aiCallsCompleted += 1;
+
+      const { insightsWritten, storyWritten } = await applyReflectOutput(
+        userId,
+        reflect,
+        batch,
+        enrichOptions,
+        mapVersion,
+        memoryVersion,
+      );
+      if (insightsWritten) insightsRefreshed = true;
+      if (storyWritten) storyRefreshed = true;
+      completedPursuitIds.push(...batch);
+    } catch (err) {
+      const pendingIds = plan.pursuitIds.filter((id) => !completedPursuitIds.includes(id));
+      metrics.morePending = pendingIds.length > 0;
+      metrics.pendingInsightCount = pendingIds.length;
+
+      if (isGeminiRateLimited(err)) {
+        metrics.rateLimited = true;
+        return {
+          insightsRefreshed,
+          storyRefreshed,
+          geminiCallsMade: callsMade,
+          geminiRateLimited: true,
+        };
+      }
+      if (isGeminiTransient(err)) {
+        const message =
+          err instanceof Error ? err.message : "Gemini is temporarily overloaded. Try again shortly.";
+        metrics.enrichErrors.push(message);
+        return {
+          insightsRefreshed,
+          storyRefreshed,
+          geminiCallsMade: callsMade,
+          geminiRateLimited: false,
+        };
+      }
+      if (err instanceof ReflectGenerationResponseError) {
+        metrics.enrichErrors.push(err.message);
+        return {
+          insightsRefreshed,
+          storyRefreshed,
+          geminiCallsMade: callsMade,
+          geminiRateLimited: false,
+        };
+      }
+      throw err;
+    }
   }
-  if (options.force || options.storyStale || options.insightsStale) {
-    const goals = await prisma.goal.findMany({
-      where: { userId, ...interpretationEligiblePursuitWhere },
-      select: { id: true },
-      orderBy: { createdAt: "asc" },
-    });
-    return goals.map((goal) => goal.id);
+
+  await clearReadingDirtyLedger(userId);
+  metrics.morePending = false;
+  metrics.pendingInsightCount = 0;
+
+  return {
+    insightsRefreshed,
+    storyRefreshed,
+    geminiCallsMade: callsMade,
+    geminiRateLimited: false,
+  };
+}
+
+/** Single-call reflect sync — Reading + dirty/missing pursuit panels. */
+export async function runReflectSync(
+  userId: string,
+  mapVersion: string,
+  memoryVersion: number,
+  options: {
+    force?: boolean;
+    storyStale: boolean;
+    insightsStale: boolean;
+    metrics: MapAiSyncMetrics;
+    enrichOptions?: PursuitEnrichOptions;
+  },
+): Promise<ReflectSyncResult> {
+  if (!isReflectCallEnabled()) {
+    throw new Error("runReflectSync called while USE_REFLECT_CALL is disabled");
   }
-  return [];
+
+  const enrichOptions = resolvePursuitEnrichOptions(options.enrichOptions);
+  const dirty = await analyzeReadingDirty(userId);
+  options.metrics.dirtyItems = dirty.totalItems;
+  options.metrics.dirtyPursuits = dirty.pursuitIds.length;
+  options.metrics.reflectCall = true;
+
+  const storyRow = await prisma.storyCache.findUnique({ where: { userId } });
+  const previousStory = storyRow ? parsePreviousStory(storyRow.payload) : null;
+  const previousReading = previousStory?.seasonRead?.trim() ?? "";
+  const hasStory = Boolean(previousReading);
+
+  const plan = await planReflectWork(userId, dirty, {
+    force: options.force,
+    storyStale: options.storyStale,
+    insightsStale: options.insightsStale,
+    hasStory,
+  });
+
+  if (plan.mode === "skip" || plan.pursuitIds.length === 0) {
+    return {
+      skipped: true,
+      insightsRefreshed: false,
+      storyRefreshed: false,
+      geminiCallsMade: 0,
+      geminiRateLimited: false,
+    };
+  }
+
+  const needsReadingRefresh =
+    plan.mode === "full" || options.storyStale || !hasStory;
+
+  return runReflectBatchesIncremental(
+    userId,
+    dirty,
+    plan,
+    enrichOptions,
+    previousReading,
+    mapVersion,
+    memoryVersion,
+    options.metrics,
+    { needsReadingRefresh },
+  );
 }
 
 function parsePreviousStory(payload: string | undefined): StoryGenerationResult | null {
@@ -303,23 +466,6 @@ function parsePreviousStory(payload: string | undefined): StoryGenerationResult 
   } catch {
     return null;
   }
-}
-
-async function resolveReflectThemeIds(
-  userId: string,
-  dirty: ReadingDirtyAnalysis,
-  options: { force?: boolean; storyStale: boolean; insightsStale: boolean },
-): Promise<string[]> {
-  if (dirty.themeIds.length > 0) {
-    return dirty.themeIds;
-  }
-  if (options.force || options.storyStale || options.insightsStale) {
-    const mapContext = await formatMapContext(userId, { excludeAbandoned: true });
-    return mapContext.themes
-      .filter((theme) => theme.hubs.some((hub) => hub.pursuits.length > 0))
-      .map((theme) => theme.id);
-  }
-  return [];
 }
 
 async function generateReflectResponse(
@@ -406,6 +552,34 @@ function mergeReflectResponses(partials: ReflectResponse[]): ReflectResponse {
   return merged;
 }
 
+/** Gemini quota (429) — rate-limit path; do not treat 503 overload the same. */
+function isGeminiRateLimited(err: unknown): boolean {
+  if (err instanceof GeminiProviderError && err.status === 429) {
+    return true;
+  }
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  return (
+    message.includes("429") ||
+    message.includes("rate limit") ||
+    message.includes("quota") ||
+    message.includes("resource_exhausted")
+  );
+}
+
+/** Transient overload (503) — retry soon; not a quota block. */
+function isGeminiTransient(err: unknown): boolean {
+  if (err instanceof GeminiProviderError && err.status === 503) {
+    return true;
+  }
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  return message.includes("overloaded") || message.includes("temporarily unavailable");
+}
+
+export { isReflectCallEnabled };
+
+/** @internal Exported for vitest completeness / output-size assertions. */
+export { generateReflectResponse, generateReflectResponseBatched, mergeReflectResponses };
+
 async function generateReflectResponseBatched(
   userId: string,
   dirty: ReadingDirtyAnalysis,
@@ -449,132 +623,3 @@ async function generateReflectResponseBatched(
 
   return merged;
 }
-
-/** Gemini quota (429) or transient overload (503) — safe to retry after a pause. */
-function isGeminiBusy(err: unknown): boolean {
-  if (err instanceof GeminiProviderError && (err.status === 429 || err.status === 503)) {
-    return true;
-  }
-  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
-  return (
-    message.includes("429") ||
-    message.includes("503") ||
-    message.includes("rate limit") ||
-    message.includes("quota") ||
-    message.includes("resource_exhausted") ||
-    message.includes("temporarily unavailable")
-  );
-}
-
-/** Single-call reflect sync — Reading + all dirty pursuit panels. */
-export async function runReflectSync(
-  userId: string,
-  mapVersion: string,
-  memoryVersion: number,
-  options: {
-    force?: boolean;
-    storyStale: boolean;
-    insightsStale: boolean;
-    metrics: MapAiSyncMetrics;
-    enrichOptions?: PursuitEnrichOptions;
-  },
-): Promise<ReflectSyncResult> {
-  if (!isReflectCallEnabled()) {
-    throw new Error("runReflectSync called while USE_REFLECT_CALL is disabled");
-  }
-
-  const enrichOptions = resolvePursuitEnrichOptions(options.enrichOptions);
-  const dirty = await analyzeReadingDirty(userId);
-  options.metrics.dirtyItems = dirty.totalItems;
-  options.metrics.dirtyPursuits = dirty.pursuitIds.length;
-  options.metrics.reflectCall = true;
-  const pursuitIds = await resolveReflectPursuitIds(userId, dirty, {
-    force: options.force,
-    storyStale: options.storyStale,
-    insightsStale: options.insightsStale,
-  });
-  const themeIds = await resolveReflectThemeIds(userId, dirty, {
-    force: options.force,
-    storyStale: options.storyStale,
-    insightsStale: options.insightsStale,
-  });
-  const reflectBatches = chunkReflectPursuitIds(pursuitIds);
-  options.metrics.aiCallsPlanned += reflectBatches.length;
-
-  const storyRow = await prisma.storyCache.findUnique({ where: { userId } });
-  const previousStory = storyRow ? parsePreviousStory(storyRow.payload) : null;
-  const previousReading = previousStory?.seasonRead?.trim() ?? "";
-
-  try {
-    const reflect =
-      reflectBatches.length > 1
-        ? await generateReflectResponseBatched(
-            userId,
-            dirty,
-            pursuitIds,
-            themeIds,
-            enrichOptions,
-            previousReading,
-            options.metrics,
-          )
-        : await generateReflectResponse(
-            userId,
-            dirty,
-            pursuitIds,
-            themeIds,
-            enrichOptions,
-            previousReading,
-            options.metrics,
-          );
-    options.metrics.aiCallsCompleted += reflectBatches.length;
-
-    const { insightsWritten, storyWritten } = await applyReflectOutput(
-      userId,
-      reflect,
-      pursuitIds,
-      enrichOptions,
-      mapVersion,
-      memoryVersion,
-    );
-
-    await clearReadingDirtyLedger(userId);
-    options.metrics.morePending = false;
-    options.metrics.pendingInsightCount = 0;
-
-    return {
-      insightsRefreshed: insightsWritten,
-      storyRefreshed: storyWritten,
-      geminiCallsMade: reflectBatches.length,
-      geminiRateLimited: false,
-    };
-  } catch (err) {
-    if (isGeminiBusy(err)) {
-      options.metrics.rateLimited = true;
-      options.metrics.morePending = pursuitIds.length > 0;
-      options.metrics.pendingInsightCount = pursuitIds.length;
-      return {
-        insightsRefreshed: false,
-        storyRefreshed: false,
-        geminiCallsMade: options.metrics.aiCallsCompleted,
-        geminiRateLimited: true,
-      };
-    }
-    if (err instanceof ReflectGenerationResponseError) {
-      options.metrics.enrichErrors.push(err.message);
-      options.metrics.morePending = pursuitIds.length > 0;
-      options.metrics.pendingInsightCount = pursuitIds.length;
-      return {
-        insightsRefreshed: false,
-        storyRefreshed: false,
-        geminiCallsMade: options.metrics.aiCallsCompleted,
-        geminiRateLimited: false,
-      };
-    }
-    throw err;
-  }
-}
-
-export { isReflectCallEnabled };
-
-/** @internal Exported for vitest completeness / output-size assertions. */
-export { generateReflectResponse, generateReflectResponseBatched };

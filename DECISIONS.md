@@ -12,7 +12,23 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **RULING:** The iOS 26 Liquid Glass tab-bar morph transition (the Instagram-style glass blob that stretches between tabs) uses a private Apple API unavailable to third-party / Expo apps. Do **not** attempt to hand-roll or approximate it — violates the “no hand-rolled chrome” and “one signature animation” rulings in [`PATHFINDER-CONTEXT.md`](../PATHFINDER-CONTEXT.md) §7. The glass **material** on the tab bar (`BlurView` in `TabBarBackground.tsx`) is fine and partly built; the morph **transition** is not. Surface inventory: [`CURSOR-BRIEF-FEEL-PASS.md`](../CURSOR-BRIEF-FEEL-PASS.md) §iOS feel inventory.
 
+## 2026-06-15 — AI sync reliability (no-op guard + resumable panels)
+
+**Shipped:** Manual **Update AI reading** skips Gemini when Reading + all pursuit panels are already fresh (`planReflectWork` skip mode). Force refresh repairs **missing panels only** (not the whole map). Batched reflect **commits each batch** before the next — partial panel progress survives batch-2 failures. Reflect mode shows **Finish pursuit insights (N)** when `pendingInsightCount > 0`. Pursuit panels support structured `fromMap` / `comparison` fields (not prefix parsing only).
+
+**Rationale:** No-change Update was burning 2 Gemini calls and triggering rate-limit UX; all-or-nothing batching required multiple full refreshes for Alex-sized maps.
+
+## 2026-06-15 — Background sync reverted to false
+
+**Shipped:** `BACKGROUND_AI_SYNC_ENABLED = false` in mobile — manual **Update AI reading** only.
+
+**Rationale:** Background sync was flipped on June 15 without T1–T6 validation. Auto-fire on AppState resume plus the retry loop after partial 429/503 turned a transient overload into a permanent-feeling rate limit (Gemini dashboard stayed clean). Revert until resume-sync + retry interaction is validated safe.
+
+**Supersedes:** “Pre-TestFlight: background sync + reflect theme insights” entry below (reflect theme insights remain shipped; only background sync is reverted).
+
 ## 2026-06-15 — Pre-TestFlight: background sync + reflect theme insights
+
+> **Superseded (2026-06-15):** Background sync reverted — see entry above. Reflect theme insights remain shipped.
 
 **Shipped:** `BACKGROUND_AI_SYNC_ENABLED = true` in mobile — debounced ai-sync after map edits (~45s), pull-to-refresh triggers sync when readings are stale. Manual **Update AI reading** retained. Reflect Phase 2 (themes only): unified reflect call now writes per-theme insight panels (`themes` in reflect JSON → `InsightCache.themeInsights`); legacy digest/enrich deletion still deferred.
 

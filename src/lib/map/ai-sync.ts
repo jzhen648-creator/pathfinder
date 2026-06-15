@@ -18,23 +18,19 @@ import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-
 
 import { refreshReadingCachesSmart } from "@/lib/map/incremental-reading-refresh";
 import { isReflectCallEnabled, runReflectSync } from "@/lib/ai/generate-reflect";
+import { reflectSyncWouldSkip } from "@/lib/ai/reflect-sync-plan";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { remainingSyncGeminiBudget } from "@/lib/map/sync-gemini-budget";
-
 import {
   checkReadingDeliveryGate,
   recordReadingDelivery,
 } from "@/lib/map/reading-delivery-cadence";
-
 import {
-
   clearReadingDirtyLedger,
-
+  analyzeReadingDirty,
   listReadingDirtySummary,
-
   markGlobalReadingDirty,
-
 } from "@/lib/map/reading-dirty-ledger";
 
 import { prisma } from "@/lib/prisma";
@@ -339,12 +335,31 @@ async function runMapAiSyncInner(
   metrics.dirtyItems = dirtySummary.totalItems;
   metrics.dirtyPursuits = dirtySummary.pursuitIds.length;
 
-  const readingWorkNeeded =
-    force ||
+  const hasStory = Boolean(
+    storyRow &&
+      isCurrentStoryPayload(storyRow.payload) &&
+      storyCacheToPayload(storyRow, false)?.seasonRead?.trim(),
+  );
+
+  let readingWorkNeeded =
     digested.runs > 0 ||
     insightsStale ||
     storyStale ||
     dirtySummary.totalItems > 0;
+
+  if (reflectEnabled) {
+    if (!readingWorkNeeded && force) {
+      const dirty = await analyzeReadingDirty(userId);
+      readingWorkNeeded = !(await reflectSyncWouldSkip(userId, dirty, {
+        force: true,
+        storyStale,
+        insightsStale,
+        hasStory,
+      }));
+    }
+  } else if (force) {
+    readingWorkNeeded = true;
+  }
 
   if (!readingWorkNeeded && pendingBefore === 0) {
     return buildBaseResult(mapVersion, metrics, digested);
@@ -396,12 +411,16 @@ async function runMapAiSyncInner(
         enrichOptions,
       });
 
+      if (reflect.skipped) {
+        metrics.startedWork = false;
+        return buildBaseResult(mapVersion, metrics, digested);
+      }
+
       insightsRefreshed = reflect.insightsRefreshed;
       storyRefreshed = reflect.storyRefreshed;
 
       if (reflect.geminiRateLimited) {
         metrics.rateLimited = true;
-        metrics.morePending = true;
       }
 
       await flushDeferredMemoryUpdates(userId);

@@ -127,10 +127,15 @@ function normalizeInsightObject(raw: unknown): Record<string, unknown> | null {
   const body = truncate(row.body ?? row.summary ?? row.text, PURSUIT_INSIGHT_BODY_MAX);
   if (!headline && !body) return null;
 
+  const fromMap = truncate(row.fromMap ?? row.from_map, 200);
+  const comparison = truncate(row.comparison, 200);
+
   return {
     tone: normalizePursuitInsightTone(row.tone),
     headline: headline || "Insight",
     body: body || "",
+    ...(fromMap ? { fromMap } : {}),
+    ...(comparison ? { comparison } : {}),
   };
 }
 

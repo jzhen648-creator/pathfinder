@@ -22,6 +22,8 @@ export const pursuitInsightSchema = z.object({
   tone: pursuitInsightToneSchema,
   headline: z.string().max(100),
   body: z.string().max(500),
+  fromMap: z.string().max(200).optional(),
+  comparison: z.string().max(200).optional(),
 });
 
 export const globalNowInsightSchema = z.object({
