@@ -4,6 +4,11 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { config as loadEnv } from "dotenv";
+
+import { defaultScriptCredentials } from "./lib/script-http";
+
+loadEnv({ path: path.resolve(__dirname, "..", ".env.local") });
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const FINDINGS_PATH = path.join(ROOT, "QA-FINDINGS.md");
@@ -15,12 +20,58 @@ type SmokeResult = {
   message: string;
 };
 
+async function resolveSmokeToken(baseUrl: string): Promise<string | null> {
+  const preset = process.env.QA_SMOKE_TOKEN?.trim();
+  if (preset) return preset;
+
+  const attempts: Array<{ email: string; password: string; label: string }> = [
+    {
+      email: process.env.E2E_EMAIL ?? process.env.QA_SMOKE_EMAIL ?? "",
+      password: process.env.E2E_PASSWORD ?? process.env.QA_SMOKE_PASSWORD ?? "",
+      label: "env",
+    },
+    {
+      email: "alex@qa-seed.test",
+      password: process.env.QA_SEED_PASSWORD ?? "pathfinder-qa",
+      label: "alex-seed",
+    },
+    {
+      email: defaultScriptCredentials().email,
+      password: defaultScriptCredentials().password,
+      label: "script-default",
+    },
+  ].filter((row) => row.email && row.password);
+
+  for (const { email, password, label } of attempts) {
+    const response = await fetch(`${baseUrl}/api/auth/mobile-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      console.log(`qa-live-smoke: mobile-login failed (${response.status}) for ${label}`);
+      continue;
+    }
+
+    const body = (await response.json()) as { token?: string };
+    const token = body.token?.trim();
+    if (token) {
+      console.log(`qa-live-smoke: logged in as ${email} (${label})`);
+      return token;
+    }
+  }
+
+  console.log("qa-live-smoke: no token — set QA_SMOKE_TOKEN or E2E_EMAIL/E2E_PASSWORD");
+  return null;
+}
+
 async function main() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   const baseUrl = (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.QA_SMOKE_BASE_URL)?.replace(/\/$/, "");
 
   if (!apiKey) {
-    console.log("qa-live-smoke: skipped — GEMINI_API_KEY not set");
+    console.log("qa-live-smoke: skipped — GEMINI_API_KEY not set in .env.local");
     process.exit(0);
   }
 
@@ -29,9 +80,9 @@ async function main() {
     process.exit(0);
   }
 
-  const token = process.env.QA_SMOKE_TOKEN?.trim();
+  const token = await resolveSmokeToken(baseUrl);
   if (!token) {
-    console.log("qa-live-smoke: skipped — QA_SMOKE_TOKEN not set (Bearer JWT for seed account)");
+    console.log("qa-live-smoke: skipped — no Bearer token (QA_SMOKE_TOKEN or valid mobile-login credentials)");
     process.exit(0);
   }
 
