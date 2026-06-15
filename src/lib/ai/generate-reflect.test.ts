@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateReflectResponse, buildReflectMilestoneOptions, generateReflectResponseBatched } from "@/lib/ai/generate-reflect";
+import {
+  generateReflectResponse,
+  buildPursuitsOnlyMapContext,
+  buildReflectMilestoneOptions,
+  generateReflectResponseBatched,
+} from "@/lib/ai/generate-reflect";
 import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { emptyMapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
@@ -142,6 +147,25 @@ describe("buildReflectMilestoneOptions", () => {
   });
 });
 
+describe("buildPursuitsOnlyMapContext", () => {
+  it("keeps dirty pursuits with same-category siblings and drops unrelated map context", () => {
+    const sliced = buildPursuitsOnlyMapContext(DENSE_MAP_CONTEXT, ["p-cemap"]);
+    const pursuits = sliced.themes.flatMap((theme) =>
+      theme.hubs.flatMap((hub) => hub.pursuits.map((pursuit) => pursuit.title)),
+    );
+
+    expect(sliced.themes.map((theme) => theme.id)).toEqual(["work"]);
+    expect(sliced.themes[0]?.hubs.map((hub) => hub.id)).toEqual(["cat-job"]);
+    expect(pursuits).toEqual([
+      "CeMAP qualification",
+      "Product Lead search",
+      "Senior Engineer at Acme",
+    ]);
+    expect(pursuits).not.toContain("Public speaking");
+    expect(pursuits).not.toContain("£500,000 ISA");
+  });
+});
+
 describe("generateReflectResponse", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -198,6 +222,44 @@ describe("generateReflectResponse", () => {
 
     expect(metrics.reflectResponseChars).toBeGreaterThan(2800);
     expect(metrics.reflectResponseChars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
+  });
+
+  it("sends sliced same-category map context for pursuit-only reflect", async () => {
+    mocks.generateJsonCompletion.mockResolvedValue(
+      JSON.stringify({
+        reading: "",
+        themes: {},
+        pursuits: {
+          "p-cemap": {
+            tone: "nudge",
+            headline: "CeMAP deadline is close",
+            body: "CeMAP has a near deadline and no completed milestones yet.",
+            clarifiers: [],
+            suggestedMilestones: null,
+          },
+        },
+      }),
+    );
+
+    await generateReflectResponse(
+      USER_ID,
+      baseDirtyAnalysis(),
+      ["p-cemap"],
+      [],
+      ENRICH_OPTIONS,
+      "",
+      emptyMapAiSyncMetrics(),
+      { scope: "pursuits-only" },
+    );
+
+    const user = (mocks.generateJsonCompletion.mock.calls[0]?.[0] as { user: string }).user;
+    const mapContextBlock = user.match(/<map_context>\n([\s\S]*?)\n<\/map_context>/)?.[1] ?? "";
+    expect(mapContextBlock).toContain("CeMAP qualification");
+    expect(mapContextBlock).toContain("Product Lead search");
+    expect(mapContextBlock).toContain("Senior Engineer at Acme");
+    expect(mapContextBlock).not.toContain("Public speaking");
+    expect(mapContextBlock).not.toContain("£500,000 ISA");
+    expect(user).toContain('Return ONLY: { "reading": "", "pursuits": { ... } }');
   });
 
   it("schema-max 12-dirty output fits within 8192-token reflect budget", () => {

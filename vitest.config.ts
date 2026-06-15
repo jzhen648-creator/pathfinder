@@ -4,15 +4,18 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: [
-      "src/lib/map/**/*.test.ts",
-      "src/lib/ai/generate-reflect.test.ts",
-      "src/lib/ai/reflect-sync-plan.test.ts",
-      "src/lib/ai/reflect-reading-quality.test.ts",
-      "src/lib/pursuit/normalize-pursuit-enrich.test.ts",
-      "src/lib/insights/clamp-insight-json.test.ts",
-      "src/lib/story/validate-reading-output.test.ts",
-      "src/lib/timeline/spine-events.test.ts",
+    include: ["src/lib/**/*.test.ts"],
+    // Legacy node:test scripts (assert + console.log) — not vitest suites.
+    exclude: [
+      "src/lib/goal-short-label.test.ts",
+      "src/lib/canvas-label-salience.test.ts",
+      "src/lib/stream-extract-errors.test.ts",
+      "src/lib/ai/stream-extract-narrative.test.ts",
+      "src/lib/ai/stream-extract-sessions.test.ts",
+      "src/lib/story/sanitize-story.test.ts",
+      "src/lib/icons/match-pursuit-icon-override.test.ts",
+      "src/lib/pursuit/pursuit-finance.test.ts",
+      "src/lib/pursuit/pursuit-title.test.ts",
     ],
     globals: false,
   },

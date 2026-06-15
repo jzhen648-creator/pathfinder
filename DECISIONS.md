@@ -4,6 +4,12 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-15 — Dirty reflect uses scoped map context; pace facts deferred
+
+**Shipped:** `pursuits-only` reflect calls now send a scoped `map_context`: dirty pursuit(s), their same-category sibling pursuits, and the containing theme/category wrappers. Whole-map/full reflect still sends the full map context. Milestone pace facts stay in the reading packet, but are **not** injected into `<milestone_options>` yet.
+
+**Rationale:** Panels-only and dirty pursuit refreshes were paying full-map token cost even when the output contract was one or a few pursuit panels. Same-category siblings preserve useful local comparison without making Gemini attend to unrelated themes. Pace facts in milestone suggestions may help later, but pre-QA they risk over-steering the model into timing judgments (“behind/on track”) that the packet deliberately does not compute. Defer pace-fact injection until device QA shows milestone suggestions remain generic or duplicated after the gate fix.
+
 ## 2026-06-15 — OPEN DECISION: pursuit progress model
 
 **OPEN:** Pursuit progress model — milestone-driven (current/shipped) vs diary+slider (discussed June 4, never decided). Current: hex progress ring = milestone completion ratio (`orbitalFillLevel` in `pathfinder-mobile/components/map/PursuitMapNodeSvg.tsx`); progress captured via milestones + undated `description`. Alternative discussed: dated diary/journal entries replace milestone checkboxes as capture; subjective “how close do you feel” slider replaces milestone-count as the ring driver. The alternative conflicts with the milestone-driven model and is a meaningful pursuit-model redesign — **not** a backlog item to build, a fork to decide deliberately. Fenced until post-TestFlight.

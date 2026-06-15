@@ -1,4 +1,4 @@
-import { formatMapContext } from "@/lib/ai/format-map-context";
+import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { isReflectCallEnabled, REFLECT_MAX_OUTPUT_TOKENS, chunkReflectPursuitIds } from "@/lib/ai/reflect-call";
 import { normalizeReflectResponse } from "@/lib/ai/normalize-reflect-response";
@@ -178,6 +178,35 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise
   return new Map(
     goals.map((goal) => [goal.id, pursuitSignalFromGoal(goal)]),
   );
+}
+
+export function buildPursuitsOnlyMapContext(
+  mapContext: FormattedMapContext,
+  dirtyPursuitIds: string[],
+): FormattedMapContext {
+  const dirtyIds = new Set(dirtyPursuitIds);
+  if (dirtyIds.size === 0) return { themes: [] };
+
+  return {
+    themes: mapContext.themes.flatMap((theme) => {
+      const hubs = theme.hubs.flatMap((hub) => {
+        const dirtyPursuits = hub.pursuits.filter((pursuit) => dirtyIds.has(pursuit.id));
+        if (dirtyPursuits.length === 0) return [];
+
+        const siblingPursuits = hub.pursuits.filter((pursuit) => !dirtyIds.has(pursuit.id));
+        return [
+          {
+            ...hub,
+            // Same-category siblings keep local context without sending the whole map.
+            pursuits: [...dirtyPursuits, ...siblingPursuits],
+          },
+        ];
+      });
+
+      if (hubs.length === 0) return [];
+      return [{ ...theme, hubs }];
+    }),
+  };
 }
 
 /** @internal Exported for vitest — per-pursuit milestone policy in reflect user message. */
@@ -486,7 +515,11 @@ async function generateReflectResponse(
   ]);
 
   const readingPacketJson = readingPacketToJson(readingPacket);
-  const mapContextJson = JSON.stringify(mapContext, null, 2);
+  const mapContextForPrompt =
+    scope === "pursuits-only"
+      ? buildPursuitsOnlyMapContext(mapContext, pursuitIds)
+      : mapContext;
+  const mapContextJson = JSON.stringify(mapContextForPrompt, null, 2);
   if (metrics && scope === "full") {
     metrics.readingPacketChars = readingPacketJson.length;
   }
