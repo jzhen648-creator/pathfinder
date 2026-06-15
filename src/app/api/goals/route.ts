@@ -85,6 +85,15 @@ export async function POST(request: Request) {
     }
   }
 
+  let timelineStart: Date | null = null;
+  const timelineStartTrim = input.timelineStart?.trim() ?? "";
+  if (timelineStartTrim.length > 0) {
+    timelineStart = parseLocalDateOnly(timelineStartTrim);
+    if (!timelineStart) {
+      return NextResponse.json({ error: "Invalid timelineStart date" }, { status: 400 });
+    }
+  }
+
   const future = deadline ? deadlineIsInFutureLocal(deadline) : true;
 
   const now = new Date();
@@ -150,6 +159,7 @@ export async function POST(request: Request) {
           ...(input.mapGridQ !== undefined && input.mapGridR !== undefined
             ? { mapGridQ: input.mapGridQ, mapGridR: input.mapGridR }
             : {}),
+          ...(timelineStart ? { timelineStart } : {}),
         },
       });
     });

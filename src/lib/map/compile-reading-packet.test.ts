@@ -99,7 +99,7 @@ describe("compile-reading-packet", () => {
     expect(facts).toEqual([]);
   });
 
-  it("clears distribution facts on a 1–2 pursuit map", () => {
+  it("keeps category signal facts on a 1–2 pursuit map", () => {
     const packet: ReadingPacket = {
       changeEvents: [],
       categorySignals: [
@@ -123,9 +123,37 @@ describe("compile-reading-packet", () => {
     };
 
     const thinned = thinPacketForMapDepth(packet);
-    expect(thinned.categorySignals[0]?.facts).toEqual([]);
+    expect(thinned.categorySignals[0]?.facts).toEqual(["Work & Career · Job: 1 in progress"]);
     expect(thinned.recentEvents.past).toEqual([]);
     expect(thinned.mapAggregates.highSignificanceActive).toEqual(["CeMAP qualification"]);
+  });
+
+  it("emits pace fact at zero completions when timelineStart is set", () => {
+    const facts = buildMilestonePaceFacts(
+      [
+        {
+          id: "c",
+          title: "CeMAP qualification",
+          description: "",
+          status: "ACTIVE",
+          significance: 5,
+          deadline: "2026-07-02",
+          timelineStart: "2025-12-14",
+          milestones: [
+            { id: "m1", title: "Unit 1", completed: false },
+            { id: "m2", title: "Unit 2", completed: false },
+            { id: "m3", title: "Unit 3", completed: false },
+          ],
+          themeId: "work",
+          themeLabel: "Work & Career",
+          categoryLabel: "Job",
+          categoryId: "cat-job",
+        },
+      ],
+      Date.parse("2026-06-14T12:00:00.000Z"),
+    );
+    expect(facts).toHaveLength(1);
+    expect(facts[0]).toMatch(/^CeMAP qualification: started \d+ months ago; deadline in \d+d; 0 of 3 milestones completed$/);
   });
 
   it("omits arrival spine when map has zero recent completions", () => {

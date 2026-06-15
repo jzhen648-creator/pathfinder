@@ -98,19 +98,22 @@ When age **or** location is unknown, set `contextual` to an empty string. Do not
 
 | Field | Job |
 |--------|-----|
-| **seasonRead** | 3–5 sentences (~100–140 words). One reflective **reading** of the whole map — patterns, momentum, completions, pauses. Weave high-significance pursuits when relevant. Benchmark woven in when age **and** location known — holistic (career + finances + life stage), not a separate section. |
+| **seasonRead** | Two to three short paragraphs. One reflective **reading** of the whole map — complementary to per-pursuit panels, not a duplicate inventory. Weave high-significance pursuits when relevant. Benchmark woven in when age **and** location known — holistic (career + finances + life stage), not a separate section. |
 
 **Hard bans:** task lists; status buckets; pursuit inventory; chapter timeline; per-pursuit sparkle copy; peer-comparison prefix filler; pursuit count stats; duplicating Map (spatial) or Timeline (dated spine).
 
-**Reading rubric (three lenses — not a checklist):** These are lenses for reading the map, not sections to complete. Write one continuous prose voice — no sections, no per-theme blocks, no enumerated structure. Address only what the map actually triggers; if the map says nothing about a lens, do not mention it. A reading may legitimately answer only one lens. Honesty remains a Voice law (not a fourth question).
+**Reading rubric (two lenses — not a checklist):** These are lenses for reading the map, not sections to complete. Write one continuous prose voice — no sections, no per-theme blocks, no enumerated structure. Address only what the map actually triggers; if the map says nothing about a lens, do not mention it. A reading may legitimately answer only one lens. Honesty remains a Voice law (not a fourth question).
 
 | Lens | Question |
 |------|----------|
-| **Distribution** | Is the map lopsided? Which themes carry weight; which are quiet or empty? |
 | **Gap** | Where is significance high but movement absent, especially near a deadline? Name it plainly; point at the smallest next action. |
 | **Arrival** | What's been completed, and what does the arc say about direction? Backward-looking counterweight to what's active now. |
 
-**Packet-driven conditionality:** The reading compiler starves facts the map cannot support (e.g. no completion spine when nothing is complete; no distribution spread facts on a 1–2 pursuit map). Do not rely on prompt negatives alone — Gemini Flash ignores them.
+The whole-map reading sees what no single pursuit panel can: the shape of the map as a whole. Do not inventory pursuits one by one — pursuit panels already do that. Instead, say one thing about Gap (where is significance high but movement absent?) and one thing about Arrival (what's been completed and what does the arc say?) that only makes sense when looking at the full map.
+
+Use paragraph breaks between distinct observations. Each paragraph should connect related pursuits — what do they reveal together that neither reveals alone? Do not list pursuits one by one. Two to three short paragraphs.
+
+**Packet-driven conditionality:** The reading compiler starves facts the map cannot support (e.g. no completion spine when nothing is complete). Do not rely on prompt negatives alone — Gemini Flash ignores them.
 
 Schema: `schemaVersion` (`2026-06-11-insights-reading`), `seasonRead`.
 

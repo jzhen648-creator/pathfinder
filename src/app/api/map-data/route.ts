@@ -161,11 +161,14 @@ export async function GET(request: Request) {
 
       prisma.goal.findMany({
 
-        where: { userId, archived: true },
+        where: {
+          userId,
+          OR: [{ archived: true }, { status: "ABANDONED" }],
+        },
 
         orderBy: { updatedAt: "desc" },
 
-        select: { id: true, title: true, categoryId: true, updatedAt: true },
+        select: { id: true, title: true, categoryId: true, updatedAt: true, status: true },
 
       }),
 

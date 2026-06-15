@@ -252,7 +252,19 @@ export function buildMilestonePaceFacts(
     const milestones = pursuit.milestones ?? [];
     if (milestones.length === 0) continue;
     const completed = milestones.filter((m) => m.completed && m.completedAt);
-    if (completed.length === 0) continue;
+
+    if (completed.length === 0) {
+      const startDate = parseCalendarDate(pursuit.timelineStart);
+      if (!startDate) continue;
+      let line = `${pursuit.title}: started ${formatElapsedSince(startDate, now)}`;
+      if (pursuit.deadline) {
+        const until = daysUntil(pursuit.deadline, now);
+        if (until != null) line += `; deadline in ${until}d`;
+      }
+      line += `; 0 of ${milestones.length} milestones completed`;
+      facts.push(line);
+      continue;
+    }
 
     const dates = completed
       .map((m) => parseCalendarDate(m.completedAt))
@@ -280,15 +292,7 @@ export function buildMilestonePaceFacts(
 
 /** Starve rubric facts the map cannot support — conditionality lives in the packet, not the prompt. */
 export function thinPacketForMapDepth(packet: ReadingPacket): ReadingPacket {
-  let categorySignals = packet.categorySignals;
   let recentEvents = packet.recentEvents;
-
-  if (packet.mapAggregates.totalPursuits <= 2) {
-    categorySignals = packet.categorySignals.map((signal) => ({
-      ...signal,
-      facts: [],
-    }));
-  }
 
   if (packet.mapAggregates.recentCompletions90d === 0) {
     recentEvents = {
@@ -299,7 +303,6 @@ export function thinPacketForMapDepth(packet: ReadingPacket): ReadingPacket {
 
   return {
     ...packet,
-    categorySignals,
     recentEvents,
   };
 }
@@ -308,6 +311,19 @@ function parseCalendarDate(value?: string | null): Date | null {
   if (!value?.trim()) return null;
   const date = new Date(`${value.trim().slice(0, 10)}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatElapsedSince(startDate: Date, now: number): string {
+  const days = Math.max(0, Math.round((now - startDate.getTime()) / MS_PER_DAY));
+  if (days >= 365) {
+    const years = Math.round(days / 365);
+    return `${years} year${years === 1 ? "" : "s"} ago`;
+  }
+  if (days >= 30) {
+    const months = Math.round(days / 30);
+    return `${months} month${months === 1 ? "" : "s"} ago`;
+  }
+  return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
 export async function resolveFocusCategoryIds(

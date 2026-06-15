@@ -47,6 +47,8 @@ export const createGoalPayloadSchema = z
     /** World hex grid pin — both required when either is set. */
     mapGridQ: z.number().int().optional(),
     mapGridR: z.number().int().optional(),
+    /** Optional pursuit start date (YYYY-MM-DD) for timeline + AI pace facts. */
+    timelineStart: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();
@@ -119,6 +121,15 @@ export const createGoalPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message: "mapGridQ and mapGridR must be provided together",
         path: ["mapGridQ"],
+      });
+    }
+
+    const timelineStartTrim = data.timelineStart?.trim() ?? "";
+    if (timelineStartTrim.length > 0 && !parseLocalDateOnly(timelineStartTrim)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "timelineStart must be a valid date",
+        path: ["timelineStart"],
       });
     }
   })

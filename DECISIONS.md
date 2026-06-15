@@ -979,6 +979,14 @@ Separated **intake entry points** so centre FAB and Self node never share a door
 
 **Also shipped:** Map tab re-press while focused returns to overview (exits edit-map if open). Profile screen uses `ScreenHeader` (no back chevron on tab root). Settings Profile link row removed (redundant with tab).
 
+## 2026-06-14 — Archive is the sole map removal mechanism
+
+**Abandon pursuit removed from long-press menu.** Two overlapping removal paths existed: **Abandon pursuit** (`status: ABANDONED`, no `archived`) and **Archive pursuit** (`archived: true`). Abandoned pursuits left the map and AI context but did not appear in Settings → Archived pursuits — no UI to find or restore them. **Archive** remains the only removal action: reversible via Settings → Archived pursuits → Restore.
+
+**Orphan recovery:** `GET /api/map-data` `archivedGoals` now includes goals where `archived: true` **or** `status: ABANDONED`, so previously abandoned pursuits surface in the archived list. Restore sets `archived: false` and resets `status` to `ACTIVE` when the row was `ABANDONED`.
+
+**Retained (safety nets):** Prisma `ABANDONED` enum value; `excludeAbandoned` in `formatMapContext` and map-data active `goals` query; mobile `isMapSurfacePursuit` ABANDONED filter. No migration, no new removal mechanism.
+
 ## 2026-06-11 — Layered context, Context section, status split
 
 **Layered AI context:** `formatMapContext` / new `formatPursuitContext` pass theme, section, title, status, deadline, significance, icon, shortLabel, milestones, description, hub marks, and sibling pursuits to Story, Insights, Stream extract/enrich, icon assignment, milestone suggest, and context-questions.

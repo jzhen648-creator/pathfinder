@@ -33,7 +33,7 @@ export const ALEX_PROFILE = {
   educationLevel: "higher",
   employmentStatus: "EMPLOYED",
   industry: "Finance",
-  jobTitle: "Senior Engineer",
+  jobTitle: "Mortgage Advisor",
   /** Themes with pursuits — pleasures stays empty for Distribution lens. */
   unlockThemes: [
     "work",
