@@ -4,6 +4,14 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-15 — OPEN DECISION: pursuit progress model
+
+**OPEN:** Pursuit progress model — milestone-driven (current/shipped) vs diary+slider (discussed June 4, never decided). Current: hex progress ring = milestone completion ratio (`orbitalFillLevel` in `pathfinder-mobile/components/map/PursuitMapNodeSvg.tsx`); progress captured via milestones + undated `description`. Alternative discussed: dated diary/journal entries replace milestone checkboxes as capture; subjective “how close do you feel” slider replaces milestone-count as the ring driver. The alternative conflicts with the milestone-driven model and is a meaningful pursuit-model redesign — **not** a backlog item to build, a fork to decide deliberately. Fenced until post-TestFlight.
+
+## 2026-06-15 — RULING: iOS 26 liquid glass tab morph (private API)
+
+**RULING:** The iOS 26 Liquid Glass tab-bar morph transition (the Instagram-style glass blob that stretches between tabs) uses a private Apple API unavailable to third-party / Expo apps. Do **not** attempt to hand-roll or approximate it — violates the “no hand-rolled chrome” and “one signature animation” rulings in [`PATHFINDER-CONTEXT.md`](../PATHFINDER-CONTEXT.md) §7. The glass **material** on the tab bar (`BlurView` in `TabBarBackground.tsx`) is fine and partly built; the morph **transition** is not. Surface inventory: [`CURSOR-BRIEF-FEEL-PASS.md`](../CURSOR-BRIEF-FEEL-PASS.md) §iOS feel inventory.
+
 ## 2026-06-15 — Pre-TestFlight: background sync + reflect theme insights
 
 **Shipped:** `BACKGROUND_AI_SYNC_ENABLED = true` in mobile — debounced ai-sync after map edits (~45s), pull-to-refresh triggers sync when readings are stale. Manual **Update AI reading** retained. Reflect Phase 2 (themes only): unified reflect call now writes per-theme insight panels (`themes` in reflect JSON → `InsightCache.themeInsights`); legacy digest/enrich deletion still deferred.
@@ -15,6 +23,12 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 **Shipped:** Mobile Build here / add pursuit captures optional **When did you start?** → `timelineStart` on `POST /api/goals`. Reading compiler uses `timelineStart` for pace facts at 0 milestone completions. Whole-map reading rubric tightened to Gap + Arrival lenses (Distribution lens removed).
 
 **Rationale:** UI and AI packet disagreed on pursuit start date; sparse readings improved with two-lens rubric and paragraph guidance.
+
+## 2026-06-15 — Reading packet gap movement signal
+
+**Shipped:** Gap movement signal is asymmetric by pursuit type. For most pursuits, “movement” = milestone completion. For quantified pursuits (`targetAmount > 0`), “movement” = amount progress (`currentAmount > 0` suppresses gap), because the amount is the real progress signal, not milestones. CeMAP (no amount) flags on milestone-absence; Clear-debt (4200/10000) is suppressed. We do **not** compute pace (is the progress rate sufficient for the deadline?) — the packet cannot judge that reliably, and a false “stalled” flag is worse than a missed one. If finance-specific reading work happens later, this is the seam where amount-based pace logic would live.
+
+**Code:** `computePursuitSignal` in `src/lib/map/compile-reading-packet.ts`.
 
 ## 2026-06-14 — Reflect Phase 1 (unified single Gemini call)
 

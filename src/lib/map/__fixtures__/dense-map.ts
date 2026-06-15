@@ -219,12 +219,30 @@ export const DENSE_READING_PACKET: ReadingPacket = {
       categoryLabel: "Job",
       byStatus: { ACTIVE: 2, COMPLETE: 1 },
       pursuits: [
-        { title: "CeMAP qualification", status: "ACTIVE", deadline: "2026-06-20", significance: 5 },
-        { title: "Product Lead search", status: "ACTIVE", deadline: "2026-06-25", significance: 5 },
+        {
+          title: "Senior Engineer at Acme",
+          status: "COMPLETE",
+          significance: 4,
+          signal: "arrival",
+        },
+        {
+          title: "CeMAP qualification",
+          status: "ACTIVE",
+          deadline: "2026-06-20",
+          significance: 5,
+          signal: "gap",
+        },
+        {
+          title: "Product Lead search",
+          status: "ACTIVE",
+          deadline: "2026-06-25",
+          significance: 5,
+        },
       ],
       facts: [
         "Work & Career · Job: 1 complete and 2 in progress",
         "Active with deadlines: CeMAP qualification (deadline Jun 2026); Product Lead search (deadline Jun 2026)",
+        "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
       ],
     },
   ],
@@ -266,6 +284,9 @@ export const DENSE_READING_PACKET: ReadingPacket = {
       "Plan wedding",
     ],
   },
+  gapFacts: [
+    "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
+  ],
   milestonePaceFacts: [
     "Product Lead search: 1/1 milestones complete; last milestone 44d ago",
     "Senior Engineer at Acme: 1/1 milestones complete; last milestone 65d ago",

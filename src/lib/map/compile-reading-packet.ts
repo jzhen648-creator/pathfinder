@@ -9,15 +9,20 @@ import {
   buildSpineEventsFromMapContext,
   capSpineEventsForPacket,
   countRecentCompletions,
+  resolvePursuitCompleteDate,
   type SpineEvent,
 } from "@/lib/timeline/spine-events";
 import { prisma } from "@/lib/prisma";
+
+export type PursuitReadingSignal = "gap" | "arrival";
 
 export type ReadingPacketPursuit = {
   title: string;
   status: string;
   deadline?: string;
   significance: number;
+  /** Derived from this pursuit's own attributes — not cross-pursuit succession. */
+  signal?: PursuitReadingSignal;
 };
 
 export type ReadingPacketCategorySignal = {
@@ -44,11 +49,26 @@ export type ReadingPacket = {
     recentCompletions90d: number;
     highSignificanceActive: string[];
   };
+  /** Factual lines for pursuits flagged gap — explicit Gap-lens grounding. */
+  gapFacts: string[];
   /** Deterministic milestone progress lines for AI grounding. */
   milestonePaceFacts: string[];
 };
 
 const MS_PER_DAY = 86_400_000;
+
+export const GAP_MIN_SIGNIFICANCE = 4;
+export const GAP_DEADLINE_DAYS = 30;
+// 120d — per-pursuit "arrival" signal for the reading rubric (recently completed arc).
+// Distinct from countRecentCompletions (90d), which drives mapAggregates and thinPacketForMapDepth.
+export const ARRIVAL_WINDOW_DAYS = 120;
+
+const STATUS_SORT_RANK: Record<string, number> = {
+  COMPLETE: 0,
+  ACTIVE: 1,
+  MAINTAINING: 1,
+  PAUSED: 2,
+};
 
 function formatDeadlineLabel(deadline?: string): string | null {
   if (!deadline) return null;
@@ -61,6 +81,97 @@ function daysUntil(deadline: string, now = Date.now()): number | null {
   const date = new Date(`${deadline}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) return null;
   return Math.ceil((date.getTime() - now) / MS_PER_DAY);
+}
+
+export function countCompletedMilestones(pursuit: FormattedMapPursuit): number {
+  return (pursuit.milestones ?? []).filter((m) => m.completed && m.completedAt).length;
+}
+
+export function resolvePursuitCompletedAt(pursuit: FormattedMapPursuit): string | null {
+  return resolvePursuitCompleteDate(pursuit);
+}
+
+export function computePursuitSignal(
+  pursuit: FormattedMapPursuit,
+  now = Date.now(),
+): PursuitReadingSignal | null {
+  if (pursuit.status === "COMPLETE") {
+    const completedAt = resolvePursuitCompletedAt(pursuit);
+    if (!completedAt) return null;
+    const parsed = parseCalendarDate(completedAt);
+    if (!parsed) return null;
+    const daysAgo = Math.round((now - parsed.getTime()) / MS_PER_DAY);
+    if (daysAgo >= 0 && daysAgo <= ARRIVAL_WINDOW_DAYS) return "arrival";
+    return null;
+  }
+
+  if (pursuit.status !== "ACTIVE" && pursuit.status !== "MAINTAINING") return null;
+  if (pursuit.significance < GAP_MIN_SIGNIFICANCE) return null;
+  if (!pursuit.deadline) return null;
+
+  const until = daysUntil(pursuit.deadline, now);
+  if (until == null || until < 0 || until > GAP_DEADLINE_DAYS) return null;
+
+  const milestones = pursuit.milestones ?? [];
+  if (milestones.length > 0 && countCompletedMilestones(pursuit) > 0) return null;
+
+  // Amount-based pursuits: currentAmount toward targetAmount is movement — not milestone-based stall.
+  if ((pursuit.targetAmount ?? 0) > 0 && (pursuit.currentAmount ?? 0) > 0) return null;
+
+  return "gap";
+}
+
+export function formatGapFactLine(pursuit: FormattedMapPursuit, now = Date.now()): string {
+  const until = pursuit.deadline ? daysUntil(pursuit.deadline, now) : null;
+  const deadlinePart = until != null ? `deadline ${until}d` : "deadline unknown";
+  const milestones = pursuit.milestones ?? [];
+  const milestonePart =
+    milestones.length === 0
+      ? "no milestones defined"
+      : `0 of ${milestones.length} milestones completed`;
+  return `${pursuit.title} (sig ${pursuit.significance}, ${deadlinePart}, ${milestonePart})`;
+}
+
+export function sortPursuitsTemporal<T extends FormattedMapPursuit>(
+  pursuits: T[],
+  now = Date.now(),
+): T[] {
+  return [...pursuits].sort((a, b) => {
+    const rankA = STATUS_SORT_RANK[a.status] ?? 3;
+    const rankB = STATUS_SORT_RANK[b.status] ?? 3;
+    if (rankA !== rankB) return rankA - rankB;
+
+    if (a.status === "COMPLETE" && b.status === "COMPLETE") {
+      const dateA = parseCalendarDate(resolvePursuitCompletedAt(a) ?? undefined)?.getTime() ?? 0;
+      const dateB = parseCalendarDate(resolvePursuitCompletedAt(b) ?? undefined)?.getTime() ?? 0;
+      return dateA - dateB;
+    }
+
+    if (
+      (a.status === "ACTIVE" || a.status === "MAINTAINING") &&
+      (b.status === "ACTIVE" || b.status === "MAINTAINING")
+    ) {
+      const daysA = a.deadline ? daysUntil(a.deadline, now) : null;
+      const daysB = b.deadline ? daysUntil(b.deadline, now) : null;
+      const sortA = daysA ?? Number.POSITIVE_INFINITY;
+      const sortB = daysB ?? Number.POSITIVE_INFINITY;
+      return sortA - sortB;
+    }
+
+    return 0;
+  });
+}
+
+export function buildGapFacts(
+  pursuits: FormattedMapPursuit[],
+  now = Date.now(),
+): string[] {
+  const facts: string[] = [];
+  for (const pursuit of pursuits) {
+    if (computePursuitSignal(pursuit, now) !== "gap") continue;
+    facts.push(`Significant but stalled: ${formatGapFactLine(pursuit, now)}`);
+  }
+  return facts.slice(0, 6);
 }
 
 function flattenPursuits(mapContext: FormattedMapContext): Array<
@@ -143,6 +254,7 @@ export function buildChangeEventsFromDirtyRows(rows: ReadingDirtyRow[]): string[
 export function buildCategorySignals(
   pursuits: ReturnType<typeof flattenPursuits>,
   focusCategoryIds: Set<string>,
+  now = Date.now(),
 ): ReadingPacketCategorySignal[] {
   const byCategory = new Map<string, ReturnType<typeof flattenPursuits>>();
 
@@ -190,16 +302,30 @@ export function buildCategorySignals(
       facts.push(`Active with deadlines: ${labels.join("; ")}`);
     }
 
+    const ordered = sortPursuitsTemporal(categoryPursuits, now);
+    let categoryGapFacts = 0;
+    for (const pursuit of ordered) {
+      if (computePursuitSignal(pursuit, now) !== "gap") continue;
+      facts.push(`Significant but stalled: ${formatGapFactLine(pursuit, now)}`);
+      categoryGapFacts += 1;
+      if (categoryGapFacts >= 3) break;
+    }
+
     signals.push({
       themeLabel: sample.themeLabel,
       categoryLabel: sample.categoryLabel,
       byStatus,
-      pursuits: categoryPursuits.map((p) => ({
-        title: p.title,
-        status: p.status,
-        deadline: p.deadline,
-        significance: p.significance,
-      })),
+      pursuits: ordered.map((p) => {
+        const row: ReadingPacketPursuit = {
+          title: p.title,
+          status: p.status,
+          deadline: p.deadline,
+          significance: p.significance,
+        };
+        const signal = computePursuitSignal(p, now);
+        if (signal) row.signal = signal;
+        return row;
+      }),
       facts,
     });
   }
@@ -348,6 +474,7 @@ export async function compileReadingPacket(
   userId: string,
   dirty: ReadingDirtyAnalysis,
 ): Promise<ReadingPacket> {
+  const now = Date.now();
   const [mapContext, dirtyRows, focusCategoryIds] = await Promise.all([
     formatMapContext(userId, { excludeAbandoned: true }),
     listReadingDirtyRows(userId),
@@ -368,13 +495,14 @@ export async function compileReadingPacket(
 
   const packet: ReadingPacket = {
     changeEvents,
-    categorySignals: buildCategorySignals(pursuits, focusCategoryIds),
+    categorySignals: buildCategorySignals(pursuits, focusCategoryIds, now),
     recentEvents: {
       past: spine.past,
       upcoming: spine.future,
     },
-    mapAggregates: buildMapAggregates(pursuits),
-    milestonePaceFacts: buildMilestonePaceFacts(pursuits),
+    mapAggregates: buildMapAggregates(pursuits, now),
+    gapFacts: buildGapFacts(pursuits, now),
+    milestonePaceFacts: buildMilestonePaceFacts(pursuits, now),
   };
 
   return thinPacketForMapDepth(packet);

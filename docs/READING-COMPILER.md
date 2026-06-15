@@ -51,7 +51,7 @@ generateReadingDelta (story) · generate-pursuit-enrich (scoped context)
     themeLabel: string;
     categoryLabel: string;
     byStatus: Record<string, number>;
-    pursuits: Array<{ title; status; deadline?; significance }>;
+    pursuits: Array<{ title; status; deadline?; significance; signal?: "gap" | "arrival" }>;
     facts: string[];                // "1 complete, 1 active with deadline Sep 2026"
   }>;
   recentEvents: {
@@ -65,6 +65,7 @@ generateReadingDelta (story) · generate-pursuit-enrich (scoped context)
     recentCompletions90d: number;   // completions in last 90 days, not all-time
     highSignificanceActive: string[];
   };
+  gapFacts: string[];               // "Significant but stalled: …" per gap-flagged pursuit
 }
 ```
 

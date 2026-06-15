@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateReflectResponse, buildReflectMilestoneOptions } from "@/lib/ai/generate-reflect";
+import { generateReflectResponse, buildReflectMilestoneOptions, generateReflectResponseBatched } from "@/lib/ai/generate-reflect";
 import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { emptyMapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
+import { REFLECT_PURSUIT_BATCH_SIZE, chunkReflectPursuitIds } from "@/lib/ai/reflect-call";
 import type { ReadingDirtyAnalysis } from "@/lib/map/reading-dirty-ledger";
 import {
   buildDenseReflectResponse,
@@ -75,6 +76,18 @@ export function assertReflectPursuitCompleteness(
     expect(reflect.pursuits[id], `missing pursuit panel for ${id}`).toBeDefined();
   }
 }
+
+describe("chunkReflectPursuitIds", () => {
+  it("returns a single batch when pursuits fit the budget", () => {
+    const ids = Array.from({ length: REFLECT_PURSUIT_BATCH_SIZE }, (_, i) => `p${i + 1}`);
+    expect(chunkReflectPursuitIds(ids)).toEqual([ids]);
+  });
+
+  it("splits Alex-sized 15-pursuit first refresh into two batches", () => {
+    const ids = Array.from({ length: 15 }, (_, i) => `p${i + 1}`);
+    expect(chunkReflectPursuitIds(ids)).toEqual([ids.slice(0, 8), ids.slice(8)]);
+  });
+});
 
 describe("buildReflectMilestoneOptions", () => {
   it("marks pursuits with enough signal as milestones allowed", () => {
@@ -187,5 +200,46 @@ describe("generateReflectResponse", () => {
     // Prior 2048-token ceiling truncated 15-pursuit Alex first refresh into invalid JSON.
     expect(chars).toBe(21834);
     expect(chars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
+  });
+
+  it("batches 15 dirty pursuits across two reflect calls", async () => {
+    const fifteenIds = Array.from({ length: 15 }, (_, i) => `p-${i + 1}`);
+    const firstBatch = fifteenIds.slice(0, 8);
+    const secondBatch = fifteenIds.slice(8);
+
+    mocks.generateJsonCompletion
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ...buildDenseReflectResponse(firstBatch),
+          themes: {
+            work: {
+              tone: "encouraging",
+              oneLiner: "Work is live",
+              reflective: "CeMAP and Product Lead search carry deadlines.",
+              contextual: "",
+              combined: "",
+            },
+          },
+        }),
+      )
+      .mockResolvedValueOnce(JSON.stringify(buildDenseReflectResponse(secondBatch)));
+
+    const metrics = emptyMapAiSyncMetrics();
+    const dirty = { ...baseDirtyAnalysis(), pursuitIds: fifteenIds, activeDirtyPursuitIds: fifteenIds };
+
+    const reflect = await generateReflectResponseBatched(
+      USER_ID,
+      dirty,
+      fifteenIds,
+      ["work", "finance"],
+      ENRICH_OPTIONS,
+      "",
+      metrics,
+    );
+
+    expect(mocks.generateJsonCompletion).toHaveBeenCalledTimes(2);
+    assertReflectPursuitCompleteness(fifteenIds, reflect);
+    expect(reflect.reading.length).toBeGreaterThan(0);
+    expect(metrics.reflectResponseChars).toBeGreaterThan(0);
   });
 });

@@ -113,6 +113,8 @@ The whole-map reading sees what no single pursuit panel can: the shape of the ma
 
 Use paragraph breaks between distinct observations. Each paragraph should connect related pursuits — what do they reveal together that neither reveals alone? Do not list pursuits one by one. Two to three short paragraphs.
 
+The packet flags pursuits as `gap` (significant, near deadline, no movement) or `arrival` (recently completed). Name gap-flagged pursuits plainly as tensions, not momentum. Narrate each category in the temporal order given — what's secured, what's in motion, what's ahead — without claiming one pursuit caused another.
+
 **Packet-driven conditionality:** The reading compiler starves facts the map cannot support (e.g. no completion spine when nothing is complete). Do not rely on prompt negatives alone — Gemini Flash ignores them.
 
 Schema: `schemaVersion` (`2026-06-11-insights-reading`), `seasonRead`.

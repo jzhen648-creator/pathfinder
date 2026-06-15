@@ -53,6 +53,7 @@ const STORY_PROMPT_BASE = [
   "- Say one Gap observation and one Arrival observation (where the packet supports them) that only makes sense across the full map.",
   "- Do not repeat per-pursuit panel copy.",
   "- Use paragraph breaks between distinct observations. Each paragraph connects related pursuits — what they reveal together.",
+  "- The packet flags pursuits as gap (significant, near deadline, no movement) or arrival (recently completed). Name gap-flagged pursuits plainly as tensions, not momentum. Narrate each category in the temporal order given — what's secured, what's in motion, what's ahead — without claiming one pursuit caused another.",
   "- Two to three short paragraphs. Not a task list.",
 ].join("\n");
 

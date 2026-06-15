@@ -215,6 +215,9 @@ export function countRecentCompletions(
   pursuits: FormattedMapPursuit[],
   options?: { windowDays?: number; now?: number },
 ): number {
+  // 90d — map aggregate for thinPacketForMapDepth (starve arrival spine when count is 0).
+  // Distinct from ARRIVAL_WINDOW_DAYS (120) in compile-reading-packet, which flags per-pursuit
+  // "arrival" signals for the reading rubric; the aggregate uses a tighter window.
   const windowDays = options?.windowDays ?? 90;
   const now = options?.now ?? Date.now();
   const cutoff = now - windowDays * MS_PER_DAY;

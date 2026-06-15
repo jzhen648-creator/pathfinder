@@ -14,6 +14,9 @@ import { StoryGenerationResponseError } from "@/lib/story/generate-story";
 import { ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
 import { ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
 
+/** Alex first refresh runs 2–3 sequential Gemini calls — needs headroom on Vercel. */
+export const maxDuration = 120;
+
 const bodySchema = z.object({
   force: z.boolean().optional(),
   clarifyTitles: z.boolean().optional(),
