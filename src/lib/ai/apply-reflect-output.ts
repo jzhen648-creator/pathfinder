@@ -4,10 +4,10 @@ import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import {
   gateEnrichResult,
   shouldSuggestMilestones,
+  pursuitSignalFromGoal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import {
-  enrichAnswersSchema,
   type PursuitEnrichCachePayload,
   type PursuitEnrichResult,
 } from "@/lib/pursuit/pursuit-enrich-types";
@@ -16,11 +16,6 @@ import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { prisma } from "@/lib/prisma";
-
-function parseEnrichAnswers(raw: unknown): { clarifierId: string; prompt: string; selectedOption: string }[] {
-  const parsed = enrichAnswersSchema.safeParse(raw);
-  return parsed.success ? parsed.data : [];
-}
 
 async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise<Map<string, PursuitSignal>> {
   const goals = await prisma.goal.findMany({
@@ -32,21 +27,12 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise
       enrichAnswers: true,
       deadline: true,
       status: true,
-      _count: { select: { milestones: true } },
+      targetAmount: true,
+      milestones: { select: { completedAt: true } },
     },
   });
   return new Map(
-    goals.map((goal) => [
-      goal.id,
-      {
-        title: goal.title,
-        description: goal.description ?? "",
-        enrichAnswerCount: parseEnrichAnswers(goal.enrichAnswers).length,
-        milestoneCount: goal._count.milestones,
-        hasDeadline: goal.deadline != null,
-        status: goal.status,
-      },
-    ]),
+    goals.map((goal) => [goal.id, pursuitSignalFromGoal(goal)]),
   );
 }
 

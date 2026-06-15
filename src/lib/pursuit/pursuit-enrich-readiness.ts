@@ -1,27 +1,69 @@
 import type { PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
+import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
 
-type PursuitSignal = {
+/** Interim cap on milestones stored on the map — audit may raise/adjust. */
+export const MILESTONE_MAP_CAP = 8;
+
+export type PursuitSignal = {
   title: string;
   description: string;
   enrichAnswerCount: number;
   milestoneCount: number;
+  completedMilestoneCount: number;
   hasDeadline: boolean;
+  hasQuantifiedTarget: boolean;
   status: string;
 };
 
-export type { PursuitSignal };
+function parseEnrichAnswerCount(raw: unknown): number {
+  const parsed = enrichAnswersSchema.safeParse(raw);
+  return parsed.success ? parsed.data.length : 0;
+}
 
-/** Milestone suggestions only when enough structured signal exists. */
-export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
-  if (signal.milestoneCount >= 3) return false;
+export function pursuitSignalFromGoal(goal: {
+  title: string;
+  description: string | null;
+  enrichAnswers: unknown;
+  deadline: Date | null;
+  status: string;
+  targetAmount: number | null;
+  milestones: { completedAt: Date | null }[];
+}): PursuitSignal {
+  const milestones = goal.milestones ?? [];
+  return {
+    title: goal.title,
+    description: goal.description ?? "",
+    enrichAnswerCount: parseEnrichAnswerCount(goal.enrichAnswers),
+    milestoneCount: milestones.length,
+    completedMilestoneCount: milestones.filter((m) => m.completedAt != null).length,
+    hasDeadline: goal.deadline != null,
+    hasQuantifiedTarget: (goal.targetAmount ?? 0) > 0,
+    status: goal.status,
+  };
+}
+
+function hasMinimumContextSignal(signal: PursuitSignal): boolean {
   const contextChars =
     signal.description.trim().length + signal.enrichAnswerCount * 40;
   if (contextChars >= 80) return true;
   if (signal.enrichAnswerCount >= 2) return true;
   if (signal.hasDeadline && signal.title.trim().length >= 8) return true;
   return false;
+}
+
+/** Milestone suggestions when enough structured signal exists and path has room to grow. */
+export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
+  if (signal.hasQuantifiedTarget) return false;
+  if (signal.milestoneCount >= MILESTONE_MAP_CAP) return false;
+  if (!hasMinimumContextSignal(signal)) return false;
+
+  if (signal.milestoneCount === 0) return true;
+
+  // Gap-fill while the path is unfinished, or extend when under cap.
+  if (signal.completedMilestoneCount < signal.milestoneCount) return true;
+  return signal.milestoneCount < MILESTONE_MAP_CAP;
 }
 
 export function gateEnrichResult(

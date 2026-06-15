@@ -8,6 +8,7 @@ import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import {
   gateEnrichResult,
   shouldSuggestMilestones,
+  pursuitSignalFromGoal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import {
@@ -120,22 +121,11 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]) {
       enrichAnswers: true,
       deadline: true,
       status: true,
-      _count: { select: { milestones: true } },
+      targetAmount: true,
+      milestones: { select: { completedAt: true } },
     },
   });
-  const byId = new Map(
-    goals.map((g) => [
-      g.id,
-      {
-        title: g.title,
-        description: g.description ?? "",
-        enrichAnswerCount: parseEnrichAnswers(g.enrichAnswers).length,
-        milestoneCount: g._count.milestones,
-        hasDeadline: g.deadline != null,
-        status: g.status,
-      },
-    ]),
-  );
+  const byId = new Map(goals.map((g) => [g.id, pursuitSignalFromGoal(g)]));
   return byId;
 }
 

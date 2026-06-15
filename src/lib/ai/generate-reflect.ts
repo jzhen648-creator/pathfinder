@@ -23,9 +23,9 @@ import {
   resolvePursuitEnrichOptions,
   type PursuitEnrichOptions,
 } from "@/lib/pursuit/enrich-options";
-import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import {
   shouldSuggestMilestones,
+  pursuitSignalFromGoal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { generateJsonCompletion, GeminiNotConfiguredError, GeminiProviderError, hasGeminiKey } from "@/lib/gemini";
@@ -68,6 +68,8 @@ function buildReflectPursuitsOnlySystemPrompt(options: Required<PursuitEnrichOpt
     "RULES:",
     "- Name pursuits VERBATIM from map context.",
     "- Never invent pursuits, milestones, or connections not in the data.",
+    "- Do not restate status changes, edits, or metadata updates in headline or body.",
+    "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
     ...clarifierRules,
     "",
@@ -110,7 +112,8 @@ function buildReflectSystemPrompt(
     "- Name pursuits VERBATIM from map context — never paraphrase titles.",
     "- Never invent pursuits, milestones, or connections not in the data.",
     "- No filler: ban \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
-    "- Headline must add information beyond the pursuit title.",
+    "- Do not restate status changes, edits, or metadata updates in headline or body.",
+    "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
     "- One concrete suggestion per pursuit, max.",
     "- Be honest about gaps and sparse maps.",
     "- Use age/location for contextual benchmarking only when data supports it.",
@@ -140,6 +143,7 @@ function buildReflectSystemPrompt(
     ...clarifierRules,
     ...connectionRules,
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
+    "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline — do not duplicate existing titles.",
     "",
     "THEME INSIGHTS:",
     "- \"themes\": map of themeId -> { tone, oneLiner, reflective, contextual?, combined? }",
@@ -154,11 +158,6 @@ function buildReflectSystemPrompt(
   ].join("\n");
 }
 
-function parseEnrichAnswers(raw: unknown): { clarifierId: string; prompt: string; selectedOption: string }[] {
-  const parsed = enrichAnswersSchema.safeParse(raw);
-  return parsed.success ? parsed.data : [];
-}
-
 async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise<Map<string, PursuitSignal>> {
   if (pursuitIds.length === 0) return new Map();
 
@@ -171,22 +170,13 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise
       enrichAnswers: true,
       deadline: true,
       status: true,
-      _count: { select: { milestones: true } },
+      targetAmount: true,
+      milestones: { select: { completedAt: true } },
     },
   });
 
   return new Map(
-    goals.map((goal) => [
-      goal.id,
-      {
-        title: goal.title,
-        description: goal.description ?? "",
-        enrichAnswerCount: parseEnrichAnswers(goal.enrichAnswers).length,
-        milestoneCount: goal._count.milestones,
-        hasDeadline: goal.deadline != null,
-        status: goal.status,
-      },
-    ]),
+    goals.map((goal) => [goal.id, pursuitSignalFromGoal(goal)]),
   );
 }
 
@@ -200,9 +190,13 @@ export function buildReflectMilestoneOptions(
   const lines = pursuitIds.map((pursuitId) => {
     const signal = signals.get(pursuitId);
     const milestonesAllowed = signal ? shouldSuggestMilestones(signal) : false;
-    return milestonesAllowed
-      ? `- ${pursuitId}: Milestones allowed — suggest only if concrete and specific.`
-      : `- ${pursuitId}: Milestones NOT allowed — set suggestedMilestones to null.`;
+    if (!milestonesAllowed) {
+      return `- ${pursuitId}: Milestones NOT allowed — set suggestedMilestones to null.`;
+    }
+    if (signal && signal.milestoneCount > 0) {
+      return `- ${pursuitId}: Milestones allowed — path has ${signal.completedMilestoneCount}/${signal.milestoneCount} complete; suggest only missing chronological steps to the deadline; do not duplicate existing titles; max 6.`;
+    }
+    return `- ${pursuitId}: Milestones allowed — suggest 0-6 concrete chronological steps when specific.`;
   });
 
   return ["<milestone_options>", ...lines, "</milestone_options>"].join("\n");

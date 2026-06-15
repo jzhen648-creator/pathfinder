@@ -99,7 +99,9 @@ describe("buildReflectMilestoneOptions", () => {
           description: "x".repeat(80),
           enrichAnswerCount: 0,
           milestoneCount: 0,
+          completedMilestoneCount: 0,
           hasDeadline: true,
+          hasQuantifiedTarget: false,
           status: "ACTIVE",
         },
       ],
@@ -110,7 +112,9 @@ describe("buildReflectMilestoneOptions", () => {
           description: "Plenty of context",
           enrichAnswerCount: 2,
           milestoneCount: 3,
+          completedMilestoneCount: 0,
           hasDeadline: true,
+          hasQuantifiedTarget: false,
           status: "ACTIVE",
         },
       ],
@@ -121,7 +125,9 @@ describe("buildReflectMilestoneOptions", () => {
           description: "",
           enrichAnswerCount: 0,
           milestoneCount: 0,
+          completedMilestoneCount: 0,
           hasDeadline: false,
+          hasQuantifiedTarget: false,
           status: "ACTIVE",
         },
       ],
@@ -130,7 +136,8 @@ describe("buildReflectMilestoneOptions", () => {
     const block = buildReflectMilestoneOptions(["p-rich", "p-full", "p-sparse"], signals);
 
     expect(block).toContain("p-rich: Milestones allowed");
-    expect(block).toContain("p-full: Milestones NOT allowed");
+    expect(block).toContain("p-full: Milestones allowed");
+    expect(block).toContain("suggest only missing chronological steps");
     expect(block).toContain("p-sparse: Milestones NOT allowed");
   });
 });
