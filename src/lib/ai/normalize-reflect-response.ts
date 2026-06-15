@@ -1,6 +1,16 @@
 import { normalizePursuitEnrichEntry } from "@/lib/pursuit/normalize-pursuit-enrich";
 import { REFLECT_READING_MAX_CHARS } from "@/lib/ai/reflect-types";
 
+const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
+
+/** Coerce Gemini theme tone drift before Zod — pursuit-only tones map to default. */
+export function normalizeThemeTone(raw: unknown): (typeof THEME_TONES)[number] {
+  if (typeof raw === "string" && (THEME_TONES as readonly string[]).includes(raw)) {
+    return raw as (typeof THEME_TONES)[number];
+  }
+  return "encouraging";
+}
+
 function truncateReading(value: unknown): string {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
@@ -52,7 +62,7 @@ export function normalizeReflectResponse(json: unknown): unknown {
       const reflective = typeof row.reflective === "string" ? row.reflective.trim() : "";
       if (!oneLiner && !reflective) continue;
       normalizedThemes[themeId] = {
-        tone: row.tone ?? "encouraging",
+        tone: normalizeThemeTone(row.tone),
         oneLiner: oneLiner.slice(0, 100),
         reflective: reflective.slice(0, 500),
         contextual: typeof row.contextual === "string" ? row.contextual.slice(0, 500) : "",

@@ -7,6 +7,7 @@ import {
   buildMapAggregates,
   buildMilestonePaceFacts,
   computePursuitSignal,
+  readingPacketToJson,
   sortPursuitsTemporal,
   thinPacketForMapDepth,
 } from "@/lib/map/compile-reading-packet";
@@ -310,6 +311,53 @@ describe("compile-reading-packet", () => {
     expect(facts).toEqual([
       "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
     ]);
+  });
+
+  it("forwards amount progress into ReadingPacketPursuit when present", () => {
+    const savings = buildCategorySignals(
+      flattenDensePursuits(),
+      new Set(["cat-savings"]),
+      FIXTURE_NOW,
+    )[0];
+    const debt = savings?.pursuits.find((p) => p.title === "Clear £10,000 credit card debt");
+    expect(debt).toMatchObject({
+      currentAmount: 4200,
+      targetAmount: 10000,
+      unit: "GBP",
+    });
+    expect(debt?.signal).toBeUndefined();
+
+    const isa = savings?.pursuits.find((p) => p.title === "£500,000 ISA");
+    expect(isa).toMatchObject({
+      currentAmount: 120000,
+      targetAmount: 500000,
+      unit: "GBP",
+    });
+
+    const packet: ReadingPacket = {
+      changeEvents: [],
+      categorySignals: savings ? [savings] : [],
+      recentEvents: { past: [], upcoming: [] },
+      mapAggregates: {
+        totalPursuits: 3,
+        upcomingDeadlines14d: 0,
+        upcomingDeadlines30d: 0,
+        recentCompletions90d: 0,
+        highSignificanceActive: [],
+      },
+      gapFacts: [],
+      milestonePaceFacts: [],
+    };
+    const json = readingPacketToJson(packet);
+    const parsed = JSON.parse(json) as ReadingPacket;
+    const serializedDebt = parsed.categorySignals[0]?.pursuits.find(
+      (p) => p.title === "Clear £10,000 credit card debt",
+    );
+    expect(serializedDebt).toMatchObject({
+      currentAmount: 4200,
+      targetAmount: 10000,
+      unit: "GBP",
+    });
   });
 
   it("includes signal and temporal order in category signals at fixed now", () => {

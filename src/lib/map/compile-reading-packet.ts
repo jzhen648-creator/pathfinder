@@ -21,6 +21,9 @@ export type ReadingPacketPursuit = {
   status: string;
   deadline?: string;
   significance: number;
+  currentAmount?: number;
+  targetAmount?: number;
+  unit?: string;
   /** Derived from this pursuit's own attributes — not cross-pursuit succession. */
   signal?: PursuitReadingSignal;
 };
@@ -322,6 +325,9 @@ export function buildCategorySignals(
           deadline: p.deadline,
           significance: p.significance,
         };
+        if (p.currentAmount != null) row.currentAmount = p.currentAmount;
+        if (p.targetAmount != null) row.targetAmount = p.targetAmount;
+        if (p.unit?.trim()) row.unit = p.unit.trim();
         const signal = computePursuitSignal(p, now);
         if (signal) row.signal = signal;
         return row;
