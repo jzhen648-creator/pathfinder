@@ -4,6 +4,18 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-15 — Pre-TestFlight: background sync + reflect theme insights
+
+**Shipped:** `BACKGROUND_AI_SYNC_ENABLED = true` in mobile — debounced ai-sync after map edits (~45s), pull-to-refresh triggers sync when readings are stale. Manual **Update AI reading** retained. Reflect Phase 2 (themes only): unified reflect call now writes per-theme insight panels (`themes` in reflect JSON → `InsightCache.themeInsights`); legacy digest/enrich deletion still deferred.
+
+**Rationale:** TestFlight friends should not need to discover Insights for every map edit; theme detail panels already had UI wired to `cache.themes`.
+
+## 2026-06-15 — timelineStart on create + reading rubric
+
+**Shipped:** Mobile Build here / add pursuit captures optional **When did you start?** → `timelineStart` on `POST /api/goals`. Reading compiler uses `timelineStart` for pace facts at 0 milestone completions. Whole-map reading rubric tightened to Gap + Arrival lenses (Distribution lens removed).
+
+**Rationale:** UI and AI packet disagreed on pursuit start date; sparse readings improved with two-lens rubric and paragraph guidance.
+
 ## 2026-06-14 — Reflect Phase 1 (unified single Gemini call)
 
 **Shipped:** `USE_REFLECT_CALL=true` on production — one `POST /api/map/ai-sync` tap runs `runReflectSync()` (Reading + all dirty pursuit panels in one Gemini call). Legacy two-call + enrich drain remains as fallback when flag is off. Mobile hides Finish/drain UX only when server returns `metrics.reflectCall: true` (not client flag alone). `AI_READING_DELIVERY_BYPASS=true` on production for QA cadence.
@@ -12,9 +24,9 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-14 — Known divergence: `timelineStart` (UI vs AI packet)
 
-**Observed:** `timelineStart` exists on pursuit rows (`schema.prisma`) but is **null on create** — never populated by create UX. The **Timeline tab** renders a null-`timelineStart` pursuit as starting at `createdAt`. The **AI packet** (`format-map-context.ts`) emits `timelineStart` only when truthy — so the model sees no start date at all. UI and AI disagree on when the pursuit began.
+> **Resolved 2026-06-15:** Mobile create flow captures optional start date; `POST /api/goals` persists `timelineStart`. Compiler pace facts use it at 0 completions.
 
-**Not patched this brief:** Option (a) — populate `timelineStart` at create from user input — is the eventual correct fix. Packet plumbing already exists; only create-surface SET is missing.
+**Was:** `timelineStart` existed on pursuit rows but was null on create — Timeline showed `createdAt` while AI packet omitted start date.
 
 ## 2026-06-14 — Sync router + free-tier delivery interval
 
@@ -26,7 +38,7 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-14 — Week 1 AI consolidation
 
-> **Not current (2026-06-14 brief):** `BACKGROUND_AI_SYNC_ENABLED = false` in mobile; background sync stays off until explicitly revisited post-TestFlight. Code and AGENTS.md agree it is off.
+> **Updated 2026-06-15:** `BACKGROUND_AI_SYNC_ENABLED = true` pre-TestFlight. Pull-to-refresh on Insights and pursuit panels triggers sync when stale; refetch-only when fully synced.
 
 **Product:** After map edits, the app schedules a **debounced background** `POST /api/map/ai-sync` (~45s idle, single-flight, 429-safe). Map utility chip shows **Reading queued** / **Reading map** / **Changes waiting**; Insights tab indicator unchanged. Pull-to-refresh on Insights (when stale) and pursuit panel flush sync immediately. Pursuit panel copy no longer routes users to Insights for routine updates. Enrich prompt may label body lines `From your map:` / `Comparison:` for layered pursuit insight display.
 

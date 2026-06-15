@@ -277,6 +277,16 @@ export const DENSE_USER_CONTEXT = "Name: Alex Carter\nAge: 34\nLocation: London,
 /** Build a valid reflect response covering every dirty pursuit ID. */
 export function buildDenseReflectResponse(dirtyIds: string[]): {
   reading: string;
+  themes: Record<
+    string,
+    {
+      tone: "encouraging";
+      oneLiner: string;
+      reflective: string;
+      contextual: string;
+      combined: string;
+    }
+  >;
   pursuits: Record<
     string,
     {
@@ -318,6 +328,22 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
       "CeMAP qualification and Product Lead search sit in Work & Career with near deadlines. " +
       "£500,000 ISA and Clear £10,000 credit card debt carry weight in Money & Finance. " +
       "Plan wedding is active in People & Relationships. What is the smallest next action on CeMAP qualification?",
+    themes: {
+      work: {
+        tone: "encouraging",
+        oneLiner: "Work & Career is carrying the most weight",
+        reflective: "CeMAP and Product Lead search are both active with deadlines in view.",
+        contextual: "",
+        combined: "Finishing CeMAP would unlock clearer options on the job search.",
+      },
+      finance: {
+        tone: "encouraging",
+        oneLiner: "Money goals are live alongside career pressure",
+        reflective: "ISA and debt-clearing pursuits both sit in Money & Finance.",
+        contextual: "",
+        combined: "",
+      },
+    },
     pursuits,
   };
 }

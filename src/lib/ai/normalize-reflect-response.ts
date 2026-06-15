@@ -36,5 +36,25 @@ export function normalizeReflectResponse(json: unknown): unknown {
     root.pursuits = normalized;
   }
 
+  const themes = root.themes;
+  if (themes && typeof themes === "object" && !Array.isArray(themes)) {
+    const normalizedThemes: Record<string, unknown> = {};
+    for (const [themeId, entry] of Object.entries(themes as Record<string, unknown>)) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const row = entry as Record<string, unknown>;
+      const oneLiner = typeof row.oneLiner === "string" ? row.oneLiner.trim() : "";
+      const reflective = typeof row.reflective === "string" ? row.reflective.trim() : "";
+      if (!oneLiner && !reflective) continue;
+      normalizedThemes[themeId] = {
+        tone: row.tone ?? "encouraging",
+        oneLiner: oneLiner.slice(0, 100),
+        reflective: reflective.slice(0, 500),
+        contextual: typeof row.contextual === "string" ? row.contextual.slice(0, 500) : "",
+        combined: typeof row.combined === "string" ? row.combined.slice(0, 500) : "",
+      };
+    }
+    root.themes = normalizedThemes;
+  }
+
   return root;
 }

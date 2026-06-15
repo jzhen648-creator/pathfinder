@@ -104,6 +104,15 @@ function buildReflectSystemPrompt(totalPursuitCount: number, options: Required<P
     ...connectionRules,
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
     "",
+    "THEME INSIGHTS:",
+    "- \"themes\": map of themeId -> { tone, oneLiner, reflective, contextual?, combined? }",
+    "  tone MUST be one of: celebratory | encouraging | nudge",
+    "  oneLiner <= 100 chars — theme-level headline, not a pursuit title.",
+    "  reflective: 2-3 sentences on what is live in this theme (<= 500 chars).",
+    "  contextual: optional age/location benchmark (<= 500 chars); empty string if none.",
+    "  combined: optional \"what this opens\" line (<= 500 chars); empty string if none.",
+    "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
+    "",
     buildStorySystemPrompt(totalPursuitCount),
   ].join("\n");
 }
@@ -168,6 +177,7 @@ function buildReflectUserMessage(input: {
   mapContextJson: string;
   previousReading: string;
   dirtyPursuitIds: string[];
+  dirtyThemeIds: string[];
   pursuitSignals: Map<string, PursuitSignal>;
   enrichOptions: Required<PursuitEnrichOptions>;
 }): string {
@@ -192,6 +202,10 @@ function buildReflectUserMessage(input: {
     JSON.stringify(input.dirtyPursuitIds),
     "</dirty_pursuits>",
     "",
+    "<dirty_themes>",
+    JSON.stringify(input.dirtyThemeIds),
+    "</dirty_themes>",
+    "",
     milestoneOptions,
     milestoneOptions ? "" : null,
     "<options>",
@@ -201,8 +215,9 @@ function buildReflectUserMessage(input: {
     "</options>",
     "",
     "Only include pursuit entries for the dirty pursuit IDs listed above.",
+    "Only include theme entries for the dirty theme IDs listed above.",
     "Always include \"reading\" — it reflects the whole map.",
-    "Respond with ONLY a JSON object: { \"reading\": \"...\", \"pursuits\": { ... } }",
+    'Respond with ONLY a JSON object: { "reading": "...", "themes": { ... }, "pursuits": { ... } }',
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -237,10 +252,28 @@ function parsePreviousStory(payload: string | undefined): StoryGenerationResult 
   }
 }
 
+async function resolveReflectThemeIds(
+  userId: string,
+  dirty: ReadingDirtyAnalysis,
+  options: { force?: boolean; storyStale: boolean; insightsStale: boolean },
+): Promise<string[]> {
+  if (dirty.themeIds.length > 0) {
+    return dirty.themeIds;
+  }
+  if (options.force || options.storyStale || options.insightsStale) {
+    const mapContext = await formatMapContext(userId, { excludeAbandoned: true });
+    return mapContext.themes
+      .filter((theme) => theme.hubs.some((hub) => hub.pursuits.length > 0))
+      .map((theme) => theme.id);
+  }
+  return [];
+}
+
 async function generateReflectResponse(
   userId: string,
   dirty: ReadingDirtyAnalysis,
   pursuitIds: string[],
+  themeIds: string[],
   enrichOptions: Required<PursuitEnrichOptions>,
   previousReading: string,
   metrics?: MapAiSyncMetrics,
@@ -272,6 +305,7 @@ async function generateReflectResponse(
       mapContextJson,
       previousReading,
       dirtyPursuitIds: pursuitIds,
+      dirtyThemeIds: themeIds,
       pursuitSignals,
       enrichOptions,
     }),
@@ -347,6 +381,11 @@ export async function runReflectSync(
     storyStale: options.storyStale,
     insightsStale: options.insightsStale,
   });
+  const themeIds = await resolveReflectThemeIds(userId, dirty, {
+    force: options.force,
+    storyStale: options.storyStale,
+    insightsStale: options.insightsStale,
+  });
 
   const storyRow = await prisma.storyCache.findUnique({ where: { userId } });
   const previousStory = storyRow ? parsePreviousStory(storyRow.payload) : null;
@@ -357,6 +396,7 @@ export async function runReflectSync(
       userId,
       dirty,
       pursuitIds,
+      themeIds,
       enrichOptions,
       previousReading,
       options.metrics,

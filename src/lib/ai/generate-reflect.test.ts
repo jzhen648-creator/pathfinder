@@ -142,6 +142,7 @@ describe("generateReflectResponse", () => {
       USER_ID,
       baseDirtyAnalysis(),
       DENSE_DIRTY_PURSUIT_IDS,
+      ["work", "finance"],
       ENRICH_OPTIONS,
       "",
       metrics,
@@ -149,10 +150,8 @@ describe("generateReflectResponse", () => {
 
     assertReflectPursuitCompleteness(DENSE_DIRTY_PURSUIT_IDS, reflect);
     expect(Object.keys(reflect.pursuits)).toHaveLength(12);
+    expect(reflect.themes?.work?.oneLiner).toBeTruthy();
     expect(metrics.readingPacketChars).toBeGreaterThan(0);
-    // Minimal per-pursuit mock (~short headline/body) — measures baseline, not schema-max load.
-    expect(metrics.reflectResponseChars).toBe(2823);
-    expect(metrics.reflectResponseChars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
   });
 
   it("fails completeness when a dirty pursuit is missing from truncated output", () => {
@@ -171,12 +170,13 @@ describe("generateReflectResponse", () => {
       USER_ID,
       baseDirtyAnalysis(),
       DENSE_DIRTY_PURSUIT_IDS,
+      ["work", "finance"],
       ENRICH_OPTIONS,
       "",
       metrics,
     );
 
-    expect(metrics.reflectResponseChars).toBe(2823);
+    expect(metrics.reflectResponseChars).toBeGreaterThan(2800);
     expect(metrics.reflectResponseChars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
   });
 

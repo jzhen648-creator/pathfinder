@@ -1,5 +1,6 @@
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
+import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import {
   gateEnrichResult,
   shouldSuggestMilestones,
@@ -114,6 +115,18 @@ export async function applyReflectOutput(
 
   const signals = await loadPursuitSignals(userId, pursuitIds);
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
+  const themes: Record<string, InsightLevelPayload> = {};
+
+  for (const [themeId, entry] of Object.entries(reflect.themes ?? {})) {
+    if (!entry.oneLiner?.trim() && !entry.reflective?.trim()) continue;
+    themes[themeId] = {
+      tone: entry.tone,
+      oneLiner: entry.oneLiner.trim(),
+      reflective: entry.reflective.trim(),
+      contextual: entry.contextual?.trim() ?? "",
+      combined: entry.combined?.trim() ?? "",
+    };
+  }
 
   for (const pursuitId of pursuitIds) {
     const entry = reflect.pursuits[pursuitId];
@@ -142,8 +155,8 @@ export async function applyReflectOutput(
   }
 
   let insightsWritten = false;
-  if (Object.keys(pursuits).length > 0) {
-    await mergeNodeInsightsIntoCache(userId, { themes: {}, hubs: {}, pursuits });
+  if (Object.keys(themes).length > 0 || Object.keys(pursuits).length > 0) {
+    await mergeNodeInsightsIntoCache(userId, { themes, hubs: {}, pursuits });
     insightsWritten = true;
   }
 
