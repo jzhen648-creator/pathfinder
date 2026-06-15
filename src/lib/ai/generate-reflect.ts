@@ -133,6 +133,8 @@ function buildReflectSystemPrompt(
     '- "pursuits": map of pursuitId -> { tone, headline, body, clarifiers?, suggestedMilestones? }',
     "  tone MUST be one of: celebratory | encouraging | nudge | reality_check | informational",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
+    "  When age AND location are in user context, body MAY include optional lines:",
+    '    \"From your map: …\" (one map-specific detail) and/or \"Comparison: …\" (one grounded benchmark).',
     ...clarifierRules,
     ...connectionRules,
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",

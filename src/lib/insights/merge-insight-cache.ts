@@ -14,6 +14,21 @@ function mergeLevelRecords<T extends Record<string, unknown>>(base: Record<strin
   return { ...base, ...patch };
 }
 
+function emptyGlobalInsightJson(): string {
+  return JSON.stringify({ greeting: "", sections: [] });
+}
+
+/** True when a reflect/enrich patch carries node-level insight rows to persist. */
+export function patchHasNodeInsightContent(
+  patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">,
+): boolean {
+  return (
+    Object.keys(patch.themes).length > 0 ||
+    Object.keys(patch.hubs).length > 0 ||
+    Object.keys(patch.pursuits).length > 0
+  );
+}
+
 /** Merge node-level insight patches into the user's cache without wiping unrelated entries. */
 export async function mergeNodeInsightsIntoCache(
   userId: string,
@@ -29,18 +44,13 @@ export async function mergeNodeInsightsIntoCache(
 
   const existing = await prisma.insightCache.findUnique({ where: { userId } });
   if (!existing) {
-    const pursuitOnlyPatch =
-      Object.keys(patch.pursuits).length > 0 &&
-      Object.keys(patch.themes).length === 0 &&
-      Object.keys(patch.hubs).length === 0;
-
-    if (pursuitOnlyPatch) {
+    if (patchHasNodeInsightContent(patch)) {
       await prisma.insightCache.create({
         data: {
           userId,
-          globalInsight: JSON.stringify({ greeting: "", sections: [] }),
-          themeInsights: {},
-          hubInsights: {},
+          globalInsight: emptyGlobalInsightJson(),
+          themeInsights: patch.themes,
+          hubInsights: patch.hubs,
           pursuitInsights: patch.pursuits,
           mapVersion,
           memoryVersion,
