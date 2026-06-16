@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MILESTONE_MAP_CAP,
   gateEnrichResult,
+  gateThemeContextual,
   shouldSuggestMilestones,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
@@ -72,6 +73,30 @@ describe("shouldSuggestMilestones", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("gateThemeContextual", () => {
+  it("keeps contextual when at least one pursuit in the theme has enough signal", () => {
+    expect(
+      gateThemeContextual("Typical at your age in London.", [
+        signal({ title: "Hi", hasDeadline: false }),
+        signal({ description: "Training three times a week for a spring half marathon." }),
+      ]),
+    ).toBe("Typical at your age in London.");
+  });
+
+  it("clears contextual when every pursuit in the theme is title-only thin", () => {
+    expect(
+      gateThemeContextual("Typical at your age in London.", [
+        signal({ title: "Run", hasDeadline: false }),
+        signal({ title: "Gym", hasDeadline: false }),
+      ]),
+    ).toBe("");
+  });
+
+  it("passes through empty contextual unchanged", () => {
+    expect(gateThemeContextual("", [signal()])).toBe("");
   });
 });
 

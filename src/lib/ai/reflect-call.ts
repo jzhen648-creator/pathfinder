@@ -1,4 +1,4 @@
-/** Phase 1 unified reflect — one Gemini call for Reading + pursuit panels. */
+/** Unified reflect — batches dirty pursuits (`REFLECT_PURSUIT_BATCH_SIZE`) per Gemini call. */
 export function isReflectCallEnabled(): boolean {
   return process.env.USE_REFLECT_CALL === "true";
 }

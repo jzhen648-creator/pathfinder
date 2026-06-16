@@ -44,13 +44,23 @@ export function pursuitSignalFromGoal(goal: {
   };
 }
 
-function hasMinimumContextSignal(signal: PursuitSignal): boolean {
+export function hasMinimumContextSignal(signal: PursuitSignal): boolean {
   const contextChars =
     signal.description.trim().length + signal.enrichAnswerCount * 40;
   if (contextChars >= 80) return true;
   if (signal.enrichAnswerCount >= 2) return true;
   if (signal.hasDeadline && signal.title.trim().length >= 8) return true;
   return false;
+}
+
+/** Strip theme contextual benchmarks when no pursuit in the theme has enough user context. */
+export function gateThemeContextual(
+  contextual: string,
+  pursuitSignals: PursuitSignal[],
+): string {
+  if (!contextual.trim()) return "";
+  if (pursuitSignals.some(hasMinimumContextSignal)) return contextual.trim();
+  return "";
 }
 
 /** Milestone suggestions when enough structured signal exists and path has room to grow. */

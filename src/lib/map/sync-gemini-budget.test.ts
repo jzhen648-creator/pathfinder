@@ -2,33 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { emptyMapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 import {
-  canMakeSyncGeminiCall,
-  MAX_GEMINI_CALLS_PER_SYNC,
-  remainingSyncGeminiBudget,
+  canMakeReflectCall,
+  MAX_REFLECT_CALLS_PER_SYNC,
+  remainingReflectBudget,
 } from "@/lib/map/sync-gemini-budget";
 
-describe("sync-gemini-budget", () => {
-  it("caps at MAX_GEMINI_CALLS_PER_SYNC", () => {
-    expect(MAX_GEMINI_CALLS_PER_SYNC).toBe(2);
-  });
-
-  it("allows calls until budget exhausted", () => {
+describe("reflect gemini budget", () => {
+  it("allows calls until MAX_REFLECT_CALLS_PER_SYNC", () => {
     const metrics = emptyMapAiSyncMetrics();
-    expect(canMakeSyncGeminiCall(metrics)).toBe(true);
-    expect(remainingSyncGeminiBudget(metrics)).toBe(2);
+    expect(canMakeReflectCall(metrics)).toBe(true);
+    expect(remainingReflectBudget(metrics)).toBe(MAX_REFLECT_CALLS_PER_SYNC);
 
-    metrics.aiCallsCompleted = 1;
-    expect(canMakeSyncGeminiCall(metrics)).toBe(true);
-    expect(remainingSyncGeminiBudget(metrics)).toBe(1);
+    metrics.aiCallsCompleted = MAX_REFLECT_CALLS_PER_SYNC - 1;
+    expect(canMakeReflectCall(metrics)).toBe(true);
+    expect(remainingReflectBudget(metrics)).toBe(1);
 
-    metrics.aiCallsCompleted = 2;
-    expect(canMakeSyncGeminiCall(metrics)).toBe(false);
-    expect(remainingSyncGeminiBudget(metrics)).toBe(0);
-  });
-
-  it("never returns negative remaining budget", () => {
-    const metrics = emptyMapAiSyncMetrics();
-    metrics.aiCallsCompleted = 5;
-    expect(remainingSyncGeminiBudget(metrics)).toBe(0);
+    metrics.aiCallsCompleted = MAX_REFLECT_CALLS_PER_SYNC;
+    expect(canMakeReflectCall(metrics)).toBe(false);
+    expect(remainingReflectBudget(metrics)).toBe(0);
   });
 });

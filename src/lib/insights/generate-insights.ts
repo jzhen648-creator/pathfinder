@@ -11,6 +11,7 @@ import {
   type InsightLevelPayload,
 } from "./insight-types";
 import { clampInsightGenerationJson } from "./clamp-insight-json";
+import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 
 export class InsightGenerationResponseError extends Error {
   status = 503;
@@ -73,12 +74,12 @@ const PURSUIT_INSIGHT_SYSTEM_PROMPT = [
   "- Pursuits may include currentAmount, targetAmount, unit, deadline — prefer these structured fields over re-parsing description when benchmarking finance or measurable goals.",
   "- Some pursuits include parentPursuitTitle — that pursuit grew from the named parent; the parent link is relevant context.",
   "- If the map is sparse, say so honestly — do not invent pursuits or imply activity that is not in context.",
-  "- Follow pathfinder/PROMPTS.md: every sentence must be specific to this person's actual map data.",
+  "- Follow the grounding rules in this prompt: every sentence must be specific to this person's actual map data.",
 ].join("\n");
 
 const SYSTEM_PROMPT = [
   "You generate personal life-map insights for Pathfinder.",
-  "Follow pathfinder/PROMPTS.md: every sentence must be specific to this person's actual map data — real pursuit names, real numbers, real gaps. If a sentence could appear in someone else's app, rewrite it.",
+  "Follow the grounding rules in this prompt: every sentence must be specific to this person's actual map data — real pursuit names, real numbers, real gaps. If a sentence could appear in someone else's app, rewrite it.",
   "Return ONLY valid JSON matching the requested schema.",
   "Be concise: quality over quantity. Total response must fit in 3000 output tokens.",
   "",
@@ -250,7 +251,7 @@ const pursuitNodeInsightSchema = z.object({
 
 const BACKFILL_SYSTEM_PROMPT = [
   "You generate missing theme/hub insights for Pathfinder.",
-  "Follow pathfinder/PROMPTS.md and the main insight generator in generate-insights.ts.",
+  "Follow the grounding rules in generate-insights.ts and the main insight generator.",
   "Return ONLY valid JSON: { themes?, hubs? } — each a record of id -> insight object.",
   "Include ONLY the ids listed in the user message — no extra keys.",
   "Each insight object has: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
@@ -336,7 +337,7 @@ async function generateThemeHubNodeInsights(
   }
 
   return {
-    themes: parsed.data.themes ?? {},
+    themes: await gateThemeInsightsPatch(userId, parsed.data.themes ?? {}),
     hubs: parsed.data.hubs ?? {},
   };
 }
@@ -539,5 +540,9 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
     );
   }
 
-  return backfillMissingNodeInsights(userId, mapContext, userContext, parsed.data);
+  const gatedThemes = await gateThemeInsightsPatch(userId, parsed.data.themes);
+  return backfillMissingNodeInsights(userId, mapContext, userContext, {
+    ...parsed.data,
+    themes: gatedThemes,
+  });
 }

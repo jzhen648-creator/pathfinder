@@ -4,6 +4,16 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-16 — Design slate open (major redesign)
+
+**FOUNDER:** All **design rulings** are **negotiable** for the upcoming major visual/product pass. Prior docs used “locked”, “frozen”, and “structural vs mood-lock” — **retired as governance**. Replace with three buckets in [`claude-project/PATHFINDER-CONTEXT.md`](../claude-project/PATHFINDER-CONTEXT.md) §7:
+
+1. **Shipped snapshot** — what the build does today (for screenshot/code alignment; not law)
+2. **Exploration zone** — metaphor, materials, motion, typography, restraint, map chrome — **all open**
+3. **Retired patterns** — Profile tab, hub zoom, marks on canvas, etc. — don’t resurrect without deliberate choice
+
+Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-project/PATHFINDER-PLAN.md) §13. [`pathfinder-mobile/DESIGN-BRIEF.md`](../pathfinder-mobile/DESIGN-BRIEF.md) and [`CURSOR-BRIEF-FEEL-PASS.md`](../CURSOR-BRIEF-FEEL-PASS.md) reframed to match.
+
 ## 2026-06-15 — Dirty reflect uses scoped map context; pace facts deferred
 
 **Shipped:** `pursuits-only` reflect calls now send a scoped `map_context`: dirty pursuit(s), their same-category sibling pursuits, and the containing theme/category wrappers. Whole-map/full reflect still sends the full map context. Milestone pace facts stay in the reading packet, but are **not** injected into `<milestone_options>` yet.
@@ -16,7 +26,7 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-15 — RULING: iOS 26 liquid glass tab morph (private API)
 
-**RULING:** The iOS 26 Liquid Glass tab-bar morph transition (the Instagram-style glass blob that stretches between tabs) uses a private Apple API unavailable to third-party / Expo apps. Do **not** attempt to hand-roll or approximate it — violates the “no hand-rolled chrome” and “one signature animation” rulings in [`PATHFINDER-CONTEXT.md`](../PATHFINDER-CONTEXT.md) §7. The glass **material** on the tab bar (`BlurView` in `TabBarBackground.tsx`) is fine and partly built; the morph **transition** is not. Surface inventory: [`CURSOR-BRIEF-FEEL-PASS.md`](../CURSOR-BRIEF-FEEL-PASS.md) §iOS feel inventory.
+**TECHNICAL (not aesthetic):** The iOS 26 Liquid Glass tab-bar **morph transition** (Instagram-style glass blob between tabs) uses a **private Apple API** unavailable to third-party / Expo apps. Do not hand-roll that morph. The glass **material** on the tab bar (`BlurView` in `TabBarBackground.tsx`) is a separate choice — negotiable in the design slate. Surface inventory: [`CURSOR-BRIEF-FEEL-PASS.md`](../CURSOR-BRIEF-FEEL-PASS.md) §iOS feel inventory.
 
 ## 2026-06-15 — AI sync reliability (no-op guard + resumable panels)
 

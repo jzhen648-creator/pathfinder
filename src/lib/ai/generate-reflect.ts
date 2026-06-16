@@ -1,4 +1,10 @@
 import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
+import {
+  amountImpactBodyPromptLines,
+  amountImpactReadingPromptLines,
+  isAmountImpactEligible,
+} from "@/lib/ai/amount-impact-eligibility";
+import { PEOPLE_THEME_BODY_CLAUSE } from "@/lib/ai/people-theme-prompt";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { isReflectCallEnabled, REFLECT_MAX_OUTPUT_TOKENS, chunkReflectPursuitIds } from "@/lib/ai/reflect-call";
 import { normalizeReflectResponse } from "@/lib/ai/normalize-reflect-response";
@@ -9,8 +15,10 @@ import {
   readingPacketToJson,
 } from "@/lib/map/compile-reading-packet";
 import type { MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
+import { canMakeReflectCall } from "@/lib/map/sync-gemini-budget";
 import {
   analyzeReadingDirty,
+  clearReadingDirtyForPursuits,
   clearReadingDirtyLedger,
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
@@ -56,7 +64,10 @@ function stripMarkdownFence(raw: string): string {
 
 type ReflectScope = "full" | "pursuits-only";
 
-function buildReflectPursuitsOnlySystemPrompt(options: Required<PursuitEnrichOptions>): string {
+function buildReflectPursuitsOnlySystemPrompt(
+  options: Required<PursuitEnrichOptions>,
+  amountImpactEligible: boolean,
+): string {
   const clarifierRules = options.clarifyTitles
     ? ["- clarifiers: 0-3 multiple-choice questions when the title is ambiguous."]
     : ["- clarifiers: always return an empty array."];
@@ -71,6 +82,9 @@ function buildReflectPursuitsOnlySystemPrompt(options: Required<PursuitEnrichOpt
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
     "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
+    "",
+    PEOPLE_THEME_BODY_CLAUSE,
+    ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
     "",
     "OUTPUT:",
@@ -86,9 +100,10 @@ function buildReflectSystemPrompt(
   totalPursuitCount: number,
   options: Required<PursuitEnrichOptions>,
   scope: ReflectScope = "full",
+  amountImpactEligible = false,
 ): string {
   if (scope === "pursuits-only") {
-    return buildReflectPursuitsOnlySystemPrompt(options);
+    return buildReflectPursuitsOnlySystemPrompt(options, amountImpactEligible);
   }
   const clarifierRules = options.clarifyTitles
     ? [
@@ -132,6 +147,7 @@ function buildReflectSystemPrompt(
     "- The packet flags pursuits as gap (significant, near deadline, no movement) or arrival (recently completed). Name gap-flagged pursuits plainly as tensions, not momentum. Narrate each category in the temporal order given — what's secured, what's in motion, what's ahead — without claiming one pursuit caused another.",
     "- Two to three short paragraphs. Not a task list.",
     "  If map has 1-2 pursuits: stay short and factual; one question is OK.",
+    ...amountImpactReadingPromptLines(amountImpactEligible),
     "",
     "OUTPUT:",
     '- "reading": whole-map reflective prose per WHOLE-MAP READING rules above.',
@@ -140,6 +156,9 @@ function buildReflectSystemPrompt(
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
     "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
     "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields.",
+    "",
+    PEOPLE_THEME_BODY_CLAUSE,
+    ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
     ...connectionRules,
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
@@ -154,7 +173,7 @@ function buildReflectSystemPrompt(
     "  combined: optional \"what this opens\" line (<= 500 chars); empty string if none.",
     "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
     "",
-    buildStorySystemPrompt(totalPursuitCount),
+    buildStorySystemPrompt(totalPursuitCount, amountImpactEligible),
   ].join("\n");
 }
 
@@ -301,6 +320,32 @@ function buildReflectUserMessage(input: {
   return lines.filter((line) => line !== null).join("\n");
 }
 
+async function finishReflectPartialSync(
+  userId: string,
+  plan: { pursuitIds: string[] },
+  completedPursuitIds: string[],
+  metrics: MapAiSyncMetrics,
+  result: {
+    insightsRefreshed: boolean;
+    storyRefreshed: boolean;
+    callsMade: number;
+    geminiRateLimited?: boolean;
+  },
+): Promise<ReflectSyncResult> {
+  const pendingIds = plan.pursuitIds.filter((id) => !completedPursuitIds.includes(id));
+  metrics.morePending = pendingIds.length > 0;
+  metrics.pendingInsightCount = pendingIds.length;
+  if (completedPursuitIds.length > 0) {
+    await clearReadingDirtyForPursuits(userId, completedPursuitIds);
+  }
+  return {
+    insightsRefreshed: result.insightsRefreshed,
+    storyRefreshed: result.storyRefreshed,
+    geminiCallsMade: result.callsMade,
+    geminiRateLimited: result.geminiRateLimited ?? false,
+  };
+}
+
 function validateReflectBatch(
   batchPursuitIds: string[],
   reflect: ReflectResponse,
@@ -329,10 +374,9 @@ async function runReflectBatchesIncremental(
   mapVersion: string,
   memoryVersion: number,
   metrics: MapAiSyncMetrics,
-  options: { needsReadingRefresh: boolean },
+  options: { needsReadingRefresh: boolean; mapContext: FormattedMapContext; amountImpactEligible: boolean },
 ): Promise<ReflectSyncResult> {
   const batches = chunkReflectPursuitIds(plan.pursuitIds);
-  metrics.aiCallsPlanned += batches.length;
 
   let insightsRefreshed = false;
   let storyRefreshed = false;
@@ -340,10 +384,15 @@ async function runReflectBatchesIncremental(
   const completedPursuitIds: string[] = [];
 
   for (let i = 0; i < batches.length; i += 1) {
+    if (!canMakeReflectCall(metrics)) {
+      break;
+    }
+    metrics.aiCallsPlanned += 1;
+
     const batch = batches[i];
     const isFullBatch = i === 0 && options.needsReadingRefresh;
     try {
-      const reflect = await generateReflectResponse(
+      const reflect = await invokeGenerateReflectResponse(
         userId,
         dirty,
         batch,
@@ -351,7 +400,7 @@ async function runReflectBatchesIncremental(
         enrichOptions,
         previousReading,
         metrics,
-        { scope: isFullBatch ? "full" : "pursuits-only" },
+        { scope: isFullBatch ? "full" : "pursuits-only", mapContext: options.mapContext, amountImpactEligible: options.amountImpactEligible },
       );
 
       validateReflectBatch(batch, reflect, { requireReading: isFullBatch });
@@ -371,41 +420,43 @@ async function runReflectBatchesIncremental(
       if (storyWritten) storyRefreshed = true;
       completedPursuitIds.push(...batch);
     } catch (err) {
-      const pendingIds = plan.pursuitIds.filter((id) => !completedPursuitIds.includes(id));
-      metrics.morePending = pendingIds.length > 0;
-      metrics.pendingInsightCount = pendingIds.length;
-
       if (isGeminiRateLimited(err)) {
         metrics.rateLimited = true;
-        return {
+        return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
           insightsRefreshed,
           storyRefreshed,
-          geminiCallsMade: callsMade,
+          callsMade,
           geminiRateLimited: true,
-        };
+        });
       }
       if (isGeminiTransient(err)) {
         const message =
           err instanceof Error ? err.message : "Gemini is temporarily overloaded. Try again shortly.";
         metrics.enrichErrors.push(message);
-        return {
+        return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
           insightsRefreshed,
           storyRefreshed,
-          geminiCallsMade: callsMade,
-          geminiRateLimited: false,
-        };
+          callsMade,
+        });
       }
       if (err instanceof ReflectGenerationResponseError) {
         metrics.enrichErrors.push(err.message);
-        return {
+        return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
           insightsRefreshed,
           storyRefreshed,
-          geminiCallsMade: callsMade,
-          geminiRateLimited: false,
-        };
+          callsMade,
+        });
       }
       throw err;
     }
+  }
+
+  if (completedPursuitIds.length < plan.pursuitIds.length) {
+    return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
+      insightsRefreshed,
+      storyRefreshed,
+      callsMade,
+    });
   }
 
   await clearReadingDirtyLedger(userId);
@@ -468,6 +519,9 @@ export async function runReflectSync(
   const needsReadingRefresh =
     plan.mode === "full" || options.storyStale || !hasStory;
 
+  const mapContext = await formatMapContext(userId, { excludeAbandoned: true });
+  const amountImpactEligible = isAmountImpactEligible(mapContext);
+
   return runReflectBatchesIncremental(
     userId,
     dirty,
@@ -477,7 +531,7 @@ export async function runReflectSync(
     mapVersion,
     memoryVersion,
     options.metrics,
-    { needsReadingRefresh },
+    { needsReadingRefresh, mapContext, amountImpactEligible },
   );
 }
 
@@ -499,7 +553,7 @@ async function generateReflectResponse(
   enrichOptions: Required<PursuitEnrichOptions>,
   previousReading: string,
   metrics?: MapAiSyncMetrics,
-  options?: { scope?: ReflectScope },
+  options?: { scope?: ReflectScope; mapContext?: FormattedMapContext; amountImpactEligible?: boolean },
 ): Promise<ReflectResponse> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
@@ -508,11 +562,16 @@ async function generateReflectResponse(
   const scope = options?.scope ?? "full";
 
   const [mapContext, userContext, readingPacket, pursuitSignals] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+    options?.mapContext
+      ? Promise.resolve(options.mapContext)
+      : formatMapContext(userId, { excludeAbandoned: true }),
     formatUserContext(userId),
     compileReadingPacket(userId, dirty),
     loadPursuitSignals(userId, pursuitIds),
   ]);
+
+  const amountImpactEligible =
+    options?.amountImpactEligible ?? isAmountImpactEligible(mapContext);
 
   const readingPacketJson = readingPacketToJson(readingPacket);
   const mapContextForPrompt =
@@ -527,7 +586,7 @@ async function generateReflectResponse(
   const totalPursuitCount = countMapPursuits(mapContext);
 
   const raw = await generateJsonCompletion({
-    system: buildReflectSystemPrompt(totalPursuitCount, enrichOptions, scope),
+    system: buildReflectSystemPrompt(totalPursuitCount, enrichOptions, scope, amountImpactEligible),
     user: buildReflectUserMessage({
       userContext,
       readingPacketJson,
@@ -569,6 +628,20 @@ async function generateReflectResponse(
   return parsed.data;
 }
 
+type GenerateReflectResponseFn = typeof generateReflectResponse;
+
+let generateReflectResponseDelegate: GenerateReflectResponseFn | null = null;
+
+function invokeGenerateReflectResponse(...args: Parameters<GenerateReflectResponseFn>) {
+  const fn = generateReflectResponseDelegate ?? generateReflectResponse;
+  return fn(...args);
+}
+
+/** @internal Vitest hook for batch-cap tests — pass null to restore production behavior. */
+export function setGenerateReflectResponseDelegate(delegate: GenerateReflectResponseFn | null) {
+  generateReflectResponseDelegate = delegate;
+}
+
 function mergeReflectResponses(partials: ReflectResponse[]): ReflectResponse {
   const merged: ReflectResponse = { reading: "", themes: {}, pursuits: {} };
   for (const partial of partials) {
@@ -605,7 +678,14 @@ function isGeminiTransient(err: unknown): boolean {
 export { isReflectCallEnabled };
 
 /** @internal Exported for vitest completeness / output-size assertions. */
-export { generateReflectResponse, generateReflectResponseBatched, mergeReflectResponses };
+export {
+  buildReflectPursuitsOnlySystemPrompt,
+  buildReflectSystemPrompt,
+  generateReflectResponse,
+  generateReflectResponseBatched,
+  mergeReflectResponses,
+  runReflectBatchesIncremental,
+};
 
 async function generateReflectResponseBatched(
   userId: string,

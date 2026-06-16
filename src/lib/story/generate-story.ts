@@ -1,4 +1,5 @@
 import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
+import { isAmountImpactEligible, amountImpactReadingPromptLines } from "@/lib/ai/amount-impact-eligibility";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { formatThemeDisplayNamesForPrompt } from "@/lib/life-areas";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
@@ -57,19 +58,8 @@ const STORY_PROMPT_BASE = [
   "- Two to three short paragraphs. Not a task list.",
 ].join("\n");
 
-export function countMapPursuits(mapContext: FormattedMapContext): number {
-  let total = 0;
-  for (const theme of mapContext.themes) {
-    for (const hub of theme.hubs) {
-      total += hub.pursuits.length;
-    }
-  }
-  return total;
-}
-
-export function buildStorySystemPrompt(totalPursuitCount: number): string {
-  const depthRules =
-    totalPursuitCount <= 2
+function buildStoryDepthRules(totalPursuitCount: number): string[] {
+  return totalPursuitCount <= 2
       ? [
           "",
           `MAP DEPTH: This map has ${totalPursuitCount} pursuit${totalPursuitCount === 1 ? "" : "s"} total — SPARSE mode.`,
@@ -93,8 +83,29 @@ export function buildStorySystemPrompt(totalPursuitCount: number): string {
           "- Do not repeat pursuit counts, status counts, or milestone totals the UI shows elsewhere.",
           "- No peer-comparison template filler (\"valued in a competitive market\") without a concrete fact.",
         ];
+}
 
-  return [STORY_PROMPT_BASE, ...depthRules].join("\n");
+export function countMapPursuits(mapContext: FormattedMapContext): number {
+  let total = 0;
+  for (const theme of mapContext.themes) {
+    for (const hub of theme.hubs) {
+      total += hub.pursuits.length;
+    }
+  }
+  return total;
+}
+
+export function buildStorySystemPrompt(
+  totalPursuitCount: number,
+  amountImpactEligible = false,
+): string {
+  const depthRules = buildStoryDepthRules(totalPursuitCount);
+
+  return [
+    STORY_PROMPT_BASE,
+    ...amountImpactReadingPromptLines(amountImpactEligible),
+    ...depthRules,
+  ].join("\n");
 }
 
 /** @deprecated Use buildStorySystemPrompt — kept for tests referencing the export name. */
@@ -136,8 +147,10 @@ export async function generateStory(userId: string): Promise<StoryGenerationResu
 
   const totalPursuitCount = countMapPursuits(mapContext);
 
+  const amountImpactEligible = isAmountImpactEligible(mapContext);
+
   const raw = await generateJsonCompletion({
-    system: buildStorySystemPrompt(totalPursuitCount),
+    system: buildStorySystemPrompt(totalPursuitCount, amountImpactEligible),
     user: buildUserMessage(JSON.stringify(mapContext, null, 2), userContext, totalPursuitCount),
     maxTokens: 2048,
     temperature: 0.5,

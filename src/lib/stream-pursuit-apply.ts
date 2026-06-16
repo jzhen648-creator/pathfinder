@@ -22,7 +22,7 @@ import {
 } from "@/lib/validation/marks-and-categories";
 import {
   generalizePursuitTitle,
-  mergePursuitContextDescription,
+  replacePursuitContextDescription,
   preferExistingMapTitle,
   titleLooksOverSpecific,
 } from "@/lib/pursuit/pursuit-title";
@@ -96,9 +96,9 @@ function stabilizePursuitUpdate(
   }
 
   if (next.description?.trim()) {
-    next.description = mergePursuitContextDescription(existingDescription, next.description);
+    next.description = replacePursuitContextDescription(existingDescription, next.description);
   } else if (titleLooksOverSpecific(rawInput) || rawInput.trim().length > 20) {
-    next.description = mergePursuitContextDescription(existingDescription, rawInput.trim());
+    next.description = replacePursuitContextDescription(existingDescription, rawInput.trim());
   }
 
   if (!next.title && titleLooksOverSpecific(existingTitle) && next.description?.trim()) {

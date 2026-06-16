@@ -5,10 +5,12 @@ import {
   parsePursuitInsightRecord,
 } from "@/lib/insights/parse-insight-cache";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
+import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import { prisma } from "@/lib/prisma";
 
 export { pruneOffMapPursuitsFromInsightCache, pruneArchivedPursuitsFromInsightCache } from "@/lib/insights/invalidate-reading-caches";
+export { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 
 function mergeLevelRecords<T extends Record<string, unknown>>(base: Record<string, T>, patch: Record<string, T>) {
   return { ...base, ...patch };
@@ -35,6 +37,10 @@ export async function mergeNodeInsightsIntoCache(
   patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">,
   options?: { stampMapVersion?: boolean },
 ): Promise<void> {
+  const gatedThemes =
+    Object.keys(patch.themes).length > 0
+      ? await gateThemeInsightsPatch(userId, patch.themes)
+      : patch.themes;
   const [mapVersion, memoryVersion] = await Promise.all([
     computeMapVersion(userId),
     getMemoryVersion(userId),
@@ -49,7 +55,7 @@ export async function mergeNodeInsightsIntoCache(
         data: {
           userId,
           globalInsight: emptyGlobalInsightJson(),
-          themeInsights: patch.themes,
+          themeInsights: gatedThemes,
           hubInsights: patch.hubs,
           pursuitInsights: patch.pursuits,
           mapVersion,
@@ -76,7 +82,7 @@ export async function mergeNodeInsightsIntoCache(
 
   const themes = mergeLevelRecords(
     parseInsightLevelRecord(existing.themeInsights, "theme"),
-    patch.themes,
+    gatedThemes,
   );
   const hubs = mergeLevelRecords(
     parseInsightLevelRecord(existing.hubInsights, "hub"),

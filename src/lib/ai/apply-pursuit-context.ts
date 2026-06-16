@@ -1,5 +1,5 @@
 import { generateJsonCompletion } from "@/lib/gemini";
-import { mergePursuitContextDescription } from "@/lib/pursuit/pursuit-title";
+import { replacePursuitContextDescription } from "@/lib/pursuit/pursuit-title";
 import { syncFinanceMetricsFromProse } from "@/lib/pursuit/pursuit-finance";
 import type { FormattedPursuitContext } from "@/lib/ai/format-map-context";
 import { prisma } from "@/lib/prisma";
@@ -70,23 +70,23 @@ export async function applyPursuitContextNote(input: {
     throw new Error("Apply context produced empty description.");
   }
 
-  const merged = mergePursuitContextDescription(
+  const replaced = replacePursuitContextDescription(
     input.existingDescription,
     description.trim().slice(0, 500),
   );
 
   const financePatch =
     input.themeId === "finance"
-      ? syncFinanceMetricsFromProse(merged)
+      ? syncFinanceMetricsFromProse(replaced)
       : {};
 
   await prisma.goal.update({
     where: { id: input.goalId },
     data: {
-      description: merged,
+      description: replaced,
       ...financePatch,
     },
   });
 
-  return merged;
+  return replaced;
 }

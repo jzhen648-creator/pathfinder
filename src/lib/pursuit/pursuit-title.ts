@@ -40,8 +40,8 @@ export function preferExistingMapTitle(existingTitle: string, proposedTitle: str
   return false;
 }
 
-/** Latest integrated context — replaces prior description. */
-export function mergePursuitContextDescription(
+/** Regenerated summary — replaces prior description wholesale (not a merge). */
+export function replacePursuitContextDescription(
   _previous: string | null | undefined,
   next: string,
 ): string {

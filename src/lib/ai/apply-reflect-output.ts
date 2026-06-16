@@ -3,6 +3,7 @@ import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import {
   gateEnrichResult,
+  gateThemeContextual,
   shouldSuggestMilestones,
   pursuitSignalFromGoal,
   type PursuitSignal,
@@ -53,6 +54,45 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise
   return new Map(
     goals.map((goal) => [goal.id, pursuitSignalFromGoal(goal)]),
   );
+}
+
+async function loadThemePursuitSignals(
+  userId: string,
+  themeIds: string[],
+): Promise<Map<string, PursuitSignal[]>> {
+  if (themeIds.length === 0) return new Map();
+
+  const goals = await prisma.goal.findMany({
+    where: {
+      userId,
+      archived: false,
+      OR: [
+        { themeId: { in: themeIds } },
+        { themeId: null, lifeArea: { in: themeIds } },
+      ],
+    },
+    select: {
+      themeId: true,
+      lifeArea: true,
+      title: true,
+      description: true,
+      enrichAnswers: true,
+      deadline: true,
+      status: true,
+      targetAmount: true,
+      milestones: { select: { completedAt: true } },
+    },
+  });
+
+  const byTheme = new Map<string, PursuitSignal[]>();
+  for (const goal of goals) {
+    const themeId = goal.themeId ?? goal.lifeArea;
+    const signal = pursuitSignalFromGoal(goal);
+    const list = byTheme.get(themeId) ?? [];
+    list.push(signal);
+    byTheme.set(themeId, list);
+  }
+  return byTheme;
 }
 
 function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload | null {
@@ -119,6 +159,8 @@ export async function applyReflectOutput(
   }
 
   const signals = await loadPursuitSignals(userId, pursuitIds);
+  const themeIds = Object.keys(reflect.themes ?? {});
+  const themeSignals = await loadThemePursuitSignals(userId, themeIds);
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
 
@@ -128,7 +170,10 @@ export async function applyReflectOutput(
       tone: entry.tone,
       oneLiner: entry.oneLiner.trim(),
       reflective: entry.reflective.trim(),
-      contextual: entry.contextual?.trim() ?? "",
+      contextual: gateThemeContextual(
+        entry.contextual?.trim() ?? "",
+        themeSignals.get(themeId) ?? [],
+      ),
       combined: entry.combined?.trim() ?? "",
     };
   }

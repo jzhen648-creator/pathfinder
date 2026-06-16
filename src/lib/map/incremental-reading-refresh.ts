@@ -12,7 +12,7 @@ import {
   DEFAULT_PURSUIT_ENRICH_OPTIONS,
   type PursuitEnrichOptions,
 } from "@/lib/pursuit/enrich-options";
-import { pruneArchivedPursuitsFromInsightCache } from "@/lib/insights/merge-insight-cache";
+import { pruneArchivedPursuitsFromInsightCache, gateThemeInsightsPatch } from "@/lib/insights/merge-insight-cache";
 import {
   analyzeReadingDirty,
   clearReadingDirtyForPursuits,
@@ -76,12 +76,13 @@ async function upsertInsightCache(
   mapVersion: string,
   memoryVersion: number,
 ): Promise<void> {
+  const gatedThemes = await gateThemeInsightsPatch(userId, generated.themes);
   await prisma.insightCache.upsert({
     where: { userId },
     create: {
       userId,
       globalInsight: JSON.stringify(generated.global),
-      themeInsights: generated.themes,
+      themeInsights: gatedThemes,
       hubInsights: generated.hubs,
       pursuitInsights: generated.pursuits,
       mapVersion,
@@ -89,7 +90,7 @@ async function upsertInsightCache(
     },
     update: {
       globalInsight: JSON.stringify(generated.global),
-      themeInsights: generated.themes,
+      themeInsights: gatedThemes,
       hubInsights: generated.hubs,
       pursuitInsights: generated.pursuits,
       generatedAt: new Date(),
@@ -567,11 +568,12 @@ export async function refreshReadingCachesSmart(
       });
       options.metrics.aiCallsCompleted += 1;
       options.metrics.backfillCalls += 1;
+      const gatedThemes = await gateThemeInsightsPatch(userId, patch.themes);
       if (insightRow) {
         await prisma.insightCache.update({
           where: { userId },
           data: {
-            themeInsights: { ...(insightRow.themeInsights as object), ...patch.themes },
+            themeInsights: { ...(insightRow.themeInsights as object), ...gatedThemes },
             hubInsights: { ...(insightRow.hubInsights as object), ...patch.hubs },
             generatedAt: new Date(),
             mapVersion,

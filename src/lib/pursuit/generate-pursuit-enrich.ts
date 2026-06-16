@@ -1,4 +1,6 @@
-import { formatPursuitContext } from "@/lib/ai/format-map-context";
+import { formatMapContext, formatPursuitContext } from "@/lib/ai/format-map-context";
+import { isAmountImpactEligible, amountImpactBodyPromptLines } from "@/lib/ai/amount-impact-eligibility";
+import { PEOPLE_THEME_BODY_CLAUSE, shouldApplyPeopleThemeBodyRules } from "@/lib/ai/people-theme-prompt";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
@@ -32,7 +34,11 @@ const ENRICH_TONE_RULES = [
   "- Use celebratory only when milestones completed or status is COMPLETE",
 ].join("\n");
 
-function buildEnrichSystemPrompt(options: Required<PursuitEnrichOptions>): string {
+function buildEnrichSystemPrompt(
+  options: Required<PursuitEnrichOptions>,
+  peopleThemeBody: boolean,
+  amountImpactEligible: boolean,
+): string {
   const clarifierRules = options.clarifyTitles
     ? [
         "- clarifiers: 0-3 multiple-choice questions when the title is ambiguous AND existing context does not already disambiguate.",
@@ -68,6 +74,8 @@ function buildEnrichSystemPrompt(options: Required<PursuitEnrichOptions>): strin
     '  - "From your map: " + one sentence on cross-pursuit connections (sibling pursuits) when present in context.',
     '  - "Comparison: " + one benchmark sentence when user profile has age AND location; omit if either is unknown.',
     "  - Remaining lines: pursuit-specific detail beyond headline. Never restate the title alone.",
+    ...(peopleThemeBody ? ["", PEOPLE_THEME_BODY_CLAUSE] : []),
+    ...amountImpactBodyPromptLines(amountImpactEligible),
     "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
     "  Otherwise return null for suggestedMilestones.",
     "  Each item: { title: string, order: 0-based integer } — order is required.",
@@ -162,6 +170,7 @@ async function generateOnePursuitEnrich(
   userContext: string,
   signal: PursuitSignal,
   enrichOptions: Required<PursuitEnrichOptions>,
+  amountImpactEligible: boolean,
 ): Promise<PursuitEnrichResult> {
   const milestonesAllowed = shouldSuggestMilestones(signal);
   const pursuitContext = await formatPursuitContext(userId, pursuitId, {
@@ -173,7 +182,11 @@ async function generateOnePursuitEnrich(
   const contextJson = JSON.stringify(pursuitContext, null, 2);
 
   const raw = await generateJsonCompletion({
-    system: buildEnrichSystemPrompt(enrichOptions),
+    system: buildEnrichSystemPrompt(
+      enrichOptions,
+      shouldApplyPeopleThemeBodyRules(pursuitContext.pursuit.themeId),
+      amountImpactEligible,
+    ),
     user: buildPursuitEnrichUserMessage(pursuitId, contextJson, userContext, milestonesAllowed),
     maxTokens: 2048,
     queueKey: userId,
@@ -232,10 +245,12 @@ export async function refreshPursuitEnrich(
   const batchIds = uniqueIds.slice(0, MAX_ENRICH_PER_RUN);
   const remainingIds = uniqueIds.slice(MAX_ENRICH_PER_RUN);
 
-  const [userContext, signals] = await Promise.all([
+  const [userContext, signals, mapContext] = await Promise.all([
     formatUserContext(userId),
     loadPursuitSignals(userId, batchIds),
+    formatMapContext(userId, { excludeAbandoned: true }),
   ]);
+  const amountImpactEligible = isAmountImpactEligible(mapContext);
 
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const writtenIds: string[] = [];
@@ -244,7 +259,14 @@ export async function refreshPursuitEnrich(
   for (const pursuitId of batchIds) {
     const signal = signals.get(pursuitId);
     if (!signal) continue;
-    const result = await generateOnePursuitEnrich(userId, pursuitId, userContext, signal, enrichOptions);
+    const result = await generateOnePursuitEnrich(
+      userId,
+      pursuitId,
+      userContext,
+      signal,
+      enrichOptions,
+      amountImpactEligible,
+    );
     geminiCallsMade += 1;
     const payload = toCachePayload(result);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
@@ -269,3 +291,6 @@ export async function refreshPursuitEnrich(
 }
 
 export { MAX_ENRICH_PER_RUN };
+
+/** @internal Vitest — pursuit enrich prompt builder. */
+export { buildEnrichSystemPrompt };
