@@ -351,6 +351,71 @@ function buildReflectUserMessage(input: {
   return lines.filter((line) => line !== null).join("\n");
 }
 
+/** Fixed backoff before the one-per-sync transient retry (reflect batch loop only). */
+const REFLECT_TRANSIENT_RETRY_BACKOFF_MS = 1_500;
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Gemini quota (429) — rate-limit path; do not treat 503 overload the same. */
+function isGeminiRateLimited(err: unknown): boolean {
+  if (err instanceof GeminiProviderError && err.status === 429) {
+    return true;
+  }
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  return (
+    message.includes("429") ||
+    message.includes("rate limit") ||
+    message.includes("quota") ||
+    message.includes("resource_exhausted")
+  );
+}
+
+/** Transient overload (503) — retry soon; not a quota block. */
+function isGeminiTransient(err: unknown): boolean {
+  if (err instanceof GeminiProviderError && err.status === 503) {
+    return true;
+  }
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+  return message.includes("overloaded") || message.includes("temporarily unavailable");
+}
+
+/**
+ * Re-invokes the same reflect batch once when the first attempt is transient (503).
+ * Cap is one retry per runReflectBatchesIncremental call (syncRetryState.retriesUsed).
+ */
+async function invokeReflectBatchWithSyncCappedTransientRetry(
+  invoke: () => Promise<ReflectResponse>,
+  syncRetryState: { retriesUsed: number },
+  logContext: { batchIndex: number },
+): Promise<ReflectResponse> {
+  try {
+    return await invoke();
+  } catch (err) {
+    if (!isGeminiTransient(err) || syncRetryState.retriesUsed >= 1) {
+      throw err;
+    }
+    syncRetryState.retriesUsed += 1;
+    console.info("[reflect] transient Gemini error — one-per-sync retry", {
+      batchIndex: logContext.batchIndex,
+      backoffMs: REFLECT_TRANSIENT_RETRY_BACKOFF_MS,
+    });
+    await sleepMs(REFLECT_TRANSIENT_RETRY_BACKOFF_MS);
+    try {
+      const reflect = await invoke();
+      console.info("[reflect] transient retry succeeded", { batchIndex: logContext.batchIndex });
+      return reflect;
+    } catch (retryErr) {
+      console.warn("[reflect] transient retry failed", {
+        batchIndex: logContext.batchIndex,
+        message: retryErr instanceof Error ? retryErr.message : String(retryErr),
+      });
+      throw retryErr;
+    }
+  }
+}
+
 async function finishReflectPartialSync(
   userId: string,
   plan: { pursuitIds: string[] },
@@ -418,6 +483,7 @@ async function runReflectBatchesIncremental(
   let storyRefreshed = false;
   let callsMade = 0;
   const completedPursuitIds: string[] = [];
+  const syncRetryState = { retriesUsed: 0 };
 
   for (let i = 0; i < batches.length; i += 1) {
     if (!canMakeReflectCall(metrics)) {
@@ -427,16 +493,27 @@ async function runReflectBatchesIncremental(
 
     const batch = batches[i];
     const isFullBatch = i === 0 && options.needsReadingRefresh;
+    const reflectInvokeOptions = {
+      scope: isFullBatch ? ("full" as const) : ("pursuits-only" as const),
+      mapContext: options.mapContext,
+      amountImpactEligible: options.amountImpactEligible,
+      holisticBenchmarkEligible: options.holisticBenchmarkEligible,
+    };
     try {
-      const reflect = await invokeGenerateReflectResponse(
-        userId,
-        dirty,
-        batch,
-        isFullBatch ? plan.themeIds : [],
-        enrichOptions,
-        previousReading,
-        metrics,
-        { scope: isFullBatch ? "full" : "pursuits-only", mapContext: options.mapContext, amountImpactEligible: options.amountImpactEligible, holisticBenchmarkEligible: options.holisticBenchmarkEligible },
+      const reflect = await invokeReflectBatchWithSyncCappedTransientRetry(
+        () =>
+          invokeGenerateReflectResponse(
+            userId,
+            dirty,
+            batch,
+            isFullBatch ? plan.themeIds : [],
+            enrichOptions,
+            previousReading,
+            metrics,
+            reflectInvokeOptions,
+          ),
+        syncRetryState,
+        { batchIndex: i },
       );
 
       validateReflectBatch(batch, reflect, { requireReading: isFullBatch });
@@ -714,29 +791,6 @@ function mergeReflectResponses(partials: ReflectResponse[]): ReflectResponse {
     merged.pursuits = { ...merged.pursuits, ...partial.pursuits };
   }
   return merged;
-}
-
-/** Gemini quota (429) — rate-limit path; do not treat 503 overload the same. */
-function isGeminiRateLimited(err: unknown): boolean {
-  if (err instanceof GeminiProviderError && err.status === 429) {
-    return true;
-  }
-  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
-  return (
-    message.includes("429") ||
-    message.includes("rate limit") ||
-    message.includes("quota") ||
-    message.includes("resource_exhausted")
-  );
-}
-
-/** Transient overload (503) — retry soon; not a quota block. */
-function isGeminiTransient(err: unknown): boolean {
-  if (err instanceof GeminiProviderError && err.status === 503) {
-    return true;
-  }
-  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
-  return message.includes("overloaded") || message.includes("temporarily unavailable");
 }
 
 export { isReflectCallEnabled };
