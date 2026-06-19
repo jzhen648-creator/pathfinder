@@ -222,6 +222,20 @@ Even with connection **data**, lines are a renderer decision:
 
 ---
 
+## Part 4 — Deferred: true-overlay tutorial (late pre-launch)
+
+**Why deferred:** Screens are still moving (Build-here flow, AI work). Highlights anchored to UI break on every change; there is no stable coordinate system today (`measureInWindow` screen coords vs canvas coords inside an animated camera).
+
+**Future spec (do not build now):**
+
+- **`TutorialAnchorRegistry`:** Screens register `{ step, rect }`; coach reads the registry instead of per-component measurement.
+- **Proven arc:** Prefilled education pursuit from onboarding → complete → pursuit insight → Insights pull-to-refresh → Reading; real-pursuit prompt as post-tutorial handoff.
+- **Conventional coachmark overlay on the real app** — last pre-launch build once screens are stable.
+
+**Current interim (2026-06-19):** Beat-based coach + hard **Skip tutorial** escape; no anchor registry. Crash loop on sheet/read beats stabilized via once-per-beat entry guards and anchor dedupe.
+
+---
+
 ## Legacy thread index (superseded labels)
 
 Older briefs used threads A–E. Mapped to current plan:
