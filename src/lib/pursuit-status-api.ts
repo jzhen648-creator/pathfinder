@@ -12,8 +12,6 @@ export const PURSUIT_STATUS_VALUES = [
 
   "MAINTAINING",
 
-  "ABANDONED",
-
 ] as const;
 
 

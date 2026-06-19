@@ -12,8 +12,6 @@ export type MapContextFilter = {
   excludePaused?: boolean;
   /** @deprecated Use excludePaused */
   excludeOnHold?: boolean;
-  /** Omit abandoned pursuits from map-oriented AI context. */
-  excludeAbandoned?: boolean;
 };
 
 export type FormattedMapMark = {
@@ -166,12 +164,8 @@ function buildPursuitRow(
 
 function pursuitStatusWhere(filter: MapContextFilter) {
   const excludePaused = filter.excludePaused ?? filter.excludeOnHold ?? false;
-  const excludeAbandoned = filter.excludeAbandoned ?? false;
-  const notIn: PursuitStatus[] = [];
-  if (excludePaused) notIn.push("PAUSED");
-  if (excludeAbandoned) notIn.push("ABANDONED");
-  if (notIn.length === 0) return {};
-  return { status: { notIn } };
+  if (!excludePaused) return {};
+  return { status: { notIn: ["PAUSED"] satisfies PursuitStatus[] } };
 }
 
 const goalSelect = {

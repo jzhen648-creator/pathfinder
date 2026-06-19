@@ -53,6 +53,17 @@ export function hasMinimumContextSignal(signal: PursuitSignal): boolean {
   return false;
 }
 
+/** Min pursuits with user context before whole-map holistic benchmark prompt fires. */
+export const HOLISTIC_BENCHMARK_MIN_RICH_PURSUITS = 2;
+
+export function countMinimumContextSignals(signals: PursuitSignal[]): number {
+  return signals.filter(hasMinimumContextSignal).length;
+}
+
+export function isHolisticBenchmarkEligible(signals: PursuitSignal[]): boolean {
+  return countMinimumContextSignals(signals) >= HOLISTIC_BENCHMARK_MIN_RICH_PURSUITS;
+}
+
 /** Strip theme contextual benchmarks when no pursuit in the theme has enough user context. */
 export function gateThemeContextual(
   contextual: string,
@@ -60,6 +71,26 @@ export function gateThemeContextual(
 ): string {
   if (!contextual.trim()) return "";
   if (pursuitSignals.some(hasMinimumContextSignal)) return contextual.trim();
+  return "";
+}
+
+/** Strip theme combined forward-looking content when no pursuit in the theme has enough user context. */
+export function gateThemeCombined(
+  combined: string,
+  pursuitSignals: PursuitSignal[],
+): string {
+  if (!combined.trim()) return "";
+  if (pursuitSignals.some(hasMinimumContextSignal)) return combined.trim();
+  return "";
+}
+
+/** Strip pursuit comparison benchmarks when the focal pursuit lacks enough user context. */
+export function gatePursuitComparison(
+  comparison: string,
+  signal: PursuitSignal,
+): string {
+  if (!comparison.trim()) return "";
+  if (hasMinimumContextSignal(signal)) return comparison.trim();
   return "";
 }
 
@@ -86,7 +117,7 @@ export function gateEnrichResult(
     ? []
     : signal.description.trim().length === 0
       ? result.clarifiers
-      : signal.enrichAnswerCount >= 3 || signal.description.trim().length >= 120
+      : hasMinimumContextSignal(signal)
         ? []
         : result.clarifiers;
 

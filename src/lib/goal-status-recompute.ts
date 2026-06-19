@@ -36,7 +36,7 @@ function milestonePayloadSummary(
 /**
  * Recomputes and persists pursuit lifecycle status (**ACTIVE** / **COMPLETE**).
  * Does not use continuation topology (`forkedGoals`).
- * Does not change PAUSED, ABANDONED, or MAINTAINING pursuits (user-set; never auto-computed).
+ * Does not change PAUSED or MAINTAINING pursuits (user-set; never auto-computed).
  *
  * Lifecycle milestone semantics are delegated to {@link computeGoalLifecycleStatus} →
  * {@link milestoneDoneForSemantics} (explicit `completedAt` primary; subtask rollup only when subtasks exist).
@@ -63,7 +63,7 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
     if (debugRecompute()) console.info(`${LOG} exit early: goal not found`, { goalId });
     return;
   }
-  if (goal.status === "PAUSED" || goal.status === "ABANDONED" || goal.status === "MAINTAINING") {
+  if (goal.status === "PAUSED" || goal.status === "MAINTAINING") {
     if (debugRecompute()) {
       console.info(`${LOG} exit early: ${goal.status}`, { goalId });
     }

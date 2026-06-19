@@ -4,8 +4,7 @@ export type SpineEventKind =
   | "mark"
   | "milestone_complete"
   | "pursuit_deadline"
-  | "pursuit_complete"
-  | "pursuit_abandoned";
+  | "pursuit_complete";
 
 export type SpineEvent = {
   kind: SpineEventKind;
@@ -126,20 +125,6 @@ export function buildSpineEventsFromMapContext(
       significance,
       categoryLabel: pursuit.categoryLabel,
     };
-
-    if (pursuit.status === "ABANDONED") {
-      const abandonedDate = parseCalendarDate(pursuit.completedAt);
-      if (abandonedDate) {
-        events.push({
-          kind: "pursuit_abandoned",
-          date: toCalendarDate(abandonedDate),
-          placement: "past",
-          title: pursuit.title,
-          ...meta,
-        });
-      }
-      continue;
-    }
 
     if (pursuit.status !== "COMPLETE" && pursuit.deadline) {
       const deadline = parseCalendarDate(pursuit.deadline);

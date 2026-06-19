@@ -102,7 +102,7 @@ export async function generateInsightsAndStory(
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+    formatMapContext(userId),
     formatUserContext(userId),
   ]);
 

@@ -360,6 +360,7 @@ export async function digestPendingStreamRun(
         } = { sourceStreamRunId: run.id };
 
         if (update.title?.trim()) data.title = update.title.trim();
+        // Grounding for description text lives in stream-pursuit-extract pursuitFocus — not validated here.
         if (update.description?.trim()) data.description = update.description.trim();
         if (update.status && goalRow.status !== "MAINTAINING") {
           data.status = update.status as PursuitStatus;

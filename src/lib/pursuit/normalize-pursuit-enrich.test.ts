@@ -42,7 +42,7 @@ describe("normalizePursuitEnrichEntry", () => {
       suggestedMilestones: null,
     });
     expect(flatInsight?.insight).toEqual({
-      tone: "reality_check",
+      tone: "context",
       headline: "Behind pace",
       body: "Two milestones remain.",
     });
@@ -99,7 +99,7 @@ describe("normalizePursuitEnrichBatch", () => {
     const batch = normalizePursuitEnrichBatch({
       pursuits: {
         [pursuitId]: {
-          tone: "encouraging",
+          tone: "in_focus",
           headline: "Good momentum",
           body: "Keep going.",
           clarifiers: [],
@@ -115,7 +115,7 @@ describe("normalizePursuitEnrichBatch", () => {
     const batch = normalizePursuitEnrichBatch({
       pursuits: {
         valid: {
-          tone: "encouraging",
+          tone: "in_focus",
           headline: "Ok",
           body: "Body",
           clarifiers: [],

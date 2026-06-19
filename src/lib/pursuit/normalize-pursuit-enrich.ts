@@ -131,7 +131,7 @@ function normalizeInsightObject(raw: unknown): Record<string, unknown> | null {
   const comparison = truncate(row.comparison, 200);
 
   return {
-    tone: normalizePursuitInsightTone(row.tone),
+    tone: row.tone != null && row.tone !== "" ? normalizePursuitInsightTone(row.tone) : "in_focus",
     headline: headline || "Insight",
     body: body || "",
     ...(fromMap ? { fromMap } : {}),

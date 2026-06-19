@@ -47,8 +47,8 @@ describe("planReflectWork", () => {
     mocks.goalFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
     mocks.insightFindUnique.mockResolvedValue({
       pursuitInsights: {
-        p1: { tone: "encouraging", headline: "One", body: "Body" },
-        p2: { tone: "encouraging", headline: "Two", body: "Body" },
+        p1: { tone: "in_focus", headline: "One", body: "Body" },
+        p2: { tone: "in_focus", headline: "Two", body: "Body" },
       },
     });
 
@@ -67,7 +67,7 @@ describe("planReflectWork", () => {
     mocks.goalFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }, { id: "p3" }]);
     mocks.insightFindUnique.mockResolvedValue({
       pursuitInsights: {
-        p1: { tone: "encouraging", headline: "One", body: "Body" },
+        p1: { tone: "in_focus", headline: "One", body: "Body" },
       },
     });
 

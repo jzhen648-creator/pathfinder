@@ -19,6 +19,8 @@
 | [`STABILIZATION.md`](./STABILIZATION.md) | QA checklist (shared backend behaviors) |
 | [`BACKLOG.md`](./BACKLOG.md) | Deferred backend / desktop ideas |
 | [`READING-COMPILER.md`](./READING-COMPILER.md) | Deterministic facts before Gemini (story delta + enrich) |
+| [`INSIGHT-ROADMAP-PLAN.md`](./INSIGHT-ROADMAP-PLAN.md) | V2 sequencing + **Unified Question Mechanism** feasibility audit |
+| [`QUESTION-MECHANISM.md`](./QUESTION-MECHANISM.md) | V2 design concept — three interpretive asks (post-TestFlight) |
 | [`../../PATHFINDER-AUDIT-BRIEF.md`](../../PATHFINDER-AUDIT-BRIEF.md) | Claude audit packet: changed files, review questions, known gaps |
 | [`../PROMPTS.md`](../PROMPTS.md) | AI prompts (Stream, Story) |
 | [`../BRIEF.md`](../BRIEF.md) | Short product summary |

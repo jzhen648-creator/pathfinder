@@ -23,6 +23,8 @@ import {
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
 import { buildStorySystemPrompt, countMapPursuits } from "@/lib/story/generate-story";
+import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
 import { isCurrentStoryPayload } from "@/lib/story/parse-story-cache";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
@@ -81,7 +83,9 @@ function buildReflectPursuitsOnlySystemPrompt(
     "- Never invent pursuits, milestones, or connections not in the data.",
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
     "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
+    "- Never generic headlines like \"[title] is progressing well\" — name the specific fact (e.g. \"Contributions are a quarter of the way there after the raise\").",
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
+    "- Direct declarative voice in headline and body — no \"your map shows\", no opening with the user's name, no UI section labels.",
     "",
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
@@ -89,8 +93,8 @@ function buildReflectPursuitsOnlySystemPrompt(
     "",
     "OUTPUT:",
     '- "reading": always return an empty string "".',
-    '- "pursuits": map of pursuitId -> { tone, headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
-    "  tone MUST be one of: celebratory | encouraging | nudge | reality_check | informational",
+    '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
+    "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
     "- Do NOT include themes.",
   ].join("\n");
@@ -101,6 +105,7 @@ function buildReflectSystemPrompt(
   options: Required<PursuitEnrichOptions>,
   scope: ReflectScope = "full",
   amountImpactEligible = false,
+  holisticBenchmarkEligible = false,
 ): string {
   if (scope === "pursuits-only") {
     return buildReflectPursuitsOnlySystemPrompt(options, amountImpactEligible);
@@ -116,6 +121,7 @@ function buildReflectSystemPrompt(
     ? [
         "- You MAY add at most ONE clarifier about how this pursuit relates to a named sibling pursuit in map context.",
         '  Options must include "Unrelated" or "Not sure".',
+        "- Clarifier answers are user-stated context only — never assert pursuit-to-pursuit relationships as confirmed fact in Reading, theme, or pursuit insight prose unless explicitly supported by map structure (e.g. parentPursuitTitle).",
       ]
     : ["- Do NOT ask relationship or cross-pursuit connection questions in clarifiers."];
 
@@ -129,33 +135,28 @@ function buildReflectSystemPrompt(
     "- No filler: ban \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
     "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
+    "- Never generic headlines like \"[title] is progressing well\" or \"Your ISA is progressing well\" — state the specific fact.",
     "- One concrete suggestion per pursuit, max.",
     "- Be honest about gaps and sparse maps.",
     "- Use age/location for contextual benchmarking only when data supports it.",
     "",
-    "READING LENSES (not a checklist — one continuous voice, no sections):",
-    "- Gap: where is significance high but movement absent, especially near a deadline?",
-    "- Arrival: what's been completed, and what does the arc say about direction?",
-    "Address only lenses the reading packet facts support. A reading may answer only one lens.",
+    "VOICE ANTI-PATTERNS (reading + pursuit headline/body/fromMap/comparison):",
+    "- Do not open any text with the user's name (\"Alex, ...\").",
+    "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
+    "- Do not use \"significant\" as filler — name what is actually notable.",
+    "- Do not write \"You have been making progress\" — say what the progress is.",
+    "- Do not narrate Reading structure (\"First...\", \"In summary...\", \"In your Work theme...\").",
+    "- Wrong: \"Your map shows a significant financial arrival.\" Right: \"Clearing the credit card debt ahead of schedule frees capacity before other spend ramps up.\"",
     "",
-    "WHOLE-MAP READING:",
-    "- The reading sees what no single pursuit panel can: the shape of the map as a whole.",
-    "- Do not inventory pursuits one by one — pursuit panels already do that.",
-    "- Say one Gap observation and one Arrival observation (where the packet supports them) that only makes sense across the full map.",
-    "- Do not repeat per-pursuit panel copy.",
-    "- Use paragraph breaks between distinct observations. Each paragraph connects related pursuits — what they reveal together.",
-    "- The packet flags pursuits as gap (significant, near deadline, no movement) or arrival (recently completed). Name gap-flagged pursuits plainly as tensions, not momentum. Narrate each category in the temporal order given — what's secured, what's in motion, what's ahead — without claiming one pursuit caused another.",
-    "- Two to three short paragraphs. Not a task list.",
-    "  If map has 1-2 pursuits: stay short and factual; one question is OK.",
     ...amountImpactReadingPromptLines(amountImpactEligible),
     "",
     "OUTPUT:",
-    '- "reading": whole-map reflective prose per WHOLE-MAP READING rules above.',
-    '- "pursuits": map of pursuitId -> { tone, headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
-    "  tone MUST be one of: celebratory | encouraging | nudge | reality_check | informational",
-    "  headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
+    '- "reading": whole-map reflective prose per WHOLE-MAP READING rules in the story prompt below.',
+    '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
+    "  Pursuit tone is assigned server-side from map signals — do not set tone.",
+    "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
     "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
-    "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields.",
+    "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields; the mobile UI adds section labels.",
     "",
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
@@ -164,16 +165,17 @@ function buildReflectSystemPrompt(
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
     "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline — do not duplicate existing titles.",
     "",
-    "THEME INSIGHTS:",
+    "THEME INSIGHTS (macro synthesis — not per-pursuit narrative):",
     "- \"themes\": map of themeId -> { tone, oneLiner, reflective, contextual?, combined? }",
     "  tone MUST be one of: celebratory | encouraging | nudge",
-    "  oneLiner <= 100 chars — theme-level headline, not a pursuit title.",
-    "  reflective: 2-3 sentences on what is live in this theme (<= 500 chars).",
-    "  contextual: optional age/location benchmark (<= 500 chars); empty string if none.",
-    "  combined: optional \"what this opens\" line (<= 500 chars); empty string if none.",
+    "  oneLiner <= 100 chars — theme-level verdict on balance, bottlenecks, or resource friction across pursuits in this theme.",
+    "  reflective: 2-3 sentences on cross-pursuit dynamics within the theme — competition, reinforcement, tension (<= 500 chars). Name specific pursuits; do not inventory every row.",
+    "  contextual: optional age/location benchmark for the theme as a whole (<= 500 chars); empty string if none.",
+    "  combined: optional forward-looking unlock for the theme (<= 500 chars); empty string if none.",
+    "  Do not repeat pursuit-panel execution copy — pursuit sheets own velocity and milestones.",
     "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
     "",
-    buildStorySystemPrompt(totalPursuitCount, amountImpactEligible),
+    buildStorySystemPrompt(totalPursuitCount, amountImpactEligible, holisticBenchmarkEligible),
   ].join("\n");
 }
 
@@ -282,6 +284,7 @@ function buildReflectUserMessage(input: {
       "<previous_reading>",
       input.previousReading || "None — this is the first reading.",
       "</previous_reading>",
+      "If the previous reading claims any pursuit is complete but the current map shows that pursuit's status as ACTIVE, PAUSED, or MAINTAINING, remove that claim. The current map status is the only source of truth for completion.",
       "",
       "<dirty_themes>",
       JSON.stringify(input.dirtyThemeIds),
@@ -374,7 +377,12 @@ async function runReflectBatchesIncremental(
   mapVersion: string,
   memoryVersion: number,
   metrics: MapAiSyncMetrics,
-  options: { needsReadingRefresh: boolean; mapContext: FormattedMapContext; amountImpactEligible: boolean },
+  options: {
+    needsReadingRefresh: boolean;
+    mapContext: FormattedMapContext;
+    amountImpactEligible: boolean;
+    holisticBenchmarkEligible: boolean;
+  },
 ): Promise<ReflectSyncResult> {
   const batches = chunkReflectPursuitIds(plan.pursuitIds);
 
@@ -400,7 +408,7 @@ async function runReflectBatchesIncremental(
         enrichOptions,
         previousReading,
         metrics,
-        { scope: isFullBatch ? "full" : "pursuits-only", mapContext: options.mapContext, amountImpactEligible: options.amountImpactEligible },
+        { scope: isFullBatch ? "full" : "pursuits-only", mapContext: options.mapContext, amountImpactEligible: options.amountImpactEligible, holisticBenchmarkEligible: options.holisticBenchmarkEligible },
       );
 
       validateReflectBatch(batch, reflect, { requireReading: isFullBatch });
@@ -519,8 +527,12 @@ export async function runReflectSync(
   const needsReadingRefresh =
     plan.mode === "full" || options.storyStale || !hasStory;
 
-  const mapContext = await formatMapContext(userId, { excludeAbandoned: true });
-  const amountImpactEligible = isAmountImpactEligible(mapContext);
+  const mapContext = await formatMapContext(userId);
+  const [amountImpactEligible, allPursuitSignals] = await Promise.all([
+    Promise.resolve(isAmountImpactEligible(mapContext)),
+    loadAllPursuitSignals(userId),
+  ]);
+  const holisticBenchmarkEligible = isHolisticBenchmarkEligible(allPursuitSignals);
 
   return runReflectBatchesIncremental(
     userId,
@@ -531,7 +543,7 @@ export async function runReflectSync(
     mapVersion,
     memoryVersion,
     options.metrics,
-    { needsReadingRefresh, mapContext, amountImpactEligible },
+    { needsReadingRefresh, mapContext, amountImpactEligible, holisticBenchmarkEligible },
   );
 }
 
@@ -553,7 +565,12 @@ async function generateReflectResponse(
   enrichOptions: Required<PursuitEnrichOptions>,
   previousReading: string,
   metrics?: MapAiSyncMetrics,
-  options?: { scope?: ReflectScope; mapContext?: FormattedMapContext; amountImpactEligible?: boolean },
+  options?: {
+    scope?: ReflectScope;
+    mapContext?: FormattedMapContext;
+    amountImpactEligible?: boolean;
+    holisticBenchmarkEligible?: boolean;
+  },
 ): Promise<ReflectResponse> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
@@ -561,17 +578,24 @@ async function generateReflectResponse(
 
   const scope = options?.scope ?? "full";
 
-  const [mapContext, userContext, readingPacket, pursuitSignals] = await Promise.all([
+  const [mapContext, userContext, readingPacket, pursuitSignals, allPursuitSignals] =
+    await Promise.all([
     options?.mapContext
       ? Promise.resolve(options.mapContext)
-      : formatMapContext(userId, { excludeAbandoned: true }),
+      : formatMapContext(userId),
     formatUserContext(userId),
     compileReadingPacket(userId, dirty),
     loadPursuitSignals(userId, pursuitIds),
+    options?.holisticBenchmarkEligible === undefined
+      ? loadAllPursuitSignals(userId)
+      : Promise.resolve([]),
   ]);
 
   const amountImpactEligible =
     options?.amountImpactEligible ?? isAmountImpactEligible(mapContext);
+  const holisticBenchmarkEligible =
+    options?.holisticBenchmarkEligible ??
+    isHolisticBenchmarkEligible(allPursuitSignals);
 
   const readingPacketJson = readingPacketToJson(readingPacket);
   const mapContextForPrompt =
@@ -586,7 +610,13 @@ async function generateReflectResponse(
   const totalPursuitCount = countMapPursuits(mapContext);
 
   const raw = await generateJsonCompletion({
-    system: buildReflectSystemPrompt(totalPursuitCount, enrichOptions, scope, amountImpactEligible),
+    system: buildReflectSystemPrompt(
+      totalPursuitCount,
+      enrichOptions,
+      scope,
+      amountImpactEligible,
+      holisticBenchmarkEligible,
+    ),
     user: buildReflectUserMessage({
       userContext,
       readingPacketJson,

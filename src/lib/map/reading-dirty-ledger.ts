@@ -1,6 +1,11 @@
 import type { AiReadingDirtyEntityType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ReadingDirtyDetails } from "@/lib/map/reading-dirty-details";
+import {
+  hasMinimumContextSignal,
+  pursuitSignalFromGoal,
+  type PursuitSignal,
+} from "@/lib/pursuit/pursuit-enrich-readiness";
 
 export type ReadingDirtySummary = {
   pursuitIds: string[];
@@ -139,6 +144,91 @@ function parseDetails(raw: unknown): ReadingDirtyDetails | null {
   return raw as ReadingDirtyDetails;
 }
 
+const MS_PER_DAY = 86_400_000;
+
+export type DirtyPursuitPriorityRow = {
+  id: string;
+  significance: number;
+  signal: PursuitSignal;
+  deadline: Date | null;
+  createdAt: Date;
+};
+
+function daysUntilDeadline(deadline: Date | null, now: number): number {
+  if (!deadline) return Number.POSITIVE_INFINITY;
+  return Math.ceil((deadline.getTime() - now) / MS_PER_DAY);
+}
+
+/** Deterministic QQ / reflect priority — significance first, then thinness, deadline, age. */
+export function compareDirtyPursuitPriority(
+  a: DirtyPursuitPriorityRow,
+  b: DirtyPursuitPriorityRow,
+  now = Date.now(),
+): number {
+  if (a.significance !== b.significance) {
+    return b.significance - a.significance;
+  }
+
+  const aThin = hasMinimumContextSignal(a.signal) ? 1 : 0;
+  const bThin = hasMinimumContextSignal(b.signal) ? 1 : 0;
+  if (aThin !== bThin) {
+    return aThin - bThin;
+  }
+
+  const daysA = daysUntilDeadline(a.deadline, now);
+  const daysB = daysUntilDeadline(b.deadline, now);
+  if (daysA !== daysB) {
+    return daysA - daysB;
+  }
+
+  return a.createdAt.getTime() - b.createdAt.getTime();
+}
+
+export function sortDirtyPursuitPriorityRows<T extends DirtyPursuitPriorityRow>(
+  rows: T[],
+  now = Date.now(),
+): T[] {
+  return [...rows].sort((a, b) => compareDirtyPursuitPriority(a, b, now));
+}
+
+/** Load pursuit fields and sort dirty ids for reflect/enrich batching. */
+export async function sortDirtyPursuitIdsForReflect(
+  userId: string,
+  pursuitIds: string[],
+  now = Date.now(),
+): Promise<string[]> {
+  const ids = [...new Set(pursuitIds.filter(Boolean))];
+  if (ids.length <= 1) return ids;
+
+  const goals = await prisma.goal.findMany({
+    where: { userId, id: { in: ids }, archived: false },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      enrichAnswers: true,
+      deadline: true,
+      status: true,
+      targetAmount: true,
+      significance: true,
+      createdAt: true,
+      milestones: { select: { completedAt: true } },
+    },
+  });
+
+  const rows: DirtyPursuitPriorityRow[] = goals.map((goal) => ({
+    id: goal.id,
+    significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+    signal: pursuitSignalFromGoal(goal),
+    deadline: goal.deadline,
+    createdAt: goal.createdAt,
+  }));
+
+  const sorted = sortDirtyPursuitPriorityRows(rows, now).map((row) => row.id);
+  const missing = ids.filter((id) => !sorted.includes(id));
+  return [...sorted, ...missing];
+}
+
 export async function listReadingDirtySummary(userId: string): Promise<ReadingDirtySummary> {
   const rows = await prisma.aiReadingDirtyItem.findMany({
     where: { userId },
@@ -232,10 +322,13 @@ export async function analyzeReadingDirty(userId: string): Promise<ReadingDirtyA
       : [];
   const goalById = new Map(goals.map((goal) => [goal.id, goal]));
 
-  const activeDirtyPursuitIds = pursuitIds.filter((id) => {
-    const goal = goalById.get(id);
-    return Boolean(goal && !goal.archived);
-  });
+  const activeDirtyPursuitIds = await sortDirtyPursuitIdsForReflect(
+    userId,
+    pursuitIds.filter((id) => {
+      const goal = goalById.get(id);
+      return Boolean(goal && !goal.archived);
+    }),
+  );
   const staleDirtyPursuitIds = pursuitIds.filter((id) => {
     const goal = goalById.get(id);
     return !goal || goal.archived;

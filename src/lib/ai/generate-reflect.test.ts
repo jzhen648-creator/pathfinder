@@ -231,7 +231,7 @@ describe("generateReflectResponse", () => {
         themes: {},
         pursuits: {
           "p-cemap": {
-            tone: "nudge",
+            tone: "worth_a_look",
             headline: "CeMAP deadline is close",
             body: "CeMAP has a near deadline and no completed milestones yet.",
             clarifiers: [],
@@ -267,7 +267,7 @@ describe("generateReflectResponse", () => {
     const chars = JSON.stringify(maxLoaded).length;
 
     // Prior 2048-token ceiling truncated 15-pursuit Alex first refresh into invalid JSON.
-    expect(chars).toBe(21834);
+    expect(chars).toBe(21774);
     expect(chars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
   });
 
@@ -282,7 +282,7 @@ describe("generateReflectResponse", () => {
           ...buildDenseReflectResponse(firstBatch),
           themes: {
             work: {
-              tone: "encouraging",
+              tone: "in_focus",
               oneLiner: "Work is live",
               reflective: "CeMAP and Product Lead search carry deadlines.",
               contextual: "",

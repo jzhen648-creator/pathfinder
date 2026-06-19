@@ -24,8 +24,6 @@ export function formatPursuitStatusLabel(status: PursuitStatus | string): string
       return "Complete";
     case "MAINTAINING":
       return "Maintaining";
-    case "ABANDONED":
-      return "Abandoned";
     default:
       return String(status).replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   }
@@ -44,8 +42,7 @@ export function normalizeLegacyPursuitStatus(status: string): PursuitStatus | nu
     status === "ACTIVE" ||
     status === "PAUSED" ||
     status === "COMPLETE" ||
-    status === "MAINTAINING" ||
-    status === "ABANDONED"
+    status === "MAINTAINING"
   ) {
     return status;
   }

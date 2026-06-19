@@ -3,7 +3,13 @@ import { isAmountImpactEligible, amountImpactReadingPromptLines } from "@/lib/ai
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { formatThemeDisplayNamesForPrompt } from "@/lib/life-areas";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
+import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
 import { sanitizeStoryGeneration } from "./sanitize-story";
+import {
+  validateSeasonReadAgainstPursuits,
+  type PursuitStatusCheck,
+} from "./validate-season-read";
 import {
   STORY_SCHEMA_VERSION,
   storyGenerationSchema,
@@ -42,31 +48,55 @@ const STORY_PROMPT_BASE = [
   "- Similar motivational padding with no map information. Every sentence must carry information from the map.",
   "",
   "Voice: direct, informed advisor — calm and map-native. Warm but not flattery. No hedging.",
+  "Write in second person, present tense, declarative. The Reading IS the observation — never narrate the app, the map, or the Reading itself.",
+  "",
+  "VOICE ANTI-PATTERNS (never use in seasonRead):",
+  "- Do not open with the user's name (\"Alex, ...\") — use name only inside benchmark logic when age and location support it.",
+  "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\", or similar meta-framing.",
+  "- Do not use \"significant\" as a filler adjective — name the specific thing that matters.",
+  "- Do not write \"You have been making progress\" — state what the progress actually is.",
+  "- Do not narrate structure (\"First, let's look at...\", \"In summary...\", \"In your Work theme...\").",
+  "- Wrong: \"Alex, your map shows a significant financial arrival.\" Right: \"Clearing the credit card debt ahead of schedule is a real financial milestone.\"",
   "",
   "READING LENSES (not a checklist — one continuous voice, no sections):",
-  "- Gap: where is significance high but movement absent, especially near a deadline?",
-  "- Arrival: what's been completed, and what does the arc say about direction?",
-  "Address only lenses the reading packet facts support. A reading may answer only one lens.",
+  "- Arrival: a whole PURSUIT is complete — only when its status is COMPLETE, or it carries signal: arrival in the reading packet.",
+  "  A completed milestone (kind: milestone_complete in recentEvents, or any milestonePaceFacts entry) is PROGRESS, not arrival.",
+  "  NEVER describe an ACTIVE, PAUSED, or MAINTAINING pursuit as completed, finished, or achieved.",
+  "  If a pursuit's status is not COMPLETE, you may note progress but must not state or imply the pursuit itself is done.",
+  "Address only when the reading packet and map context support it. A reading may use only this lens if nothing else fits.",
   "",
   "WHOLE-MAP READING:",
-  "- The reading sees what no single pursuit panel can: the shape of the map as a whole.",
+  "- The reading sees what no single pursuit panel can: the shape of the map as a whole — what carries weight, what genuinely arrived, how themes relate.",
   "- Do not inventory pursuits one by one — pursuit panels already do that.",
-  "- Say one Gap observation and one Arrival observation (where the packet supports them) that only makes sense across the full map.",
+  "- Say one Arrival observation (where the packet supports whole-pursuit completion) that only makes sense across the full map, and/or relate themes and pursuits to each other.",
   "- Do not repeat per-pursuit panel copy.",
-  "- Use paragraph breaks between distinct observations. Each paragraph connects related pursuits — what they reveal together.",
-  "- The packet flags pursuits as gap (significant, near deadline, no movement) or arrival (recently completed). Name gap-flagged pursuits plainly as tensions, not momentum. Narrate each category in the temporal order given — what's secured, what's in motion, what's ahead — without claiming one pursuit caused another.",
-  "- Two to three short paragraphs. Not a task list.",
+  "- Use paragraph breaks between distinct observations. Each paragraph connects related pursuits or themes — what they reveal together.",
+  "- The packet may flag pursuits with signal: arrival (whole-pursuit completion within the arrival window). Use only those flags for arrival prose.",
+  "- Ignore gapFacts, milestonePaceFacts, and per-pursuit signal: gap in the reading packet when writing whole-map Reading — those fields are for pursuit panels only.",
+  "- Do NOT audit milestones (present/absent/how many) and do NOT evaluate whether a pursuit is on track for its deadline — that is the pursuit panel's job.",
+  "- You may name an imminent deadline ONLY as life-weight (e.g. \"a near-term debt deadline is pulling focus\"), never as a progress audit.",
+  "- One or two short paragraphs. Not a task list.",
+  "",
+  "WORD COUNT (hard constraint — applies to every seasonRead):",
+  "1. Your response MUST be 100–140 words. Never exceed 150 words.",
+  "2. Do not write a closing paragraph of generic advice — no \"could open doors to new opportunities\", \"keep building on what's working\", \"stay the course\", or similar filler.",
+  "3. Every sentence must be grounded in a specific, named pursuit and its status, or in a real relationship between pursuits or themes. Do not pad with generic statements.",
+  "4. End on an observation, not a suggestion. At most ONE concrete suggestion in the entire reading.",
 ].join("\n");
 
-function buildStoryDepthRules(totalPursuitCount: number): string[] {
+function buildStoryDepthRules(
+  totalPursuitCount: number,
+  holisticBenchmarkEligible: boolean,
+): string[] {
   return totalPursuitCount <= 2
       ? [
           "",
           `MAP DEPTH: This map has ${totalPursuitCount} pursuit${totalPursuitCount === 1 ? "" : "s"} total — SPARSE mode.`,
           "seasonRead:",
-          "- Stay short and factual — one or two short paragraphs maximum.",
+          "- Stay within the WORD COUNT block (100–140 words, hard max 150).",
+          "- One or two short paragraphs maximum.",
           "- Name pursuits verbatim by exact title when relevant.",
-          "- One grounded Gap or Arrival observation tied to the data; one genuine question is OK.",
+          "- One grounded Arrival or cross-theme observation tied to the data; one genuine question is OK.",
           "- Do NOT write a life narrative: forbid framing like \"focused approach\", \"intentional building\", \"period of\", \"chapter\", \"landscape of your life\", or cross-theme synthesis the data cannot support.",
           "- Do not invent patterns, momentum arcs, or theme interactions that are not evidenced.",
         ]
@@ -74,12 +104,17 @@ function buildStoryDepthRules(totalPursuitCount: number): string[] {
           "",
           `MAP DEPTH: This map has ${totalPursuitCount} pursuits — PANORAMIC mode.`,
           "seasonRead:",
-          "- Two to three short paragraphs per WHOLE-MAP READING rules.",
-          "- Connect related pursuits — what they reveal together that neither reveals alone.",
+          "- Stay within the WORD COUNT block (100–140 words, hard max 150).",
+          "- One or two short paragraphs — connect related pursuits and themes; what they reveal together that neither reveals alone.",
+          "- Actively relate themes to each other when map data supports it — not only pursuits within one theme.",
           "- When naming pursuits, prefer significance 4–5; name at most 2–4 total as examples of the overall shape.",
           "- Calm, specific, not prescriptive. No poster copy, no life-coach framing, no 'where you are' clichés.",
-          "- When age AND location are known in User context, weave in one holistic benchmark (typical patterns, life stage, not a separate section).",
-          "  Use approximate language (roughly, typically, around). Omit benchmark clause if age OR location is unknown.",
+          ...(holisticBenchmarkEligible
+            ? [
+                "- When age AND location are known in User context, weave in one holistic benchmark (typical patterns, life stage, not a separate section).",
+                "  Use approximate language (roughly, typically, around). Omit benchmark clause if age OR location is unknown.",
+              ]
+            : []),
           "- Do not repeat pursuit counts, status counts, or milestone totals the UI shows elsewhere.",
           "- No peer-comparison template filler (\"valued in a competitive market\") without a concrete fact.",
         ];
@@ -98,8 +133,9 @@ export function countMapPursuits(mapContext: FormattedMapContext): number {
 export function buildStorySystemPrompt(
   totalPursuitCount: number,
   amountImpactEligible = false,
+  holisticBenchmarkEligible = false,
 ): string {
-  const depthRules = buildStoryDepthRules(totalPursuitCount);
+  const depthRules = buildStoryDepthRules(totalPursuitCount, holisticBenchmarkEligible);
 
   return [
     STORY_PROMPT_BASE,
@@ -125,8 +161,21 @@ function buildUserMessage(
     mapJson,
     "",
     `Return JSON: schemaVersion (\"${STORY_SCHEMA_VERSION}\"), seasonRead.`,
+    "seasonRead must be 100–140 words (hard max 150).",
     "Total JSON under 800 output tokens.",
   ].join("\n");
+}
+
+function collectPursuitStatusChecks(mapContext: FormattedMapContext): PursuitStatusCheck[] {
+  const out: PursuitStatusCheck[] = [];
+  for (const theme of mapContext.themes) {
+    for (const hub of theme.hubs) {
+      for (const pursuit of hub.pursuits) {
+        out.push({ title: pursuit.title, status: pursuit.status });
+      }
+    }
+  }
+  return out;
 }
 
 function stripMarkdownFence(raw: string): string {
@@ -140,17 +189,23 @@ export async function generateStory(userId: string): Promise<StoryGenerationResu
     throw new GeminiNotConfiguredError();
   }
 
-  const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+  const [mapContext, userContext, pursuitSignals] = await Promise.all([
+    formatMapContext(userId),
     formatUserContext(userId),
+    loadAllPursuitSignals(userId),
   ]);
 
   const totalPursuitCount = countMapPursuits(mapContext);
 
   const amountImpactEligible = isAmountImpactEligible(mapContext);
+  const holisticBenchmarkEligible = isHolisticBenchmarkEligible(pursuitSignals);
 
   const raw = await generateJsonCompletion({
-    system: buildStorySystemPrompt(totalPursuitCount, amountImpactEligible),
+    system: buildStorySystemPrompt(
+      totalPursuitCount,
+      amountImpactEligible,
+      holisticBenchmarkEligible,
+    ),
     user: buildUserMessage(JSON.stringify(mapContext, null, 2), userContext, totalPursuitCount),
     maxTokens: 2048,
     temperature: 0.5,
@@ -181,5 +236,10 @@ export async function generateStory(userId: string): Promise<StoryGenerationResu
     );
   }
 
-  return sanitizeStoryGeneration(parsed.data);
+  const story = sanitizeStoryGeneration(parsed.data);
+  validateSeasonReadAgainstPursuits(
+    story.seasonRead,
+    collectPursuitStatusChecks(mapContext),
+  );
+  return story;
 }

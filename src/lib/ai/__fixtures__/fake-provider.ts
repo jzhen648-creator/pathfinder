@@ -17,7 +17,7 @@ class FakeProviderError extends Error {
 }
 
 const DEFAULT_PANEL = {
-  tone: "informational" as const,
+  tone: "worth_a_look" as const,
   headline: "CeMAP qualification is active with a June deadline",
   body: "Unit 1 and Unit 2 remain on the path toward the qualification deadline.",
   suggestedMilestones: null,

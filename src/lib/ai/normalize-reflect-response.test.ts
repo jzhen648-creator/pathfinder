@@ -35,5 +35,6 @@ describe("normalizeReflectResponse", () => {
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     expect(parsed.data.themes.work?.tone).toBe("encouraging");
+    expect(parsed.data.pursuits["p-1"]?.tone).toBe("context");
   });
 });

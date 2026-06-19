@@ -6,9 +6,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Pathfinder domain language
 
-**Active client:** `pathfinder-mobile/` — see workspace [`START-HERE.md`](../START-HERE.md). **Stream behaviour:** [`docs/STREAM.md`](./docs/STREAM.md). **Doc index:** [`docs/README.md`](./docs/README.md). **What shipped:** [`CHANGELOG.md`](./CHANGELOG.md) + [`DECISIONS.md`](./DECISIONS.md). Historical vision: [`docs/archive/VISION.md`](./docs/archive/VISION.md). Desktop UI frozen: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
+**Active client:** `pathfinder-mobile/` — see workspace [`START-HERE.md`](../START-HERE.md). **Bugs / audits:** [`../PATHFINDER-QA-PLAN.md`](../PATHFINDER-QA-PLAN.md). **Stream behaviour:** [`docs/STREAM.md`](./docs/STREAM.md). **Doc index:** [`docs/README.md`](./docs/README.md). **What shipped:** [`CHANGELOG.md`](./CHANGELOG.md) + [`DECISIONS.md`](./DECISIONS.md). Historical vision: [`docs/archive/VISION.md`](./docs/archive/VISION.md). Desktop UI frozen: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
 
-Canonical product words: **theme** (outer pillar — same ids as `LifeAreaId` / `limbId`), **pursuit** (`Goal`), **mark** (`Mark`). **Taxonomy category** (`Branch`, `branchId`; legacy hub/track) stays in DB and API for routing — **hidden from mobile UI** since 2026-06. Mobile UI copy: [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md). Persistence: [`GLOSSARY.md`](./GLOSSARY.md), [`ONTOLOGY.md`](./ONTOLOGY.md).
+Canonical product words: **theme** (outer pillar — same ids as `LifeAreaId` / `limbId`), **pursuit** (`Goal`), **mark** (`Mark`). **Taxonomy category** (`Branch`, `branchId`, `categoryId`) stays in DB and API for routing — **shown in mobile UI** (theme detail group headers, pursuit eyebrow, create/move pickers). Mobile UI copy: [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md). Persistence: [`GLOSSARY.md`](./GLOSSARY.md), [`ONTOLOGY.md`](./ONTOLOGY.md).
 
 Before changing tree, goals, branches, bloom, or continuation behavior, read [`ONTOLOGY.md`](./ONTOLOGY.md) and [`GLOSSARY.md`](./GLOSSARY.md). Do not extend desktop tree UI unless asked — [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
 

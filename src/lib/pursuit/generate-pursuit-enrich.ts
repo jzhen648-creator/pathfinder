@@ -14,6 +14,10 @@ import {
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import {
+  resolvePursuitInsightTone,
+  type PursuitToneGoalInput,
+} from "@/lib/insights/resolve-pursuit-insight-tone";
+import {
   enrichAnswersSchema,
   pursuitEnrichBatchSchema,
   type PursuitEnrichCachePayload,
@@ -27,12 +31,6 @@ import {
 import { prisma } from "@/lib/prisma";
 
 const MAX_ENRICH_PER_RUN = 1;
-
-const ENRICH_TONE_RULES = [
-  "- insight tone MUST be exactly one of: celebratory | encouraging | nudge | reality_check | informational",
-  "- Use informational when map context is sparse or only a title is known",
-  "- Use celebratory only when milestones completed or status is COMPLETE",
-].join("\n");
 
 function buildEnrichSystemPrompt(
   options: Required<PursuitEnrichOptions>,
@@ -54,6 +52,7 @@ function buildEnrichSystemPrompt(
         "- You MAY add at most ONE clarifier about how this pursuit relates to a named sibling pursuit in context.",
         "  Only use pursuit titles that appear in siblingPursuits — never invent pursuits.",
         '  Options must include "Unrelated" or "Not sure".',
+        "- Clarifier answers are user-stated context only — never assert pursuit-to-pursuit relationships as confirmed fact in Reading, theme, or pursuit insight prose unless explicitly supported by map structure (e.g. parentPursuitTitle).",
       ]
     : [
         "- Do NOT ask relationship or cross-pursuit connection questions in clarifiers.",
@@ -68,12 +67,11 @@ function buildEnrichSystemPrompt(
     "OUTPUT:",
     ...clarifierRules,
     ...connectionRules,
-    "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars) + tone.",
-    ENRICH_TONE_RULES,
-    "  Body structure when data supports it (each on its own line):",
-    '  - "From your map: " + one sentence on cross-pursuit connections (sibling pursuits) when present in context.',
-    '  - "Comparison: " + one benchmark sentence when user profile has age AND location; omit if either is unknown.',
-    "  - Remaining lines: pursuit-specific detail beyond headline. Never restate the title alone.",
+    "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars). Tone is assigned server-side — do not set tone.",
+    "  Body: single prose paragraph — no section labels, no \"From your map:\" or \"Comparison:\" prefixes (the UI renders labels).",
+    "  When sibling pursuits support a cross-link, weave one sentence into the body naturally.",
+    "  When age AND location are known, weave one benchmark sentence into the body; omit if either is unknown.",
+    "  Never restate the title alone; never open with the user's name; never say \"your map shows\".",
     ...(peopleThemeBody ? ["", PEOPLE_THEME_BODY_CLAUSE] : []),
     ...amountImpactBodyPromptLines(amountImpactEligible),
     "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
@@ -81,11 +79,17 @@ function buildEnrichSystemPrompt(
     "  Each item: { title: string, order: 0-based integer } — order is required.",
     "",
     "JSON shape (single pursuit under pursuits map):",
-    '{ "pursuits": { "<pursuitId>": { "clarifiers": [], "insight": { "tone": "informational", "headline": "...", "body": "..." }, "suggestedMilestones": null } } }',
+    '{ "pursuits": { "<pursuitId>": { "clarifiers": [], "insight": { "headline": "...", "body": "..." }, "suggestedMilestones": null } } }',
     "",
     "RULES:",
     "- Ground every field in provided scoped context JSON only.",
     "- Null/empty arrays are correct when unsure.",
+    "",
+    "VOICE ANTI-PATTERNS:",
+    "- Do not open headline or body with the user's name.",
+    "- Do not say \"your map shows\", \"the app sees\", or embed UI chrome in prose.",
+    "- Do not use \"significant\" as filler — name the specific fact.",
+    "- Never generic headlines like \"[title] is progressing well\".",
   ].join("\n");
 }
 
@@ -119,7 +123,7 @@ function buildPursuitEnrichUserMessage(
   ].join("\n");
 }
 
-async function loadPursuitSignals(userId: string, pursuitIds: string[]) {
+async function loadPursuitToneGoals(userId: string, pursuitIds: string[]) {
   const goals = await prisma.goal.findMany({
     where: { userId, id: { in: pursuitIds }, archived: false },
     select: {
@@ -129,11 +133,20 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]) {
       enrichAnswers: true,
       deadline: true,
       status: true,
+      significance: true,
       targetAmount: true,
-      milestones: { select: { completedAt: true } },
+      currentAmount: true,
+      completedAt: true,
+      milestones: {
+        select: { id: true, title: true, completedAt: true },
+        orderBy: { position: "asc" },
+      },
     },
   });
-  const byId = new Map(goals.map((g) => [g.id, pursuitSignalFromGoal(g)]));
+  const byId = new Map<string, PursuitToneGoalInput>();
+  for (const goal of goals) {
+    byId.set(goal.id, goal);
+  }
   return byId;
 }
 
@@ -156,7 +169,7 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
   }
 
   return {
-    tone: "informational",
+    tone: "context",
     headline: "Help Pathfinder read this pursuit",
     body: "Answer a quick question below — then update your AI reading on Insights.",
     clarifiers,
@@ -168,6 +181,7 @@ async function generateOnePursuitEnrich(
   userId: string,
   pursuitId: string,
   userContext: string,
+  goal: PursuitToneGoalInput,
   signal: PursuitSignal,
   enrichOptions: Required<PursuitEnrichOptions>,
   amountImpactEligible: boolean,
@@ -223,7 +237,11 @@ async function generateOnePursuitEnrich(
     throw new InsightGenerationResponseError("Pursuit enrich missing target pursuit entry.");
   }
 
-  return gateEnrichResult(result, signal, enrichOptions);
+  const gated = gateEnrichResult(result, signal, enrichOptions);
+  if (gated.insight) {
+    gated.insight.tone = resolvePursuitInsightTone(goal);
+  }
+  return gated;
 }
 
 /** Serialized per-pursuit enrich — clarifiers, insight, gated milestones. */
@@ -245,10 +263,10 @@ export async function refreshPursuitEnrich(
   const batchIds = uniqueIds.slice(0, MAX_ENRICH_PER_RUN);
   const remainingIds = uniqueIds.slice(MAX_ENRICH_PER_RUN);
 
-  const [userContext, signals, mapContext] = await Promise.all([
+  const [userContext, toneGoals, mapContext] = await Promise.all([
     formatUserContext(userId),
-    loadPursuitSignals(userId, batchIds),
-    formatMapContext(userId, { excludeAbandoned: true }),
+    loadPursuitToneGoals(userId, batchIds),
+    formatMapContext(userId),
   ]);
   const amountImpactEligible = isAmountImpactEligible(mapContext);
 
@@ -257,12 +275,14 @@ export async function refreshPursuitEnrich(
   let geminiCallsMade = 0;
 
   for (const pursuitId of batchIds) {
-    const signal = signals.get(pursuitId);
-    if (!signal) continue;
+    const goal = toneGoals.get(pursuitId);
+    if (!goal) continue;
+    const signal = pursuitSignalFromGoal(goal);
     const result = await generateOnePursuitEnrich(
       userId,
       pursuitId,
       userContext,
+      goal,
       signal,
       enrichOptions,
       amountImpactEligible,

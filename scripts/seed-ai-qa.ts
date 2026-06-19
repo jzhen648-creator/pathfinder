@@ -1,5 +1,5 @@
 /**
- * Repeatable AI QA seed — Alex Carter (15 pursuits, rubric-dense) + Sam Chen (sparse control).
+ * Repeatable AI QA seed — Alex Carter (17 pursuits, honest descriptions) + Sam Chen (sparse control).
  *
  * Run:
  *   npx tsx scripts/seed-ai-qa.ts
@@ -24,6 +24,7 @@ import {
 } from "../src/lib/system-categories";
 import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
 import { unlockThemesForUser } from "../src/lib/unlocked-themes";
+import { ALEX_HONEST_PURSUITS } from "./alex-reseed-pursuits";
 import {
   ALEX_PROFILE,
   SAM_PROFILE,
@@ -192,26 +193,26 @@ async function main(): Promise<void> {
   console.log(`Deleted ${deleted.count} existing seed user(s).\n`);
 
   try {
-    const alex = await seedProfile(prisma, passwordHash, ALEX_PROFILE);
+    const alex = await seedProfile(prisma, passwordHash, {
+      ...ALEX_PROFILE,
+      pursuits: ALEX_HONEST_PURSUITS,
+    });
     const sam = await seedProfile(prisma, passwordHash, SAM_PROFILE);
 
-    const alexMilestones = countMilestones(ALEX_PROFILE.pursuits);
     const samMilestones = countMilestones(SAM_PROFILE.pursuits);
 
-    console.log("=== Alex Carter (dense rubric map) ===");
+    console.log("=== Alex Carter (honest-description QA map) ===");
     console.log(`Email: ${ALEX_PROFILE.email}`);
-    console.log(`Pursuits: ${ALEX_PROFILE.pursuits.length}`);
+    console.log(`Pursuits: ${ALEX_HONEST_PURSUITS.length}`);
     for (const [theme, count] of [...alex.countsByTheme.entries()].sort()) {
       console.log(`  ${theme}: ${count}`);
     }
     console.log(`  Play & Leisure: 0 (empty by design)`);
-    console.log(`Status mix: ${JSON.stringify(countByStatus(ALEX_PROFILE.pursuits))}`);
+    console.log(`Status mix: ${JSON.stringify(countByStatus(ALEX_HONEST_PURSUITS))}`);
     console.log(
-      `Milestones: ${alexMilestones.completed} completed / ${alexMilestones.total} total`,
+      `Milestones: ${countMilestones(ALEX_HONEST_PURSUITS).completed} completed / ${countMilestones(ALEX_HONEST_PURSUITS).total} total`,
     );
-    console.log(
-      `Gap anchor: CeMAP qualification — sig 5, deadline ~18d, 0 milestone completions`,
-    );
+    console.log(`Gap anchor: CeMAP qualification — sig 5, Module 3 exam open`);
 
     console.log("\n=== Sam Chen (sparse control) ===");
     console.log(`Email: ${SAM_PROFILE.email}`);

@@ -2,12 +2,19 @@ import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import {
+  resolvePursuitInsightTone,
+  type PursuitToneGoalInput,
+} from "@/lib/insights/resolve-pursuit-insight-tone";
+import {
   gateEnrichResult,
+  gatePursuitComparison,
+  gateThemeCombined,
   gateThemeContextual,
   shouldSuggestMilestones,
   pursuitSignalFromGoal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
 import {
   type PursuitEnrichCachePayload,
   type PursuitEnrichResult,
@@ -15,6 +22,7 @@ import {
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
+import { validateSeasonReadAgainstPursuits } from "@/lib/story/validate-season-read";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { prisma } from "@/lib/prisma";
 
@@ -37,7 +45,10 @@ export function dedupeSuggestedMilestones<T extends { title: string }>(
   return unique.length > 0 ? unique : null;
 }
 
-async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise<Map<string, PursuitSignal>> {
+async function loadPursuitToneGoals(
+  userId: string,
+  pursuitIds: string[],
+): Promise<Map<string, PursuitToneGoalInput>> {
   const goals = await prisma.goal.findMany({
     where: { userId, id: { in: pursuitIds }, archived: false },
     select: {
@@ -47,52 +58,24 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise
       enrichAnswers: true,
       deadline: true,
       status: true,
+      significance: true,
       targetAmount: true,
-      milestones: { select: { completedAt: true } },
+      currentAmount: true,
+      completedAt: true,
+      milestones: {
+        select: { id: true, title: true, completedAt: true },
+        orderBy: { position: "asc" },
+      },
     },
   });
-  return new Map(
-    goals.map((goal) => [goal.id, pursuitSignalFromGoal(goal)]),
-  );
+  return new Map(goals.map((goal) => [goal.id, goal]));
 }
 
 async function loadThemePursuitSignals(
   userId: string,
   themeIds: string[],
 ): Promise<Map<string, PursuitSignal[]>> {
-  if (themeIds.length === 0) return new Map();
-
-  const goals = await prisma.goal.findMany({
-    where: {
-      userId,
-      archived: false,
-      OR: [
-        { themeId: { in: themeIds } },
-        { themeId: null, lifeArea: { in: themeIds } },
-      ],
-    },
-    select: {
-      themeId: true,
-      lifeArea: true,
-      title: true,
-      description: true,
-      enrichAnswers: true,
-      deadline: true,
-      status: true,
-      targetAmount: true,
-      milestones: { select: { completedAt: true } },
-    },
-  });
-
-  const byTheme = new Map<string, PursuitSignal[]>();
-  for (const goal of goals) {
-    const themeId = goal.themeId ?? goal.lifeArea;
-    const signal = pursuitSignalFromGoal(goal);
-    const list = byTheme.get(themeId) ?? [];
-    list.push(signal);
-    byTheme.set(themeId, list);
-  }
-  return byTheme;
+  return loadPursuitSignalsByTheme(userId, themeIds);
 }
 
 function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload | null {
@@ -114,7 +97,7 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
   }
 
   return {
-    tone: "informational",
+    tone: "context",
     headline: "Help Pathfinder read this pursuit",
     body: "Answer a quick question below — then update your AI reading on Insights.",
     clarifiers,
@@ -154,15 +137,24 @@ export async function applyReflectOutput(
       schemaVersion: STORY_SCHEMA_VERSION,
       seasonRead: reading,
     });
+    const statusRows = await prisma.goal.findMany({
+      where: { userId, goalType: { notIn: ["moment", "event"] } },
+      select: { title: true, status: true },
+    });
+    validateSeasonReadAgainstPursuits(
+      story.seasonRead,
+      statusRows.map((row) => ({ title: row.title, status: row.status })),
+    );
     await upsertStoryCache(userId, story, mapVersion, memoryVersion);
     storyWritten = true;
   }
 
-  const signals = await loadPursuitSignals(userId, pursuitIds);
+  const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
   const themeIds = Object.keys(reflect.themes ?? {});
   const themeSignals = await loadThemePursuitSignals(userId, themeIds);
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
+  const now = Date.now();
 
   for (const [themeId, entry] of Object.entries(reflect.themes ?? {})) {
     if (!entry.oneLiner?.trim() && !entry.reflective?.trim()) continue;
@@ -174,14 +166,20 @@ export async function applyReflectOutput(
         entry.contextual?.trim() ?? "",
         themeSignals.get(themeId) ?? [],
       ),
-      combined: entry.combined?.trim() ?? "",
+      combined: gateThemeCombined(
+        entry.combined?.trim() ?? "",
+        themeSignals.get(themeId) ?? [],
+      ),
     };
   }
 
   for (const pursuitId of pursuitIds) {
     const entry = reflect.pursuits[pursuitId];
-    const signal = signals.get(pursuitId);
-    if (!entry || !signal) continue;
+    const goal = toneGoals.get(pursuitId);
+    if (!entry || !goal) continue;
+
+    const signal = pursuitSignalFromGoal(goal);
+    const comparison = gatePursuitComparison(entry.comparison?.trim() ?? "", signal);
 
     const rawResult: PursuitEnrichResult = {
       clarifiers: (entry.clarifiers ?? []).map((c, index) => ({
@@ -190,11 +188,11 @@ export async function applyReflectOutput(
         options: c.options,
       })).filter((c) => c.prompt.trim() && c.options.length >= 2),
       insight: {
-        tone: entry.tone,
+        tone: resolvePursuitInsightTone(goal, now),
         headline: entry.headline,
         body: entry.body,
         ...(entry.fromMap?.trim() ? { fromMap: entry.fromMap.trim() } : {}),
-        ...(entry.comparison?.trim() ? { comparison: entry.comparison.trim() } : {}),
+        ...(comparison ? { comparison } : {}),
       },
       suggestedMilestones: shouldSuggestMilestones(signal)
         ? dedupeSuggestedMilestones(entry.suggestedMilestones ?? null)

@@ -39,16 +39,6 @@ const createCategorySchema = z
 
 
 
-function parseExcludeAbandoned(request: Request): boolean {
-
-  const raw = new URL(request.url).searchParams.get("excludeAbandoned");
-
-  return raw === "true" || raw === "1";
-
-}
-
-
-
 export async function GET(request: Request) {
 
   try {
@@ -58,8 +48,6 @@ export async function GET(request: Request) {
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-
-    const excludeAbandoned = parseExcludeAbandoned(request);
 
 
 
@@ -149,8 +137,6 @@ export async function GET(request: Request) {
 
           archived: false,
 
-          ...(excludeAbandoned ? { status: { not: "ABANDONED" } } : {}),
-
         },
 
         orderBy: { createdAt: "asc" },
@@ -163,7 +149,7 @@ export async function GET(request: Request) {
 
         where: {
           userId,
-          OR: [{ archived: true }, { status: "ABANDONED" }],
+          archived: true,
         },
 
         orderBy: { updatedAt: "desc" },

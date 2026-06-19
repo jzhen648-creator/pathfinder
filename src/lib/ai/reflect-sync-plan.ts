@@ -34,7 +34,7 @@ export async function listMissingPursuitPanelIds(userId: string): Promise<string
 }
 
 async function listDirtyThemeIds(userId: string): Promise<string[]> {
-  const mapContext = await formatMapContext(userId, { excludeAbandoned: true });
+  const mapContext = await formatMapContext(userId);
   return mapContext.themes
     .filter((theme) => theme.hubs.some((hub) => hub.pursuits.length > 0))
     .map((theme) => theme.id);

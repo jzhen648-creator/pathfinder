@@ -13,6 +13,8 @@ const APPLY_CONTEXT_SYSTEM = [
   "- Rewrite as one coherent summary — do not append duplicate paragraphs.",
   "- Preserve specific facts, numbers, dates, and names from both sources.",
   "- Do not invent facts not in the input or existing context.",
+  "- Do not reference other pursuits, sibling goals, or cross-theme life events unless the user's note explicitly mentions them.",
+  "- Pursuit context JSON may list sibling pursuits for routing only — never weave their facts into description.",
   "- Do not change the pursuit title or suggest milestones.",
   "- No markdown, no bullet lists.",
 ].join("\n");

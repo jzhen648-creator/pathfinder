@@ -311,7 +311,7 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
   pursuits: Record<
     string,
     {
-      tone: "informational";
+      tone: "in_focus";
       headline: string;
       body: string;
       clarifiers: [];
@@ -322,7 +322,7 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
   const pursuits: Record<
     string,
     {
-      tone: "informational";
+      tone: "in_focus";
       headline: string;
       body: string;
       clarifiers: [];
@@ -336,7 +336,7 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
       .find((p) => p.id === id);
     const title = pursuitRow?.title ?? id;
     pursuits[id] = {
-      tone: "informational",
+      tone: "in_focus",
       headline: `${title} — next step`,
       body: `${title} is on the map. One concrete move would clarify progress.`,
       clarifiers: [],
@@ -389,7 +389,7 @@ export function buildMaxLoadedDenseReflectResponse(dirtyIds: string[]): {
   pursuits: Record<
     string,
     {
-      tone: "informational";
+      tone: "in_focus";
       headline: string;
       body: string;
       clarifiers: Array<{ id: string; prompt: string; options: string[] }>;
@@ -400,7 +400,7 @@ export function buildMaxLoadedDenseReflectResponse(dirtyIds: string[]): {
   const pursuits: Record<
     string,
     {
-      tone: "informational";
+      tone: "in_focus";
       headline: string;
       body: string;
       clarifiers: Array<{ id: string; prompt: string; options: string[] }>;
@@ -410,7 +410,7 @@ export function buildMaxLoadedDenseReflectResponse(dirtyIds: string[]): {
 
   for (const id of dirtyIds) {
     pursuits[id] = {
-      tone: "informational",
+      tone: "in_focus",
       headline: "H".repeat(100),
       body: "B".repeat(500),
       clarifiers: [

@@ -1,4 +1,5 @@
 import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
+import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import {
   enrichAnswersSchema,
   enrichAnswerSchema,
@@ -48,6 +49,28 @@ export async function applyClarifierAnswerForUser(
   });
 
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
+
+  const cache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  if (cache?.pursuitInsights) {
+    const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
+    const entry = pursuits[goalId];
+    if (entry?.clarifiers?.length) {
+      const clarifiers = entry.clarifiers.filter(
+        (c) => c.id !== parsed.data.clarifierId,
+      );
+      pursuits[goalId] = {
+        ...entry,
+        clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
+      };
+      await prisma.insightCache.update({
+        where: { userId },
+        data: { pursuitInsights: pursuits },
+      });
+    }
+  }
 
   return { enrichAnswers, description };
 }

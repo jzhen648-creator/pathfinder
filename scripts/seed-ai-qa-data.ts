@@ -9,6 +9,8 @@ export type MilestoneSpec = {
   title: string;
   completed: boolean;
   completedDaysAgo?: number;
+  /** Fixed completion date (YYYY-MM-DD). Takes precedence over completedDaysAgo. */
+  completedOn?: string;
 };
 
 export type PursuitSpec = {
@@ -19,11 +21,22 @@ export type PursuitSpec = {
   significance: number;
   description?: string;
   deadlineDaysFromNow?: number;
+  /** Fixed deadline (YYYY-MM-DD). Takes precedence over deadlineDaysFromNow. */
+  deadlineOn?: string;
   completedDaysAgo?: number;
+  /** Fixed completion date for COMPLETE pursuits (YYYY-MM-DD). */
+  completedOn?: string;
+  targetAmount?: number;
+  currentAmount?: number;
+  unit?: string;
   mapGridQ: number;
   mapGridR: number;
   milestones?: MilestoneSpec[];
 };
+
+export function parseUtcDate(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00.000Z`);
+}
 
 export const ALEX_PROFILE = {
   email: "alex@qa-seed.test",
@@ -44,185 +57,8 @@ export const ALEX_PROFILE = {
     "pleasures",
   ] as LifeAreaId[],
   pursuits: [
-    // Work — heavy (6)
-    {
-      title: "CeMAP qualification",
-      themeId: "work",
-      categoryLabel: "Job",
-      status: "ACTIVE",
-      significance: 5,
-      description:
-        "Studying for CeMAP through the London Institute of Banking & Finance. Units 1–2 are underway; the exam window is in three weeks. This unlocks regulated mortgage advice work.",
-      deadlineDaysFromNow: 18,
-      mapGridQ: 1,
-      mapGridR: 0,
-      milestones: [
-        { title: "Unit 1 coursework", completed: false },
-        { title: "Unit 2 coursework", completed: false },
-        { title: "Mock exam", completed: false },
-      ],
-    },
-    {
-      title: "Product Lead search",
-      themeId: "work",
-      categoryLabel: "Job",
-      status: "ACTIVE",
-      significance: 5,
-      description:
-        "Targeting product leadership roles in fintech after the Acme senior engineer chapter. Two processes are live; need sharper narrative on platform ownership.",
-      deadlineDaysFromNow: 75,
-      mapGridQ: 2,
-      mapGridR: 0,
-      milestones: [{ title: "First-round interview", completed: true, completedDaysAgo: 40 }],
-    },
-    {
-      title: "Senior Engineer at Acme",
-      themeId: "work",
-      categoryLabel: "Job",
-      status: "COMPLETE",
-      significance: 4,
-      completedDaysAgo: 120,
-      mapGridQ: -1,
-      mapGridR: 1,
-      milestones: [{ title: "Handover complete", completed: true, completedDaysAgo: 125 }],
-    },
-    {
-      title: "Passed probation at Acme",
-      themeId: "work",
-      categoryLabel: "Job",
-      status: "COMPLETE",
-      significance: 3,
-      description: "Six-month probation cleared with strong delivery on payments reliability.",
-      completedDaysAgo: 200,
-      mapGridQ: 0,
-      mapGridR: 2,
-    },
-    {
-      title: "Public speaking",
-      themeId: "work",
-      categoryLabel: "Skills & learning",
-      status: "MAINTAINING",
-      significance: 3,
-      mapGridQ: 1,
-      mapGridR: 1,
-      milestones: [{ title: "Toastmasters icebreaker", completed: true, completedDaysAgo: 90 }],
-    },
-    {
-      title: "Ship Q3 internal tool",
-      themeId: "work",
-      categoryLabel: "Projects & shipping",
-      status: "ACTIVE",
-      significance: 4,
-      description:
-        "Leading a small squad shipping an internal compliance dashboard before the September audit. Design is signed off; build is mid-sprint.",
-      deadlineDaysFromNow: 45,
-      mapGridQ: -1,
-      mapGridR: 0,
-      milestones: [
-        { title: "Design review", completed: true, completedDaysAgo: 14 },
-        { title: "Beta to compliance", completed: false },
-      ],
-    },
-    // Finance (3)
-    {
-      title: "£500,000 ISA",
-      themeId: "finance",
-      categoryLabel: "Assets & investing",
-      status: "ACTIVE",
-      significance: 5,
-      description:
-        "Long-term Stocks and Shares ISA target for financial independence. Contributing monthly; roughly a quarter of the way there after last year's raise.",
-      deadlineDaysFromNow: 900,
-      mapGridQ: 1,
-      mapGridR: 0,
-    },
-    {
-      title: "Clear £10,000 credit card debt",
-      themeId: "finance",
-      categoryLabel: "Debts & obligations",
-      status: "ACTIVE",
-      significance: 4,
-      description:
-        "Balance is down from £10k but still above comfort. Want it cleared before the wedding spend ramps up.",
-      deadlineDaysFromNow: 28,
-      mapGridQ: 2,
-      mapGridR: 0,
-    },
-    {
-      title: "Emergency fund £3,000",
-      themeId: "finance",
-      categoryLabel: "Safety net",
-      status: "COMPLETE",
-      significance: 3,
-      completedDaysAgo: 95,
-      mapGridQ: -1,
-      mapGridR: 1,
-    },
-    // People (2)
-    {
-      title: "Plan wedding",
-      themeId: "people",
-      categoryLabel: "Family",
-      status: "ACTIVE",
-      significance: 5,
-      description:
-        "Venue shortlist down to two; need to lock caterer and guest list by autumn. Partner wants something small in London or Kent.",
-      deadlineDaysFromNow: 120,
-      mapGridQ: 1,
-      mapGridR: 0,
-    },
-    {
-      title: "Visit parents monthly",
-      themeId: "people",
-      categoryLabel: "Family",
-      status: "MAINTAINING",
-      significance: 2,
-      mapGridQ: 0,
-      mapGridR: 1,
-    },
-    // Becoming (2)
-    {
-      title: "Daily meditation",
-      themeId: "becoming",
-      categoryLabel: "Mind & Emotions",
-      status: "MAINTAINING",
-      significance: 3,
-      mapGridQ: 1,
-      mapGridR: 0,
-    },
-    {
-      title: "Evening journaling",
-      themeId: "becoming",
-      categoryLabel: "Mind & Emotions",
-      status: "ACTIVE",
-      significance: 2,
-      description: "Ten minutes before bed — tracking mood and what actually moved the day forward.",
-      deadlineDaysFromNow: 180,
-      mapGridQ: -1,
-      mapGridR: 1,
-    },
-    // Health — thin, paused (1)
-    {
-      title: "London Marathon 2027",
-      themeId: "health",
-      categoryLabel: "Movement",
-      status: "PAUSED",
-      significance: 4,
-      mapGridQ: 1,
-      mapGridR: 0,
-      milestones: [{ title: "Half marathon PB", completed: false }],
-    },
-    // Finance rhythm (15th pursuit)
-    {
-      title: "Monthly budget review",
-      themeId: "finance",
-      categoryLabel: "Employment income",
-      status: "MAINTAINING",
-      significance: 2,
-      mapGridQ: 0,
-      mapGridR: 1,
-    },
-  ] satisfies PursuitSpec[],
+    // Imported from alex-reseed-pursuits.ts — see scripts/reseed-alex-qa.ts
+  ],
 } as const;
 
 export const SAM_PROFILE = {
@@ -290,11 +126,21 @@ export async function insertPursuit(
   sequencePosition: number,
 ): Promise<string> {
   const lifeArea = getLifeArea(spec.themeId)?.label ?? "Other";
-  const deadline =
-    spec.deadlineDaysFromNow != null ? daysFromNow(spec.deadlineDaysFromNow) : null;
-  const completedAt =
-    spec.completedDaysAgo != null ? daysAgo(spec.completedDaysAgo) : null;
   const now = new Date();
+  const deadline =
+    spec.deadlineOn != null
+      ? parseUtcDate(spec.deadlineOn)
+      : spec.deadlineDaysFromNow != null
+        ? daysFromNow(spec.deadlineDaysFromNow)
+        : null;
+  const completedAt =
+    spec.completedOn != null
+      ? parseUtcDate(spec.completedOn)
+      : spec.completedDaysAgo != null
+        ? daysAgo(spec.completedDaysAgo)
+        : spec.status === "COMPLETE"
+          ? now
+          : null;
   const year = deadline?.getUTCFullYear() ?? now.getUTCFullYear();
   const month = deadline ? deadline.getUTCMonth() + 1 : now.getUTCMonth() + 1;
 
@@ -320,20 +166,30 @@ export async function insertPursuit(
       sequencePosition,
       mapGridQ: spec.mapGridQ,
       mapGridR: spec.mapGridR,
+      ...(spec.targetAmount != null ? { targetAmount: spec.targetAmount } : {}),
+      ...(spec.currentAmount != null ? { currentAmount: spec.currentAmount } : {}),
+      ...(spec.unit ? { unit: spec.unit } : {}),
     },
   });
 
   const milestones = spec.milestones ?? [];
   for (let i = 0; i < milestones.length; i++) {
     const m = milestones[i]!;
+    let milestoneCompletedAt: Date | null = null;
+    if (m.completed) {
+      if (m.completedOn != null) {
+        milestoneCompletedAt = parseUtcDate(m.completedOn);
+      } else if (m.completedDaysAgo != null) {
+        milestoneCompletedAt = daysAgo(m.completedDaysAgo);
+      }
+    }
     await prisma.milestone.create({
       data: {
         goalId: goal.id,
         title: m.title,
         description: "",
         position: i,
-        completedAt:
-          m.completed && m.completedDaysAgo != null ? daysAgo(m.completedDaysAgo) : null,
+        completedAt: milestoneCompletedAt,
       },
     });
   }

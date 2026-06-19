@@ -81,7 +81,7 @@ export async function generateReadingDelta(
   }
 
   const [mapContext, userContext, readingPacket] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+    formatMapContext(userId),
     formatUserContext(userId),
     compileReadingPacket(userId, dirty),
   ]);

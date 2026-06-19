@@ -1,11 +1,17 @@
 import { z } from "zod";
 import { clarifierSchema, suggestedMilestoneSchema } from "@/lib/pursuit/pursuit-enrich-types";
-import { insightToneSchema, pursuitInsightToneSchema } from "@/lib/insights/insight-types";
+import { insightToneSchema } from "@/lib/insights/insight-types";
+import { normalizeLegacyPursuitTone } from "@/lib/insights/resolve-pursuit-insight-tone";
 
 export const REFLECT_READING_MAX_CHARS = 900;
 
 export const reflectPursuitEntrySchema = z.object({
-  tone: pursuitInsightToneSchema,
+  tone: z
+    .unknown()
+    .optional()
+    .transform((val) =>
+      val == null || val === "" ? undefined : normalizeLegacyPursuitTone(val),
+    ),
   headline: z.string().max(100),
   body: z.string().max(500),
   fromMap: z.string().max(200).optional(),

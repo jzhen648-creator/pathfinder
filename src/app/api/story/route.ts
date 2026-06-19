@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { getServerSession } from "next-auth";
-
 import { z } from "zod";
 
-import { authOptions } from "@/lib/auth";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { isReadingDrift, storyNeedsRegeneration } from "@/lib/insights/reading-cache-stale";
@@ -72,22 +70,14 @@ function isOlderThanOneDay(generatedAt: Date): boolean {
 
 
 export async function GET() {
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
 
-  const session = await getServerSession(authOptions);
+  const userId = auth.userId;
 
-  if (!session?.user?.id) {
-
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  }
-
-
-
-  const userId = session.user.id;
-
-  const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
-
-  const row = await prisma.storyCache.findUnique({ where: { userId } });
+  try {
+    const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
+    const row = await prisma.storyCache.findUnique({ where: { userId } });
 
 
 
@@ -142,6 +132,11 @@ export async function GET() {
     canAutoRefresh: drift,
 
   });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load story";
+    console.error("[GET /api/story]", err);
+    return NextResponse.json({ error: message, story: null, stale: true }, { status: 500 });
+  }
 
 }
 
@@ -149,13 +144,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
 
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  }
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
 
 
 
@@ -193,7 +183,7 @@ export async function POST(request: Request) {
 
 
 
-  const userId = session.user.id;
+  const userId = auth.userId;
 
   const force = parsedBody.data.force === true;
 

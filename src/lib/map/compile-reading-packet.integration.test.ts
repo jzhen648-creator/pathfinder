@@ -30,7 +30,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-describe("compileReadingPacket excludeAbandoned", () => {
+describe("compileReadingPacket map context", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.formatMapContext.mockResolvedValue(DENSE_MAP_CONTEXT);
@@ -38,7 +38,7 @@ describe("compileReadingPacket excludeAbandoned", () => {
     mocks.prismaGoalFindMany.mockResolvedValue([{ categoryId: "cat-job" }]);
   });
 
-  it("loads map context with excludeAbandoned so archived pursuits stay out of packet", async () => {
+  it("loads map context for the user when building a reading packet", async () => {
     const dirty: ReadingDirtyAnalysis = {
       pursuitIds: ["p-cemap"],
       themeIds: ["work"],
@@ -53,6 +53,6 @@ describe("compileReadingPacket excludeAbandoned", () => {
 
     await compileReadingPacket("user-1", dirty);
 
-    expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1", { excludeAbandoned: true });
+    expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1");
   });
 });

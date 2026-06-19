@@ -63,6 +63,14 @@ const PURSUIT_INSIGHT_RULES = [
   "5. CROSS-MAP AWARENESS: You can see every pursuit on the map. USE THIS. The most valuable thing you can do is connect pursuits the user might not have linked themselves. If a finance pursuit and a career pursuit are clearly related, say so. If two pursuits compete for the same time/resources, flag it.",
   "",
   "REMEMBER: The user can already see their own pursuit title and status. They gain ZERO value from you restating it. Every sentence must add information or reasoning they couldn't get from looking at their map.",
+  "",
+  "VOICE ANTI-PATTERNS (pursuit headline/body and global greeting — never use):",
+  "- Do not open with the user's name (\"Alex, ...\").",
+  "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
+  "- Do not embed UI section labels (\"From your map:\", \"Comparison:\") in pursuit body — write plain prose only.",
+  "- Do not use \"significant\" as filler — name what is actually notable.",
+  "- Do not write \"You have been making progress\" — state what the progress is.",
+  "- Never generic headlines like \"[title] is progressing well\".",
 ].join("\n");
 
 const PURSUIT_INSIGHT_SYSTEM_PROMPT = [
@@ -101,8 +109,8 @@ const SYSTEM_PROMPT = [
   "Mobile UI maps theme/hub fields to: Headline (oneLiner), FROM YOUR MAP (reflective), COMPARISON (contextual), WHAT THIS OPENS (combined).",
   "",
   "NON-DUPLICATION RULE (theme/hub prose fields):",
-  "- If the content could be inferred from the pursuit title alone, cut or replace it.",
-  "- Do not restate the pursuit title or describe what the user already sees on screen.",
+  "- Theme/hub copy is macro synthesis — balance, bottlenecks, resource friction across pursuits in the theme.",
+  "- Do not restate pursuit titles as inventory or repeat pursuit-panel execution narrative.",
   "- Each field must add information the user could not derive by looking at their own map.",
   "- Do not repeat the same idea across oneLiner, reflective, contextual, and combined.",
   "- 2–4 sentences per field. Density over length.",
@@ -110,19 +118,16 @@ const SYSTEM_PROMPT = [
   "- Forbid form-validation copy: never \"add a description to clarify\" or similar UI suggestions.",
   "- No motivational poster language: never \"you've got this\", \"keep pushing\", \"amazing progress\", \"celebrate\", \"milestone unlocked\".",
   "",
-  "oneLiner (headline — verdict):",
-  "- A genuine judgment on this pursuit — is it well-sequenced? Fast or slow for the user's age? Smart given what else is on their map?",
-  "- Not a description. Not a restatement of the title. A direct, informed advisor take.",
-  "- May name the pursuit once if needed for clarity — not as the whole sentence.",
+  "oneLiner (theme/hub headline — macro verdict):",
+  "- Judgment on this theme as a system: where attention clusters, what is stalled, what is over-weighted.",
+  "- May name one or two pursuits as examples — not a pursuit-by-pursuit list.",
   "",
-  "reflective (FROM YOUR MAP — cross-map reasoning):",
-  "- How does this pursuit connect to, build on, or create tension with other pursuits or marks in context?",
-  "- Must name at least one other pursuit or mark explicitly and state the relationship (builds on, ahead of, tension with, leverage).",
+  "reflective (FROM YOUR MAP — cross-pursuit dynamics in theme):",
+  "- How pursuits in this theme compete for time, reinforce each other, or create tension.",
+  "- Must name at least two specific pursuits or a pursuit + mark when data supports it.",
   "- Never category labels like \"your finance pursuits\" when specific titles exist in context.",
-  '- Good: "You have CEMAP done, DipPFS in progress, and a mortgage broker role as a target — the qualifications are ahead of the role, which is good leverage."',
-  '- Bad: restating only the focal pursuit with no cross-map link.',
   "",
-  "contextual (COMPARISON — external benchmarks):",
+  "contextual (COMPARISON — external benchmarks for the theme):",
   "- Real benchmark information from general knowledge — typical salary ranges, how long this usually takes, what share of people at this age/location reach this milestone.",
   "- Use the user's name, age, and location from User context inside the benchmark logic — not as a prefix decoration.",
   "- Concrete approximate numbers when defensible (roughly £45–55k, typically 2–3 years, fewer than half of…). Omit if unsure.",
@@ -130,8 +135,8 @@ const SYSTEM_PROMPT = [
   '- Bad: "This pursuit is important for your career." — inferable from the title alone.',
   "- If age OR location is unknown, set contextual to an empty string — do not guess or use \"someone your age\".",
   "",
-  "combined (WHAT THIS OPENS — forward-looking):",
-  "- One forward-looking block: job titles, certifications, or income thresholds that become accessible after this pursuit; logical next pursuit on the map.",
+  "combined (WHAT THIS OPENS — forward-looking for the theme):",
+  "- One forward-looking block: what completing or advancing pursuits in this theme unlocks next.",
   "- Not a repeat of the verdict (oneLiner) or external benchmark (contextual).",
   "- At most one concrete next step or unlock — not a list.",
   "",
@@ -255,7 +260,7 @@ const BACKFILL_SYSTEM_PROMPT = [
   "Return ONLY valid JSON: { themes?, hubs? } — each a record of id -> insight object.",
   "Include ONLY the ids listed in the user message — no extra keys.",
   "Each insight object has: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
-  "Field jobs: oneLiner = verdict; reflective = cross-map (FROM YOUR MAP); contextual = external benchmarks (COMPARISON); combined = forward-looking (WHAT THIS OPENS).",
+  "Field jobs: oneLiner = theme macro verdict; reflective = cross-pursuit dynamics in theme; contextual = external benchmarks (COMPARISON); combined = forward-looking (WHAT THIS OPENS).",
   "Each field must pass the non-duplication rule: nothing inferable from the pursuit title alone.",
   "If age OR location is unknown, set contextual to an empty string.",
 ].join("\n");
@@ -404,7 +409,7 @@ export async function generateNodeInsights(
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+    formatMapContext(userId),
     formatUserContext(userId),
   ]);
 
@@ -505,7 +510,7 @@ export async function generateInsights(userId: string): Promise<InsightGeneratio
   }
 
   const [mapContext, userContext] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+    formatMapContext(userId),
     formatUserContext(userId),
   ]);
 

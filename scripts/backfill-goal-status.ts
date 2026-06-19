@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const goals = await prisma.goal.findMany({
-    where: { status: { notIn: ["PAUSED", "ABANDONED", "MAINTAINING"] } },
+    where: { status: { notIn: ["PAUSED", "MAINTAINING"] } },
     select: { id: true },
   });
   let ok = 0;

@@ -77,7 +77,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     month?: number | null;
     future?: boolean;
     archived?: boolean;
-    status?: "ACTIVE" | "PAUSED" | "COMPLETE" | "MAINTAINING" | "ABANDONED";
+    status?: "ACTIVE" | "PAUSED" | "COMPLETE" | "MAINTAINING";
     completedAt?: Date | null;
     endedAt?: Date | null;
     endReason?: string | null;
@@ -121,7 +121,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   const pursuitStatus = input.status ?? input.bloomStatus;
   if (pursuitStatus !== undefined) {
     data.status = pursuitStatus;
-    if (pursuitStatus === "PAUSED" || pursuitStatus === "ABANDONED") {
+    if (pursuitStatus === "PAUSED") {
       data.endedAt = new Date();
     } else if (pursuitStatus === "COMPLETE") {
       if (input.completedAt === undefined) {
@@ -185,8 +185,6 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   );
 
   const restored = input.archived === false && existing.archived === true;
-  const abandoned =
-    pursuitStatus === "ABANDONED" && existing.status !== "ABANDONED";
   const archived = input.archived === true && existing.archived === false;
 
   if (restored) {
@@ -194,7 +192,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     await markPursuitReadingDirty(userId, goal.id, "pursuit_restored", {
       details: { event: "restored", title: goal.title },
     });
-  } else if (abandoned || archived) {
+  } else if (archived) {
     await clearReadingDirtyForPursuits(userId, [goal.id]);
     await excludePursuitFromInterpretation(userId, goal.id);
     await markPursuitReadingDirty(userId, goal.id, "pursuit_updated", {

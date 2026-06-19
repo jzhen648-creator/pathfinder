@@ -357,7 +357,7 @@ export function buildMapAggregates(
       highSignificanceActive.push(pursuit.title);
     }
     if (!pursuit.deadline) continue;
-    if (pursuit.status === "COMPLETE" || pursuit.status === "ABANDONED" || pursuit.status === "PAUSED") {
+    if (pursuit.status === "COMPLETE" || pursuit.status === "PAUSED") {
       continue;
     }
     const days = daysUntil(pursuit.deadline, now);
@@ -429,7 +429,7 @@ export function thinPacketForMapDepth(packet: ReadingPacket): ReadingPacket {
   if (packet.mapAggregates.recentCompletions90d === 0) {
     recentEvents = {
       ...packet.recentEvents,
-      past: [],
+      past: packet.recentEvents.past.filter((e) => e.kind !== "pursuit_complete"),
     };
   }
 
@@ -482,7 +482,7 @@ export async function compileReadingPacket(
 ): Promise<ReadingPacket> {
   const now = Date.now();
   const [mapContext, dirtyRows, focusCategoryIds] = await Promise.all([
-    formatMapContext(userId, { excludeAbandoned: true }),
+    formatMapContext(userId),
     listReadingDirtyRows(userId),
     resolveFocusCategoryIds(userId, dirty),
   ]);

@@ -18,7 +18,7 @@ describe("merge-insight-cache", () => {
         hubs: {},
         pursuits: {
           "p-1": {
-            tone: "informational",
+            tone: "context",
             headline: "Next step",
             body: "Comparison: typical at 34 in London.",
           },

@@ -61,6 +61,7 @@ function batchOptions(needsReadingRefresh: boolean) {
     needsReadingRefresh,
     mapContext: emptyMapContext(),
     amountImpactEligible: false,
+    holisticBenchmarkEligible: false,
   };
 }
 
@@ -69,7 +70,7 @@ function mockReflectForBatch(batch: string[], includeReading: boolean): ReflectR
     batch.map((id) => [
       id,
       {
-        tone: "informational" as const,
+        tone: "in_focus" as const,
         headline: `Headline ${id}`,
         body: "Body copy.",
       },

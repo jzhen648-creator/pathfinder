@@ -208,7 +208,7 @@ describe("compile-reading-packet", () => {
     );
   });
 
-  it("omits arrival spine when map has zero recent completions", () => {
+  it("keeps milestone_complete but drops pursuit_complete when recentCompletions90d is 0", () => {
     const packet: ReadingPacket = {
       changeEvents: [],
       categorySignals: [],
@@ -219,6 +219,47 @@ describe("compile-reading-packet", () => {
             date: "2026-05-01",
             placement: "past",
             title: "Done",
+            themeId: "work",
+            themeLabel: "Work & Career",
+          },
+        ],
+        upcoming: [],
+      },
+      mapAggregates: {
+        totalPursuits: 5,
+        upcomingDeadlines14d: 0,
+        upcomingDeadlines30d: 0,
+        recentCompletions90d: 0,
+        highSignificanceActive: [],
+      },
+      gapFacts: [],
+      milestonePaceFacts: [],
+    };
+
+    const thinned = thinPacketForMapDepth(packet);
+    expect(thinned.recentEvents.past).toEqual([
+      {
+        kind: "milestone_complete",
+        date: "2026-05-01",
+        placement: "past",
+        title: "Done",
+        themeId: "work",
+        themeLabel: "Work & Career",
+      },
+    ]);
+  });
+
+  it("drops pursuit_complete spine when recentCompletions90d is 0", () => {
+    const packet: ReadingPacket = {
+      changeEvents: [],
+      categorySignals: [],
+      recentEvents: {
+        past: [
+          {
+            kind: "pursuit_complete",
+            date: "2026-06-01",
+            placement: "past",
+            title: "Old win",
             themeId: "work",
             themeLabel: "Work & Career",
           },

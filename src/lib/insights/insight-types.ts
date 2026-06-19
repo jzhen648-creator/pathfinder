@@ -2,13 +2,15 @@ import { z } from "zod";
 
 export const insightToneSchema = z.enum(["encouraging", "nudge", "celebratory"]);
 
+/** Pursuit panel insight kicker — see claude-project/INSIGHT-TONE-CONTRACT.md */
 export const pursuitInsightToneSchema = z.enum([
-  "celebratory",
-  "encouraging",
-  "nudge",
-  "reality_check",
-  "informational",
+  "arrival",
+  "in_focus",
+  "worth_a_look",
+  "context",
 ]);
+
+export type PursuitInsightTone = z.infer<typeof pursuitInsightToneSchema>;
 
 export const insightLevelSchema = z.object({
   reflective: z.string(),
@@ -19,7 +21,7 @@ export const insightLevelSchema = z.object({
 });
 
 export const pursuitInsightSchema = z.object({
-  tone: pursuitInsightToneSchema,
+  tone: pursuitInsightToneSchema.default("in_focus"),
   headline: z.string().max(100),
   body: z.string().max(500),
   fromMap: z.string().max(200).optional(),

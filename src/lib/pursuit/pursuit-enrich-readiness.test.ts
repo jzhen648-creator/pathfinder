@@ -3,10 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   MILESTONE_MAP_CAP,
   gateEnrichResult,
+  gatePursuitComparison,
+  gateThemeCombined,
   gateThemeContextual,
+  isHolisticBenchmarkEligible,
   shouldSuggestMilestones,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { buildStorySystemPrompt } from "@/lib/story/generate-story";
 
 function signal(overrides: Partial<PursuitSignal> = {}): PursuitSignal {
   return {
@@ -100,38 +104,175 @@ describe("gateThemeContextual", () => {
   });
 });
 
+describe("gateThemeCombined", () => {
+  it("keeps combined when at least one pursuit in the theme has enough signal", () => {
+    expect(
+      gateThemeCombined("CeMAP opens mortgage broker roles.", [
+        signal({ title: "Hi", hasDeadline: false }),
+        signal({ description: "Halfway through CeMAP units with a June exam date." }),
+      ]),
+    ).toBe("CeMAP opens mortgage broker roles.");
+  });
+
+  it("clears combined when every pursuit in the theme is title-only thin", () => {
+    expect(
+      gateThemeCombined("CeMAP opens mortgage broker roles.", [
+        signal({ title: "Run", hasDeadline: false }),
+        signal({ title: "Gym", hasDeadline: false }),
+      ]),
+    ).toBe("");
+  });
+
+  it("passes through empty combined unchanged", () => {
+    expect(gateThemeCombined("", [signal()])).toBe("");
+  });
+});
+
+describe("gatePursuitComparison", () => {
+  it("keeps comparison when the pursuit has enough signal", () => {
+    expect(
+      gatePursuitComparison(
+        "Typical London salary roughly £45–55k.",
+        signal({ description: "Targeting a mortgage broker role after CeMAP." }),
+      ),
+    ).toBe("Typical London salary roughly £45–55k.");
+  });
+
+  it("clears comparison for a title-only thin pursuit", () => {
+    expect(
+      gatePursuitComparison(
+        "Typical London salary roughly £45–55k.",
+        signal({ title: "Job", hasDeadline: false }),
+      ),
+    ).toBe("");
+  });
+});
+
+describe("isHolisticBenchmarkEligible", () => {
+  it("requires at least two pursuits with minimum context signal", () => {
+    expect(
+      isHolisticBenchmarkEligible([
+        signal({ title: "Run", hasDeadline: false }),
+        signal({ description: "Training three times a week for a spring half marathon." }),
+      ]),
+    ).toBe(false);
+    expect(
+      isHolisticBenchmarkEligible([
+        signal({ description: "Training three times a week for a spring half marathon." }),
+        signal({ description: "Saving £500 a month toward a house deposit." }),
+      ]),
+    ).toBe(true);
+  });
+});
+
+describe("buildStorySystemPrompt holistic benchmark gate", () => {
+  const benchmarkMarker = "weave in one holistic benchmark";
+
+  it("omits holistic benchmark clause on thin maps", () => {
+    expect(buildStorySystemPrompt(5, false, false)).not.toContain(benchmarkMarker);
+  });
+
+  it("includes holistic benchmark clause when eligible", () => {
+    expect(buildStorySystemPrompt(5, false, true)).toContain(benchmarkMarker);
+  });
+});
+
+describe("buildStorySystemPrompt word count", () => {
+  it("includes hard word-count constraints for seasonRead", () => {
+    const prompt = buildStorySystemPrompt(3);
+    expect(prompt).toContain("Your response MUST be 100–140 words. Never exceed 150 words.");
+    expect(prompt).toContain("Do not write a closing paragraph of generic advice");
+    expect(prompt).toContain(
+      "Every sentence must be grounded in a specific, named pursuit and its status, or in a real relationship between pursuits or themes",
+    );
+    expect(prompt).toContain("At most ONE concrete suggestion in the entire reading");
+  });
+});
+
+describe("buildStorySystemPrompt Phase 0/1 trust and layering", () => {
+  it("disambiguates arrival from milestone progress and bans false completion", () => {
+    const prompt = buildStorySystemPrompt(3);
+    expect(prompt).toContain("NEVER describe an ACTIVE, PAUSED, or MAINTAINING pursuit as completed");
+    expect(prompt).toContain("milestone_complete");
+    expect(prompt).toContain("signal: arrival");
+  });
+
+  it("removes Gap lens and bans milestone/deadline audits in whole-map Reading", () => {
+    const prompt = buildStorySystemPrompt(3);
+    expect(prompt).not.toContain("- Gap:");
+    expect(prompt).toContain("Do NOT audit milestones");
+    expect(prompt).toContain("Ignore gapFacts, milestonePaceFacts");
+  });
+});
+
 describe("gateEnrichResult", () => {
-  it("allows clarifiers when description cleared but enrichAnswers remain", () => {
-    const signal: PursuitSignal = {
-      title: "Invisalign",
-      description: "",
-      enrichAnswerCount: 3,
-      milestoneCount: 0,
-      completedMilestoneCount: 0,
-      hasDeadline: true,
-      hasQuantifiedTarget: false,
-      status: "ACTIVE",
-    };
+  const sampleClarifiers = [
+    {
+      id: "ctx-1",
+      prompt: "Where do you plan to get treatment?",
+      options: ["UK", "Abroad", "Not sure yet"],
+    },
+  ];
+
+  const sampleResult = {
+    clarifiers: sampleClarifiers,
+    insight: {
+      tone: "context" as const,
+      headline: "Needs treatment context",
+      body: "Provider and country would sharpen this panel.",
+    },
+    suggestedMilestones: null,
+  };
+
+  it("strips all clarifiers when clarifyTitles is off", () => {
+    const gated = gateEnrichResult(sampleResult, signal(), { clarifyTitles: false });
+    expect(gated.clarifiers).toEqual([]);
+  });
+
+  it("keeps clarifiers for thin pursuits with an empty description", () => {
     const gated = gateEnrichResult(
-      {
-        clarifiers: [
-          {
-            id: "ctx-1",
-            prompt: "Where do you plan to get treatment?",
-            options: ["UK", "Abroad", "Not sure yet"],
-          },
-        ],
-        insight: {
-          tone: "informational",
-          headline: "Invisalign needs treatment context",
-          body: "Provider and country would sharpen this panel.",
-        },
-        suggestedMilestones: null,
-      },
-      signal,
+      sampleResult,
+      signal({ description: "", enrichAnswerCount: 3 }),
       { clarifyTitles: true },
     );
+    expect(gated.clarifiers).toHaveLength(1);
+  });
 
+  it("strips clarifiers when description is rich enough for hasMinimumContextSignal", () => {
+    const gated = gateEnrichResult(
+      sampleResult,
+      signal({
+        description: "Training three times a week for a spring half marathon with a coach.",
+        enrichAnswerCount: 0,
+      }),
+      { clarifyTitles: true },
+    );
+    expect(gated.clarifiers).toEqual([]);
+  });
+
+  it("strips clarifiers at two enrich answers once description is non-empty", () => {
+    const gated = gateEnrichResult(
+      sampleResult,
+      signal({
+        description: "Short note.",
+        enrichAnswerCount: 2,
+      }),
+      { clarifyTitles: true },
+    );
+    expect(gated.clarifiers).toEqual([]);
+  });
+
+  it("keeps clarifiers for developing pursuits below the unified richness bar", () => {
+    const gated = gateEnrichResult(
+      sampleResult,
+      signal({
+        description: "Still figuring out the scope.",
+        enrichAnswerCount: 1,
+        hasDeadline: false,
+        title: "Project",
+      }),
+      { clarifyTitles: true },
+    );
     expect(gated.clarifiers).toHaveLength(1);
   });
 });
