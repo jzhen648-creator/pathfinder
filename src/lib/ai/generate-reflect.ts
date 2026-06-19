@@ -58,6 +58,81 @@ export type ReflectSyncResult = {
   skipped?: boolean;
 };
 
+const VOICE_EVALUATIVE_ANTI_PATTERNS = [
+  "EVALUATIVE LANGUAGE (never use):",
+  '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',
+  '- Do not grade their progress: "significant achievement", "impressive", "remarkable", "outstanding"',
+  "- Do not write like a performance review or recommendation letter",
+  "- Instead: describe what actually happened, in plain language, and let the user feel what they feel about it",
+  '- Wrong: "Passing Module 2 marks significant progress towards your CeMAP qualification, demonstrating strong dedication to professional development."',
+  '- Right: "Two modules down, one to go — Module 3 is in sixteen days."',
+  '- Wrong: "This balanced approach to debt reduction and asset growth demonstrates robust financial management."',
+  '- Right: "The debt\'s cleared and the ISA is a quarter of the way there. Two different speeds, both moving."',
+  "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
+].join("\n");
+
+const HEADLINE_MUST_ADD_MEANING = [
+  "HEADLINE MUST ADD MEANING:",
+  '- Never restate the status line ("X is paused with a deadline of Y") or the milestone count ("X has N milestones complete")',
+  "- The user already sees those. The headline tells them what it MEANS.",
+  '- Wrong: "Half-marathon pursuit has one milestone complete, 5k achieved 79 days ago"',
+  '- Right: "5k is done — the jump to 10k is where the training plan actually starts"',
+  "- If there's nothing meaningful to add beyond the status, write a shorter, honest headline rather than padding with facts the user already has.",
+].join("\n");
+
+const RELATIONSHIP_QUESTIONS_FORBIDDEN = [
+  "RELATIONSHIP QUESTIONS — DO NOT GENERATE:",
+  '- Never ask how one pursuit relates to another ("How does X relate to Y?")',
+  "- Never ask whether pursuits support, compete, or overlap",
+  "- Pursuit relationships will be user-authored (connection lines) — do not ask the AI to infer them via questions",
+  "- This rule applies regardless of the suggestConnections flag",
+].join("\n");
+
+const CONTEXTUAL_QUICK_QUESTIONS = [
+  "CONTEXTUAL QUICK QUESTIONS:",
+  "When generating clarifiers for a pursuit, ask about the domain-specific detail that would MOST change how this pursuit should be understood. Use your world knowledge of the pursuit's domain.",
+  "",
+  "Examples of GOOD contextual questions (the kind to generate):",
+  "",
+  'For a debt pursuit ("Clear £10,000 credit card debt"):',
+  '- "Is this on a 0% promotional rate, or are you paying interest?" → the answer changes urgency completely',
+  '- "What\'s the monthly payment?" → grounds the timeline',
+  "",
+  'For a qualification ("CeMAP qualification"):',
+  '- "Are you self-studying or enrolled in a course?" → changes the pace expectation',
+  '- "Is this required for your current role or a career change?" → changes the significance framing',
+  "",
+  'For a fitness goal ("Half-marathon"):',
+  '- "What\'s your current longest run?" → grounds where they actually are',
+  '- "Is this a specific race with a registration date?" → deadline becomes real vs aspirational',
+  "",
+  'For a financial goal ("£500,000 ISA"):',
+  '- "Is this a stocks-and-shares ISA or cash?" → changes the growth framing entirely',
+  '- "What\'s your monthly contribution?" → makes progress concrete',
+  "",
+  'For a life event ("Plan wedding"):',
+  '- "Do you have a venue booked?" → distinguishes dream from plan',
+  '- "What\'s the budget range?" → grounds the financial implications',
+  "",
+  "RULES for contextual questions:",
+  "- Ask ONE question per sync (max), about the detail that would most change the Reading",
+  "- The question must have a CONCRETE answer (a fact, a number, a yes/no) — not an open reflection (\"How do you feel about this?\")",
+  "- The answer options should be specific and plausible (not generic \"Yes / No / Not sure\")",
+  "- Use world knowledge to ask what a domain expert would ask — the model KNOWS what matters for credit cards, mortgages, races, qualifications",
+  "- Once the pursuit has rich context (description + answers ≥ 120 chars), stop asking — don't over-probe",
+  "- NEVER ask about relationships between pursuits (see RELATIONSHIP QUESTIONS rule)",
+  '- NEVER ask the user to evaluate their own motivation or commitment ("How important is this to you?") — significance already covers that',
+  "",
+  "Title-disambiguation questions are still allowed when the title is genuinely ambiguous — domain questions are ADDITIONAL, not a replacement.",
+  "",
+  "OPTIONS FORMAT:",
+  "- 3-4 specific, plausible answer options — not generic",
+  '- Wrong options: "Yes / No / Not sure / Other"',
+  '- Right options for "Is this on a 0% rate?": "Yes, 0% until [month]" / "No, standard interest rate" / "Not sure — need to check"',
+  '- Right options for "Current longest run?": "Under 5k" / "5-10k" / "10k+" / "Haven\'t started training"',
+  "- The options should cover the realistic range for this domain",
+].join("\n");
+
 function stripMarkdownFence(raw: string): string {
   const trimmed = raw.trim();
   const match = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(trimmed);
@@ -71,7 +146,11 @@ function buildReflectPursuitsOnlySystemPrompt(
   amountImpactEligible: boolean,
 ): string {
   const clarifierRules = options.clarifyTitles
-    ? ["- clarifiers: 0-3 multiple-choice questions when the title is ambiguous."]
+    ? [
+        "- clarifiers: 0-1 multiple-choice question per pursuit when title is ambiguous OR context is thin.",
+        "  Each clarifier: id (short slug), prompt (question), options (3-4 domain-specific labels).",
+        CONTEXTUAL_QUICK_QUESTIONS,
+      ]
     : ["- clarifiers: always return an empty array."];
 
   return [
@@ -82,7 +161,7 @@ function buildReflectPursuitsOnlySystemPrompt(
     "- Name pursuits VERBATIM from map context.",
     "- Never invent pursuits, milestones, or connections not in the data.",
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
-    "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
+    HEADLINE_MUST_ADD_MEANING,
     "- Never generic headlines like \"[title] is progressing well\" — name the specific fact (e.g. \"Contributions are a quarter of the way there after the raise\").",
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
     "- Direct declarative voice in headline and body — no \"your map shows\", no opening with the user's name, no UI section labels.",
@@ -90,6 +169,11 @@ function buildReflectPursuitsOnlySystemPrompt(
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
+    RELATIONSHIP_QUESTIONS_FORBIDDEN,
+    "",
+    "VOICE ANTI-PATTERNS:",
+    "- Do not open with the user's name, say \"your map shows\", or use \"significant\" as filler.",
+    VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     "OUTPUT:",
     '- "reading": always return an empty string "".',
@@ -112,18 +196,11 @@ function buildReflectSystemPrompt(
   }
   const clarifierRules = options.clarifyTitles
     ? [
-        "- clarifiers: 0-3 multiple-choice questions when the title is ambiguous AND context does not already disambiguate.",
-        "  Each clarifier: id (short slug), prompt (question), options (2-4 short labels).",
+        "- clarifiers: 0-1 multiple-choice question per pursuit when title is ambiguous OR context is thin.",
+        "  Each clarifier: id (short slug), prompt (question), options (3-4 domain-specific labels).",
+        CONTEXTUAL_QUICK_QUESTIONS,
       ]
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
-
-  const connectionRules = options.suggestConnections
-    ? [
-        "- You MAY add at most ONE clarifier about how this pursuit relates to a named sibling pursuit in map context.",
-        '  Options must include "Unrelated" or "Not sure".',
-        "- Clarifier answers are user-stated context only — never assert pursuit-to-pursuit relationships as confirmed fact in Reading, theme, or pursuit insight prose unless explicitly supported by map structure (e.g. parentPursuitTitle).",
-      ]
-    : ["- Do NOT ask relationship or cross-pursuit connection questions in clarifiers."];
 
   return [
     "You are Pathfinder's reflection engine. Return a single JSON object with a whole-map reading and per-pursuit insights.",
@@ -134,7 +211,7 @@ function buildReflectSystemPrompt(
     "- Never invent pursuits, milestones, or connections not in the data.",
     "- No filler: ban \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
-    "- Headline must add information beyond the pursuit title using map facts (deadline, milestone progress, amounts, significance).",
+    HEADLINE_MUST_ADD_MEANING,
     "- Never generic headlines like \"[title] is progressing well\" or \"Your ISA is progressing well\" — state the specific fact.",
     "- One concrete suggestion per pursuit, max.",
     "- Be honest about gaps and sparse maps.",
@@ -146,7 +223,8 @@ function buildReflectSystemPrompt(
     "- Do not use \"significant\" as filler — name what is actually notable.",
     "- Do not write \"You have been making progress\" — say what the progress is.",
     "- Do not narrate Reading structure (\"First...\", \"In summary...\", \"In your Work theme...\").",
-    "- Wrong: \"Your map shows a significant financial arrival.\" Right: \"Clearing the credit card debt ahead of schedule frees capacity before other spend ramps up.\"",
+    '- Wrong: "Your map shows a significant financial arrival." Right: "Clearing the credit card debt ahead of schedule frees capacity before other spend ramps up."',
+    VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     ...amountImpactReadingPromptLines(amountImpactEligible),
     "",
@@ -161,7 +239,7 @@ function buildReflectSystemPrompt(
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
-    ...connectionRules,
+    RELATIONSHIP_QUESTIONS_FORBIDDEN,
     "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
     "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline — do not duplicate existing titles.",
     "",

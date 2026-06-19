@@ -32,6 +32,81 @@ import { prisma } from "@/lib/prisma";
 
 const MAX_ENRICH_PER_RUN = 1;
 
+const VOICE_EVALUATIVE_ANTI_PATTERNS = [
+  "EVALUATIVE LANGUAGE (never use):",
+  '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',
+  '- Do not grade their progress: "significant achievement", "impressive", "remarkable", "outstanding"',
+  "- Do not write like a performance review or recommendation letter",
+  "- Instead: describe what actually happened, in plain language, and let the user feel what they feel about it",
+  '- Wrong: "Passing Module 2 marks significant progress towards your CeMAP qualification, demonstrating strong dedication to professional development."',
+  '- Right: "Two modules down, one to go — Module 3 is in sixteen days."',
+  '- Wrong: "This balanced approach to debt reduction and asset growth demonstrates robust financial management."',
+  '- Right: "The debt\'s cleared and the ISA is a quarter of the way there. Two different speeds, both moving."',
+  "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
+].join("\n");
+
+const HEADLINE_MUST_ADD_MEANING = [
+  "HEADLINE MUST ADD MEANING:",
+  '- Never restate the status line ("X is paused with a deadline of Y") or the milestone count ("X has N milestones complete")',
+  "- The user already sees those. The headline tells them what it MEANS.",
+  '- Wrong: "Half-marathon pursuit has one milestone complete, 5k achieved 79 days ago"',
+  '- Right: "5k is done — the jump to 10k is where the training plan actually starts"',
+  "- If there's nothing meaningful to add beyond the status, write a shorter, honest headline rather than padding with facts the user already has.",
+].join("\n");
+
+const RELATIONSHIP_QUESTIONS_FORBIDDEN = [
+  "RELATIONSHIP QUESTIONS — DO NOT GENERATE:",
+  '- Never ask how one pursuit relates to another ("How does X relate to Y?")',
+  "- Never ask whether pursuits support, compete, or overlap",
+  "- Pursuit relationships will be user-authored (connection lines) — do not ask the AI to infer them via questions",
+  "- This rule applies regardless of the suggestConnections flag",
+].join("\n");
+
+const CONTEXTUAL_QUICK_QUESTIONS = [
+  "CONTEXTUAL QUICK QUESTIONS:",
+  "When generating clarifiers for a pursuit, ask about the domain-specific detail that would MOST change how this pursuit should be understood. Use your world knowledge of the pursuit's domain.",
+  "",
+  "Examples of GOOD contextual questions (the kind to generate):",
+  "",
+  'For a debt pursuit ("Clear £10,000 credit card debt"):',
+  '- "Is this on a 0% promotional rate, or are you paying interest?" → the answer changes urgency completely',
+  '- "What\'s the monthly payment?" → grounds the timeline',
+  "",
+  'For a qualification ("CeMAP qualification"):',
+  '- "Are you self-studying or enrolled in a course?" → changes the pace expectation',
+  '- "Is this required for your current role or a career change?" → changes the significance framing',
+  "",
+  'For a fitness goal ("Half-marathon"):',
+  '- "What\'s your current longest run?" → grounds where they actually are',
+  '- "Is this a specific race with a registration date?" → deadline becomes real vs aspirational',
+  "",
+  'For a financial goal ("£500,000 ISA"):',
+  '- "Is this a stocks-and-shares ISA or cash?" → changes the growth framing entirely',
+  '- "What\'s your monthly contribution?" → makes progress concrete',
+  "",
+  'For a life event ("Plan wedding"):',
+  '- "Do you have a venue booked?" → distinguishes dream from plan',
+  '- "What\'s the budget range?" → grounds the financial implications',
+  "",
+  "RULES for contextual questions:",
+  "- Ask ONE question per sync (max), about the detail that would most change the Reading",
+  "- The question must have a CONCRETE answer (a fact, a number, a yes/no) — not an open reflection (\"How do you feel about this?\")",
+  "- The answer options should be specific and plausible (not generic \"Yes / No / Not sure\")",
+  "- Use world knowledge to ask what a domain expert would ask — the model KNOWS what matters for credit cards, mortgages, races, qualifications",
+  "- Once the pursuit has rich context (description + answers ≥ 120 chars), stop asking — don't over-probe",
+  "- NEVER ask about relationships between pursuits (see RELATIONSHIP QUESTIONS rule)",
+  '- NEVER ask the user to evaluate their own motivation or commitment ("How important is this to you?") — significance already covers that',
+  "",
+  "Title-disambiguation questions are still allowed when the title is genuinely ambiguous — domain questions are ADDITIONAL, not a replacement.",
+  "",
+  "OPTIONS FORMAT:",
+  "- 3-4 specific, plausible answer options — not generic",
+  '- Wrong options: "Yes / No / Not sure / Other"',
+  '- Right options for "Is this on a 0% rate?": "Yes, 0% until [month]" / "No, standard interest rate" / "Not sure — need to check"',
+  '- Right options for "Current longest run?": "Under 5k" / "5-10k" / "10k+" / "Haven\'t started training"',
+  "- The options should cover the realistic range for this domain",
+].join("\n");
+
 function buildEnrichSystemPrompt(
   options: Required<PursuitEnrichOptions>,
   peopleThemeBody: boolean,
@@ -39,25 +114,14 @@ function buildEnrichSystemPrompt(
 ): string {
   const clarifierRules = options.clarifyTitles
     ? [
-        "- clarifiers: 0-3 multiple-choice questions when the title is ambiguous AND existing context does not already disambiguate.",
-        "  Each clarifier: id (short slug), prompt (question), options (2-4 short labels, <=6 words each).",
-        "  Skip clarifiers when theme + category + deadline + description already make the pursuit specific.",
+        "- clarifiers: 0-1 multiple-choice question when the title is ambiguous OR context is thin.",
+        "  Each clarifier: id (short slug), prompt (question), options (3-4 domain-specific labels).",
+        "  Skip clarifiers when theme + category + deadline + description + enrichAnswers already make the pursuit specific (≥ 120 chars context).",
         '  Example — title "Project manager", Work theme, Job category, empty description:',
         '  prompt "What kind of project management?" options ["Tech / software","Construction","Marketing / agency","Not sure"]',
+        CONTEXTUAL_QUICK_QUESTIONS,
       ]
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
-
-  const connectionRules = options.suggestConnections
-    ? [
-        "- You MAY add at most ONE clarifier about how this pursuit relates to a named sibling pursuit in context.",
-        "  Only use pursuit titles that appear in siblingPursuits — never invent pursuits.",
-        '  Options must include "Unrelated" or "Not sure".',
-        "- Clarifier answers are user-stated context only — never assert pursuit-to-pursuit relationships as confirmed fact in Reading, theme, or pursuit insight prose unless explicitly supported by map structure (e.g. parentPursuitTitle).",
-      ]
-    : [
-        "- Do NOT ask relationship or cross-pursuit connection questions in clarifiers.",
-        "  Cross-pursuit links belong only in insight body when already supported by context.",
-      ];
 
   return [
     "You enrich a single pursuit on a personal life map.",
@@ -66,8 +130,9 @@ function buildEnrichSystemPrompt(
     "",
     "OUTPUT:",
     ...clarifierRules,
-    ...connectionRules,
+    RELATIONSHIP_QUESTIONS_FORBIDDEN,
     "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars). Tone is assigned server-side — do not set tone.",
+    HEADLINE_MUST_ADD_MEANING,
     "  Body: single prose paragraph — no section labels, no \"From your map:\" or \"Comparison:\" prefixes (the UI renders labels).",
     "  When sibling pursuits support a cross-link, weave one sentence into the body naturally.",
     "  When age AND location are known, weave one benchmark sentence into the body; omit if either is unknown.",
@@ -90,6 +155,7 @@ function buildEnrichSystemPrompt(
     "- Do not say \"your map shows\", \"the app sees\", or embed UI chrome in prose.",
     "- Do not use \"significant\" as filler — name the specific fact.",
     "- Never generic headlines like \"[title] is progressing well\".",
+    VOICE_EVALUATIVE_ANTI_PATTERNS,
   ].join("\n");
 }
 
