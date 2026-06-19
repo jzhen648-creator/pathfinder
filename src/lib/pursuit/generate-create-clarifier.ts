@@ -24,6 +24,7 @@ const CREATE_CLARIFIER_SYSTEM = [
   "- Ask about the domain-specific detail that would MOST change how this pursuit should be understood",
   "- Use world knowledge: credit cards, mortgages, races, qualifications, ISAs, weddings, etc.",
   "- Title-disambiguation is allowed when the title alone is ambiguous",
+  "- When status is COMPLETE (historical record): ask a retrospective question — what finishing meant, what it unlocked, or why it mattered — NOT what stage the user is on",
   "",
   "RULES:",
   "- Exactly 0 or 1 clarifier",
@@ -73,6 +74,9 @@ export type SuggestCreateClarifierInput = {
   themeLabel: string;
   categoryLabel: string;
   deadline?: string | null;
+  timelineStart?: string | null;
+  /** When COMPLETE — user is adding a historical record, not an active pursuit. */
+  status?: "ACTIVE" | "COMPLETE" | null;
   milestones?: MilestoneGroundingInput[];
   userContext: string;
   queueKey?: string | null;
@@ -97,6 +101,8 @@ export async function suggestCreateClarifier(
         theme: input.themeLabel,
         category: input.categoryLabel,
         deadline: input.deadline?.trim() || null,
+        timelineStart: input.timelineStart?.trim() || null,
+        status: input.status ?? "ACTIVE",
         ...(milestones.length > 0
           ? {
               milestones: milestones.map((m) => ({

@@ -17,6 +17,8 @@ const requestSchema = z.object({
   title: z.string().trim().min(3, "title must be at least 3 characters"),
   categoryId: z.string().trim().min(1, "categoryId is required"),
   deadline: z.string().trim().optional(),
+  timelineStart: z.string().trim().optional(),
+  status: z.enum(["ACTIVE", "COMPLETE"]).optional(),
   clarifyTitles: z.boolean().optional(),
   milestones: z.array(milestoneStubSchema).optional(),
 });
@@ -65,6 +67,8 @@ export async function POST(request: Request) {
       themeLabel,
       categoryLabel,
       deadline: reqParsed.data.deadline ?? null,
+      timelineStart: reqParsed.data.timelineStart ?? null,
+      status: reqParsed.data.status ?? "ACTIVE",
       milestones: reqParsed.data.milestones?.map((m) => ({
         title: m.title,
         completed: m.completed === true,

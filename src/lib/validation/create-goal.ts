@@ -51,6 +51,8 @@ export const createGoalPayloadSchema = z
     createdFromGoalId: z.string().optional(),
     /** Optional pursuit start date (YYYY-MM-DD) for timeline + AI pace facts. */
     timelineStart: z.string().optional(),
+    /** When creating a historical record — completion date (YYYY-MM-DD). Requires bloomStatus COMPLETE. */
+    completedAt: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();
@@ -133,6 +135,23 @@ export const createGoalPayloadSchema = z
         message: "timelineStart must be a valid date",
         path: ["timelineStart"],
       });
+    }
+
+    const completedAtTrim = data.completedAt?.trim() ?? "";
+    if (completedAtTrim.length > 0) {
+      if (data.bloomStatus !== "COMPLETE") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "completedAt requires bloomStatus COMPLETE",
+          path: ["completedAt"],
+        });
+      } else if (!parseLocalDateOnly(completedAtTrim)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "completedAt must be a valid date",
+          path: ["completedAt"],
+        });
+      }
     }
   })
   .transform((data) => ({

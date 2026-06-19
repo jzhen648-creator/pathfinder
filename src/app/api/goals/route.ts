@@ -110,6 +110,15 @@ export async function POST(request: Request) {
     }
   }
 
+  let completedAt: Date | null = null;
+  const completedAtTrim = input.completedAt?.trim() ?? "";
+  if (completedAtTrim.length > 0) {
+    completedAt = parseLocalDateOnly(completedAtTrim);
+    if (!completedAt) {
+      return NextResponse.json({ error: "Invalid completedAt date" }, { status: 400 });
+    }
+  }
+
   const future = deadline ? deadlineIsInFutureLocal(deadline) : true;
 
   const now = new Date();
@@ -174,6 +183,7 @@ export async function POST(request: Request) {
             ? { mapGridQ: input.mapGridQ, mapGridR: input.mapGridR }
             : {}),
           ...(timelineStart ? { timelineStart } : {}),
+          ...(completedAt ? { completedAt } : {}),
         },
       });
     });
@@ -185,10 +195,12 @@ export async function POST(request: Request) {
       });
     }
 
-    try {
-      await recomputeGoalStatus(goal.id);
-    } catch (recErr) {
-      console.error("[POST /api/goals] recomputeGoalStatus failed", recErr);
+    if (input.bloomStatus !== "COMPLETE") {
+      try {
+        await recomputeGoalStatus(goal.id);
+      } catch (recErr) {
+        console.error("[POST /api/goals] recomputeGoalStatus failed", recErr);
+      }
     }
 
     if (isLifeAreaId(branchRecord.themeId)) {
