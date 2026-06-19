@@ -1,5 +1,4 @@
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
-import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import {
   hasMinimumContextSignal,
   type PursuitSignal,
@@ -12,7 +11,7 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
-export type QuestionSlot = "clarify" | "connect" | "suggest_add";
+export type QuestionSlot = "clarify" | "suggest_add";
 
 export type QuestionSlotContext = {
   signal: PursuitSignal;
@@ -25,18 +24,10 @@ export type QuestionSlotContext = {
 
 /** Deterministic slot before model drafts MC copy. */
 export function pickQuestionSlotForPursuit(ctx: QuestionSlotContext): QuestionSlot {
-  const options = resolvePursuitEnrichOptions(ctx.enrichOptions);
   const recentlyComplete = isRecentlyCompletedPursuit(ctx.status, ctx.completedAt);
 
   if (recentlyComplete) {
     return "suggest_add";
-  }
-
-  if (
-    options.suggestConnections &&
-    ctx.siblingGoalIds.some((id) => !ctx.existingRelationshipPeerIds.includes(id))
-  ) {
-    return "connect";
   }
 
   if (!hasMinimumContextSignal(ctx.signal)) {
@@ -79,17 +70,6 @@ export function questionSlotUserMessageLines(
   ctx: QuestionSlotMessageContext,
 ): string[] {
   const lines = [`Requested quick-question slot: ${slot}`];
-  if (slot === "connect" && ctx.siblingPursuits?.length) {
-    const candidates = ctx.siblingPursuits.filter(
-      (s) => !ctx.existingRelationshipPeerIds.includes(s.id),
-    );
-    if (candidates.length > 0) {
-      lines.push(
-        'Generate exactly one connect clarifier (kind: "connect") with peerGoalId set to one of:',
-        ...candidates.map((s) => `- ${s.title} (${s.id})`),
-      );
-    }
-  }
   if (slot === "suggest_add") {
     lines.push(
       'Generate exactly one suggest_add clarifier (kind: "suggest_add") proposing a natural follow-on pursuit.',

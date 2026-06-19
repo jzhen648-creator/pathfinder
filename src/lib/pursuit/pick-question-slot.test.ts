@@ -25,21 +25,8 @@ describe("pickQuestionSlotForPursuit", () => {
       completedAt: new Date(),
       siblingGoalIds: ["b"],
       existingRelationshipPeerIds: [],
-      enrichOptions: { suggestConnections: true },
     });
     expect(slot).toBe("suggest_add");
-  });
-
-  it("picks connect when flag on and unlinked sibling exists", () => {
-    const slot = pickQuestionSlotForPursuit({
-      signal: thinSignal,
-      status: "ACTIVE",
-      completedAt: null,
-      siblingGoalIds: ["peer-1"],
-      existingRelationshipPeerIds: [],
-      enrichOptions: { suggestConnections: true },
-    });
-    expect(slot).toBe("connect");
   });
 
   it("falls back to clarify when context is thin", () => {
@@ -47,7 +34,7 @@ describe("pickQuestionSlotForPursuit", () => {
       signal: thinSignal,
       status: "ACTIVE",
       completedAt: null,
-      siblingGoalIds: [],
+      siblingGoalIds: ["peer-1"],
       existingRelationshipPeerIds: [],
     });
     expect(slot).toBe("clarify");
@@ -58,10 +45,10 @@ describe("filterClarifiersForQuestionSlot", () => {
   it("keeps matching kind only", () => {
     const filtered = filterClarifiersForQuestionSlot(
       [
-        { id: "a", prompt: "Q?", options: ["Yes", "No"], kind: "connect", peerGoalId: "p1" },
+        { id: "a", prompt: "Q?", options: ["Yes", "No"], kind: "suggest_add" },
         { id: "b", prompt: "Other?", options: ["A", "B"], kind: "clarify" },
       ],
-      "connect",
+      "suggest_add",
     );
     expect(filtered).toHaveLength(1);
     expect(filtered[0]?.id).toBe("a");

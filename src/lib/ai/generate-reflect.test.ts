@@ -54,7 +54,6 @@ vi.mock("@/lib/gemini", () => ({
 const USER_ID = "alex-carter";
 const ENRICH_OPTIONS = {
   clarifyTitles: false,
-  suggestConnections: false,
   includeMarks: false,
 } as const;
 
