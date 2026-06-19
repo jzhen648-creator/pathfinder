@@ -160,34 +160,42 @@ export async function PATCH(request: Request, props: RouteProps) {
         console.info(logPrefix, "recomputeGoalStatus exit ok", { goalId });
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
-        console.error(logPrefix, "FAILED during recomputeGoalStatus", {
+        console.error(logPrefix, "recomputeGoalStatus failed (milestone saved)", {
           goalId,
           message: err.message,
           stack: err.stack,
-          cause: err.cause,
         });
-        throw Object.assign(err, { phase: "recomputeGoalStatus" });
       }
+    }
+
+    try {
+      await markPursuitReadingDirty(userId, goalId, "milestone_updated", {
+        details: {
+          title: milestone.goal.title,
+          milestoneTitle: updated.title,
+          changes:
+            completedAt !== undefined
+              ? [
+                  {
+                    field: "milestoneCompleted",
+                    from: milestone.completedAt ? "true" : "false",
+                    to: updated.completedAt ? "true" : "false",
+                  },
+                ]
+              : undefined,
+        },
+      });
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error(logPrefix, "markPursuitReadingDirty failed (milestone saved)", {
+        goalId,
+        message: err.message,
+        stack: err.stack,
+      });
     }
 
     const payload = { ok: true as const, skippedBloomRecompute: skipBloomRecompute };
     console.info(logPrefix, "success response", payload);
-    await markPursuitReadingDirty(userId, goalId, "milestone_updated", {
-      details: {
-        title: milestone.goal.title,
-        milestoneTitle: updated.title,
-        changes:
-          completedAt !== undefined
-            ? [
-                {
-                  field: "milestoneCompleted",
-                  from: milestone.completedAt ? "true" : "false",
-                  to: updated.completedAt ? "true" : "false",
-                },
-              ]
-            : undefined,
-      },
-    });
     return NextResponse.json(payload);
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
