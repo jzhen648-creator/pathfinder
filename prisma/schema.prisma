@@ -555,6 +555,8 @@ model PursuitRelationship {
   goalBId           String
   goalB             Goal                    @relation("RelationshipGoalB", fields: [goalBId], references: [id], onDelete: Cascade)
   kind              PursuitRelationshipKind @default(related)
+  /** Optional user-authored label — e.g. "leads to", "supports". */
+  label             String?
   sourceClarifierId String?
   confirmedAt       DateTime                @default(now())
   createdAt         DateTime                @default(now())

@@ -479,22 +479,26 @@ export async function resolveFocusCategoryIds(
 export async function compileReadingPacket(
   userId: string,
   dirty: ReadingDirtyAnalysis,
+  options?: { includeMarks?: boolean },
 ): Promise<ReadingPacket> {
   const now = Date.now();
+  const includeMarks = options?.includeMarks !== false;
   const [mapContext, dirtyRows, focusCategoryIds] = await Promise.all([
-    formatMapContext(userId),
+    formatMapContext(userId, { includeMarks: includeMarks ? true : false }),
     listReadingDirtyRows(userId),
     resolveFocusCategoryIds(userId, dirty),
   ]);
 
   const pursuits = flattenPursuits(mapContext);
   const changeEvents = buildChangeEventsFromDirtyRows(
-    dirtyRows.filter(
-      (row) =>
-        row.entityType === "pursuit" ||
+    dirtyRows.filter((row) => {
+      if (row.entityType === "pursuit") return true;
+      if (!includeMarks) return false;
+      return (
         row.entityType === "mark" ||
-        (row.entityType === "global" && row.reason.includes("mark")),
-    ),
+        (row.entityType === "global" && row.reason.includes("mark"))
+      );
+    }),
   );
 
   const spine = capSpineEventsForPacket(buildSpineEventsFromMapContext(mapContext));

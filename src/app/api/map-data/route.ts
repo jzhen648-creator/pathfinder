@@ -211,6 +211,7 @@ export async function GET(request: Request) {
           goalAId: true,
           goalBId: true,
           kind: true,
+          label: true,
           confirmedAt: true,
         },
       }),

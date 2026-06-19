@@ -3,7 +3,7 @@ import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation
 import { prisma } from "@/lib/prisma";
 
 export async function computeMapVersion(userId: string): Promise<string> {
-  const [goals, milestones, marks, branches] = await Promise.all([
+  const [goals, milestones, marks, branches, relationships] = await Promise.all([
     prisma.goal.aggregate({
       where: { userId, ...interpretationEligiblePursuitWhere },
       _count: { id: true },
@@ -24,6 +24,11 @@ export async function computeMapVersion(userId: string): Promise<string> {
       _count: { id: true },
       _max: { updatedAt: true },
     }),
+    prisma.pursuitRelationship.aggregate({
+      where: { userId },
+      _count: { id: true },
+      _max: { confirmedAt: true },
+    }),
   ]);
 
   const fingerprint = {
@@ -31,11 +36,13 @@ export async function computeMapVersion(userId: string): Promise<string> {
     milestones: milestones._count.id,
     marks: marks._count.id,
     hubs: branches._count.id,
+    relationships: relationships._count.id,
     maxUpdatedAt: [
       goals._max.updatedAt?.toISOString() ?? null,
       milestones._max.completedAt?.toISOString() ?? null,
       marks._max.updatedAt?.toISOString() ?? null,
       branches._max.updatedAt?.toISOString() ?? null,
+      relationships._max.confirmedAt?.toISOString() ?? null,
     ]
       .filter(Boolean)
       .sort()

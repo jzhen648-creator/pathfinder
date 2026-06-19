@@ -12,6 +12,8 @@ export type MapContextFilter = {
   excludePaused?: boolean;
   /** @deprecated Use excludePaused */
   excludeOnHold?: boolean;
+  /** When false, omit theme/hub marks. Omitted or true keeps legacy mark loading. */
+  includeMarks?: boolean;
 };
 
 export type FormattedMapMark = {
@@ -66,12 +68,13 @@ export type FormattedMapContext = {
       pursuits: FormattedMapPursuit[];
     }>;
   }>;
-  /** User-confirmed lateral pursuit relationships (titles only). */
+  /** User-confirmed lateral pursuit relationships (titles + optional label). */
   confirmedRelationships?: Array<{
     goalAId: string;
     goalBId: string;
     goalATitle: string;
     goalBTitle: string;
+    label?: string | null;
   }>;
 };
 
@@ -204,6 +207,7 @@ export async function formatMapContext(
   userId: string,
   filter: MapContextFilter = {},
 ): Promise<FormattedMapContext> {
+  const includeMarks = filter.includeMarks !== false;
   const branches = canonicalRootHubRows(
     await prisma.themeCategory.findMany({
       where: {
@@ -230,19 +234,23 @@ export async function formatMapContext(
           select: goalSelect,
           orderBy: { createdAt: "asc" },
         },
-        marks: {
-          where: { archived: false },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            date: true,
-            sentiment: true,
-            future: true,
-            sequencePosition: true,
-          },
-          orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
-        },
+        ...(includeMarks
+          ? {
+              marks: {
+                where: { archived: false },
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  date: true,
+                  sentiment: true,
+                  future: true,
+                  sequencePosition: true,
+                },
+                orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
+              },
+            }
+          : {}),
       },
       orderBy: [{ themeId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
     }),
@@ -260,8 +268,9 @@ export async function formatMapContext(
         hubs: [],
       };
 
+    const branchMarks = includeMarks ? (branch.marks ?? []) : [];
     const seenMarkIds = new Set(theme.marks.map((mark) => mark.id));
-    for (const mark of branch.marks) {
+    for (const mark of branchMarks) {
       if (seenMarkIds.has(mark.id)) continue;
       seenMarkIds.add(mark.id);
       theme.marks.push(serializeMarkRow(mark));
@@ -275,7 +284,7 @@ export async function formatMapContext(
       id: branch.id,
       label: hubRawLabel,
       section,
-      marks: branch.marks.map((mark) => serializeMarkRow(mark)),
+      marks: branchMarks.map((mark) => serializeMarkRow(mark)),
       pursuits: branch.goals.map((goal) => buildPursuitRow(goal, pursuitTitleById)),
     });
 
@@ -287,6 +296,7 @@ export async function formatMapContext(
     select: {
       goalAId: true,
       goalBId: true,
+      label: true,
       goalA: { select: { title: true } },
       goalB: { select: { title: true } },
     },
@@ -297,6 +307,7 @@ export async function formatMapContext(
     goalBId: row.goalBId,
     goalATitle: row.goalA.title,
     goalBTitle: row.goalB.title,
+    label: row.label?.trim() || null,
   }));
 
   return { themes: [...themeMap.values()], confirmedRelationships };

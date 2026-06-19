@@ -330,7 +330,6 @@ function buildReflectUserMessage(input: {
     ...(milestoneOptions ? [milestoneOptions, ""] : []),
     "<options>",
     `clarifyTitles: ${input.enrichOptions.clarifyTitles}`,
-    `suggestConnections: ${input.enrichOptions.suggestConnections}`,
     `includeMarks: ${input.enrichOptions.includeMarks}`,
     "</options>",
     "",
@@ -556,7 +555,9 @@ export async function runReflectSync(
   const needsReadingRefresh =
     plan.mode === "full" || options.storyStale || !hasStory;
 
-  const mapContext = await formatMapContext(userId);
+  const mapContext = await formatMapContext(userId, {
+    includeMarks: enrichOptions.includeMarks ? true : false,
+  });
   const [amountImpactEligible, allPursuitSignals] = await Promise.all([
     Promise.resolve(isAmountImpactEligible(mapContext)),
     loadAllPursuitSignals(userId),
@@ -611,9 +612,13 @@ async function generateReflectResponse(
     await Promise.all([
     options?.mapContext
       ? Promise.resolve(options.mapContext)
-      : formatMapContext(userId),
+      : formatMapContext(userId, {
+          includeMarks: enrichOptions.includeMarks ? true : false,
+        }),
     formatUserContext(userId),
-    compileReadingPacket(userId, dirty),
+    compileReadingPacket(userId, dirty, {
+      includeMarks: enrichOptions.includeMarks ? true : false,
+    }),
     loadPursuitSignals(userId, pursuitIds),
     options?.holisticBenchmarkEligible === undefined
       ? loadAllPursuitSignals(userId)
