@@ -8,11 +8,17 @@ import { hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 import { suggestCreateClarifier } from "@/lib/pursuit/generate-create-clarifier";
 
+const milestoneStubSchema = z.object({
+  title: z.string().trim().min(1),
+  completed: z.boolean().optional(),
+});
+
 const requestSchema = z.object({
   title: z.string().trim().min(3, "title must be at least 3 characters"),
   categoryId: z.string().trim().min(1, "categoryId is required"),
   deadline: z.string().trim().optional(),
   clarifyTitles: z.boolean().optional(),
+  milestones: z.array(milestoneStubSchema).optional(),
 });
 
 export async function POST(request: Request) {
@@ -59,6 +65,10 @@ export async function POST(request: Request) {
       themeLabel,
       categoryLabel,
       deadline: reqParsed.data.deadline ?? null,
+      milestones: reqParsed.data.milestones?.map((m) => ({
+        title: m.title,
+        completed: m.completed === true,
+      })),
       userContext,
       queueKey: userId,
     });

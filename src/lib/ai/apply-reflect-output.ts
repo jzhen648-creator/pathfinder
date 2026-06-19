@@ -6,6 +6,10 @@ import {
   type PursuitToneGoalInput,
 } from "@/lib/insights/resolve-pursuit-insight-tone";
 import {
+  filterClarifiersAgainstMilestones,
+  milestonesToGroundingInput,
+} from "@/lib/pursuit/filter-clarifiers-against-milestones";
+import {
   gateEnrichResult,
   gatePursuitComparison,
   gateThemeCombined,
@@ -16,8 +20,14 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
 import {
-  type PursuitEnrichCachePayload,
-  type PursuitEnrichResult,
+  applyQuestionSlotToResult,
+  loadRelationshipPeerIdsForGoal,
+  type QuestionSlotMessageContext,
+} from "@/lib/pursuit/pick-question-slot";
+import type {
+  Clarifier,
+  PursuitEnrichCachePayload,
+  PursuitEnrichResult,
 } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
@@ -45,10 +55,37 @@ export function dedupeSuggestedMilestones<T extends { title: string }>(
   return unique.length > 0 ? unique : null;
 }
 
+function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  const prompt =
+    typeof c.prompt === "string"
+      ? c.prompt
+      : typeof c.question === "string"
+        ? c.question
+        : "";
+  const options = Array.isArray(c.options)
+    ? c.options.filter((o): o is string => typeof o === "string")
+    : [];
+  if (!prompt.trim() || options.length < 2) return null;
+  return {
+    id: typeof c.id === "string" && c.id.trim() ? c.id : `q-${index + 1}`,
+    prompt: prompt.trim(),
+    options,
+    ...(typeof c.kind === "string" ? { kind: c.kind as Clarifier["kind"] } : {}),
+    ...(typeof c.peerGoalId === "string" ? { peerGoalId: c.peerGoalId } : {}),
+    ...(typeof c.suggestedTitle === "string" ? { suggestedTitle: c.suggestedTitle } : {}),
+    ...(typeof c.suggestedCategoryId === "string"
+      ? { suggestedCategoryId: c.suggestedCategoryId }
+      : {}),
+    ...(typeof c.suggestedThemeId === "string" ? { suggestedThemeId: c.suggestedThemeId } : {}),
+  };
+}
+
 async function loadPursuitToneGoals(
   userId: string,
   pursuitIds: string[],
-): Promise<Map<string, PursuitToneGoalInput>> {
+): Promise<Map<string, PursuitToneGoalInput & { id: string; themeId: string | null }>> {
   const goals = await prisma.goal.findMany({
     where: { userId, id: { in: pursuitIds }, archived: false },
     select: {
@@ -58,6 +95,7 @@ async function loadPursuitToneGoals(
       enrichAnswers: true,
       deadline: true,
       status: true,
+      themeId: true,
       significance: true,
       targetAmount: true,
       currentAmount: true,
@@ -150,6 +188,13 @@ export async function applyReflectOutput(
   }
 
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
+  const siblingTitlesByTheme = new Map<string, Array<{ id: string; title: string }>>();
+  for (const goal of toneGoals.values()) {
+    const themeId = goal.themeId ?? "becoming";
+    const list = siblingTitlesByTheme.get(themeId) ?? [];
+    list.push({ id: goal.id, title: goal.title });
+    siblingTitlesByTheme.set(themeId, list);
+  }
   const themeIds = Object.keys(reflect.themes ?? {});
   const themeSignals = await loadThemePursuitSignals(userId, themeIds);
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
@@ -182,11 +227,12 @@ export async function applyReflectOutput(
     const comparison = gatePursuitComparison(entry.comparison?.trim() ?? "", signal);
 
     const rawResult: PursuitEnrichResult = {
-      clarifiers: (entry.clarifiers ?? []).map((c, index) => ({
-        id: "id" in c && typeof c.id === "string" ? c.id : `q-${index + 1}`,
-        prompt: "prompt" in c ? String(c.prompt) : "question" in c ? String((c as { question: string }).question) : "",
-        options: c.options,
-      })).filter((c) => c.prompt.trim() && c.options.length >= 2),
+      clarifiers: filterClarifiersAgainstMilestones(
+        (entry.clarifiers ?? [])
+          .map((c, index) => normalizeReflectClarifier(c, index))
+          .filter((c): c is Clarifier => c != null),
+        milestonesToGroundingInput(goal.milestones),
+      ),
       insight: {
         tone: resolvePursuitInsightTone(goal, now),
         headline: entry.headline,
@@ -200,7 +246,22 @@ export async function applyReflectOutput(
     };
 
     const gated = gateEnrichResult(rawResult, signal, options);
-    const payload = toCachePayload(gated);
+    const themeId = goal.themeId ?? "becoming";
+    const siblingPursuits = (siblingTitlesByTheme.get(themeId) ?? []).filter(
+      (s) => s.id !== pursuitId,
+    );
+    const existingRelationshipPeerIds = await loadRelationshipPeerIdsForGoal(userId, pursuitId);
+    const slotContext: QuestionSlotMessageContext = {
+      signal,
+      status: goal.status ?? "ACTIVE",
+      completedAt: goal.completedAt ?? null,
+      siblingGoalIds: siblingPursuits.map((s) => s.id),
+      existingRelationshipPeerIds,
+      enrichOptions: options,
+      siblingPursuits,
+    };
+    const slotted = applyQuestionSlotToResult(gated, slotContext);
+    const payload = toCachePayload(slotted);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
     }

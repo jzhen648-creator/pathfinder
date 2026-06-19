@@ -27,6 +27,7 @@ import {
   titleLooksOverSpecific,
 } from "@/lib/pursuit/pursuit-title";
 import { syncFinanceMetricsFromProse } from "@/lib/pursuit/pursuit-finance";
+import { appendPursuitContextEntryAndSync } from "@/lib/pursuit/pursuit-context-log";
 import {
   streamExtractFailureStatus,
   streamExtractUserMessage,
@@ -484,6 +485,15 @@ export async function digestPendingStreamRun(
         items.push({ kind: "mark", markId: created.id, title: created.title });
       }
     });
+
+    for (const item of items) {
+      if (item.kind === "context" && item.newDescription?.trim()) {
+        await appendPursuitContextEntryAndSync(userId, item.goalId, {
+          kind: "stream_digest",
+          text: item.newDescription.trim(),
+        });
+      }
+    }
 
     await recomputeGoalStatus(pursuitId).catch((e) => {
       console.error("[digestPendingStreamRun] recomputeGoalStatus", e);

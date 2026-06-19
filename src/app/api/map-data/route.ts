@@ -127,7 +127,7 @@ export async function GET(request: Request) {
 
     };
 
-    const [goals, archivedGoals, marks] = await Promise.all([
+    const [goals, archivedGoals, marks, relationships] = await Promise.all([
 
       prisma.goal.findMany({
 
@@ -204,6 +204,17 @@ export async function GET(request: Request) {
 
       }),
 
+      prisma.pursuitRelationship.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          goalAId: true,
+          goalBId: true,
+          kind: true,
+          confirmedAt: true,
+        },
+      }),
+
     ]);
 
     const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
@@ -225,6 +236,7 @@ export async function GET(request: Request) {
       goals,
       archivedGoals,
       marks,
+      relationships,
       unlockedLimbIds,
       pendingCaptureGoalIds,
     });

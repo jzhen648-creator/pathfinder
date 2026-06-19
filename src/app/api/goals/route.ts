@@ -23,6 +23,7 @@ import {
 import { activateCategoryForUser } from "@/lib/system-categories";
 import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
+import { appendPursuitContextEntryAndSync } from "@/lib/pursuit/pursuit-context-log";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -62,6 +63,21 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data;
+  const createdFromGoalId =
+    typeof input.createdFromGoalId === "string" && input.createdFromGoalId.trim().length > 0
+      ? input.createdFromGoalId.trim()
+      : null;
+
+  if (createdFromGoalId) {
+    const sourceGoal = await prisma.goal.findFirst({
+      where: { id: createdFromGoalId, userId, archived: false },
+      select: { id: true },
+    });
+    if (!sourceGoal) {
+      return NextResponse.json({ error: "Source pursuit not found" }, { status: 400 });
+    }
+  }
+
   const branchRecord = await prisma.themeCategory.findFirst({
     where: { id: input.branchId.trim(), userId },
     select: { id: true, themeId: true, name: true, label: true, isActive: true },
@@ -121,7 +137,6 @@ export async function POST(request: Request) {
     : 3;
 
   try {
-    /** Resolve branch-line sequence position from the optional `anchor` (defaults to append). The reindex pass, if any, runs inside the same transaction as the goal insert so existing nodes don't temporarily share a slot. */
     const anchor = input.anchor ?? { kind: "append" as const };
     const existingNodes = await loadCategorySequencedNodes(prisma, branchRecord.id);
     const resolution = resolveSequenceAnchor(existingNodes, anchor);
@@ -133,7 +148,7 @@ export async function POST(request: Request) {
         data: {
           userId,
           title,
-          description,
+          description: description || "",
           iconName: null,
           lifeArea,
           goalType: input.goalType,
@@ -147,8 +162,7 @@ export async function POST(request: Request) {
           year,
           month,
           sequencePosition,
-          // Only send measurement fields when used. Omitting avoids "Unknown argument `unit`"
-          // if @prisma/client is behind schema (e.g. generate failed while dev server had DLL locked).
+          createdFromGoalId,
           ...(measurable
             ? {
                 targetAmount: targetNum,
@@ -163,6 +177,13 @@ export async function POST(request: Request) {
         },
       });
     });
+
+    if (description) {
+      await appendPursuitContextEntryAndSync(userId, goal.id, {
+        kind: "create",
+        text: description,
+      });
+    }
 
     try {
       await recomputeGoalStatus(goal.id);

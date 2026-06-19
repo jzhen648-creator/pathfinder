@@ -1,4 +1,9 @@
 import { generateJsonCompletion } from "@/lib/gemini";
+import { CREATE_CLARIFIER_MILESTONE_GROUNDING } from "@/lib/pursuit/clarifier-prompt-blocks";
+import {
+  filterClarifiersAgainstMilestones,
+  type MilestoneGroundingInput,
+} from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import {
   clarifierSchema,
   type Clarifier,
@@ -8,9 +13,12 @@ const CREATE_CLARIFIER_SYSTEM = [
   "You suggest ONE optional quick question for someone creating a new pursuit on their life map.",
   "Return ONLY valid JSON: { \"clarifier\": { \"id\": string, \"prompt\": string, \"options\": string[] } | null }.",
   "",
+  CREATE_CLARIFIER_MILESTONE_GROUNDING,
+  "",
   "When to return null:",
   "- Title is already fully specific (amount, deadline, and outcome all clear)",
   "- No domain-specific detail would meaningfully change how this pursuit should be read",
+  "- Completed milestones already answer every plausible question",
   "",
   "When to return a clarifier:",
   "- Ask about the domain-specific detail that would MOST change how this pursuit should be understood",
@@ -65,6 +73,7 @@ export type SuggestCreateClarifierInput = {
   themeLabel: string;
   categoryLabel: string;
   deadline?: string | null;
+  milestones?: MilestoneGroundingInput[];
   userContext: string;
   queueKey?: string | null;
 };
@@ -74,6 +83,9 @@ export async function suggestCreateClarifier(
 ): Promise<Clarifier | null> {
   const title = input.title.trim();
   if (title.length < 3) return null;
+
+  const milestones = input.milestones ?? [];
+  const completedMilestones = milestones.filter((m) => m.completed && m.title.trim());
 
   const user = [
     input.userContext ? `User profile:\n${input.userContext}` : "(No profile context yet.)",
@@ -85,10 +97,24 @@ export async function suggestCreateClarifier(
         theme: input.themeLabel,
         category: input.categoryLabel,
         deadline: input.deadline?.trim() || null,
+        ...(milestones.length > 0
+          ? {
+              milestones: milestones.map((m) => ({
+                title: m.title,
+                completed: m.completed,
+              })),
+            }
+          : {}),
       },
       null,
       2,
     ),
+    ...(completedMilestones.length > 0
+      ? [
+          "",
+          "Completed milestones already on this pursuit — do not ask what they prove or offer contradicting options.",
+        ]
+      : []),
     "",
     'Return JSON: { "clarifier": { "id", "prompt", "options" } | null }',
   ].join("\n");
@@ -109,5 +135,9 @@ export async function suggestCreateClarifier(
   }
 
   const clarifierRaw = (json as { clarifier?: unknown }).clarifier;
-  return normalizeClarifier(clarifierRaw);
+  const clarifier = normalizeClarifier(clarifierRaw);
+  if (!clarifier) return null;
+
+  const filtered = filterClarifiersAgainstMilestones([clarifier], milestones);
+  return filtered[0] ?? null;
 }

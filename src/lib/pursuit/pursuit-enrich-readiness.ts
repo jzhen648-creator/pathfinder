@@ -1,4 +1,5 @@
 import type { PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
+import { clarifierKind } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
@@ -115,11 +116,12 @@ export function gateEnrichResult(
   const options = resolvePursuitEnrichOptions(enrichOptions);
   const clarifiers = !options.clarifyTitles
     ? []
-    : signal.description.trim().length === 0
-      ? result.clarifiers
-      : hasMinimumContextSignal(signal)
-        ? []
-        : result.clarifiers;
+    : result.clarifiers.filter((clarifier) => {
+        const kind = clarifierKind(clarifier);
+        if (kind === "connect" || kind === "suggest_add") return true;
+        if (signal.description.trim().length === 0) return true;
+        return !hasMinimumContextSignal(signal);
+      });
 
   const suggestedMilestones = shouldSuggestMilestones(signal)
     ? result.suggestedMilestones

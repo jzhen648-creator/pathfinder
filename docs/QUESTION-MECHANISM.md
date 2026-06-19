@@ -8,7 +8,7 @@
 
 ## The one idea (correctly scoped)
 
-**For interpretive asks, the AI proposes as a quiet question. The user confirms. Confirmed answers feed both the map and the readings.**
+**For interpretive asks, the AI proposes as a quiet question. The user confirms. Confirmed answers either enrich the map/readings or launch a normal user-authored action.**
 
 "Interpretive asks" means exactly three things: **clarify** (what does this pursuit mean), **connect** (is this related to that), and **suggest-add** (want to add this pursuit). These three share **one user-facing gesture and one card type** — a quiet question you tap.
 
@@ -16,9 +16,9 @@ They do **not** share one storage path. This is the important subtlety: it is **
 
 | Ask | Confirm handler | Where the answer goes |
 |-----|-----------------|----------------------|
-| **Clarify** | Append to context | `description` / `enrichAnswers` (as today) |
+| **Clarify** | Save user-stated context | Today: `description` / `enrichAnswers`; target storage depends on the Pursuit Context Log decision |
 | **Connect** | Record a relationship | **Open decision** — needs queryable structure, not a prose line (see Open Decisions) |
-| **Suggest-add** | Open create flow | Nothing is "answered" — opens `PlacementCreateSheet` prefilled; user authors it |
+| **Suggest-add** | Open create flow | Nothing is "answered" unless provenance is chosen — opens `PlacementCreateSheet` prefilled; user authors it |
 
 That shared gesture is the real, defensible simplification. It is **not** "everything becomes a question" — the audit showed that forcing milestones, map lines, selection logic, and a read-only meter into this pathway would *increase* complexity, not reduce it.
 
@@ -29,6 +29,12 @@ Why this fits Pathfinder specifically:
 - It keeps the user as the author. The AI never inserts a pursuit, a connection, or a fact — it *asks*, and only a confirmation makes anything real. This protects "the map is your truth."
 - It is one quiet recurring gesture, not a dashboard of capabilities. That is consistent with "focus on what matters, ignore the noise."
 - It gets smarter the more of your life is in it — the questions sharpen as the map fills. That is the moat.
+
+### Cursor opinion
+
+This improves Pathfinder **if it stays this narrow**. The product gain is coherence: the user learns one small gesture for "Pathfinder wants to understand something," while the app preserves the authorship rule that makes the map feel truthful.
+
+Recommended default, unless TestFlight says otherwise: finish question predictability first; make the Pursuit Context Log the prerequisite; use a typed peer relationship for Connect; let Suggest-add open create with optional provenance; do **not** ship connection lines by default. Lines can wait until the data proves useful without them.
 
 ---
 
@@ -102,7 +108,7 @@ This entire doc is **post-TestFlight**. The pre-TestFlight build (trust fix + la
 
 Build order, once greenlit post-validation, set by the feasibility audit:
 
-1. **Phase 2.5 (predictability)** — align the clarifier gate with richness, significance-aware ordering, clarify the sync→questions link. Schema-free. Makes today's Clarify ask feel intentional. *(Partially shipped — see audit.)*
+1. **Phase 2.5 (predictability)** — align the clarifier gate with richness, significance-aware ordering, completion boost, and why-now cue on the pursuit sheet. Schema-free. Makes today's Clarify ask feel intentional. *(Shipped — see audit.)*
 2. **Connect ask** — connection question → structured confirmed relationship (data only, no lines).
 3. **Suggest-add ask** — completion/beat → "add this?" → prefilled create flow.
-4. **Adjacent, independent decisions** — connection lines (visual, may never), richness indicator UI (founder confirm — design previously parked it), completion-boost in selection (folds into Phase 2.5).
+4. **Adjacent, independent decisions** — connection lines (visual, may never), richness indicator UI (founder confirm — design previously parked it), question-type selection + frequency tuning (remaining Phase 2.5).

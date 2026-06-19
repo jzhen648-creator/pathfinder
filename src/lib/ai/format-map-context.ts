@@ -66,6 +66,13 @@ export type FormattedMapContext = {
       pursuits: FormattedMapPursuit[];
     }>;
   }>;
+  /** User-confirmed lateral pursuit relationships (titles only). */
+  confirmedRelationships?: Array<{
+    goalAId: string;
+    goalBId: string;
+    goalATitle: string;
+    goalBTitle: string;
+  }>;
 };
 
 export type FormattedPursuitContext = {
@@ -275,7 +282,24 @@ export async function formatMapContext(
     themeMap.set(branch.themeId, theme);
   }
 
-  return { themes: [...themeMap.values()] };
+  const relationships = await prisma.pursuitRelationship.findMany({
+    where: { userId },
+    select: {
+      goalAId: true,
+      goalBId: true,
+      goalA: { select: { title: true } },
+      goalB: { select: { title: true } },
+    },
+  });
+
+  const confirmedRelationships = relationships.map((row) => ({
+    goalAId: row.goalAId,
+    goalBId: row.goalBId,
+    goalATitle: row.goalA.title,
+    goalBTitle: row.goalB.title,
+  }));
+
+  return { themes: [...themeMap.values()], confirmedRelationships };
 }
 
 /** Full layered context for a single pursuit — context questions, milestones, enrich. */

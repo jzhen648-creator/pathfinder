@@ -146,20 +146,37 @@ function parseDetails(raw: unknown): ReadingDirtyDetails | null {
 
 const MS_PER_DAY = 86_400_000;
 
+/** Matches map aggregate window in compile-reading-packet / spine-events. */
+export const RECENT_COMPLETION_WINDOW_DAYS = 90;
+
 export type DirtyPursuitPriorityRow = {
   id: string;
   significance: number;
   signal: PursuitSignal;
   deadline: Date | null;
   createdAt: Date;
+  status: string;
+  completedAt: Date | null;
 };
+
+/** Whole-pursuit COMPLETE within the recent-completion window. */
+export function isRecentlyCompletedPursuit(
+  status: string,
+  completedAt: Date | null,
+  now = Date.now(),
+): boolean {
+  if (status !== "COMPLETE") return false;
+  if (!completedAt) return false;
+  const cutoff = now - RECENT_COMPLETION_WINDOW_DAYS * MS_PER_DAY;
+  return completedAt.getTime() >= cutoff;
+}
 
 function daysUntilDeadline(deadline: Date | null, now: number): number {
   if (!deadline) return Number.POSITIVE_INFINITY;
   return Math.ceil((deadline.getTime() - now) / MS_PER_DAY);
 }
 
-/** Deterministic QQ / reflect priority — significance first, then thinness, deadline, age. */
+/** Deterministic QQ / reflect priority — significance, recent completion, thinness, deadline, age. */
 export function compareDirtyPursuitPriority(
   a: DirtyPursuitPriorityRow,
   b: DirtyPursuitPriorityRow,
@@ -167,6 +184,12 @@ export function compareDirtyPursuitPriority(
 ): number {
   if (a.significance !== b.significance) {
     return b.significance - a.significance;
+  }
+
+  const aRecent = isRecentlyCompletedPursuit(a.status, a.completedAt, now) ? 0 : 1;
+  const bRecent = isRecentlyCompletedPursuit(b.status, b.completedAt, now) ? 0 : 1;
+  if (aRecent !== bRecent) {
+    return aRecent - bRecent;
   }
 
   const aThin = hasMinimumContextSignal(a.signal) ? 1 : 0;
@@ -209,6 +232,7 @@ export async function sortDirtyPursuitIdsForReflect(
       enrichAnswers: true,
       deadline: true,
       status: true,
+      completedAt: true,
       targetAmount: true,
       significance: true,
       createdAt: true,
@@ -222,6 +246,8 @@ export async function sortDirtyPursuitIdsForReflect(
     signal: pursuitSignalFromGoal(goal),
     deadline: goal.deadline,
     createdAt: goal.createdAt,
+    status: goal.status,
+    completedAt: goal.completedAt,
   }));
 
   const sorted = sortDirtyPursuitPriorityRows(rows, now).map((row) => row.id);

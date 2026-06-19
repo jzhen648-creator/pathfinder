@@ -47,6 +47,8 @@ export const createGoalPayloadSchema = z
     /** World hex grid pin — both required when either is set. */
     mapGridQ: z.number().int().optional(),
     mapGridR: z.number().int().optional(),
+    /** Optional suggest-add provenance — source pursuit id. */
+    createdFromGoalId: z.string().optional(),
     /** Optional pursuit start date (YYYY-MM-DD) for timeline + AI pace facts. */
     timelineStart: z.string().optional(),
   })

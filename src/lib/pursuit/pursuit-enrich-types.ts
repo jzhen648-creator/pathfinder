@@ -1,11 +1,36 @@
 import { z } from "zod";
 import { pursuitInsightSchema } from "@/lib/insights/insight-types";
 
-export const clarifierSchema = z.object({
-  id: z.string().min(1),
-  prompt: z.string().min(1).max(200),
-  options: z.array(z.string().min(1).max(80)).min(2).max(4),
-});
+export const clarifierKindSchema = z.enum(["clarify", "connect", "suggest_add"]);
+
+export const clarifierSchema = z
+  .object({
+    id: z.string().min(1),
+    prompt: z.string().min(1).max(200),
+    options: z.array(z.string().min(1).max(80)).min(2).max(4),
+    kind: clarifierKindSchema.optional(),
+    peerGoalId: z.string().optional(),
+    suggestedTitle: z.string().max(100).optional(),
+    suggestedCategoryId: z.string().optional(),
+    suggestedThemeId: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const kind = value.kind ?? "clarify";
+    if (kind === "connect" && !value.peerGoalId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Connect clarifiers require peerGoalId",
+        path: ["peerGoalId"],
+      });
+    }
+    if (kind === "suggest_add" && !value.suggestedTitle?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Suggest-add clarifiers require suggestedTitle",
+        path: ["suggestedTitle"],
+      });
+    }
+  });
 
 export const suggestedMilestoneSchema = z.object({
   title: z.string().min(1).max(120),
@@ -30,6 +55,7 @@ export const enrichAnswerSchema = z.object({
 
 export const enrichAnswersSchema = z.array(enrichAnswerSchema);
 
+export type ClarifierKind = z.infer<typeof clarifierKindSchema>;
 export type Clarifier = z.infer<typeof clarifierSchema>;
 export type SuggestedMilestone = z.infer<typeof suggestedMilestoneSchema>;
 export type PursuitEnrichResult = z.infer<typeof pursuitEnrichResultSchema>;
@@ -42,3 +68,7 @@ export const pursuitEnrichCacheSchema = pursuitInsightSchema.extend({
 });
 
 export type PursuitEnrichCachePayload = z.infer<typeof pursuitEnrichCacheSchema>;
+
+export function clarifierKind(clarifier: Clarifier): ClarifierKind {
+  return clarifier.kind ?? "clarify";
+}

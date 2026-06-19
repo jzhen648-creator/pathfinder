@@ -61,6 +61,8 @@ model User {
   readingDirtyItems          AiReadingDirtyItem[]
   userMemory                 UserMemory?
   userMemoryHistory          UserMemoryHistory[]
+  pursuitContextEntries      PursuitContextEntry[]
+  pursuitRelationships       PursuitRelationship[]
 }
 
 /// Pursuit (`Goal`) lifecycle + reused on `ThemeCategory` / timeline derivation.
@@ -408,6 +410,18 @@ enum AiReadingDirtyEntityType {
   global
 }
 
+enum PursuitContextEntryKind {
+  clarifier_answer
+  manual_edit
+  stream_digest
+  create
+  ai_merge
+}
+
+enum PursuitRelationshipKind {
+  related
+}
+
 /// Tracks map entities that changed since the last successful AI reading sync.
 model AiReadingDirtyItem {
   id          String                   @id @default(cuid())
@@ -466,6 +480,10 @@ model Goal {
   parentGoal       Goal?       @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
   /// Successor goals (**continuations**). Relation name is legacy (`GoalFork`); semantics are longitudinal evolution, not nesting.
   forkedGoals      Goal[]      @relation("GoalFork")
+  /// Suggest-add provenance — peer suggestion source, not parent/child nesting.
+  createdFromGoalId String?
+  createdFromGoal   Goal?      @relation("SuggestAddProvenance", fields: [createdFromGoalId], references: [id], onDelete: SetNull)
+  suggestedGoals    Goal[]     @relation("SuggestAddProvenance")
   positionAngle    Float?
   year             Int         @default(2026)
   month            Int?
@@ -495,8 +513,12 @@ model Goal {
   /// Last pursuit Stream run that updated this goal's context/status.
   sourceStreamRunId String?
   milestones       Milestone[]
+  contextEntries   PursuitContextEntry[]
+  relationshipsAsA PursuitRelationship[] @relation("RelationshipGoalA")
+  relationshipsAsB PursuitRelationship[] @relation("RelationshipGoalB")
 
   @@index([parentGoalId])
+  @@index([createdFromGoalId])
   @@index([sourceStreamRunId])
   @@index([categoryId])
   @@index([themeId])
@@ -507,6 +529,42 @@ model Goal {
 // Caches the AI-generated evaluation for a specific (user, goal-inputs) tuple
 // so repeat submissions of the same draft inside the create-goal modal don't
 // re-bill the LLM provider.
+/// Append-only pursuit context log — source of truth for user-stated context.
+model PursuitContextEntry {
+  id        String                   @id @default(cuid())
+  userId    String
+  user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId    String
+  goal      Goal                     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  kind      PursuitContextEntryKind
+  text      String
+  metadata  Json?
+  createdAt DateTime                 @default(now())
+
+  @@index([goalId, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// User-confirmed lateral relationship between two pursuits (peers, not trees).
+model PursuitRelationship {
+  id                String                  @id @default(cuid())
+  userId            String
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalAId           String
+  goalA             Goal                    @relation("RelationshipGoalA", fields: [goalAId], references: [id], onDelete: Cascade)
+  goalBId           String
+  goalB             Goal                    @relation("RelationshipGoalB", fields: [goalBId], references: [id], onDelete: Cascade)
+  kind              PursuitRelationshipKind @default(related)
+  sourceClarifierId String?
+  confirmedAt       DateTime                @default(now())
+  createdAt         DateTime                @default(now())
+
+  @@unique([userId, goalAId, goalBId])
+  @@index([userId])
+  @@index([goalAId])
+  @@index([goalBId])
+}
+
 model GoalEvaluationCache {
   id         String   @id @default(cuid())
   userId     String

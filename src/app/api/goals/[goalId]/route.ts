@@ -10,6 +10,10 @@ import { buildFieldChanges } from "@/lib/map/reading-dirty-details";
 import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
+import {
+  appendPursuitContextEntryAndSync,
+  syncGoalDescriptionFromLog,
+} from "@/lib/pursuit/pursuit-context-log";
 
 type RouteProps = {
   params: Promise<{ goalId: string }>;
@@ -50,6 +54,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       id: true,
       goalType: true,
       title: true,
+      description: true,
       status: true,
       deadline: true,
       significance: true,
@@ -86,7 +91,13 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     iconName?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
-  if (input.description !== undefined) data.description = input.description.trim();
+  const descriptionPatch =
+    input.description !== undefined ? input.description.trim() : undefined;
+  if (descriptionPatch !== undefined && descriptionPatch !== existing.description.trim()) {
+    if (descriptionPatch.length === 0) {
+      data.description = "";
+    }
+  }
   if (input.significance !== undefined) {
     data.significance = Math.min(5, Math.max(1, Math.round(input.significance)));
   }
@@ -151,6 +162,18 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       completedAt: true,
     },
   });
+
+  if (
+    descriptionPatch !== undefined &&
+    descriptionPatch !== existing.description.trim() &&
+    descriptionPatch.length > 0
+  ) {
+    const syncedDescription = await appendPursuitContextEntryAndSync(userId, goalId, {
+      kind: "manual_edit",
+      text: descriptionPatch,
+    });
+    goal.description = syncedDescription;
+  }
 
   if (titleChanged) {
     after(() => {

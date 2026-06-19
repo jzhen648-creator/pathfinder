@@ -1,5 +1,13 @@
 import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
+import {
+  milestonesToGroundingInput,
+  validateClarifierAnswerAgainstMilestones,
+} from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
+import {
+  appendPursuitContextEntryAndSync,
+  clarifierAnswerLine,
+} from "@/lib/pursuit/pursuit-context-log";
 import {
   enrichAnswersSchema,
   enrichAnswerSchema,
@@ -12,12 +20,30 @@ function parseExistingAnswers(raw: unknown): EnrichAnswer[] {
   return parsed.success ? parsed.data : [];
 }
 
-function appendAnswerLine(description: string, answer: EnrichAnswer): string {
-  const line = `${answer.prompt} → ${answer.selectedOption}`;
-  const trimmed = description.trim();
-  if (!trimmed) return line;
-  if (trimmed.includes(line)) return trimmed;
-  return `${trimmed}\n${line}`;
+export async function pruneClarifierFromInsightCache(
+  userId: string,
+  goalId: string,
+  clarifierId: string,
+): Promise<void> {
+  const cache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  if (!cache?.pursuitInsights) return;
+
+  const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
+  const entry = pursuits[goalId];
+  if (!entry?.clarifiers?.length) return;
+
+  const clarifiers = entry.clarifiers.filter((c) => c.id !== clarifierId);
+  pursuits[goalId] = {
+    ...entry,
+    clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
+  };
+  await prisma.insightCache.update({
+    where: { userId },
+    data: { pursuitInsights: pursuits },
+  });
 }
 
 export async function applyClarifierAnswerForUser(
@@ -32,45 +58,47 @@ export async function applyClarifierAnswerForUser(
 
   const goal = await prisma.goal.findFirst({
     where: { id: goalId, userId },
-    select: { id: true, description: true, enrichAnswers: true },
+    select: {
+      id: true,
+      description: true,
+      enrichAnswers: true,
+      milestones: { select: { title: true, completedAt: true } },
+    },
   });
   if (!goal) {
     throw new Error("Not found");
   }
 
+  const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
+  const contradiction = validateClarifierAnswerAgainstMilestones(
+    parsed.data.selectedOption,
+    milestoneGrounding,
+  );
+  if (contradiction) {
+    throw new Error(contradiction);
+  }
+
   const existing = parseExistingAnswers(goal.enrichAnswers);
   const withoutDup = existing.filter((a) => a.clarifierId !== parsed.data.clarifierId);
   const enrichAnswers = [...withoutDup, parsed.data];
-  const description = appendAnswerLine(goal.description ?? "", parsed.data);
+
+  const description = await appendPursuitContextEntryAndSync(userId, goalId, {
+    kind: "clarifier_answer",
+    text: clarifierAnswerLine(parsed.data.prompt, parsed.data.selectedOption),
+    metadata: {
+      clarifierId: parsed.data.clarifierId,
+      prompt: parsed.data.prompt,
+      selectedOption: parsed.data.selectedOption,
+    },
+  });
 
   await prisma.goal.update({
     where: { id: goalId },
-    data: { enrichAnswers, description },
+    data: { enrichAnswers },
   });
 
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
-
-  const cache = await prisma.insightCache.findUnique({
-    where: { userId },
-    select: { pursuitInsights: true },
-  });
-  if (cache?.pursuitInsights) {
-    const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
-    const entry = pursuits[goalId];
-    if (entry?.clarifiers?.length) {
-      const clarifiers = entry.clarifiers.filter(
-        (c) => c.id !== parsed.data.clarifierId,
-      );
-      pursuits[goalId] = {
-        ...entry,
-        clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
-      };
-      await prisma.insightCache.update({
-        where: { userId },
-        data: { pursuitInsights: pursuits },
-      });
-    }
-  }
+  await pruneClarifierFromInsightCache(userId, goalId, parsed.data.clarifierId);
 
   return { enrichAnswers, description };
 }

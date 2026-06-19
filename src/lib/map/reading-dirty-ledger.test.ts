@@ -31,6 +31,8 @@ function row(
     signal,
     deadline: null,
     createdAt: new Date("2026-01-01"),
+    status: "ACTIVE",
+    completedAt: null,
     ...overrides,
   };
 }
@@ -40,6 +42,27 @@ describe("compareDirtyPursuitPriority", () => {
     const high = row("high", { significance: 5 });
     const low = row("low", { significance: 2 });
     expect(compareDirtyPursuitPriority(high, low, NOW)).toBeLessThan(0);
+  });
+
+  it("ranks recently completed pursuits before active ones at equal significance", () => {
+    const recentComplete = row("recent", {
+      status: "COMPLETE",
+      completedAt: new Date("2026-06-10"),
+    });
+    const active = row("active", { status: "ACTIVE" });
+    expect(compareDirtyPursuitPriority(recentComplete, active, NOW)).toBeLessThan(0);
+  });
+
+  it("ranks recent completion before stale completion at equal significance", () => {
+    const recentComplete = row("recent", {
+      status: "COMPLETE",
+      completedAt: new Date("2026-06-10"),
+    });
+    const staleComplete = row("stale", {
+      status: "COMPLETE",
+      completedAt: new Date("2025-01-01"),
+    });
+    expect(compareDirtyPursuitPriority(recentComplete, staleComplete, NOW)).toBeLessThan(0);
   });
 
   it("ranks thin pursuits before rich ones at equal significance", () => {
@@ -79,7 +102,7 @@ describe("compareDirtyPursuitPriority", () => {
 });
 
 describe("sortDirtyPursuitPriorityRows", () => {
-  it("orders by significance, thinness, deadline, then age", () => {
+  it("orders by significance, recent completion, thinness, deadline, then age", () => {
     const sorted = sortDirtyPursuitPriorityRows(
       [
         row("old-low", {
@@ -101,6 +124,21 @@ describe("sortDirtyPursuitPriorityRows", () => {
           },
           deadline: new Date("2026-09-01"),
         }),
+        row("recent-complete", {
+          significance: 4,
+          status: "COMPLETE",
+          completedAt: new Date("2026-06-01"),
+          signal: {
+            title: "CeMAP",
+            description: "All three modules passed.",
+            enrichAnswerCount: 0,
+            milestoneCount: 0,
+            completedMilestoneCount: 0,
+            hasDeadline: false,
+            hasQuantifiedTarget: false,
+            status: "COMPLETE",
+          },
+        }),
         row("rich-mid", {
           significance: 4,
           signal: {
@@ -119,6 +157,6 @@ describe("sortDirtyPursuitPriorityRows", () => {
       NOW,
     ).map((entry) => entry.id);
 
-    expect(sorted).toEqual(["wedding", "rich-mid", "old-low"]);
+    expect(sorted).toEqual(["wedding", "recent-complete", "rich-mid", "old-low"]);
   });
 });

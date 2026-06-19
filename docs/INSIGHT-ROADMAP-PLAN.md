@@ -73,6 +73,8 @@ The mechanism unifies **three interpretive asks** behind one user gesture (quiet
 
 **One gesture, three handlers** — not one persistence pipeline.
 
+**Cursor opinion:** this is a product improvement only while the boundary stays narrow. Treat the shared question card as the UX simplification, not as a reason to collapse storage or renderers. Recommended default: Context Log before new asks; typed peer relationship for Connect; Suggest-add opens normal create with optional provenance; connection lines stay unbuilt unless confirmed data later proves they help.
+
 **Do not absorb** into this mechanism (adjacent, separate surfaces):
 
 | Idea | Verdict | Why |
@@ -185,12 +187,12 @@ Even with connection **data**, lines are a renderer decision:
 |------|--------|-------|
 | Clarifier gate aligned with `hasMinimumContextSignal` | **Shipped** | Replaced hidden 120-char / 3-answer off-switch (`gateEnrichResult`) |
 | Significance-aware dirty pursuit ordering | **Shipped** | `sortDirtyPursuitIdsForReflect` |
-| Completion-boost in selection | **Not shipped** | COMPLETE / arrival signal not in priority sort |
+| Completion-boost in selection | **Shipped** | `compareDirtyPursuitPriority` — recent COMPLETE (90d) before thinness |
 | Question *type* selection (clarify vs connect vs suggest) | **Not shipped** | Model still picks clarifier copy at enrich time |
-| Sync → questions UX clarity | **Partial** | Phase 2 copy shipped; "why this pursuit?" explainability not surfaced |
+| Sync → questions UX clarity | **Shipped** | Insights footer + pursuit-sheet why-now cue (`quickQuestionWhyNowCue`) |
 | Frequency tuning | **Not shipped** | `MAX_ENRICH_PER_RUN = 1` caps cost; user-legible cadence TBD with testers |
 
-**Remaining Phase 2.5 (if continuing):** completion-boost in `compareDirtyPursuitPriority`; optional one-line "why now" on card; deterministic slot picker before model drafts MC copy.
+**Remaining Phase 2.5 (if continuing):** deterministic question *type* slot picker before model drafts MC copy; frequency tuning with TestFlight testers.
 
 ---
 
