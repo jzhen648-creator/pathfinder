@@ -2,12 +2,21 @@
 
 export const CLARIFIER_BATCH_MAX = 3;
 
+export const CLARIFIER_DURABLE_CONTEXT = [
+  "DURABLE CONTEXT (prefer over progress stage):",
+  "Quick questions capture facts that still matter months later — target type, route, constraint, preference, funding approach, role type, support model, risk factor.",
+  "Milestones own progress and stage. Do NOT ask where the user is in the process when milestones can represent that movement.",
+  'Avoid: "Where are you in the job search?" / "What stage are you at?" / "Have you applied yet?" / "Just started collecting docs?" — those answers go stale.',
+  'Prefer: "What model era are you targeting?" / "What visa route?" / "Independent broker or employed?" / "Cash savings or financing?"',
+].join("\n");
+
 export const CLARIFIER_MILESTONE_GROUNDING = [
   "MILESTONE GROUNDING (mandatory — read pursuit milestones in map context first):",
   "- Never ask a question whose answer is already established by a completed milestone (`completed: true`) or a structured field (`currentAmount`, `targetAmount`).",
   "- Never offer an answer option that contradicts a completed milestone.",
   '- Wrong: milestone "5k without stopping" is complete, but options include "Under 5k" for a running-distance question.',
-  '- Right: ask about the next frontier — e.g. "Where are you on the jump to 10k?" with options like "Still building toward 10k" / "10k done, half-marathon next" / "Not sure yet".',
+  '- Wrong: "Where are you in the job search?" when milestones can track application and interview steps.',
+  "- Prefer durable interpretation context (see DURABLE CONTEXT) over progress-stage snapshots.",
   "- Prefer questions about what is NOT yet captured — the next unknown, not what the map already proves.",
   "- If every plausible question is already answered by milestones, structured fields, or enrichAnswers, return an empty clarifiers array.",
 ].join("\n");
@@ -25,7 +34,7 @@ export const CLARIFIER_GENERATION_PRINCIPLE = [
   "",
   "Illustration (the move, not a topic list) — rental property vs running:",
   '- Rental ("Buy rental property"): "What\'s the target yield or monthly rent you\'re underwriting?" — grounds the investment case.',
-  '- Running when 5k is already complete on the map: Wrong — "What\'s your longest run?" with "Under 5k". Right — "Where are you on the jump to 10k?"',
+  '- Running when 5k is already complete on the map: Wrong — "What\'s your longest run?" with "Under 5k". Right — ask a durable constraint ("How many days per week can you train?") or let milestones track distance progress.',
 ].join("\n");
 
 export const CLARIFIER_STOP_AND_CADENCE_RULES = [
@@ -45,9 +54,35 @@ export const CLARIFIER_STOP_AND_CADENCE_RULES = [
   "Title-disambiguation is allowed when the title alone is genuinely ambiguous — contextual questions are additional, not a replacement.",
 ].join("\n");
 
+export const PURSUIT_PANEL_CONTEXT_PRECEDENCE = [
+  "PURSUIT CONTEXT PRECEDENCE (headline/body/fromMap/comparison):",
+  "Milestones, status, and structured fields (deadline, amount) are the source of truth for current progress and stage.",
+  "enrichAnswers are durable interpretation context — target type, route, constraint, preference, funding approach, support model.",
+  'If an enrichAnswer describes a progress stage (e.g. "just started", "not yet applied") and milestones or status show later movement, milestones/status supersede the answer.',
+  "Never repeat a stale progress-stage enrichAnswer as current truth in headline, body, fromMap, or comparison.",
+].join("\n");
+
+/** Clarifies that milestone visibility rules apply to prose only, not the suggestedMilestones field. */
+export const PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD = [
+  "PURSUIT PANEL — suggestedMilestones FIELD (separate from headline/body):",
+  "When <milestone_options> says Milestones allowed, you MUST return 1-6 items in suggestedMilestones — do not omit the array.",
+  "The milestone-list visibility rules above apply to headline/body/fromMap/comparison only — not to suggestedMilestones.",
+  "Outcome waypoints the user taps to accept (e.g. \"CeMAP Module 1 passed\", \"First application submitted\") — NOT tasks (\"Update CV\", \"Research firms\").",
+];
+
+/** Shared suggestedMilestones output contract for reflect + enrich. */
+export const SUGGESTED_MILESTONES_OUTPUT_LINES = [
+  "- suggestedMilestones: when user message says milestones are allowed, MUST return 1-6 chronological outcome waypoints; otherwise null.",
+  "  Each item: { title: string, order: 0-based integer } — order is required.",
+  "  Existing milestones on the map are facts — do not duplicate their titles. Proposing new waypoints in suggestedMilestones is allowed.",
+  "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline.",
+];
+
 export const CONTEXTUAL_QUICK_QUESTIONS = [
   "CONTEXTUAL QUICK QUESTIONS:",
   CLARIFIER_GENERATION_PRINCIPLE,
+  "",
+  CLARIFIER_DURABLE_CONTEXT,
   "",
   CLARIFIER_MILESTONE_GROUNDING,
   "",

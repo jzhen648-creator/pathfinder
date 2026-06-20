@@ -67,7 +67,7 @@ describe("shouldSuggestMilestones", () => {
     ).toBe(true);
   });
 
-  it("blocks sparse pursuits without deadline or enrich context", () => {
+  it("allows sparse title-only pursuits without deadline or enrich context", () => {
     expect(
       shouldSuggestMilestones(
         signal({
@@ -76,7 +76,7 @@ describe("shouldSuggestMilestones", () => {
           milestoneCount: 0,
         }),
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

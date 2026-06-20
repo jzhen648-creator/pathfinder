@@ -33,6 +33,8 @@ import {
 import { prisma } from "@/lib/prisma";
 import {
   buildClarifierSystemOutputLines,
+  PURSUIT_PANEL_CONTEXT_PRECEDENCE,
+  SUGGESTED_MILESTONES_OUTPUT_LINES,
 } from "@/lib/pursuit/clarifier-prompt-blocks";
 import { buildClarifierKindPromptSection } from "@/lib/pursuit/clarifier-question-prompt";
 import {
@@ -90,6 +92,7 @@ function buildEnrichSystemPrompt(
     "You enrich a single pursuit on a personal life map.",
     "Return ONLY valid JSON matching the schema.",
     "Quick questions must improve accuracy — never invent facts or pursuits not in context.",
+    PURSUIT_PANEL_CONTEXT_PRECEDENCE,
     "",
     "OUTPUT:",
     ...clarifierRules,
@@ -102,9 +105,7 @@ function buildEnrichSystemPrompt(
     "  Never restate the title alone; never open with the user's name; never say \"your map shows\".",
     ...(peopleThemeBody ? ["", PEOPLE_THEME_BODY_CLAUSE] : []),
     ...amountImpactBodyPromptLines(amountImpactEligible),
-    "- suggestedMilestones: 0-6 chronological steps ONLY when the user message says milestones are allowed.",
-    "  Otherwise return null for suggestedMilestones.",
-    "  Each item: { title: string, order: 0-based integer } — order is required.",
+    ...SUGGESTED_MILESTONES_OUTPUT_LINES,
     "",
     "JSON shape (single pursuit under pursuits map):",
     '{ "pursuits": { "<pursuitId>": { "clarifiers": [], "insight": { "headline": "...", "body": "..." }, "suggestedMilestones": null } } }',
@@ -140,7 +141,7 @@ function buildPursuitEnrichUserMessage(
     `Generate enrich output for pursuit id: ${pursuitId}`,
     ...slotLines,
     milestonesAllowed
-      ? "Milestones: allowed — suggest only if concrete and specific."
+      ? "Milestones: allowed — suggest 1-6 chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers."
       : "Milestones: NOT allowed — set suggestedMilestones to null.",
     "",
     "Scoped pursuit context JSON (focal pursuit + sibling pursuits):",

@@ -41,6 +41,9 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import {
   buildClarifierSystemOutputLines,
+  PURSUIT_PANEL_CONTEXT_PRECEDENCE,
+  PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
+  SUGGESTED_MILESTONES_OUTPUT_LINES,
 } from "@/lib/pursuit/clarifier-prompt-blocks";
 import { buildClarifierKindPromptSection } from "@/lib/pursuit/clarifier-question-prompt";
 import {
@@ -167,8 +170,10 @@ function buildReflectPursuitsOnlySystemPrompt(
     "",
     "RULES:",
     "- Name pursuits VERBATIM from map context.",
-    "- Never invent pursuits, milestones, or connections not in the data.",
+    "- Never invent pursuits or connections not in the data.",
+    "- Existing milestones on the map are facts — do not duplicate them in prose. Proposing new waypoints in suggestedMilestones is allowed when the user message permits.",
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
+    PURSUIT_PANEL_CONTEXT_PRECEDENCE,
     HEADLINE_MUST_ADD_MEANING,
     "- Never generic headlines like \"[title] is progressing well\" — name the specific fact (e.g. \"Contributions are a quarter of the way there after the raise\").",
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
@@ -190,6 +195,8 @@ function buildReflectPursuitsOnlySystemPrompt(
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
+    ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
+    ...SUGGESTED_MILESTONES_OUTPUT_LINES,
     "- Do NOT include themes.",
   ].join("\n");
 }
@@ -214,12 +221,14 @@ function buildReflectSystemPrompt(
     "",
     "RULES:",
     "- Name pursuits VERBATIM from map context — never paraphrase titles.",
-    "- Never invent pursuits, milestones, or connections not in the data.",
+    "- Never invent pursuits or connections not in the data.",
+    "- Existing milestones on the map are facts — do not duplicate them in prose. Proposing new waypoints in suggestedMilestones is allowed when the user message permits.",
     "- No filler: ban \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
     "- Do not restate status changes, edits, or metadata updates in headline or body.",
+    PURSUIT_PANEL_CONTEXT_PRECEDENCE,
     HEADLINE_MUST_ADD_MEANING,
     "- Never generic headlines like \"[title] is progressing well\" or \"Your ISA is progressing well\" — state the specific fact.",
-    "- One concrete suggestion per pursuit, max.",
+    "- The whole-map reading may include at most one concrete suggestion total (see story prompt) — that limit does NOT apply to suggestedMilestones arrays on pursuit panels.",
     "- Be honest about gaps and sparse maps.",
     "",
     ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
@@ -242,13 +251,13 @@ function buildReflectSystemPrompt(
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
     "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields; the mobile UI adds section labels.",
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
+    ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
+    ...SUGGESTED_MILESTONES_OUTPUT_LINES,
     "",
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
     buildClarifierKindPromptSection(options),
-    "- suggestedMilestones: 0-6 chronological steps ONLY when user message says milestones are allowed; otherwise null.",
-    "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline — do not duplicate existing titles.",
     "",
     "THEME INSIGHTS (macro synthesis — not per-pursuit narrative):",
     "- \"themes\": map of themeId -> { tone, oneLiner, reflective, contextual?, combined? }",
@@ -257,7 +266,7 @@ function buildReflectSystemPrompt(
     "  reflective: 2-3 sentences on cross-pursuit dynamics within the theme — competition, reinforcement, tension (<= 500 chars). Name specific pursuits; do not inventory every row.",
     "  contextual: optional supplementary theme observation (<= 500 chars); empty string if none.",
     "  combined: optional forward-looking unlock for the theme (<= 500 chars); empty string if none.",
-    "  Do not repeat pursuit-panel execution copy — pursuit sheets own velocity and milestones.",
+    "  Do not repeat pursuit-panel execution copy in theme insights — pursuit sheets own per-pursuit velocity; theme insights do not replace suggestedMilestones on pursuit panels.",
     "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
     "",
     buildStorySystemPrompt(totalPursuitCount, amountImpactEligible, holisticBenchmarkEligible),
@@ -370,9 +379,9 @@ export function buildReflectMilestoneOptions(
       return `- ${pursuitId}: Milestones NOT allowed — set suggestedMilestones to null.`;
     }
     if (signal && signal.milestoneCount > 0) {
-      return `- ${pursuitId}: Milestones allowed — path has ${signal.completedMilestoneCount}/${signal.milestoneCount} complete; suggest only missing chronological steps to the deadline; do not duplicate existing titles; max 6.`;
+      return `- ${pursuitId}: Milestones allowed — MUST return 1-6 items in suggestedMilestones; path has ${signal.completedMilestoneCount}/${signal.milestoneCount} complete; suggest only missing chronological steps to the deadline; do not duplicate existing titles.`;
     }
-    return `- ${pursuitId}: Milestones allowed — suggest 0-6 concrete chronological steps when specific.`;
+    return `- ${pursuitId}: Milestones allowed — MUST return 1-6 items in suggestedMilestones (chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers).`;
   });
 
   return ["<milestone_options>", ...lines, "</milestone_options>"].join("\n");

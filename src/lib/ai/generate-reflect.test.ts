@@ -119,6 +119,19 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
 
     expect(full).toContain("PURSUIT PANEL — MILESTONE LIST IS ON SCREEN");
     expect(scoped).toContain("Do NOT restate, enumerate, or quote milestone titles");
+    expect(scoped).toContain("MUST return 1-6 chronological outcome waypoints");
+    expect(scoped).toContain("PURSUIT CONTEXT PRECEDENCE");
+    expect(scoped).toContain("durable interpretation context");
+  });
+
+  it("full-scope prompt does not suppress suggestedMilestones with reading suggestion limits", () => {
+    const full = buildReflectSystemPrompt(8, ENRICH_OPTIONS, "full");
+
+    expect(full).not.toContain("One concrete suggestion per pursuit, max");
+    expect(full).toContain("that limit does NOT apply to suggestedMilestones");
+    expect(full).toContain("PURSUIT PANEL — suggestedMilestones FIELD");
+    expect(full).toContain("MUST return 1-6 items in suggestedMilestones");
+    expect(full).not.toContain("pursuit sheets own velocity and milestones.");
   });
 });
 
@@ -169,9 +182,10 @@ describe("buildReflectMilestoneOptions", () => {
     const block = buildReflectMilestoneOptions(["p-rich", "p-full", "p-sparse"], signals);
 
     expect(block).toContain("p-rich: Milestones allowed");
+    expect(block).toContain("MUST return 1-6 items in suggestedMilestones");
     expect(block).toContain("p-full: Milestones allowed");
     expect(block).toContain("suggest only missing chronological steps");
-    expect(block).toContain("p-sparse: Milestones NOT allowed");
+    expect(block).toContain("p-sparse: Milestones allowed");
   });
 });
 

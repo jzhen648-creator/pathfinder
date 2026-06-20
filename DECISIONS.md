@@ -48,6 +48,16 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 **Doc gap (TODO):** Live app has **manual** pursuit linking via `pursuitRelationship` rows. Claude-project docs (`PATHFINDER-AI.md`, `PATHFINDER-CONTEXT.md`) still describe AI-suggested connections as off-by-default — reconcile in a future Claude-pack sync; not edited in this pass.
 
+## 2026-06-20 — Simplify QQs and milestones (durable context model)
+
+**Shipped:** Three-source-of-truth model — structured fields + milestones own progress; quick questions capture **durable interpretation context** only (target type, route, constraint, preference, funding approach, etc.). Progress-stage QQs discouraged in `clarifier-prompt-blocks.ts`.
+
+**Prompt:** `PURSUIT_PANEL_CONTEXT_PRECEDENCE` — milestones/status supersede stale progress-stage `enrichAnswers` in pursuit insight prose. Shared `SUGGESTED_MILESTONES_OUTPUT_LINES` in full reflect **and** `pursuits-only` reflect (fixes post-QQ Update AI reading returning insights but null milestones).
+
+**Gate:** `shouldSuggestMilestones` decoupled from `hasMinimumContextSignal`. Hard blocks remain: quantified target, milestone cap. `hasMinimumContextSignal` still governs theme benchmarks and pursuit comparison only.
+
+**No migration:** Existing progress-stage enrichAnswers treated as historical; milestones override in prompts.
+
 ## 2026-06-16 — Design slate open (major redesign)
 
 **FOUNDER:** All **design rulings** are **negotiable** for the upcoming major visual/product pass. Prior docs used “locked”, “frozen”, and “structural vs mood-lock” — **retired as governance**. Replace with three buckets in [`claude-project/PATHFINDER-CONTEXT.md`](../claude-project/PATHFINDER-CONTEXT.md) §7:

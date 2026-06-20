@@ -76,9 +76,9 @@ export function pursuitSignalFromGoal(goal: {
 }
 
 /**
- * Minimum user context before AI may suggest milestones or theme benchmarks.
- * Quick-question answers (enrichAnswerCount) count toward this bar — see DECISIONS.md
- * §2026-06-20. This gate governs AI suggestions only; users always have manual add in mobile.
+ * Minimum user context before theme benchmarks and pursuit comparison fields fire.
+ * Quick-question answers (enrichAnswerCount) count toward this bar.
+ * Milestone suggestions use shouldSuggestMilestones — decoupled from this gate.
  */
 export function hasMinimumContextSignal(signal: PursuitSignal): boolean {
   const contextChars =
@@ -130,12 +130,10 @@ export function gatePursuitComparison(
   return "";
 }
 
-/** Milestone suggestions when enough structured signal exists and path has room to grow.
- *  AI-only — never blocks manual milestone add. See DECISIONS.md §2026-06-20. */
+/** Milestone suggestions when path has room to grow. AI-only — never blocks manual milestone add. */
 export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
   if (signal.hasQuantifiedTarget) return false;
   if (signal.milestoneCount >= MILESTONE_MAP_CAP) return false;
-  if (!hasMinimumContextSignal(signal)) return false;
 
   if (signal.milestoneCount === 0) return true;
 
