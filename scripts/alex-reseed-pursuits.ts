@@ -9,7 +9,7 @@ export const ALEX_HONEST_PURSUITS = [
   {
     title: "Daily meditation",
     themeId: "becoming",
-    categoryLabel: "Mind & Emotions",
+    categoryLabel: "Mind & wellbeing",
     status: "ACTIVE",
     significance: 5,
     description: "Doing 10 min mornings, aiming for 30",
@@ -24,8 +24,8 @@ export const ALEX_HONEST_PURSUITS = [
   },
   {
     title: "Read more fiction",
-    themeId: "becoming",
-    categoryLabel: "Joy & Creativity",
+    themeId: "pleasures",
+    categoryLabel: "Books, film & culture",
     status: "PAUSED",
     significance: 2,
     description: "",
@@ -36,7 +36,7 @@ export const ALEX_HONEST_PURSUITS = [
   {
     title: "Digital sabbath",
     themeId: "becoming",
-    categoryLabel: "Mind & Emotions",
+    categoryLabel: "Mind & wellbeing",
     status: "MAINTAINING",
     significance: 3,
     description: "",
@@ -47,7 +47,7 @@ export const ALEX_HONEST_PURSUITS = [
   {
     title: "CeMAP qualification",
     themeId: "work",
-    categoryLabel: "Skills & learning",
+    categoryLabel: "Qualifications",
     status: "ACTIVE",
     significance: 5,
     description: "Need all 3 modules to practise as mortgage advisor",
@@ -63,7 +63,7 @@ export const ALEX_HONEST_PURSUITS = [
   {
     title: "Lead product launch",
     themeId: "work",
-    categoryLabel: "Job",
+    categoryLabel: "Jobs & roles",
     status: "ACTIVE",
     significance: 4,
     description: "",
@@ -79,7 +79,7 @@ export const ALEX_HONEST_PURSUITS = [
   {
     title: "Public speaking",
     themeId: "work",
-    categoryLabel: "Skills & learning",
+    categoryLabel: "Education & courses",
     status: "ACTIVE",
     significance: 3,
     description: "",
@@ -94,7 +94,7 @@ export const ALEX_HONEST_PURSUITS = [
   {
     title: "Ask for promotion",
     themeId: "work",
-    categoryLabel: "Job",
+    categoryLabel: "Jobs & roles",
     status: "PAUSED",
     significance: 4,
     description: "",

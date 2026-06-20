@@ -98,47 +98,47 @@ const CASES: RoutingCase[] = [
     id: "therapy-inner-life",
     themeId: "becoming",
     input: "Started therapy on 20 February",
-    expected: { kind: "hub", hubSlug: "mind & emotions" },
-    description: "Therapy — should land on Mind & Emotions, not Purpose & Values",
+    expected: { kind: "hub", hubSlug: "mind & wellbeing" },
+    description: "Therapy — should land on Mind & wellbeing, not Values & direction",
   },
   {
     id: "cemap-skills",
     themeId: "work",
     input: "Finished CeMAP module 1 last Tuesday",
-    expected: { kind: "hub", hubSlug: "skills & learning" },
-    description: "Professional qualification — should land on Skills & learning, not Job",
+    expected: { kind: "hub", hubSlug: "qualifications" },
+    description: "Professional qualification — should land on Qualifications, not Jobs & roles",
   },
   {
     id: "retreat-purpose",
     themeId: "becoming",
     input: "Went on a direction-finding retreat, clarified my north star",
-    expected: { kind: "hub", hubSlug: "purpose" },
-    description: "Values/direction retreat — should land on Purpose & Values, not Mind & Emotions",
+    expected: { kind: "hub", hubSlug: "values & direction" },
+    description: "Values/direction retreat — should land on Values & direction, not Mind & wellbeing",
   },
   {
     id: "youtube-builds",
     themeId: "work",
     input: "I launched my YouTube channel on 3 April",
-    expected: { kind: "hub", hubSlug: "projects & shipping" },
-    description: "Published channel launch — should land on Projects & shipping, not Job",
+    expected: { kind: "hub", hubSlug: "projects & launches" },
+    description: "Published channel launch — should land on Projects & launches, not Jobs & roles",
   },
   {
     id: "acne-ambiguous",
     themeId: "health",
     input: "Booked a dermatologist for acne — I've been avoiding photos",
-    // Body & grooming catalog explicitly includes photo flinching / mirror avoidance signals,
-    // so a confident Body & grooming route is catalog-correct; ambiguity is also acceptable
-    // when the model emphasizes the Body & grooming / Mind & Emotions boundary.
-    expected: { kind: "hubOrAmbiguous", hubSlug: "body & grooming" },
+    // Body care catalog explicitly includes photo flinching / mirror avoidance signals,
+    // so a confident Body care route is catalog-correct; ambiguity is also acceptable
+    // when the model emphasizes the Body care / Mind & wellbeing boundary.
+    expected: { kind: "hubOrAmbiguous", hubSlug: "body care" },
     description:
-      "Photo avoidance + cosmetic appointment — Body & grooming is acceptable; ambiguity is also acceptable",
+      "Photo avoidance + cosmetic appointment — Body care is acceptable; ambiguity is also acceptable",
   },
   {
     id: "rental-income-finance",
     themeId: "finance",
     input: "Rental income is £1,200pcm from the BTL flat after costs",
-    expected: { kind: "hub", hubSlug: "rental & property income" },
-    description: "Rental yield — should land on Rental & property income, not Employment income",
+    expected: { kind: "hub", hubSlug: "property income" },
+    description: "Rental yield — should land on Property income, not Pay from work",
   },
 ];
 

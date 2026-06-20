@@ -28,7 +28,7 @@ export type CategoryCatalogEntry = {
 /** Locked default-hub copy — keyed by theme id + hub display name (`Branch.label` / `thread.type`). */
 const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntry>>> = {
   finance: {
-    "Employment income": {
+    "Pay from work": {
       about:
         "Pay from a job or employer — salary, bonus, commission, PAYE, and negotiated raises. Employment cash flow, not rental yields, business revenue, or investment returns.",
       why: "Salary is the default income lane for most people; separating it from rental and business stops everything from collapsing into one vague 'money in' blob.",
@@ -38,12 +38,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Track commission ramp in year one",
       ],
       doesNotBelongHere: [
-        "BTL rental yield target (→ Rental & property income)",
-        "Freelance invoicing system (→ Business & freelance income)",
+        "BTL rental yield target (→ Property income)",
+        "Freelance invoicing system (→ Business & freelance)",
         "ISA contributions (→ Assets & investing)",
       ],
       aiRoutingNote:
-        "Route here for employment pay — salary, bonus, commission from a job, promotion pay, and employer-side negotiation. Rental income, landlord yields, and property tenants → Rental & property income. Freelance, sole-trader, invoicing, and business revenue → Business & freelance income. If money is saved or invested after it arrives, that's Assets & investing or Safety net — not income.",
+        "Route here for employment pay — salary, bonus, commission from a job, promotion pay, and employer-side negotiation. Rental income, landlord yields, and property tenants → Property income. Freelance, sole-trader, invoicing, and business revenue → Business & freelance. If money is saved or invested after it arrives, that's Assets & investing or Safety net & insurance — not income.",
       examples: [
         "Negotiate a raise",
         "Land first mortgage broker role",
@@ -60,7 +60,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "How's your employment income — and is it where you want it to be?",
       coachMarkHubInstruction: "Any pay or role income goals you're working toward?",
     },
-    "Rental & property income": {
+    "Property income": {
       about:
         "Cash flow from property you own or let — buy-to-let, room lets, Airbnb, landlord yields, and rental portfolio income. Property as an income source, not mortgage payoff or equity building.",
       why: "Rental income has different tax, risk, and benchmarking than salary; it deserves its own lane for Insights and routing.",
@@ -70,12 +70,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Let spare room consistently",
       ],
       doesNotBelongHere: [
-        "Negotiate salary (→ Employment income)",
-        "Freelance consulting invoices (→ Business & freelance income)",
-        "Pay off buy-to-let mortgage (→ Debts & obligations)",
+        "Negotiate salary (→ Pay from work)",
+        "Freelance consulting invoices (→ Business & freelance)",
+        "Pay off buy-to-let mortgage (→ Debts & loans)",
       ],
       aiRoutingNote:
-        "Route here when the user earns from property they own or let — rent, BTL, landlord, tenants, room let, Airbnb, HMO, property yield. Generic 'income' with rental cues wins here over Employment income. Mortgage balance payoff → Debts & obligations; building equity or investing sale proceeds → Assets & investing.",
+        "Route here when the user earns from property they own or let — rent, BTL, landlord, tenants, room let, Airbnb, HMO, property yield. Generic 'income' with rental cues wins here over Pay from work. Mortgage balance payoff → Debts & loans; building equity or investing sale proceeds → Assets & investing.",
       examples: [
         "Rental income",
         "Grow BTL portfolio yield",
@@ -92,7 +92,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Any rental or property income you're building or relying on?",
       coachMarkHubInstruction: "Rental or property income you're tracking?",
     },
-    "Business & freelance income": {
+    "Business & freelance": {
       about:
         "Money you earn outside employment — freelance clients, sole-trader work, side business revenue, consulting, and invoicing. Your own business cash flow, not salary or rental yields.",
       why: "Self-employed income behaves differently from payroll; separating it keeps freelance and business goals routable and benchmarkable.",
@@ -102,12 +102,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Stabilise monthly business revenue",
       ],
       doesNotBelongHere: [
-        "Salary negotiation (→ Employment income)",
-        "BTL rental yield (→ Rental & property income)",
+        "Salary negotiation (→ Pay from work)",
+        "BTL rental yield (→ Property income)",
         "Invest business profits in ISA (→ Assets & investing)",
       ],
       aiRoutingNote:
-        "Route here for freelance, self-employed, sole-trader, side business, consulting clients, invoicing, and business revenue — cash in from work you run, not from an employer or tenants. Commission from a brokerage job → Employment income. Rent from a flat you own → Rental & property income.",
+        "Route here for freelance, self-employed, sole-trader, side business, consulting clients, invoicing, and business revenue — cash in from work you run, not from an employer or tenants. Commission from a brokerage job → Pay from work. Rent from a flat you own → Property income.",
       examples: [
         "Start freelance income",
         "Grow consulting pipeline",
@@ -134,12 +134,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Rebalance portfolio allocation",
       ],
       doesNotBelongHere: [
-        "Salary negotiation (→ Employment income)",
-        "Income protection insurance (→ Safety net)",
-        "Mortgage balance payoff (→ Debts & obligations)",
+        "Salary negotiation (→ Pay from work)",
+        "Income protection insurance (→ Safety net & insurance)",
+        "Mortgage balance payoff (→ Debts & loans)",
       ],
       aiRoutingNote:
-        "Route here for building net worth — ISA contributions, investments, savings pots with a growth goal, and property equity. If the pot is purely for emergencies or downside protection (not growth), it's Safety net. If the user mentions a specific savings target tied to a life event (visa fund, rent buffer, travel), prefer Safety net unless they explicitly frame it as investing.",
+        "Route here for building net worth — ISA contributions, investments, savings pots with a growth goal, and property equity. If the pot is purely for emergencies or downside protection (not growth), it's Safety net & insurance. If the user mentions a specific savings target tied to a life event (visa fund, rent buffer, travel), prefer Safety net & insurance unless they explicitly frame it as investing.",
       examples: [
         "Open a stocks & shares ISA",
         "Increase pension contributions",
@@ -156,7 +156,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "What are you doing to grow your money, or what would you love to start?",
       coachMarkHubInstruction: "Building wealth anywhere — savings, investments?",
     },
-    "Safety net": {
+    "Safety net & insurance": {
       about:
         "Resilience when things go wrong — emergency fund, insurance (health, life, travel, income protection), wills tied to protection, and runway planning.",
       why: "A safety net turns panic into options; it deserves its own lane so it is not confused with investing or debt.",
@@ -167,8 +167,8 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
       ],
       doesNotBelongHere: [
         "Stock market investing (→ Assets & investing)",
-        "Credit card payoff (→ Debts & obligations)",
-        "Negotiate salary (→ Employment income)",
+        "Credit card payoff (→ Debts & loans)",
+        "Negotiate salary (→ Pay from work)",
       ],
       aiRoutingNote:
         "Route here for buffers, emergency funds, insurance, and protection against specific life shocks — visa costs, rent pressure, redundancy cushion, medical cover. The key signal is fear of a bad outcome, not desire for growth. If the user mentions a named life risk (visa, rent spike, job loss), this hub almost always wins over Assets even if the mechanism is a savings pot.",
@@ -188,7 +188,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "What's the financial thing you don't want to think about — but probably should?",
       coachMarkHubInstruction: "Any financial protection you want to put in place?",
     },
-    "Debts & obligations": {
+    "Debts & loans": {
       about:
         "Debts and obligations you must repay — mortgages, loans, credit cards, BNPL, and structured payoff plans. Not charitable giving or investing.",
       why: "Debt has its own psychology and math; tracking it separately keeps payoff plans honest.",
@@ -198,9 +198,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Snowball consumer debt",
       ],
       doesNotBelongHere: [
-        "Values-led charity or tithing (→ Purpose & Values)",
+        "Values-led charity or tithing (→ Values & direction)",
         "Building investment portfolio (→ Assets & investing)",
-        "Income protection policy (→ Safety net)",
+        "Income protection policy (→ Safety net & insurance)",
       ],
       aiRoutingNote:
         "Route here for money owed to creditors — credit cards, loans, overdrafts, buy-now-pay-later balances. The signal is a named debt with a balance or repayment plan. Do not route visa application fees, rent deposits, or one-off costs here — those are Safety net. Do not route mortgage equity building here — that is Assets & investing.",
@@ -222,9 +222,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
     },
   },
   work: {
-    Job: {
+    "Jobs & roles": {
       about:
-        "Your job — title, employer, promotion, redundancy, job search, and where paid work is heading. The theme already says career; this category is the job itself, not courses or shipped work.",
+        "Your job — title, employer, promotion, redundancy, and where paid work is heading. The theme already says career; this category is the role itself, not courses or shipped work.",
       why: "Job moves are high-stakes and infrequent; they deserve a category that is not cluttered with every course or side repo.",
       belongsHere: [
         "Land Head of Product role",
@@ -232,12 +232,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Scope industry pivot",
       ],
       doesNotBelongHere: [
-        "Complete AWS certification (→ Skills & learning)",
-        "Ship portfolio website v1 (→ Projects & shipping)",
-        "Close friendship with former colleague (→ Friendships)",
+        "Complete AWS certification (→ Qualifications)",
+        "Ship portfolio website v1 (→ Projects & launches)",
+        "Close friendship with former colleague (→ Friends & community)",
       ],
       aiRoutingNote:
-        "Route here for role, employer, promotion, redundancy, job search, and where paid work is going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Skills & learning. If they're shipping a portfolio piece or publishing content, that's Projects & shipping. Job covers the role itself; the other two cover the inputs and outputs. Extract all three when present in the same dump.",
+        "Route here for role, employer, promotion, redundancy, and where paid work is going. If the user is studying for a qualification or doing a course (CEMAP, certification, language), that's Qualifications or Education & courses. If they're shipping a portfolio piece or publishing content, that's Projects & launches. Job search without a landed role → Career search. Extract all relevant lanes when present in the same dump.",
       examples: [
         "Land Head of Product role",
         "Plan promotion to director",
@@ -254,39 +254,70 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "What are you doing for work right now, and where do you want it to take you?",
       coachMarkHubInstruction: "Where do you want your career to go from here?",
     },
-    "Skills & learning": {
+    Qualifications: {
       about:
-        "Capabilities you are building — courses, certifications, deliberate practice, tools, mentors, and professional relationships that make you better at the craft. Networking for learning and career capital, not social life.",
-      why: "Skills compound separately from any single job title or shipped project.",
+        "Professional credentials you earn — licenses, certifications, exams, and regulated qualifications that unlock practice (CEMAP, AWS cert, driving license for work). Not general courses or degrees.",
+      why: "Credentials are discrete, high-stakes milestones separate from any single job title or shipped project.",
       belongsHere: [
-        "Complete product management certification",
-        "Find a mentor in your field",
-        "Deepen SQL for analytics",
+        "Complete CeMAP qualification",
+        "Pass AWS Solutions Architect exam",
+        "Get mortgage advisor license",
       ],
       doesNotBelongHere: [
-        "Ship side project MVP (→ Projects & shipping)",
-        "Ask for promotion (→ Job)",
-        "Weekend trip with friends (→ Joy & Creativity)",
+        "Finish MBA coursework (→ Education & courses)",
+        "Ship side project MVP (→ Projects & launches)",
+        "Apply for mortgage advisor roles (→ Career search)",
       ],
       aiRoutingNote:
-        "Route here for learning, qualifications, courses, certifications, practice, and skill-building — the inputs that compound into capability. CEMAP, language learning, technical practice, and reading lists belong here even when motivated by a job goal. If the user names a specific qualification or course, this hub almost always wins over Job. Do not collapse a Skills item into a Job pursuit just because they share a target role.",
+        "Route here for named qualifications, licenses, certifications, and professional exams — CEMAP, chartered status, regulated credentials. If the user names a specific qualification or license, this hub almost always wins over Jobs & roles. General skill-building courses without a credential → Education & courses.",
       examples: [
         "Complete CeMAP qualification",
+        "Pass AWS Solutions Architect exam",
+        "Get mortgage advisor license",
+        "Renew professional indemnity-linked credential",
+      ],
+      openingQuestions: [
+        "Any qualification or license you're working toward right now?",
+        "What's the credential that would unlock the next step in your career?",
+        "Is there an exam or certification you've been putting off?",
+      ],
+      firstTimeQuestion:
+        "Any professional qualification or license you're working toward?",
+      coachMarkHubInstruction: "Any qualifications or licenses you're working toward?",
+    },
+    "Education & courses": {
+      about:
+        "Structured learning without a professional license — degrees, courses, bootcamps, deliberate practice, tools, mentors, and professional development that builds capability.",
+      why: "Education compounds separately from any single job title, credential exam, or shipped project.",
+      belongsHere: [
+        "Complete product management course",
         "Deepen SQL for analytics",
         "Find a mentor in your field",
-        "LinkedIn outreach for learning (not social)",
+      ],
+      doesNotBelongHere: [
+        "Complete CeMAP exam (→ Qualifications)",
+        "Ship side project MVP (→ Projects & launches)",
+        "Ask for promotion (→ Jobs & roles)",
+      ],
+      aiRoutingNote:
+        "Route here for courses, degrees, bootcamps, deliberate practice, and skill-building without a named professional license. Language learning, technical depth, and reading lists belong here. Named regulated qualifications → Qualifications. Networking for learning → here; social networking → Friends & community.",
+      examples: [
+        "Deepen SQL for analytics",
+        "Find a mentor in your field",
         "Finish product management course",
+        "Public speaking practice",
+        "LinkedIn outreach for learning (not social)",
       ],
       openingQuestions: [
         "What's a gap in your toolkit that you're most aware of right now?",
-        "Any course, qualification, or skill you've been meaning to properly work on?",
+        "Any course or skill you've been meaning to properly work on?",
         "Who in your field do you admire for their craft — and what do they have that you're still building?",
       ],
       firstTimeQuestion:
         "What's something you'd love to be great at — even if you're not there yet?",
-      coachMarkHubInstruction: "Any skills or qualifications you're working toward?",
+      coachMarkHubInstruction: "Any skills or courses you're working toward?",
     },
-    "Projects & shipping": {
+    "Projects & launches": {
       about:
         "Concrete work you ship — side projects, portfolio pieces, flagship builds, launches, and published artifacts with a done state. If it has a deliverable or release, it lives here.",
       why: "Shipping is a different muscle from climbing the ladder or taking a course; separating it keeps busy from done.",
@@ -296,9 +327,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Deliver Q3 product launch",
       ],
       doesNotBelongHere: [
-        "Promotion planning (→ Job)",
-        "Learn React course (→ Skills & learning)",
-        "Hobby game dev with no ship goal (→ Joy & Creativity)",
+        "Promotion planning (→ Jobs & roles)",
+        "Learn React course (→ Education & courses)",
+        "Hobby game dev with no ship goal (→ Hobbies & making)",
       ],
       aiRoutingNote:
         "Route here when the user describes building, shipping, or releasing a tangible work output — YouTube videos, portfolio pieces, products, side projects with a deliverable. The signal is something that gets published or completed, not learned or earned. When a new target is a clear next chapter of an existing shipped pursuit (same channel or product, higher metric, later date), extract it as a new peer pursuit with a distinct title.",
@@ -319,9 +350,41 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "What's something you'd love to put out into the world — built, launched, finished?",
       coachMarkHubInstruction: "Got a project or idea you want to ship?",
     },
+    "Career search": {
+      about:
+        "Active job hunting — applications, interviews, recruiter pipelines, and landing a new role before you're in it. The search phase, not the job you already hold.",
+      why: "Job search has different rhythms and milestones from performing in a current role; separating them keeps both honest.",
+      belongsHere: [
+        "Land first mortgage broker role",
+        "Run structured job search Q3",
+        "Convert recruiter pipeline to offers",
+      ],
+      doesNotBelongHere: [
+        "Ask for promotion at current employer (→ Jobs & roles)",
+        "Complete CeMAP while employed (→ Qualifications)",
+        "Ship portfolio website (→ Projects & launches)",
+      ],
+      aiRoutingNote:
+        "Route here when the user is between roles or actively hunting — applications, interviews, recruiter outreach, job boards, and offer negotiation before starting. Current-role promotion or performance → Jobs & roles. Building credentials to enable the search → Qualifications or Education & courses.",
+      examples: [
+        "Land first mortgage broker role",
+        "Run structured job search Q3",
+        "Convert recruiter pipeline to offers",
+        "Prepare for final-round interviews",
+        "Target three firms this month",
+      ],
+      openingQuestions: [
+        "Are you actively looking for a new role, or circling the idea?",
+        "What's the search looking like — applications, interviews, stuck?",
+        "What would landing the right role actually change?",
+      ],
+      firstTimeQuestion:
+        "Are you looking for a new role, or thinking about making a move?",
+      coachMarkHubInstruction: "Job search or career move on your mind?",
+    },
   },
   becoming: {
-    "Purpose & Values": {
+    "Values & direction": {
       about:
         "Life direction, meaning, identity, principles, and the kind of person you want to become — values, north star, faith, wonder, and values-led giving. The why behind your life, not day-to-day mood management or hobbies.",
       why: "Without a purpose hub, existential goals get misfiled as generic self-help or random projects.",
@@ -331,12 +394,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Values-led giving plan",
       ],
       doesNotBelongHere: [
-        "Weekly therapy for anxiety (→ Mind & Emotions)",
-        "Manage my anxiety better (→ Mind & Emotions)",
-        "Start painting again (→ Joy & Creativity)",
+        "Weekly therapy for anxiety (→ Mind & wellbeing)",
+        "Manage my anxiety better (→ Mind & wellbeing)",
+        "Start painting again (→ Hobbies & making)",
       ],
       aiRoutingNote:
-        "Route here for life direction, meaning, identity, principles, personal standards, values, self-definition, and long-term personal direction — the 'what matters and who I want to become' questions. If the core work is healing, processing patterns, therapy, anxiety, or emotional regulation, that's Mind & Emotions. If it's fun, hobbies, play, or leisure, that's Joy & Creativity. Purpose & Values is direction; Mind & Emotions is thoughts and feelings in practice. When genuinely uncertain, route to ambiguous[] rather than guessing.",
+        "Route here for life direction, meaning, identity, principles, personal standards, values, self-definition, and long-term personal direction — the 'what matters and who I want to become' questions. If the core work is healing, processing patterns, therapy, anxiety, or emotional regulation, that's Mind & wellbeing. If it's fun, hobbies, play, or leisure, that's Play & Leisure (Hobbies & making, Books film & culture, Trips & events). Values & direction is direction; Mind & wellbeing is thoughts and feelings in practice. When genuinely uncertain, route to ambiguous[] rather than guessing.",
       examples: [
         "I want to figure out what I actually want from life",
         "I want to live with more discipline and integrity",
@@ -353,7 +416,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "What feels meaningful to you right now — and is your life pointing toward it?",
       coachMarkHubInstruction: "Any direction or values you want to build toward?",
     },
-    "Mind & Emotions": {
+    "Mind & wellbeing": {
       about:
         "Thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, and psychological wellbeing — including therapy and grief work.",
       why: "Emotional and mental life is ongoing and intimate; it should not compete with career skills or body projects under Health.",
@@ -363,12 +426,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Start weekly therapy",
       ],
       doesNotBelongHere: [
-        "Clarify life mission statement (→ Purpose & Values)",
-        "Values-led charity plan (→ Purpose & Values)",
-        "Run a 10k training plan (→ Movement)",
+        "Clarify life mission statement (→ Values & direction)",
+        "Values-led charity plan (→ Values & direction)",
+        "Run a 10k training plan (→ Training & sport)",
       ],
       aiRoutingNote:
-        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Purpose & Values), not work output (Job / Skills & learning), not body presentation projects (Body & grooming). If the user mentions therapy by name, this hub wins over Purpose & Values. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
+        "Route here for thoughts, feelings, mental patterns, emotional regulation, confidence, anxiety, resilience, self-talk, journaling, reflection, motivation, discipline, procrastination, therapy, grief, and psychological wellbeing. The signal is inner experience, repair, or pattern change — not life-direction values (Values & direction), not work output (Jobs & roles / Qualifications / Education & courses), not body presentation projects (Body care). If the user mentions therapy by name, this hub wins over Values & direction. Physical health goals belong on Health & Body unless the user is mainly discussing emotions or mindset around those issues.",
       examples: [
         "I feel overwhelmed and need to organise my thoughts",
         "I want to become more confident",
@@ -386,39 +449,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "What's something about your thoughts or feelings you've been working through lately?",
       coachMarkHubInstruction: "Anything on your mind emotionally that you want to track?",
     },
-    "Joy & Creativity": {
-      about:
-        "Creative expression and playful identity projects that are about who you are becoming — not leisure hobbies, media, or travel (see Play & Leisure). Narrower than the old folded Pleasures lane.",
-      why: "Some creative joy is about self-expression tied to values; it should not compete with therapy or with pure leisure.",
-      belongsHere: [
-        "Write a personal manifesto",
-        "Start a creative ritual",
-        "Make space for playful self-expression",
-      ],
-      doesNotBelongHere: [
-        "Learn guitar for fun (→ Hobbies on Play & Leisure)",
-        "Plan Japan trip (→ Experiences on Play & Leisure)",
-        "Weekly film club (→ Culture on Play & Leisure)",
-      ],
-      aiRoutingNote:
-        "Route here only for creative self-expression and playful identity work that clearly fits Self & Mind — not general hobbies, media, travel, or entertainment. Leisure, hobbies, culture consumption, and experiences belong on Play & Leisure (pleasures theme). Social fun centered on people may belong on Friendships or Romance.",
-      examples: [
-        "Start a creative ritual",
-        "Make space for playful self-expression",
-        "Write for myself, not to publish",
-      ],
-      openingQuestions: [
-        "Is there a creative side of you that feels underfed?",
-        "Any playful expression that connects to who you're becoming?",
-        "What would making space for that look like this month?",
-      ],
-      firstTimeQuestion:
-        "Is there a creative or playful part of you that deserves its own lane?",
-      coachMarkHubInstruction: "Any creative joy that's really about you, not just fun?",
-    },
   },
   pleasures: {
-    Hobbies: {
+    "Hobbies & making": {
       about:
         "Personal interests you do for fun — crafts, gaming, collecting, gardening, making, tinkering. Active doing, not passive consumption.",
       why: "Hobbies need their own lane so they do not collapse into inner work or career side projects.",
@@ -428,12 +461,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Start a vinyl collection",
       ],
       doesNotBelongHere: [
-        "Read more fiction (→ Culture)",
-        "Plan a trip to Japan (→ Experiences)",
-        "Therapy for burnout (→ Mind & Emotions)",
+        "Read more fiction (→ Books, film & culture)",
+        "Plan a trip to Japan (→ Trips & events)",
+        "Therapy for burnout (→ Mind & wellbeing)",
       ],
       aiRoutingNote:
-        "Route here for hobbies, crafts, gaming, collecting, making, and personal interests done for enjoyment. Active leisure and skill-for-fun belong here. Passive media consumption → Culture. Trips and events → Experiences. Work output with a deliverable → Projects & shipping.",
+        "Route here for hobbies, crafts, gaming, collecting, making, and personal interests done for enjoyment — including sport done for fun (Muay Thai for joy) when the user frames it as leisure, not fitness training. Active leisure belongs here. Passive media → Books, film & culture. Trips and events → Trips & events. Work output with a deliverable → Projects & launches. Training for performance → Training & sport on Health.",
       examples: [
         "Get back into painting",
         "Learn guitar for fun",
@@ -448,7 +481,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
       firstTimeQuestion: "What do you love making, playing, or collecting?",
       coachMarkHubInstruction: "Any hobbies you want back in your life?",
     },
-    Culture: {
+    "Books, film & culture": {
       about:
         "Books, music, art, film, theatre, and media you engage with for enrichment and pleasure — reading, listening, watching, visiting.",
       why: "Culture is consumption and appreciation — different from making hobbies or booking trips.",
@@ -458,12 +491,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Start a film list",
       ],
       doesNotBelongHere: [
-        "Learn to play piano (→ Hobbies)",
-        "Trip to Japan (→ Experiences)",
-        "Write a novel (→ Joy & Creativity or Projects & shipping if shipping)",
+        "Learn to play piano (→ Hobbies & making)",
+        "Trip to Japan (→ Trips & events)",
+        "Write a novel to publish (→ Projects & launches)",
       ],
       aiRoutingNote:
-        "Route here for reading, listening, watching, exhibitions, concerts, theatre, and media appreciation. Learning an instrument as a hobby → Hobbies. Travel and events → Experiences.",
+        "Route here for reading, listening, watching, exhibitions, concerts, theatre, and media appreciation. Learning an instrument as a hobby → Hobbies & making. Travel and events → Trips & events.",
       examples: [
         "Read 12 books this year",
         "See more live music",
@@ -477,7 +510,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
       firstTimeQuestion: "What books, music, or films are part of your life right now?",
       coachMarkHubInstruction: "Any culture you want more of?",
     },
-    Experiences: {
+    "Trips & events": {
       about:
         "Travel, events, adventures, holidays, festivals, and purchases made for joy — the experiences you plan and remember.",
       why: "Experiences are episodic and logistical; they should not absorb every leisure goal.",
@@ -487,12 +520,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Book a special meal out",
       ],
       doesNotBelongHere: [
-        "Daily gaming habit (→ Hobbies)",
-        "Read travel writing (→ Culture)",
+        "Daily gaming habit (→ Hobbies & making)",
+        "Read travel writing (→ Books, film & culture)",
         "Move abroad for work (→ Career or Life & Admin themes)",
       ],
       aiRoutingNote:
-        "Route here for trips, holidays, events, adventures, festivals, and experience purchases done for joy. Ongoing hobbies → Hobbies. Media and books about travel → Culture unless the user is clearly planning the trip.",
+        "Route here for trips, holidays, events, adventures, festivals, and experience purchases done for joy — including collector cars bought for driving pleasure. Ongoing hobbies → Hobbies & making. Media about travel → Books, film & culture unless the user is clearly planning the trip. Asset purchase for investment → Assets & investing on Finance.",
       examples: [
         "Plan Japan trip",
         "Weekend in the Lakes",
@@ -518,12 +551,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Co-parenting with Alex",
       ],
       doesNotBelongHere: [
-        "Date night with partner (→ Romance)",
-        "Reconnect with university friend (→ Friendships)",
-        "Couples therapy for partnership (→ Romance)",
+        "Date night with partner (→ Partner & romance)",
+        "Reconnect with university friend (→ Friends & community)",
+        "Couples therapy for partnership (→ Partner & romance)",
       ],
       aiRoutingNote:
-        "Route here for parents, siblings, children, in-laws, and family care — including emotional dynamics like a parent going silent or pressure to introduce a partner. If the user mentions a parent or sibling by relation (Mum, Dad, brother), this is Family even when the emotion is about the user's own state. Do not route partner or fiancé items here — those are Romance. Connection titles: name each new pursuit after the person or family relationship (e.g. Mum, Dad, Sister Anna, Co-parenting with Alex) — not as a productivity goal (avoid Improve relationship with…, Invest in family…, Work on…). Put plans and intentions (calls, visits, hard conversations, schedules) in milestones[]; put past moments in marks[].",
+        "Route here for parents, siblings, children, in-laws, and family care — including emotional dynamics like a parent going silent or pressure to introduce a partner. If the user mentions a parent or sibling by relation (Mum, Dad, brother), this is Family even when the emotion is about the user's own state. Do not route partner or fiancé items here — those are Partner & romance. Connection titles: name each new pursuit after the person or family relationship (e.g. Mum, Dad, Sister Anna, Co-parenting with Alex) — not as a productivity goal (avoid Improve relationship with…, Invest in family…, Work on…). Put plans and intentions (calls, visits, hard conversations, schedules) in milestones[]; put past moments in marks[].",
       examples: [
         "Mum",
         "Dad",
@@ -539,7 +572,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
       firstTimeQuestion: "Who in your family is on your mind — for better or worse?",
       coachMarkHubInstruction: "Who in your family deserves more of your attention?",
     },
-    Romance: {
+    "Partner & romance": {
       about:
         "Partnership and intimacy — dating, marriage, cohabitation, commitment, and the romantic relationship you are building or repairing.",
       why: "Partnership has its own stakes and rhythms; it should not be confused with friendship or family duty.",
@@ -549,12 +582,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Partner",
       ],
       doesNotBelongHere: [
-        "Host friends dinner (→ Friendships)",
+        "Host friends dinner (→ Friends & community)",
         "Visit parents (→ Family)",
-        "Individual therapy for self only (→ Mind & Emotions)",
+        "Individual therapy for self only (→ Mind & wellbeing)",
       ],
       aiRoutingNote:
-        "Route here for spouse, partner, fiancé, dating, engagement, and romantic commitment — including the admin that comes with it (spousal visa, wedding planning, moving in). Spousal visa applications are Romance, not Family, even when families are involved. If the user mentions a girlfriend, boyfriend, or partner by role, this hub wins. Connection titles: name pursuits after the partner or the relationship (e.g. Sarah, James, Our marriage) — not goal verbs (avoid Improve relationship with…, Invest in partnership…, Repair our marriage as a pursuit title). Engagement, visa, date-night, and conflict-repair plans go in milestones[]; past moments in marks[].",
+        "Route here for spouse, partner, fiancé, dating, engagement, and romantic commitment — including the admin that comes with it (spousal visa, wedding planning, moving in). Spousal visa applications are Partner & romance, not Family, even when families are involved. If the user mentions a girlfriend, boyfriend, or partner by role, this hub wins. Connection titles: name pursuits after the partner or the relationship (e.g. Sarah, James, Our marriage) — not goal verbs (avoid Improve relationship with…, Invest in partnership…, Repair our marriage as a pursuit title). Engagement, visa, date-night, and conflict-repair plans go in milestones[]; past moments in marks[].",
       examples: [
         "Sarah",
         "Our marriage",
@@ -570,7 +603,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
       firstTimeQuestion: "Who's at the centre of your love life right now?",
       coachMarkHubInstruction: "Who matters most in your romantic life right now?",
     },
-    Friendships: {
+    "Friends & community": {
       about:
         "Chosen relationships and belonging — close friends, communities, neighbours, groups, and showing up for causes with people. Professional networking for career growth goes to Skills.",
       why: "Friendships need intentional care but are not the same as family duty or romance.",
@@ -580,12 +613,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "London Thai community",
       ],
       doesNotBelongHere: [
-        "LinkedIn outreach for job search (→ Skills & learning)",
-        "Anniversary trip with partner (→ Romance)",
+        "LinkedIn outreach for job search (→ Career search)",
+        "Anniversary trip with partner (→ Partner & romance)",
         "Family reunion (→ Family)",
       ],
       aiRoutingNote:
-        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Career) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friendships over Joy & Creativity. Connection titles: name pursuits after the friend or community (e.g. James, Friendship with James, London Thai community) — not productivity framing (avoid Improve friendship with…, Invest in social life…). Meet-ups, reconnection plans, and volunteering cadence go in milestones[]; past moments in marks[].",
+        "Route here for friends, community, social belonging, and chosen connections outside family and romance. Reconnecting with old friends, weekly meet-ups, or feeling distant from a friend group all belong here. Not for professional networking (Education & courses / Qualifications) or family time (Family). If a friend is named and the activity is about the relationship rather than the activity itself, prefer Friends & community over Hobbies & making. Connection titles: name pursuits after the friend or community (e.g. James, Friendship with James, London Thai community) — not productivity framing (avoid Improve friendship with…, Invest in social life…). Meet-ups, reconnection plans, and volunteering cadence go in milestones[]; past moments in marks[].",
       examples: [
         "James",
         "Friendship with James",
@@ -603,7 +636,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
     },
   },
   health: {
-    Movement: {
+    "Training & sport": {
       about:
         "Physical activity and capacity — strength, cardio, sport, steps, mobility, and training plans. What your body does, not what you eat or how you look.",
       why: "Movement drives energy for every other theme; isolating it keeps training plans from dissolving into vague health goals.",
@@ -613,12 +646,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Fix hip mobility",
       ],
       doesNotBelongHere: [
-        "Meal prep system (→ Nutrition)",
-        "Sleep schedule (→ Rest & sleep)",
-        "Hair transplant (→ Body & grooming)",
+        "Meal prep system (→ Food & nutrition)",
+        "Sleep schedule (→ Rest & recovery)",
+        "Hair transplant (→ Body care)",
       ],
       aiRoutingNote:
-        "Route here for exercise, running, gym, sport, walking, and movement practice — physical activity for its own sake or for fitness. Couch-to-5k, 10k training, strength work all belong here. If the user mentions a completed run or workout as a moment of pride, extract it as a mark. When the input contains both Movement and Nutrition items in the same dump, extract both — do not collapse one into the other.",
+        "Route here for exercise, running, gym, sport, walking, and movement practice — physical activity for fitness or performance. Couch-to-5k, 10k training, strength work, Muay Thai when framed as training all belong here. Sport done purely for fun with no fitness goal → Hobbies & making on Play. If the user mentions a completed run or workout as a moment of pride, extract it as a mark. When the input contains both Training & sport and Food & nutrition items in the same dump, extract both — do not collapse one into the other.",
       examples: [
         "Start 3× strength program",
         "Train for half marathon",
@@ -635,7 +668,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Are you moving your body the way you want to — running, lifting, playing, anything?",
       coachMarkHubInstruction: "Training goals? Fitness you want to build or track?",
     },
-    Nutrition: {
+    "Food & nutrition": {
       about:
         "Food and hydration as fuel — meal patterns, macros, cutting habits, supplements tied to diet, and eating for energy or health markers.",
       why: "Nutrition is daily and behavioral; it is not the same as training load or sleep architecture.",
@@ -645,9 +678,9 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Protein target for training block",
       ],
       doesNotBelongHere: [
-        "Couch-to-5k plan (→ Movement)",
-        "CPAP for sleep apnea (→ Rest & sleep)",
-        "Teeth whitening (→ Body & grooming)",
+        "Couch-to-5k plan (→ Training & sport)",
+        "CPAP for sleep apnea (→ Rest & recovery)",
+        "Teeth whitening (→ Body care)",
       ],
       aiRoutingNote:
         "Route here for eating, drinking, food habits, and meal patterns — what the user puts in their body. If the input mentions meal prep, cutting takeaways, or food as comfort, this is Nutrition even if it appears inside a broader health dump. Do not suppress a Nutrition item just because Movement items appear in the same input — extract both.",
@@ -666,7 +699,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
       firstTimeQuestion: "How's your eating going — fuelling you, or fighting you?",
       coachMarkHubInstruction: "Any eating habits you want to build or change?",
     },
-    "Body & grooming": {
+    "Body care": {
       about:
         "Body projects you choose for how you look or feel in your body — teeth, hair, skin, grooming, and cosmetic procedures.",
       why: "Body and grooming goals are specific, often clinical or cosmetic, and should not absorb all self-improvement.",
@@ -676,12 +709,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Complete hair restoration protocol",
       ],
       doesNotBelongHere: [
-        "Therapy for body image (→ Mind & Emotions)",
-        "Buy dream watch (→ Joy & Creativity)",
-        "General fat loss via diet (→ Nutrition)",
+        "Therapy for body image (→ Mind & wellbeing)",
+        "Buy dream watch (→ Trips & events or Assets & investing)",
+        "General fat loss via diet (→ Food & nutrition)",
       ],
       aiRoutingNote:
-        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, and style when the focus is presentation. The signal is how the user looks or grooms their body. Photo flinching and grooming projects belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Body & grooming and Mind & Emotions flagged. Do not route general anxiety, values, or hobby goals here.",
+        "Route here for intentional body and grooming projects — haircuts, skincare, teeth, cosmetic treatments, dressing, and style when the focus is presentation. The signal is how the user looks or grooms their body. Photo flinching and grooming projects belong here. If the underlying issue is emotional rather than presentation-focused, route to ambiguous[] with both Body care and Mind & wellbeing flagged. Do not route general anxiety, values, or hobby goals here.",
       examples: [
         "Plan Invisalign",
         "Book dermatologist for acne",
@@ -698,7 +731,7 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Is there anything about how you show up — face, hair, style, body — you'd love to upgrade?",
       coachMarkHubInstruction: "Any body or grooming goals you want to track?",
     },
-    "Rest & sleep": {
+    "Rest & recovery": {
       about:
         "Sleep and recovery as infrastructure — bedtime routines, sleep quality, naps, burnout recovery, and unstructured downtime that restores you. Not hobbies unless the goal is rest.",
       why: "Rest is the most underrated lever; giving it a hub stops I'm tired from living only as a vague mark.",
@@ -708,12 +741,12 @@ const HUB_CATALOG: Partial<Record<LifeAreaId, Record<string, CategoryCatalogEntr
         "Address chronic undersleep",
       ],
       doesNotBelongHere: [
-        "Meditation for self-understanding (→ Mind & Emotions)",
-        "Weekend ski trip (→ Joy & Creativity)",
-        "Strength deload week (→ Movement)",
+        "Meditation for self-understanding (→ Mind & wellbeing)",
+        "Weekend ski trip (→ Trips & events)",
+        "Strength deload week (→ Training & sport)",
       ],
       aiRoutingNote:
-        "Route here for sleep, recovery, downtime, lights-out rules, and deliberate rest — the deliberate practice of resting. Lights-out times, sleep hygiene, naps, recovery days from training all belong here. Not for entertainment as leisure (Joy & Creativity) and not for medical sleep treatments framed primarily as a health condition. If the user names a specific bedtime rule or sleep target, this hub wins.",
+        "Route here for sleep, recovery, downtime, lights-out rules, and deliberate rest — the deliberate practice of resting. Lights-out times, sleep hygiene, naps, recovery days from training all belong here. Not for entertainment as leisure (Hobbies & making) and not for medical sleep treatments framed primarily as a health condition. If the user names a specific bedtime rule or sleep target, this hub wins.",
       examples: [
         "Fix 10pm wind-down",
         "Block recovery weekend after launch",
@@ -753,11 +786,11 @@ export function categoryCatalogFallback(areaId: string, hubLabel: string): Categ
     finance: "Money, security, and how resources flow through your life.",
     work: "Skills, career momentum, and work that matters to you.",
     becoming:
-      "Purpose & values and mind & emotions — personal development that does not belong on Money, Work, Health, People, or Play & Leisure.",
+      "Values & direction and mind & wellbeing — personal development that does not belong on Money, Work, Health, People, or Play & Leisure.",
     pleasures:
-      "Hobbies, culture, and experiences you protect for joy — leisure that does not belong on Self & Mind, Work, or People.",
+      "Hobbies & making, books/film/culture, and trips & events you protect for joy — leisure that does not belong on Self & Mind, Work, or People.",
     people: "Relationships and the people who shape your story — named connections, not task lists.",
-    health: "Physical foundation — movement, fuel, body & grooming, and rest & sleep.",
+    health: "Physical foundation — training & sport, food & nutrition, body care, and rest & recovery.",
   };
   const themeLine = byTheme[areaId as LifeAreaId] ?? "this theme";
   const isPeople = areaId === "people";

@@ -67,38 +67,46 @@ function inferJourneyBranchName(g: {
 }): string {
   const text = `${g.title ?? ""} ${g.description ?? ""}`.toLowerCase();
   if (g.themeId === "finance") {
-    if (/(debt|loan|paid off|mortgage|credit)/.test(text)) return "Debts & obligations";
-    if (/(rent|rental|landlord|tenant|btl|buy-to-let|airbnb|hmo)/.test(text)) return "Rental & property income";
+    if (/(debt|loan|paid off|mortgage|credit)/.test(text)) return "Debts & loans";
+    if (/(rent|rental|landlord|tenant|btl|buy-to-let|airbnb|hmo)/.test(text)) return "Property income";
     if (/(freelance|self[- ]?employed|sole trader|invoic|side business|consulting client)/.test(text)) {
-      return "Business & freelance income";
+      return "Business & freelance";
     }
-    if (/(salary|payroll|bonus|commission|employer)/.test(text)) return "Employment income";
-    if (/(insurance|emergency|runway|safety)/.test(text)) return "Safety net";
+    if (/(salary|payroll|bonus|commission|employer)/.test(text)) return "Pay from work";
+    if (/(insurance|emergency|runway|safety)/.test(text)) return "Safety net & insurance";
     return "Assets & investing";
   }
   if (g.themeId === "work") {
-    if (/(mentor|network|collaborat|peer|skill|learn|course|cert)/.test(text)) return "Skills & learning";
-    if (/(project|ship|build|portfolio)/.test(text)) return "Projects & shipping";
-    return "Job";
+    if (/(cemap|cert|qualification|license|licence|exam)/.test(text)) return "Qualifications";
+    if (/(mentor|network|collaborat|peer|skill|learn|course|speaking|toastmasters)/.test(text)) {
+      return "Education & courses";
+    }
+    if (/(project|ship|build|portfolio)/.test(text)) return "Projects & launches";
+    if (/(interview|job search|apply|recruiter|hunt)/.test(text)) return "Career search";
+    return "Jobs & roles";
   }
   if (g.themeId === "people") {
     if (/(dad|mum|family|parent|child)/.test(text)) return "Family";
-    if (/(engag|partner|romance|marri)/.test(text)) return "Romance";
-    if (/(volunteer|community|local group|neighbour|friend)/.test(text)) return "Friendships";
-    return "Friendships";
+    if (/(engag|partner|romance|marri)/.test(text)) return "Partner & romance";
+    if (/(volunteer|community|local group|neighbour|friend)/.test(text)) return "Friends & community";
+    return "Friends & community";
   }
   if (g.themeId === "health") {
-    if (/(burnout|sleep|rest|recovery|downtime)/.test(text)) return "Rest & sleep";
-    if (/(meal|nutrition|eat|food)/.test(text)) return "Nutrition";
-    if (/(teeth|hair|skin|invisalign|cosmetic|upgrade)/.test(text)) return "Body & grooming";
-    return "Movement";
+    if (/(burnout|sleep|rest|recovery|downtime)/.test(text)) return "Rest & recovery";
+    if (/(meal|nutrition|eat|food)/.test(text)) return "Food & nutrition";
+    if (/(teeth|hair|skin|invisalign|cosmetic|upgrade)/.test(text)) return "Body care";
+    return "Training & sport";
   }
   if (g.themeId === "becoming") {
-    if (/(hobby|trip|joy|culture|experience|creative)/.test(text)) return "Joy";
-    if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Mind & Emotions";
-    return "Purpose";
+    if (/(habit|routine|ritual|therapy|journal|reflect|pattern|identity)/.test(text)) return "Mind & wellbeing";
+    return "Values & direction";
   }
-  return "Job";
+  if (g.themeId === "pleasures") {
+    if (/(read|book|film|music|culture|watch|listen)/.test(text)) return "Books, film & culture";
+    if (/(trip|travel|festival|event|holiday)/.test(text)) return "Trips & events";
+    return "Hobbies & making";
+  }
+  return "Jobs & roles";
 }
 
 async function main() {

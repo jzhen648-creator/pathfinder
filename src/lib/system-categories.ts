@@ -22,7 +22,7 @@ function matchesTemplate(limbId: string, label: string | null | undefined): bool
 }
 
 /**
- * Idempotently ensures all 22 locked taxonomy categories exist for the user (dormant by default).
+ * Idempotently ensures all locked taxonomy categories exist for the user (dormant by default).
  * Returns the number of categories created.
  */
 export async function ensureSystemCategoriesForUser(

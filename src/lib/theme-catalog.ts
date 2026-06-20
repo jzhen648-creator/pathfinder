@@ -44,9 +44,11 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
     vision:
       "Work is where capability meets the world — career arc, craft, and what you ship. This theme is your professional story: what you do, how you grow, and what you leave behind.",
     dimensions: [
-      "Career — roles, pivots, and trajectory",
-      "Skills — depth, credentials, deliberate practice",
-      "Builds & Launches — things you build and ship",
+      "Jobs & roles — title, employer, promotion, and where paid work is heading",
+      "Qualifications — licenses, certifications, and professional credentials",
+      "Education & courses — degrees, courses, and deliberate skill-building",
+      "Projects & launches — things you build and ship",
+      "Career search — active job hunting before you're in the role",
     ],
     lenses: [
       "Is your career direction explicit or drifting?",
@@ -68,9 +70,8 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
     vision:
       "Self & Mind is your inner world — values, emotions, and reflection. Orientation and depth; leisure lives on Play & Leisure.",
     dimensions: [
-      "Purpose & Values — direction, meaning, identity, and principles",
-      "Mind & Emotions — thoughts, feelings, patterns, and psychological wellbeing",
-      "Joy & Creativity — creative self-expression tied to who you are becoming",
+      "Values & direction — meaning, identity, and principles",
+      "Mind & wellbeing — thoughts, feelings, patterns, and psychological wellbeing",
     ],
     lenses: [
       "Do you have a lived sense of direction, not just ambition?",
@@ -79,7 +80,7 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
     ],
     healthySignals: [
       "Pursuits or marks across purpose and mind hubs",
-      "Mind & Emotions hub with an active pursuit",
+      "Mind & wellbeing hub with an active pursuit",
       "Timeline marks that capture identity shifts",
     ],
     gapSignals: [
@@ -92,9 +93,9 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
     vision:
       "Play & Leisure is what you do for joy — hobbies, culture, and experiences that make life feel worth living outside obligation.",
     dimensions: [
-      "Hobbies — making, playing, collecting, and personal interests",
-      "Culture — books, music, art, film, and media",
-      "Experiences — travel, events, adventures, and joyful purchases",
+      "Hobbies & making — making, playing, collecting, and personal interests",
+      "Books, film & culture — books, music, art, film, and media",
+      "Trips & events — travel, events, adventures, and joyful purchases",
     ],
     lenses: [
       "Do you protect time for fun, not just productivity?",
@@ -117,8 +118,8 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
       "Relationships are the fabric of a life — family, partnership, and friendship. This theme holds who you love and who shapes you.",
     dimensions: [
       "Family — kin, obligation, and care",
-      "Romance — partnership and intimacy",
-      "Friendships — chosen family, circles, and belonging",
+      "Partner & romance — partnership and intimacy",
+      "Friends & community — chosen family, circles, and belonging",
     ],
     lenses: [
       "Are the relationships that matter most represented?",
@@ -140,10 +141,10 @@ const THEME_CATALOG: Record<LifeAreaId, ThemeCatalogEntry> = {
     vision:
       "Health and body are the foundation everything else stands on — how you move, fuel, rest, and tend appearance. Physical infrastructure only; meaning and joy live under Self & Mind.",
     dimensions: [
-      "Movement — training, sport, mobility",
-      "Nutrition — fuel and nourishment",
-      "Appearance — teeth, hair, skin, and body projects you choose",
-      "Rest — sleep and unstructured recovery",
+      "Training & sport — training, sport, mobility",
+      "Food & nutrition — fuel and nourishment",
+      "Body care — teeth, hair, skin, and body projects you choose",
+      "Rest & recovery — sleep and unstructured recovery",
     ],
     lenses: [
       "Is movement consistent with the life you lead?",

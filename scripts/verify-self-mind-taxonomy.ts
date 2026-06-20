@@ -36,7 +36,7 @@ function simulateDefaultHubRename(
 ): { label: string; limbId: LifeAreaId; renamed: boolean } {
   const raw = normLabel(label);
   let nextLabel = label.trim();
-  let nextLimb = limbId;
+  let nextLimb = themeId;
 
   const legacy = LEGACY_HUB_MIGRATIONS[raw];
   if (legacy) {
@@ -53,8 +53,8 @@ function simulateDefaultHubRename(
 
   return {
     label: nextLabel,
-    themeId: nextLimb,
-    renamed: nextLabel !== label.trim() || nextLimb !== limbId,
+    limbId: nextLimb,
+    renamed: nextLabel !== label.trim() || nextLimb !== themeId,
   };
 }
 
@@ -150,9 +150,9 @@ function firstRoutedHub(
 
 async function runDeterministicChecks(): Promise<void> {
   const renames: [string, string][] = [
-    ["Purpose", "Purpose & Values"],
-    ["Inner life", "Mind & Emotions"],
-    ["Joy", "Joy & Creativity"],
+    ["Purpose", "Values & direction"],
+    ["Inner life", "Mind & wellbeing"],
+    ["Joy", "Mind & wellbeing"],
   ];
   for (const [before, after] of renames) {
     const out = simulateDefaultHubRename(before, "becoming");
@@ -165,19 +165,19 @@ async function runDeterministicChecks(): Promise<void> {
   assert.equal(custom.label, "My Therapy Journal");
   assert.equal(custom.renamed, false);
 
-  assert.equal(normalizeCategoryLabelKey("Purpose"), "purpose & values");
-  assert.equal(normalizeCategoryLabelKey("Inner life"), "mind & emotions");
-  assert.equal(normalizeCategoryLabelKey("Joy"), "joy & creativity");
-  assert.equal(normalizeStreamCategorySlug("purpose"), "purpose & values");
+  assert.equal(normalizeCategoryLabelKey("Purpose"), "values & direction");
+  assert.equal(normalizeCategoryLabelKey("Inner life"), "mind & wellbeing");
+  assert.equal(normalizeCategoryLabelKey("Joy"), "mind & wellbeing");
+  assert.equal(normalizeStreamCategorySlug("purpose"), "values & direction");
 
   assert.ok(
     LOCKED_CATEGORY_TEMPLATES.every((t) => t.limbId !== "becoming" || t.threadType !== "Purpose"),
     "template should not use old Purpose label",
   );
 
-  assertHub("I want to manage anxiety better", "becoming", "mind & emotions");
-  assertHub("I want to start painting again", "becoming", "joy & creativity");
-  assertHub("I want to figure out what I want from life", "becoming", "purpose & values");
+  assertHub("I want to manage anxiety better", "becoming", "mind & wellbeing");
+  assertHub("I want to figure out what I want from life", "becoming", "values & direction");
+  assertHub("I want to start painting again", "pleasures", "hobbies & making");
 
   assert.ok(STREAM_EXTRACT_THEME_SYSTEM_PROMPT.includes("Self & Mind theme boundaries"));
   assert.ok(STREAM_EXTRACT_GLOBAL_SYSTEM_PROMPT.includes("Do NOT route to Self & Mind"));
@@ -186,7 +186,7 @@ async function runDeterministicChecks(): Promise<void> {
   assert.equal(becoming?.label, "Self & Mind");
   assert.deepEqual(
     categoriesForTheme("becoming").map((t) => t.threadType),
-    ["Purpose & Values", "Mind & Emotions", "Joy & Creativity"],
+    ["Values & direction", "Mind & wellbeing"],
   );
 
   console.log("Deterministic checks: PASS");
@@ -215,9 +215,8 @@ async function runGeminiRoutingChecksInner(): Promise<void> {
   const map = buildCatalogMapContext();
 
   const becomingCases: Array<{ input: string; slug: string }> = [
-    { input: "I want to manage anxiety better", slug: "mind & emotions" },
-    { input: "I want to start painting again", slug: "joy & creativity" },
-    { input: "I want to figure out what I want from life", slug: "purpose & values" },
+    { input: "I want to manage anxiety better", slug: "mind & wellbeing" },
+    { input: "I want to figure out what I want from life", slug: "values & direction" },
   ];
 
   for (const { input, slug } of becomingCases) {
@@ -239,18 +238,18 @@ async function runGeminiRoutingChecksInner(): Promise<void> {
     {
       input: "I want to invest £1,000/month",
       themeId: "finance",
-      allowedSlugs: ["income", "assets"],
+      allowedSlugs: ["pay from work", "assets & investing"],
     },
     {
       input: "I want to lose weight",
       themeId: "health",
-      allowedSlugs: ["nutrition", "movement", "appearance"],
+      allowedSlugs: ["food & nutrition", "training & sport", "body care"],
     },
-    { input: "I want to get promoted", themeId: "work", allowedSlugs: ["career"] },
+    { input: "I want to get promoted", themeId: "work", allowedSlugs: ["jobs & roles"] },
     {
       input: "I want to improve communication with my partner",
       themeId: "people",
-      allowedSlugs: ["romance"],
+      allowedSlugs: ["partner & romance"],
     },
   ];
 
