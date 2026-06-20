@@ -9,6 +9,9 @@ import {
   buildMilestonePaceFacts,
   buildReadingPacketRecentEvents,
   computePursuitSignal,
+  mapContextForReadingPacketPrompt,
+  orderReadingPacketKeys,
+  packConfirmedRelationships,
   readingPacketToJson,
   sortPursuitsTemporal,
   thinPacketForMapDepth,
@@ -206,6 +209,96 @@ describe("compile-reading-packet", () => {
     };
     const keys = Object.keys(JSON.parse(readingPacketToJson(packet)) as ReadingPacket);
     expect(keys.indexOf("mapAggregates")).toBeLessThan(keys.indexOf("recentEvents"));
+  });
+
+  it("packs confirmedRelationships from map_context and omits when empty", () => {
+    expect(
+      packConfirmedRelationships({
+        themes: [],
+        confirmedRelationships: [
+          {
+            goalAId: "a",
+            goalBId: "b",
+            goalATitle: "New Homes Sales Executive",
+            goalBTitle: "Mortgage Broker",
+            label: "groundwork for",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        goalAId: "a",
+        goalBId: "b",
+        goalATitle: "New Homes Sales Executive",
+        goalBTitle: "Mortgage Broker",
+        label: "groundwork for",
+      },
+    ]);
+    expect(packConfirmedRelationships({ themes: [] })).toBeUndefined();
+    expect(packConfirmedRelationships({ themes: [], confirmedRelationships: [] })).toBeUndefined();
+  });
+
+  it("serializes confirmedRelationships after changeEvents in reading packet JSON", () => {
+    const packet: ReadingPacket = {
+      changeEvents: ["relationship created"],
+      confirmedRelationships: [
+        {
+          goalAId: "a",
+          goalBId: "b",
+          goalATitle: "New Homes Sales Executive",
+          goalBTitle: "Mortgage Broker",
+          label: "groundwork for",
+        },
+      ],
+      categorySignals: [],
+      recentEvents: { past: [], upcoming: [] },
+      mapAggregates: {
+        totalPursuits: 2,
+        upcomingDeadlines14d: 0,
+        upcomingDeadlines30d: 0,
+        recentCompletions90d: 0,
+        highSignificanceActive: ["Mortgage Broker"],
+      },
+      gapFacts: [],
+      milestonePaceFacts: [],
+    };
+    const keys = Object.keys(JSON.parse(readingPacketToJson(packet)) as ReadingPacket);
+    expect(keys.indexOf("changeEvents")).toBeLessThan(keys.indexOf("confirmedRelationships"));
+    expect(keys.indexOf("confirmedRelationships")).toBeLessThan(keys.indexOf("categorySignals"));
+  });
+
+  it("strips confirmedRelationships from map_context for packet-accompanied prompts", () => {
+    const stripped = mapContextForReadingPacketPrompt(DENSE_MAP_CONTEXT);
+    expect(stripped).not.toHaveProperty("confirmedRelationships");
+    expect(stripped.themes).toEqual(DENSE_MAP_CONTEXT.themes);
+  });
+
+  it("orderReadingPacketKeys preserves confirmedRelationships", () => {
+    const relationships = [
+      {
+        goalAId: "a",
+        goalBId: "b",
+        goalATitle: "New Homes Sales Executive",
+        goalBTitle: "Mortgage Broker",
+        label: null,
+      },
+    ];
+    const ordered = orderReadingPacketKeys({
+      changeEvents: [],
+      confirmedRelationships: relationships,
+      categorySignals: [],
+      recentEvents: { past: [], upcoming: [] },
+      mapAggregates: {
+        totalPursuits: 0,
+        upcomingDeadlines14d: 0,
+        upcomingDeadlines30d: 0,
+        recentCompletions90d: 0,
+        highSignificanceActive: [],
+      },
+      gapFacts: [],
+      milestonePaceFacts: [],
+    });
+    expect(ordered.confirmedRelationships).toEqual(relationships);
   });
 
   it("emits no pace fact when pursuit has milestones but zero completions", () => {

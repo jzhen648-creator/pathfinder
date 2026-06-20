@@ -39,7 +39,7 @@ const STORY_PROMPT_BASE = [
   "- Marks are life facts and events that enrich each theme. Each theme includes a marks array with titles and dates when known.",
   "- Pursuit status (Active, Maintaining, Paused, Complete), iconName, shortLabel, living description, and significance (1–5) are in context.",
   "- Hub section labels and hub-scoped marks provide category and life-fact background.",
-  "- confirmedRelationships in the Life map JSON lists user-authored links between pursuits (exact titles + optional label). Treat these as the most important relationships: foreground them and use the label. You MAY also note a natural link between pursuits the user has not connected (e.g. a qualification that leads to a job) using plain world knowledge, but keep it light and grounded in facts already on the map; never present it as a formal connection the user drew.",
+  "- confirmedRelationships in the reading packet or Life map JSON lists user-authored links between pursuits (exact titles + optional label). Treat these as the most important relationships: foreground them and use the label. You MAY also note a natural link between pursuits the user has not connected (e.g. a qualification that leads to a job) using plain world knowledge, but keep it light and grounded in facts already on the map; never present it as a formal connection the user drew.",
   "",
   "VERBATIM TITLES (all map sizes): Refer to pursuits by their exact title as written in context.",
   "- \"£500,000 ISA\" must stay \"£500,000 ISA\" — never \"a significant ISA\", \"your savings goal\", or any paraphrase.",

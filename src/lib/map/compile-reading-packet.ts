@@ -34,8 +34,19 @@ export type ReadingPacketCategorySignal = {
   facts: string[];
 };
 
+/** User-confirmed lateral pursuit link — compact mirror of map_context.confirmedRelationships. */
+export type ReadingPacketConfirmedRelationship = {
+  goalAId: string;
+  goalBId: string;
+  goalATitle: string;
+  goalBTitle: string;
+  label?: string | null;
+};
+
 export type ReadingPacket = {
   changeEvents: string[];
+  /** User-authored pursuit connections — omitted when the map has none. */
+  confirmedRelationships?: ReadingPacketConfirmedRelationship[];
   categorySignals: ReadingPacketCategorySignal[];
   /** Chronological spine — filtered for Reading (goal.completedAt arrival gate; no milestone_complete). */
   recentEvents: {
@@ -428,8 +439,39 @@ export function buildMapAggregates(
   };
 }
 
+/** Copy confirmedRelationships from map_context — omitted when empty. */
+export function packConfirmedRelationships(
+  mapContext: FormattedMapContext,
+): ReadingPacketConfirmedRelationship[] | undefined {
+  const rows = mapContext.confirmedRelationships;
+  if (!rows?.length) return undefined;
+  return rows;
+}
+
+/**
+ * Map context for prompts that also send reading_packet.
+ * Relationships are authoritative in the packet — omit from map_context to avoid double-send.
+ */
+export function mapContextForReadingPacketPrompt(
+  mapContext: FormattedMapContext,
+): Omit<FormattedMapContext, "confirmedRelationships"> {
+  const { confirmedRelationships: _omitted, ...rest } = mapContext;
+  return rest;
+}
+
 /** Stable key order for Gemini — mapAggregates before recentEvents. */
 export function orderReadingPacketKeys(packet: ReadingPacket): ReadingPacket {
+  if (packet.confirmedRelationships?.length) {
+    return {
+      changeEvents: packet.changeEvents,
+      confirmedRelationships: packet.confirmedRelationships,
+      categorySignals: packet.categorySignals,
+      mapAggregates: packet.mapAggregates,
+      recentEvents: packet.recentEvents,
+      gapFacts: packet.gapFacts,
+      milestonePaceFacts: packet.milestonePaceFacts,
+    };
+  }
   return {
     changeEvents: packet.changeEvents,
     categorySignals: packet.categorySignals,
@@ -617,6 +659,8 @@ export async function compileReadingPacket(
     }),
   );
 
+  const confirmedRelationships = packConfirmedRelationships(mapContext);
+
   const packet: ReadingPacket = {
     changeEvents,
     categorySignals: buildCategorySignals(pursuits, focusCategoryIds, now),
@@ -624,6 +668,7 @@ export async function compileReadingPacket(
     recentEvents: buildReadingPacketRecentEvents(mapContext, now),
     gapFacts: buildGapFacts(pursuits, now),
     milestonePaceFacts: buildMilestonePaceFacts(pursuits, now),
+    ...(confirmedRelationships ? { confirmedRelationships } : {}),
   };
 
   return thinPacketForMapDepth(packet);

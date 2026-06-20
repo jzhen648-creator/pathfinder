@@ -39,10 +39,14 @@ vi.mock("@/lib/ai/format-user-context", () => ({
   formatUserContext: mocks.formatUserContext,
 }));
 
-vi.mock("@/lib/map/compile-reading-packet", () => ({
-  compileReadingPacket: mocks.compileReadingPacket,
-  readingPacketToJson: (packet: unknown) => JSON.stringify(packet, null, 2),
-}));
+vi.mock("@/lib/map/compile-reading-packet", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/map/compile-reading-packet")>();
+  return {
+    ...actual,
+    compileReadingPacket: mocks.compileReadingPacket,
+    readingPacketToJson: (packet: unknown) => JSON.stringify(packet, null, 2),
+  };
+});
 
 vi.mock("@/lib/gemini", () => ({
   hasGeminiKey: () => true,
@@ -289,6 +293,32 @@ describe("generateReflectResponse", () => {
     expect(mapContextBlock).not.toContain("Public speaking");
     expect(mapContextBlock).not.toContain("£500,000 ISA");
     expect(user).toContain('Return ONLY: { "reading": "", "pursuits": { ... } }');
+  });
+
+  it("sends confirmedRelationships only in reading_packet on full reflect — not in map_context", async () => {
+    const complete = buildDenseReflectResponse(DENSE_DIRTY_PURSUIT_IDS);
+    mocks.generateJsonCompletion.mockResolvedValue(JSON.stringify(complete));
+
+    await generateReflectResponse(
+      USER_ID,
+      baseDirtyAnalysis(),
+      DENSE_DIRTY_PURSUIT_IDS,
+      ["work", "finance"],
+      ENRICH_OPTIONS,
+      "",
+      emptyMapAiSyncMetrics(),
+      { scope: "full" },
+    );
+
+    const user = (mocks.generateJsonCompletion.mock.calls[0]?.[0] as { user: string }).user;
+    const packetBlock = user.match(/<reading_packet>\n([\s\S]*?)\n<\/reading_packet>/)?.[1] ?? "";
+    const mapContextBlock = user.match(/<map_context>\n([\s\S]*?)\n<\/map_context>/)?.[1] ?? "";
+
+    expect(packetBlock).toContain("confirmedRelationships");
+    expect(packetBlock).toContain("Senior Engineer at Acme");
+    expect(packetBlock).toContain("CeMAP qualification");
+    expect(mapContextBlock).not.toContain("confirmedRelationships");
+    expect(mapContextBlock).toContain("CeMAP qualification");
   });
 
   it("schema-max 12-dirty output fits within 8192-token reflect budget", () => {

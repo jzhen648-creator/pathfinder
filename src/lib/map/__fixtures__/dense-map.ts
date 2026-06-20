@@ -197,6 +197,15 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       ],
     },
   ],
+  confirmedRelationships: [
+    {
+      goalAId: "p-senior",
+      goalBId: "p-cemap",
+      goalATitle: "Senior Engineer at Acme",
+      goalBTitle: "CeMAP qualification",
+      label: "leads to",
+    },
+  ],
 };
 
 /** All pursuit IDs on the dense map. */
@@ -213,6 +222,15 @@ export const DENSE_DIRTY_PURSUIT_IDS = [...DENSE_ALL_PURSUIT_IDS];
 /** Minimal reading packet stub for reflect tests. */
 export const DENSE_READING_PACKET: ReadingPacket = {
   changeEvents: ['"CeMAP qualification": status NOT_STARTED → ACTIVE'],
+  confirmedRelationships: [
+    {
+      goalAId: "p-senior",
+      goalBId: "p-cemap",
+      goalATitle: "Senior Engineer at Acme",
+      goalBTitle: "CeMAP qualification",
+      label: "leads to",
+    },
+  ],
   categorySignals: [
     {
       themeLabel: "Work & Career",

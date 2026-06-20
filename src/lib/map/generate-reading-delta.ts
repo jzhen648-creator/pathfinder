@@ -45,7 +45,8 @@ function buildDeltaSystemPrompt(totalPursuitCount: number): string {
   ].join("\n");
 }
 
-function buildDeltaUserMessage(input: {
+/** @internal Exported for vitest — delta user message assembly. */
+export function buildDeltaUserMessage(input: {
   previousSeasonRead: string;
   previousGeneratedAt: string;
   userContext: string;

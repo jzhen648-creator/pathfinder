@@ -5,6 +5,15 @@ exports[`reading packet snapshots > matches canonical dense reading packet JSON 
   "changeEvents": [
     "\\"CeMAP qualification\\": status NOT_STARTED → ACTIVE"
   ],
+  "confirmedRelationships": [
+    {
+      "goalAId": "p-senior",
+      "goalBId": "p-cemap",
+      "goalATitle": "Senior Engineer at Acme",
+      "goalBTitle": "CeMAP qualification",
+      "label": "leads to"
+    }
+  ],
   "categorySignals": [
     {
       "themeLabel": "Work & Career",

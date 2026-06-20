@@ -55,4 +55,22 @@ describe("compileReadingPacket map context", () => {
 
     expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1", { includeMarks: true });
   });
+
+  it("includes confirmedRelationships from map_context in the reading packet", async () => {
+    const dirty: ReadingDirtyAnalysis = {
+      pursuitIds: ["p-cemap"],
+      themeIds: ["work"],
+      hubIds: ["cat-job"],
+      markIds: [],
+      hasGlobal: false,
+      totalItems: 1,
+      hasPursuitArchivedReason: false,
+      staleDirtyPursuitIds: [],
+      activeDirtyPursuitIds: ["p-cemap"],
+    };
+
+    const packet = await compileReadingPacket("user-1", dirty);
+
+    expect(packet.confirmedRelationships).toEqual(DENSE_MAP_CONTEXT.confirmedRelationships);
+  });
 });
