@@ -51,14 +51,14 @@ export async function POST(request: Request) {
   const userId = auth.userId;
   const category = await prisma.themeCategory.findFirst({
     where: { id: reqParsed.data.categoryId, userId },
-    select: { id: true, themeId: true, label: true, name: true },
+    select: { id: true, themeId: true, label: true },
   });
   if (!category) {
     return NextResponse.json({ error: "Category not found" }, { status: 404 });
   }
 
   const themeLabel = getLifeArea(category.themeId)?.label ?? category.themeId;
-  const categoryLabel = category.label ?? category.name ?? "Category";
+  const categoryLabel = category.label ?? "Category";
 
   try {
     const userContext = await formatUserContext(userId);

@@ -17,18 +17,15 @@ function milestonePayloadSummary(
     id: string;
     position: number;
     completedAt: Date | null;
-    subtasks: { isCompleted: boolean; title: string }[];
   }>,
 ) {
   return milestones.map((m) => ({
     id: m.id,
     position: m.position,
     completedAt: m.completedAt?.toISOString?.() ?? null,
-    subtaskCount: m.subtasks.length,
-    subtasksCompleted: m.subtasks.map((s) => s.isCompleted),
     milestoneDoneForSemantics: milestoneDoneForSemantics({
       completedAt: m.completedAt,
-      subtasks: m.subtasks.map((s) => ({ isCompleted: s.isCompleted, title: s.title })),
+      subtasks: [],
     }),
   }));
 }
@@ -50,7 +47,7 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
     goal = await prisma.goal.findUnique({
       where: { id: goalId },
       include: {
-        milestones: { include: { subtasks: true }, orderBy: { position: "asc" } },
+        milestones: { orderBy: { position: "asc" } },
       },
     });
   } catch (e) {
@@ -97,7 +94,7 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
   try {
     next = computeGoalLifecycleStatus(
       { goalType: goal.goalType, future: goal.future, year: goal.year },
-      milestones,
+      milestones.map((m) => ({ ...m, subtasks: [] })),
       nowYear,
     ) as PursuitStatus;
   } catch (e) {

@@ -14,7 +14,6 @@ import {
 } from "@/lib/ai/generate-reflect";
 import { buildEnrichSystemPrompt } from "@/lib/pursuit/generate-pursuit-enrich";
 import { DEFAULT_PURSUIT_ENRICH_OPTIONS } from "@/lib/pursuit/enrich-options";
-import { buildStorySystemPrompt } from "@/lib/story/generate-story";
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 
 function pursuit(
@@ -81,10 +80,9 @@ describe("amount impact prompt wiring", () => {
     expect(buildEnrichSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, false, false)).not.toContain(
       AMOUNT_IMPACT_PROSE_MARKER,
     );
-    expect(buildStorySystemPrompt(3, false)).not.toContain(AMOUNT_IMPACT_PROSE_MARKER);
   });
 
-  it("includes rules in enrich, reflect, and story prompts when eligible", () => {
+  it("includes rules in enrich and reflect prompts when eligible", () => {
     expect(buildEnrichSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, false, true)).toContain(
       AMOUNT_IMPACT_PROSE_MARKER,
     );
@@ -94,7 +92,6 @@ describe("amount impact prompt wiring", () => {
     expect(buildReflectSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", true)).toContain(
       AMOUNT_IMPACT_PROSE_MARKER,
     );
-    expect(buildStorySystemPrompt(5, true)).toContain(AMOUNT_IMPACT_PROSE_MARKER);
   });
 
   it("adds amount-impact rules to reflect pursuit-body section when eligible", () => {

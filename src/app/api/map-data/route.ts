@@ -104,27 +104,10 @@ export async function GET(request: Request) {
     });
 
     const goalInclude = {
-
       milestones: {
-
         orderBy: { position: "asc" as const },
-
-        include: {
-
-          subtasks: {
-
-            orderBy: { position: "asc" as const },
-
-            select: { id: true, isCompleted: true, position: true, title: true },
-
-          },
-
-        },
-
       },
-
       forkedGoals: { select: { id: true } },
-
     };
 
     const [goals, archivedGoals, relationships] = await Promise.all([
@@ -237,10 +220,6 @@ export async function POST(request: Request) {
       themeId: input.limbId,
 
       label: input.label ?? null,
-
-      parentCategoryId: null,
-
-      turningPointId: null,
 
       mapAngleOffset: input.mapAngleOffset,
 

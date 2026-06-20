@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
   const branchRecord = await prisma.themeCategory.findFirst({
     where: { id: input.branchId.trim(), userId },
-    select: { id: true, themeId: true, name: true, label: true, isActive: true },
+    select: { id: true, themeId: true, label: true, isActive: true },
   });
   if (!branchRecord) {
     return NextResponse.json({ error: "Branch not found" }, { status: 404 });
@@ -212,10 +212,6 @@ export async function POST(request: Request) {
       input.bloomStatus !== "MAINTAINING" &&
       input.goalType !== "identity"
     ) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { onboardingProfileText: true },
-      });
       const deadlineStr = deadline ? deadline.toISOString().slice(0, 10) : "No fixed deadline";
       const roadmapInput = {
         title,
@@ -225,7 +221,6 @@ export async function POST(request: Request) {
         biggestObstacle: "Time and consistency",
         hoursPerWeek: "A few hours per week",
         deadline: deadlineStr,
-        profileContext: user?.onboardingProfileText ?? undefined,
       };
       let roadmap;
       try {
@@ -245,7 +240,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const branchLabel = branchRecord.name ?? branchRecord.label ?? "Branch";
+    const branchLabel = branchRecord.label ?? "Branch";
 
     await markPursuitReadingDirty(userId, goal.id, "pursuit_created", {
       details: { event: "created", title: goal.title },

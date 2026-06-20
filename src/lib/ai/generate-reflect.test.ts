@@ -66,8 +66,6 @@ function baseDirtyAnalysis(): ReadingDirtyAnalysis {
   return {
     pursuitIds: DENSE_DIRTY_PURSUIT_IDS,
     themeIds: ["work", "finance"],
-    hubIds: ["cat-job", "cat-savings"],
-    markIds: [],
     hasGlobal: true,
     totalItems: DENSE_DIRTY_PURSUIT_IDS.length,
     hasPursuitArchivedReason: false,

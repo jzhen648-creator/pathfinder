@@ -58,7 +58,6 @@ export async function POST(request: Request) {
       email: parsed.data.email,
       passwordHash,
       onboardingCompleted: false,
-      firstRunCompleted: false,
     },
   });
 
@@ -70,7 +69,6 @@ export async function POST(request: Request) {
       name: user.name,
       email: user.email,
       onboardingCompleted: user.onboardingCompleted,
-      firstRunCompleted: user.firstRunCompleted,
     },
     secret,
   );
@@ -82,7 +80,6 @@ export async function POST(request: Request) {
       name: user.name,
       email: user.email,
       onboardingCompleted: user.onboardingCompleted,
-      firstRunCompleted: user.firstRunCompleted,
     },
   };
 

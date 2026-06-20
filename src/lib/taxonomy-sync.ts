@@ -32,12 +32,12 @@ async function migrateFinanceIncomeCategories(
   userId: string,
 ): Promise<number> {
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null, themeId: "finance" },
-    select: { id: true, label: true, name: true, themeId: true },
+    where: { userId, themeId: "finance" },
+    select: { id: true, label: true, themeId: true },
   });
 
   const branchByKey = new Map(
-    roots.map((b) => [systemCategoryKey(b.themeId, b.label ?? b.name), b.id]),
+    roots.map((b) => [systemCategoryKey(b.themeId, b.label), b.id]),
   );
 
   const employmentId =
@@ -81,12 +81,12 @@ async function migrateWorkSkillsCategories(
   userId: string,
 ): Promise<number> {
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null, themeId: "work" },
-    select: { id: true, label: true, name: true, themeId: true },
+    where: { userId, themeId: "work" },
+    select: { id: true, label: true, themeId: true },
   });
 
   const branchByKey = new Map(
-    roots.map((b) => [systemCategoryKey(b.themeId, b.label ?? b.name), b.id]),
+    roots.map((b) => [systemCategoryKey(b.themeId, b.label), b.id]),
   );
 
   const skillsId =
@@ -127,18 +127,18 @@ async function migrateRetireJoyCreativity(
   userId: string,
 ): Promise<number> {
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null },
-    select: { id: true, label: true, name: true, themeId: true },
+    where: { userId },
+    select: { id: true, label: true, themeId: true },
   });
 
   const branchByKey = new Map(
-    roots.map((b) => [systemCategoryKey(b.themeId, b.label ?? b.name), b.id]),
+    roots.map((b) => [systemCategoryKey(b.themeId, b.label), b.id]),
   );
 
   const joyId = roots.find(
     (b) =>
       b.themeId === "becoming" &&
-      normLabel(b.label ?? b.name) === normLabel("Joy & Creativity"),
+      normLabel(b.label) === normLabel("Joy & Creativity"),
   )?.id;
   const mindId = branchByKey.get(systemCategoryKey("becoming", "Mind & wellbeing"));
   const hobbiesId = branchByKey.get(systemCategoryKey("pleasures", "Hobbies & making"));
@@ -219,42 +219,34 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
   updates += await ensureSystemCategoriesForUser(prisma, userId);
 
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null },
+    where: { userId },
     orderBy: { createdAt: "asc" },
   });
 
   for (const branch of roots) {
-    const raw = normLabel(branch.label ?? branch.name);
+    const raw = normLabel(branch.label);
     let limbId = resolveLegacyLimbId(branch.themeId);
-    let label = (branch.label ?? branch.name ?? "").trim();
-    let name = (branch.name ?? branch.label ?? "").trim();
+    let label = (branch.label ?? "").trim();
 
     const legacy = LEGACY_HUB_MIGRATIONS[raw];
     if (legacy) {
       limbId = legacy.limbId;
       label = legacy.label;
-      name = legacy.label;
     } else if (raw === "joy" && limbId === "health") {
       limbId = "becoming";
       label = "Mind & wellbeing";
-      name = "Mind & wellbeing";
     } else if (raw === "play" && limbId === "becoming") {
       limbId = "pleasures";
       label = "Hobbies & making";
-      name = "Hobbies & making";
     } else if (raw === "play" && limbId === "health") {
       limbId = "pleasures";
       label = "Hobbies & making";
-      name = "Hobbies & making";
     } else if (raw === "mind" && limbId === "health") {
       label = "Body care";
-      name = "Body care";
     } else if (raw === "mind" && limbId === "becoming") {
       label = "Mind & wellbeing";
-      name = "Mind & wellbeing";
     } else if (raw === "energy" && limbId === "health") {
       label = "Body care";
-      name = "Body care";
     }
 
     const template = LOCKED_CATEGORY_TEMPLATES.find(
@@ -263,17 +255,14 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
     const patch: {
       themeId?: LifeAreaId;
       label?: string;
-      name?: string;
       isSystemCategory?: boolean;
     } = {};
     if (template) {
       label = template.threadType;
-      name = template.name;
       patch.isSystemCategory = true;
     }
     if (limbId !== branch.themeId) patch.themeId = limbId;
     if (label !== (branch.label ?? "")) patch.label = label;
-    if (name !== (branch.name ?? "")) patch.name = name;
 
     if (Object.keys(patch).length > 0) {
       await prisma.themeCategory.update({
@@ -287,7 +276,7 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
   updates += await dedupeDuplicateRootCategories(prisma, userId);
 
   const afterDedupe = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null },
+    where: { userId },
     orderBy: { createdAt: "asc" },
   });
 
@@ -300,14 +289,11 @@ export async function syncTaxonomyForUser(prisma: PrismaClient, userId: string):
 
   for (const branch of afterDedupe) {
     if (isLockedSystemCategory(branch)) continue;
-    const labelKey = systemCategoryKey(branch.themeId, branch.label ?? branch.name).split("::")[1] ?? "";
+    const labelKey = systemCategoryKey(branch.themeId, branch.label).split("::")[1] ?? "";
     const valid = validCategoryKeysByLimb.get(branch.themeId);
     if (!labelKey || !valid || valid.has(labelKey)) continue;
-    const [goalCount, markCount] = await Promise.all([
-      prisma.goal.count({ where: { categoryId: branch.id } }),
-      prisma.mark.count({ where: { categoryId: branch.id } }),
-    ]);
-    if (goalCount === 0 && markCount === 0) {
+    const goalCount = await prisma.goal.count({ where: { categoryId: branch.id } });
+    if (goalCount === 0) {
       await prisma.themeCategory.delete({ where: { id: branch.id } });
       updates += 1;
     }

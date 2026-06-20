@@ -33,13 +33,13 @@ export async function ensureSystemCategoriesForUser(
   if (!user) return 0;
 
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null },
+    where: { userId },
     orderBy: { createdAt: "asc" },
   });
 
   const present = new Map<string, ThemeCategory>();
   for (const b of roots) {
-    const key = systemCategoryKey(b.themeId, b.label ?? b.name);
+    const key = systemCategoryKey(b.themeId, b.label);
     const existing = present.get(key);
     if (!existing || b.createdAt < existing.createdAt) {
       present.set(key, b);
@@ -59,7 +59,6 @@ export async function ensureSystemCategoriesForUser(
         userId,
         themeId: t.limbId,
         label: t.threadType,
-        name: t.name,
         status: "active",
         lifecycleStatus: "ACTIVE",
         isSystemCategory: true,
@@ -74,7 +73,7 @@ export async function ensureSystemCategoriesForUser(
 
   for (const b of roots) {
     if (b.isSystemCategory) continue;
-    if (!matchesTemplate(b.themeId, b.label ?? b.name)) continue;
+    if (!matchesTemplate(b.themeId, b.label)) continue;
     await prisma.themeCategory.update({
       where: { id: b.id },
       data: { isSystemCategory: true },
@@ -93,7 +92,6 @@ export async function activateLimbsForUser(
   const result = await prisma.themeCategory.updateMany({
     where: {
       userId,
-      parentCategoryId: null,
       isSystemCategory: true,
       themeId: { in: [...limbIds] },
     },
@@ -125,10 +123,10 @@ export async function listSystemCategoryKeysForUser(
   userId: string,
 ): Promise<string[]> {
   const rows = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null, isSystemCategory: true },
-    select: { themeId: true, label: true, name: true },
+    where: { userId, isSystemCategory: true },
+    select: { themeId: true, label: true },
   });
-  return rows.map((r) => systemCategoryKey(r.themeId, r.label ?? r.name));
+  return rows.map((r) => systemCategoryKey(r.themeId, r.label));
 }
 
 export { normLabel };

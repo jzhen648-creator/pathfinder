@@ -1,10 +1,5 @@
 import { generateText, GeminiNotConfiguredError } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
-import {
-  countPendingMemorySources,
-  joinPendingMemoryText,
-  listPendingMemorySources,
-} from "@/lib/memory/memory-pending";
 import { markUserMemoryDirty, writeUserMemory, type UserMemoryRow } from "@/lib/memory/memory-write";
 import { seedUserMemory } from "@/lib/memory/seed-memory";
 
@@ -44,11 +39,8 @@ function buildUpdateUserMessage(input: {
   ].join("\n");
 }
 
-export async function countPendingIncorporateForUser(userId: string): Promise<number> {
-  const memory = await prisma.userMemory.findUnique({ where: { userId } });
-  if (!memory?.lastUserEditedAt) return 0;
-  const sources = await listPendingMemorySources(userId, memory.lastUserEditedAt);
-  return countPendingMemorySources(sources);
+export async function countPendingIncorporateForUser(_userId: string): Promise<number> {
+  return 0;
 }
 
 /** Advance incorporate watermark after a successful merge — pause persists, already-folded sessions excluded. */
@@ -63,7 +55,7 @@ export async function advanceIncorporateWatermark(userId: string): Promise<void>
 }
 
 /**
- * Evolve UserMemory from raw Stream conversation text. Does not read map data.
+ * Evolve UserMemory from conversation text. Does not read map data.
  * When `lastUserEditedAt` is set, auto updates pause and mark dirty instead of overwriting.
  */
 export async function updateUserMemory(
@@ -113,7 +105,6 @@ export async function updateUserMemory(
     const row = await writeUserMemory({
       userId,
       blob,
-      incrementStreamSessionCount: true,
       clearDirty: true,
     });
 
@@ -137,20 +128,7 @@ export async function updateUserMemory(
   }
 }
 
-/** Fold pending Stream activity into the summary while manual-edit pause is active. */
-export async function incorporatePendingMemory(userId: string): Promise<UserMemoryRow | null> {
-  const memory = await prisma.userMemory.findUnique({ where: { userId } });
-  if (!memory?.lastUserEditedAt) return null;
-
-  const sources = await listPendingMemorySources(userId, memory.lastUserEditedAt);
-  const sessionText = joinPendingMemoryText(sources);
-  if (!sessionText) {
-    await prisma.userMemory.update({
-      where: { userId },
-      data: { isDirty: false },
-    });
-    return memory;
-  }
-
-  return updateUserMemory(userId, sessionText, { forceIncorporate: true });
+/** Retired with Stream — nothing pending to incorporate. */
+export async function incorporatePendingMemory(_userId: string): Promise<UserMemoryRow | null> {
+  return null;
 }

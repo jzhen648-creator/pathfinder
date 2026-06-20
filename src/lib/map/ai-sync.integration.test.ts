@@ -86,8 +86,6 @@ function baseDirtySummary(overrides?: Partial<{
   return {
     pursuitIds: overrides?.pursuitIds ?? [],
     themeIds: [] as string[],
-    hubIds: [] as string[],
-    markIds: [] as string[],
     hasGlobal: false,
     totalItems: overrides?.totalItems ?? 0,
   };

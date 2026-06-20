@@ -12,8 +12,8 @@ function matchesTemplate(limbId: string, label: string | null | undefined): bool
 /** Prefer canonical template label, then system category, then oldest row. */
 export function pickKeeperCategory(list: readonly ThemeCategory[]): ThemeCategory {
   return [...list].sort((a, b) => {
-    const aTemplate = matchesTemplate(a.themeId, a.label ?? a.name) ? 0 : 1;
-    const bTemplate = matchesTemplate(b.themeId, b.label ?? b.name) ? 0 : 1;
+    const aTemplate = matchesTemplate(a.themeId, a.label) ? 0 : 1;
+    const bTemplate = matchesTemplate(b.themeId, b.label) ? 0 : 1;
     if (aTemplate !== bTemplate) return aTemplate - bTemplate;
     const aSystem = isLockedSystemCategory(a) ? 0 : 1;
     const bSystem = isLockedSystemCategory(b) ? 0 : 1;
@@ -33,13 +33,13 @@ export async function dedupeDuplicateRootCategories(
   let updates = 0;
 
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null },
+    where: { userId },
     orderBy: { createdAt: "asc" },
   });
 
   const groups = new Map<string, ThemeCategory[]>();
   for (const branch of roots) {
-    const key = systemCategoryKey(branch.themeId, branch.label ?? branch.name);
+    const key = systemCategoryKey(branch.themeId, branch.label);
     const list = groups.get(key) ?? [];
     list.push(branch);
     groups.set(key, list);
@@ -51,21 +51,20 @@ export async function dedupeDuplicateRootCategories(
     const dupes = list.filter((b) => b.id !== keeper.id);
     for (const dup of dupes) {
       await prisma.goal.updateMany({ where: { categoryId: dup.id }, data: { categoryId: keeper.id } });
-      await prisma.mark.updateMany({ where: { categoryId: dup.id }, data: { categoryId: keeper.id } });
       if (!keeper.isSystemCategory && dup.isSystemCategory) {
         await prisma.themeCategory.update({
           where: { id: keeper.id },
           data: { isSystemCategory: true, isActive: keeper.isActive || dup.isActive },
         });
       }
-      const canonicalKey = normalizeCategoryLabelKey(keeper.label ?? keeper.name ?? "");
+      const canonicalKey = normalizeCategoryLabelKey(keeper.label ?? "");
       const template = LOCKED_CATEGORY_TEMPLATES.find(
         (t) => t.limbId === keeper.themeId && normalizeCategoryLabelKey(t.threadType) === canonicalKey,
       );
-      if (template && (keeper.label !== template.threadType || keeper.name !== template.name)) {
+      if (template && keeper.label !== template.threadType) {
         await prisma.themeCategory.update({
           where: { id: keeper.id },
-          data: { label: template.threadType, name: template.name, isSystemCategory: true },
+          data: { label: template.threadType, isSystemCategory: true },
         });
       }
       await prisma.themeCategory.delete({ where: { id: dup.id } });
@@ -76,13 +75,13 @@ export async function dedupeDuplicateRootCategories(
   return updates;
 }
 
-type RootCategoryRow = Pick<ThemeCategory, "id" | "themeId" | "label" | "name" | "isSystemCategory" | "createdAt">;
+type RootCategoryRow = Pick<ThemeCategory, "id" | "themeId" | "label" | "isSystemCategory" | "createdAt">;
 
 /** Read-only: one row per canonical category slot (for map context / Stream resolver). */
 export function canonicalRootCategoryRows<T extends RootCategoryRow>(roots: readonly T[]): T[] {
   const groups = new Map<string, T[]>();
   for (const branch of roots) {
-    const key = systemCategoryKey(branch.themeId, branch.label ?? branch.name);
+    const key = systemCategoryKey(branch.themeId, branch.label);
     const list = groups.get(key) ?? [];
     list.push(branch);
     groups.set(key, list);
@@ -94,8 +93,8 @@ export function canonicalRootCategoryRows<T extends RootCategoryRow>(roots: read
       continue;
     }
     const sorted = [...list].sort((a, b) => {
-      const aTemplate = matchesTemplate(a.themeId, a.label ?? a.name) ? 0 : 1;
-      const bTemplate = matchesTemplate(b.themeId, b.label ?? b.name) ? 0 : 1;
+      const aTemplate = matchesTemplate(a.themeId, a.label) ? 0 : 1;
+      const bTemplate = matchesTemplate(b.themeId, b.label) ? 0 : 1;
       if (aTemplate !== bTemplate) return aTemplate - bTemplate;
       const aSystem = a.isSystemCategory ? 0 : 1;
       const bSystem = b.isSystemCategory ? 0 : 1;

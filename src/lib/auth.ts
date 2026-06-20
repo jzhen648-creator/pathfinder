@@ -61,7 +61,6 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           onboardingCompleted: user.onboardingCompleted,
-          firstRunCompleted: user.firstRunCompleted,
         };
       },
     }),
@@ -75,10 +74,9 @@ export const authOptions: NextAuthOptions = {
       if (userId) {
         const dbUser = await prisma.user.findUnique({
           where: { id: userId },
-          select: { onboardingCompleted: true, firstRunCompleted: true },
+          select: { onboardingCompleted: true },
         });
         token.onboardingCompleted = dbUser?.onboardingCompleted ?? false;
-        token.firstRunCompleted = dbUser?.firstRunCompleted ?? false;
       }
       return token;
     },
@@ -86,7 +84,6 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub ?? "";
         session.user.onboardingCompleted = token.onboardingCompleted === true;
-        session.user.firstRunCompleted = token.firstRunCompleted === true;
       }
       return session;
     },

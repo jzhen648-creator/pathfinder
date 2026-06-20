@@ -42,8 +42,6 @@ describe("compileReadingPacket map context", () => {
     const dirty: ReadingDirtyAnalysis = {
       pursuitIds: ["p-cemap"],
       themeIds: ["work"],
-      hubIds: ["cat-job"],
-      markIds: [],
       hasGlobal: false,
       totalItems: 1,
       hasPursuitArchivedReason: false,
@@ -60,8 +58,6 @@ describe("compileReadingPacket map context", () => {
     const dirty: ReadingDirtyAnalysis = {
       pursuitIds: ["p-cemap"],
       themeIds: ["work"],
-      hubIds: ["cat-job"],
-      markIds: [],
       hasGlobal: false,
       totalItems: 1,
       hasPursuitArchivedReason: false,

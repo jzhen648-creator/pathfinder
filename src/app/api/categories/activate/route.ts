@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   const category = await prisma.themeCategory.findFirst({
 
-    where: { id: parsed.data.categoryId, userId, parentCategoryId: null },
+    where: { id: parsed.data.categoryId, userId },
 
     select: { id: true, themeId: true },
 

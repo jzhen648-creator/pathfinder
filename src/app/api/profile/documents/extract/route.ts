@@ -132,27 +132,5 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    const existing = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { careerEducationContextText: true },
-    });
-    const merged = [existing?.careerEducationContextText, trimmed]
-      .filter(Boolean)
-      .join("\n\n---\n\n")
-      .slice(0, MAX_STORED_CHARS);
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { careerEducationContextText: merged },
-    });
-  } catch (err) {
-    console.error("[POST /api/profile/documents/extract] prisma write failed:", err);
-    return NextResponse.json(
-      { error: "Extracted text but failed to save it." },
-      { status: 500 },
-    );
-  }
-
   return NextResponse.json({ extractedText: trimmed });
 }

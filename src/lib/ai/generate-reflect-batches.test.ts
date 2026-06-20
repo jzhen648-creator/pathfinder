@@ -43,8 +43,6 @@ function emptyDirty(): ReadingDirtyAnalysis {
   return {
     pursuitIds: [],
     themeIds: [],
-    hubIds: [],
-    markIds: [],
     hasGlobal: false,
     totalItems: 0,
     hasPursuitArchivedReason: false,

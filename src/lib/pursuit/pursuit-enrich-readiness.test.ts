@@ -10,7 +10,6 @@ import {
   shouldSuggestMilestones,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
-import { buildStorySystemPrompt } from "@/lib/story/generate-story";
 
 function signal(overrides: Partial<PursuitSignal> = {}): PursuitSignal {
   return {
@@ -162,56 +161,6 @@ describe("isHolisticBenchmarkEligible", () => {
         signal({ description: "Saving £500 a month toward a house deposit." }),
       ]),
     ).toBe(true);
-  });
-});
-
-describe("buildStorySystemPrompt holistic benchmark gate", () => {
-  const benchmarkMarker = "weave in one holistic benchmark";
-
-  it("omits holistic benchmark clause on thin maps", () => {
-    expect(buildStorySystemPrompt(5, false, false)).not.toContain(benchmarkMarker);
-  });
-
-  it("includes holistic benchmark clause when eligible", () => {
-    expect(buildStorySystemPrompt(5, false, true)).toContain(benchmarkMarker);
-  });
-});
-
-describe("buildStorySystemPrompt word count", () => {
-  it("includes hard word-count constraints for seasonRead", () => {
-    const prompt = buildStorySystemPrompt(3);
-    expect(prompt).toContain("Your response MUST be 100–140 words. Never exceed 150 words.");
-    expect(prompt).toContain("Do not write a closing paragraph of generic advice");
-    expect(prompt).toContain(
-      "Every sentence must be grounded in a specific, named pursuit and its status, or in a real relationship between pursuits or themes",
-    );
-    expect(prompt).toContain("At most ONE concrete suggestion in the entire reading");
-  });
-});
-
-describe("buildStorySystemPrompt Phase 0/1 trust and layering", () => {
-  it("disambiguates arrival from milestone progress and bans false completion", () => {
-    const prompt = buildStorySystemPrompt(3);
-    expect(prompt).toContain("NEVER describe an ACTIVE, PAUSED, or MAINTAINING pursuit as completed");
-    expect(prompt).toContain("milestone_complete");
-    expect(prompt).toContain("signal: arrival");
-  });
-
-  it("removes Gap lens and bans milestone/deadline audits in whole-map Reading", () => {
-    const prompt = buildStorySystemPrompt(3);
-    expect(prompt).not.toContain("- Gap:");
-    expect(prompt).toContain("Do NOT audit milestones");
-    expect(prompt).toContain("Ignore gapFacts, milestonePaceFacts");
-  });
-
-  it("adds cross-theme weight guidance only in PANORAMIC mode", () => {
-    const panoramic = buildStorySystemPrompt(3);
-    expect(panoramic).toContain("cross-theme weight");
-    expect(panoramic).toContain("mapAggregates.highSignificanceActive");
-
-    const sparse = buildStorySystemPrompt(2);
-    expect(sparse).not.toContain("cross-theme weight");
-    expect(sparse).not.toContain("mapAggregates.highSignificanceActive");
   });
 });
 

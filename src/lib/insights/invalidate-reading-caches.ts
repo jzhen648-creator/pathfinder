@@ -4,11 +4,6 @@ import {
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import { prisma } from "@/lib/prisma";
 
-/** Drop cached whole-map Reading so archived/abandoned pursuits cannot linger in prose. */
-export async function invalidateStoryCache(userId: string): Promise<void> {
-  await prisma.storyCache.deleteMany({ where: { userId } });
-}
-
 /** Remove one pursuit from the insight cache (archive, abandon, or hard cleanup). */
 export async function prunePursuitInsightFromCache(
   userId: string,
@@ -66,13 +61,10 @@ export async function pruneOffMapPursuitsFromInsightCache(userId: string): Promi
 /** @deprecated Use {@link pruneOffMapPursuitsFromInsightCache} */
 export const pruneArchivedPursuitsFromInsightCache = pruneOffMapPursuitsFromInsightCache;
 
-/** Story + pursuit insight rows for pursuits that left the live map. */
+/** Pursuit insight rows for pursuits that left the live map. */
 export async function excludePursuitFromInterpretation(
   userId: string,
   pursuitId: string,
 ): Promise<void> {
-  await Promise.all([
-    prunePursuitInsightFromCache(userId, pursuitId),
-    invalidateStoryCache(userId),
-  ]);
+  await prunePursuitInsightFromCache(userId, pursuitId);
 }

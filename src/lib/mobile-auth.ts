@@ -15,7 +15,6 @@ export type MobileAuthUser = {
   name: string | null;
   email: string;
   onboardingCompleted: boolean;
-  firstRunCompleted: boolean;
 };
 
 export type MobileAuthResponse = {
@@ -33,7 +32,6 @@ export async function signMobileSessionJwt(
       name: user.name,
       email: user.email,
       onboardingCompleted: user.onboardingCompleted,
-      firstRunCompleted: user.firstRunCompleted,
     },
     secret,
     maxAge: MOBILE_SESSION_MAX_AGE_SECONDS,

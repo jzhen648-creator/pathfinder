@@ -19,17 +19,12 @@ export async function completeOnboardingForUser(
   await ensureTaxonomyCurrent(prisma, userId);
   await activateLimbsForUser(prisma, userId, input.activeLimbIds);
 
-  const primaryLimbId = input.activeLimbIds[0] ?? null;
-
   await prisma.user.update({
     where: { id: userId },
     data: {
       name: preferredName,
       onboardingCompleted: true,
-      onboardingPrimaryLimbId: primaryLimbId,
-      onboardingScene: null,
       onboardingThemeId: null,
-      onboardingHubSlug: null,
     },
   });
 }

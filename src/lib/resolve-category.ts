@@ -52,12 +52,12 @@ export async function resolveBranchForHub(
   if (!template) return null;
 
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, themeId: themeId, parentCategoryId: null },
-    select: { id: true, label: true, name: true, themeId: true, updatedAt: true },
+    where: { userId, themeId: themeId },
+    select: { id: true, label: true, themeId: true, updatedAt: true },
   });
 
   const match = roots.find(
-    (b) => systemCategoryKey(b.themeId, b.label ?? b.name) === systemCategoryKey(themeId, template.threadType),
+    (b) => systemCategoryKey(b.themeId, b.label) === systemCategoryKey(themeId, template.threadType),
   );
   if (!match) return null;
 
@@ -78,13 +78,13 @@ export async function resolveAllHubBranchesForTheme(
 ): Promise<ResolvedCategory[]> {
   const templates = categoriesForTheme(themeId);
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, themeId: themeId, parentCategoryId: null },
-    select: { id: true, label: true, name: true, themeId: true, updatedAt: true },
+    where: { userId, themeId: themeId },
+    select: { id: true, label: true, themeId: true, updatedAt: true },
   });
 
   const byKey = new Map<string, (typeof roots)[number]>();
   for (const b of roots) {
-    byKey.set(systemCategoryKey(b.themeId, b.label ?? b.name), b);
+    byKey.set(systemCategoryKey(b.themeId, b.label), b);
   }
 
   const out: ResolvedCategory[] = [];
@@ -115,12 +115,11 @@ export async function buildCategoryResolver(
   userId: string,
 ): Promise<CategoryResolver> {
   const roots = await prisma.themeCategory.findMany({
-    where: { userId, parentCategoryId: null },
+    where: { userId },
     select: {
       id: true,
       themeId: true,
       label: true,
-      name: true,
       isSystemCategory: true,
       createdAt: true,
     },
@@ -134,7 +133,7 @@ export async function buildCategoryResolver(
 
   for (const branch of canonical) {
     byId.set(branch.id, branch.id);
-    const slug = normalizeStreamCategorySlug(branch.label ?? branch.name ?? "");
+    const slug = normalizeStreamCategorySlug(branch.label ?? "");
     idToSlug.set(branch.id, slug);
     byThemeSlug.set(`${branch.themeId}::${slug}`, branch.id);
   }

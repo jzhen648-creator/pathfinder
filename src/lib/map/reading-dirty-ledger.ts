@@ -10,8 +10,6 @@ import {
 export type ReadingDirtySummary = {
   pursuitIds: string[];
   themeIds: string[];
-  hubIds: string[];
-  markIds: string[];
   hasGlobal: boolean;
   totalItems: number;
 };
@@ -29,7 +27,6 @@ export async function markReadingDirty(
   entityId: string,
   reason: string,
   options?: {
-    streamRunId?: string | null;
     details?: ReadingDirtyDetails | null;
   },
 ): Promise<void> {
@@ -47,12 +44,10 @@ export async function markReadingDirty(
       entityId: id,
       reason: reason.slice(0, 500),
       details: detailsJson,
-      streamRunId: options?.streamRunId ?? null,
     },
     update: {
       reason: reason.slice(0, 500),
       details: detailsJson,
-      streamRunId: options?.streamRunId ?? undefined,
       createdAt: new Date(),
     },
   });
@@ -63,26 +58,11 @@ export async function markPursuitReadingDirty(
   pursuitId: string,
   reason: string,
   options?: {
-    streamRunId?: string | null;
     details?: ReadingDirtyDetails | null;
   },
 ): Promise<void> {
   await markReadingDirty(userId, "pursuit", pursuitId, reason, options);
   await markReadingDirty(userId, "global", "map", "pursuit_changed");
-}
-
-export async function markMarkReadingDirty(
-  userId: string,
-  markId: string,
-  themeId: string,
-  reason: string,
-  details?: ReadingDirtyDetails | null,
-): Promise<void> {
-  await markReadingDirty(userId, "mark", markId, reason, { details });
-  if (themeId.trim()) {
-    await markReadingDirty(userId, "theme", themeId, reason, { details });
-  }
-  await markReadingDirty(userId, "global", "map", "mark_changed");
 }
 
 export async function markGlobalReadingDirty(userId: string, reason: string): Promise<void> {
@@ -103,8 +83,6 @@ function summarizeDirtyRows(
 ): ReadingDirtySummary {
   const pursuitIds: string[] = [];
   const themeIds: string[] = [];
-  const hubIds: string[] = [];
-  const markIds: string[] = [];
   let hasGlobal = false;
 
   for (const row of rows) {
@@ -114,12 +92,6 @@ function summarizeDirtyRows(
         break;
       case "theme":
         themeIds.push(row.entityId);
-        break;
-      case "hub":
-        hubIds.push(row.entityId);
-        break;
-      case "mark":
-        markIds.push(row.entityId);
         break;
       case "global":
         hasGlobal = true;
@@ -132,8 +104,6 @@ function summarizeDirtyRows(
   return {
     pursuitIds: [...new Set(pursuitIds)],
     themeIds: [...new Set(themeIds)],
-    hubIds: [...new Set(hubIds)],
-    markIds: [...new Set(markIds)],
     hasGlobal,
     totalItems: rows.length,
   };

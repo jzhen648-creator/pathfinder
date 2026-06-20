@@ -54,17 +54,16 @@ export async function POST(request: Request) {
         ? await prisma.themeCategory.findMany({
             where: {
               userId,
-              parentCategoryId: null,
               isSystemCategory: true,
               ...(parsed.data.themeId ? { themeId: parsed.data.themeId } : {}),
             },
-            select: { id: true, themeId: true, label: true, name: true },
+            select: { id: true, themeId: true, label: true },
           })
         : [];
 
     const selectedHub = hubSlugKey
       ? themeRoots.find(
-          (hub) => normalizeCategoryLabelKey(hub.label ?? hub.name ?? "") === hubSlugKey,
+          (hub) => normalizeCategoryLabelKey(hub.label ?? "") === hubSlugKey,
         )
       : null;
 

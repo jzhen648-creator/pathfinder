@@ -1,5 +1,4 @@
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
-import { isCurrentStoryPayload } from "@/lib/story/parse-story-cache";
 
 /** Map or memory drift — the only client signal for "changes waiting" (manual-primary UX). */
 export function isReadingDrift(
@@ -13,16 +12,15 @@ export function isReadingDrift(
 /** @deprecated Use {@link isReadingDrift} */
 export const isInsightRowStale = isReadingDrift;
 
-/** Whether ai-sync should regenerate story (includes schema/taxonomy maintenance). */
+/** @deprecated StoryCache retired — always false. */
 export function storyNeedsRegeneration(
-  row: { mapVersion: string; memoryVersion: number; payload: string },
+  _row: { mapVersion: string; memoryVersion: number; payload: string },
   mapVersion: string,
   memoryVersion: number,
   taxonomyVersion: string | null,
 ): boolean {
-  if (isReadingDrift(row, mapVersion, memoryVersion)) return true;
+  if (isReadingDrift(_row, mapVersion, memoryVersion)) return true;
   if (taxonomyVersion && taxonomyVersion !== TAXONOMY_VERSION) return true;
-  if (!isCurrentStoryPayload(row.payload)) return true;
   return false;
 }
 

@@ -18,7 +18,6 @@ export type PursuitContextLogRow = {
 const AUTHORED_KINDS = new Set<PursuitContextEntryKind>([
   "create",
   "manual_edit",
-  "stream_digest",
   "ai_merge",
 ]);
 

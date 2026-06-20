@@ -1,10 +1,6 @@
 /**
- * Purge retired desktop-era data while keeping mobile live rows:
- * pursuits, milestones, relationships, context log, manual profile, user memory, insight cache.
- *
- * Deletes: marks, stream, trunk, story cache, subtasks, archived/moment goals,
- * stream-sourced profile facts, stream_digest context entries, goal evaluation cache.
- * Clears: desktop User JSON fields, category hub metrics, goal roadmapJson / stream FKs.
+ * Purge legacy goal shapes and optional desktop-era user metadata while keeping
+ * mobile live rows: pursuits, milestones, relationships, context log, profile, memory.
  *
  * Run:
  *   npm run purge:legacy-desktop-data -- --dry-run
@@ -40,69 +36,21 @@ async function resolveUsers(email?: string): Promise<UserScope[]> {
 }
 
 async function countLegacy(userId: string) {
-  const now = new Date();
-  const [
-    marks,
-    reframes,
-    streamRuns,
-    streamSessions,
-    trunkSegments,
-    trunkEntries,
-    storyCache,
-    evalCache,
-    subtasks,
-    dailyTasks,
-    checkpoints,
-    archivedGoals,
-    momentGoals,
-    practiceGoals,
-    streamFacts,
-    streamDigestEntries,
-    dirtyMarkHub,
-    goalsWithRoadmap,
-  ] = await Promise.all([
-    prisma.mark.count({ where: { userId } }),
-    prisma.reframe.count({ where: { mark: { userId } } }),
-    prisma.streamRun.count({ where: { userId } }),
-    prisma.streamSession.count({ where: { userId } }),
-    prisma.trunkSegment.count({ where: { userId } }),
-    prisma.trunkEntry.count({ where: { userId } }),
-    prisma.storyCache.count({ where: { userId } }),
-    prisma.goalEvaluationCache.count({ where: { userId } }),
-    prisma.subtask.count({ where: { milestone: { goal: { userId } } } }),
-    prisma.dailyTask.count({ where: { quickWin: { milestone: { goal: { userId } } } } }),
-    prisma.checkpoint.count({ where: { quickWin: { milestone: { goal: { userId } } } } }),
-    prisma.goal.count({ where: { userId, archived: true } }),
-    prisma.goal.count({ where: { userId, archived: false, goalType: { in: ["moment", "event"] } } }),
-    prisma.goal.count({ where: { userId, archived: false, goalType: "practice" } }),
-    prisma.profileFact.count({ where: { userId, source: "stream_extracted" } }),
-    prisma.pursuitContextEntry.count({ where: { userId, kind: "stream_digest" } }),
-    prisma.aiReadingDirtyItem.count({
-      where: { userId, entityType: { in: ["mark", "hub"] } },
-    }),
-    prisma.goal.count({ where: { userId, roadmapJson: { not: Prisma.DbNull } } }),
-  ]);
+  const [archivedGoals, momentGoals, practiceGoals, nestedGoals, customBranches, dirtyItems] =
+    await Promise.all([
+      prisma.goal.count({ where: { userId, archived: true } }),
+      prisma.goal.count({ where: { userId, archived: false, goalType: { in: ["moment", "event"] } } }),
+      prisma.goal.count({ where: { userId, archived: false, goalType: "practice" } }),
+      prisma.goal.count({ where: { userId, archived: false, parentGoalId: { not: null } } }),
+      prisma.themeCategory.count({ where: { userId, isSystemCategory: false } }),
+      prisma.aiReadingDirtyItem.count({ where: { userId } }),
+    ]);
 
   return {
-    marks,
-    reframes,
-    streamRuns,
-    streamSessions,
-    trunkSegments,
-    trunkEntries,
-    storyCache,
-    evalCache,
-    subtasks,
-    dailyTasks,
-    checkpoints,
     legacyGoals: archivedGoals + momentGoals + practiceGoals,
-    streamFacts,
-    streamDigestEntries,
-    dirtyMarkHub,
-    goalsWithRoadmap,
-    streamRunsExpired: await prisma.streamRun.count({
-      where: { userId, expiresAt: { lt: now } },
-    }),
+    nestedGoals,
+    customBranches,
+    dirtyItems,
   };
 }
 
@@ -110,10 +58,7 @@ async function purgeUser(user: UserScope, dryRun: boolean): Promise<void> {
   const before = await countLegacy(user.id);
   console.log(`\n${user.email}`);
   console.log(
-    `  legacy rows: marks=${before.marks} stream=${before.streamRuns}+${before.streamSessions} trunk=${before.trunkSegments}+${before.trunkEntries} story=${before.storyCache}`,
-  );
-  console.log(
-    `  legacy rows: subtasks=${before.subtasks} legacyGoals=${before.legacyGoals} streamFacts=${before.streamFacts} streamDigest=${before.streamDigestEntries}`,
+    `  legacy rows: legacyGoals=${before.legacyGoals} nested=${before.nestedGoals} customBranches=${before.customBranches} dirty=${before.dirtyItems}`,
   );
 
   if (dryRun) {
@@ -121,103 +66,53 @@ async function purgeUser(user: UserScope, dryRun: boolean): Promise<void> {
     return;
   }
 
-  await prisma.reframe.deleteMany({ where: { mark: { userId: user.id } } });
-  await prisma.aiReadingDirtyItem.deleteMany({
-    where: { userId: user.id, entityType: { in: ["mark", "hub"] } },
-  });
-
-  await prisma.goal.updateMany({
-    where: { userId: user.id },
-    data: { sourceStreamRunId: null, roadmapJson: Prisma.JsonNull },
-  });
-  await prisma.milestone.updateMany({
-    where: { goal: { userId: user.id } },
-    data: { sourceStreamRunId: null },
-  });
-
-  await prisma.mark.deleteMany({ where: { userId: user.id } });
-  await prisma.streamRun.deleteMany({ where: { userId: user.id } });
-  await prisma.streamSession.deleteMany({ where: { userId: user.id } });
-
-  await prisma.checkpoint.deleteMany({
-    where: { quickWin: { milestone: { goal: { userId: user.id } } } },
-  });
-  await prisma.dailyTask.deleteMany({
-    where: { quickWin: { milestone: { goal: { userId: user.id } } } },
-  });
-  await prisma.subtask.deleteMany({
-    where: { milestone: { goal: { userId: user.id } } },
-  });
-
-  await prisma.trunkEntry.deleteMany({ where: { userId: user.id } });
-  await prisma.trunkSegment.deleteMany({ where: { userId: user.id } });
-  await prisma.storyCache.deleteMany({ where: { userId: user.id } });
-  await prisma.goalEvaluationCache.deleteMany({ where: { userId: user.id } });
-
-  await prisma.profileFact.deleteMany({
-    where: { userId: user.id, source: "stream_extracted" },
-  });
-
-  const digestGoals = await prisma.pursuitContextEntry.findMany({
-    where: { userId: user.id, kind: "stream_digest" },
-    select: { goalId: true },
-    distinct: ["goalId"],
-  });
-  await prisma.pursuitContextEntry.deleteMany({
-    where: { userId: user.id, kind: "stream_digest" },
-  });
-  for (const row of digestGoals) {
-    await syncGoalDescriptionFromLog(row.goalId);
-  }
-
-  await prisma.goal.deleteMany({
-    where: {
-      userId: user.id,
-      OR: [
-        { archived: true },
-        { goalType: { in: ["moment", "event", "practice"] } },
-      ],
-    },
-  });
-
   await prisma.goal.updateMany({
     where: { userId: user.id, parentGoalId: { not: null } },
     data: { parentGoalId: null },
   });
 
-  await prisma.themeCategory.updateMany({
-    where: { userId: user.id },
-    data: {
-      goal: null,
-      goalValue: null,
-      currentValue: null,
-      unit: null,
-      name: null,
-      parentCategoryId: null,
-      turningPointId: null,
+  const digestGoals = await prisma.pursuitContextEntry.findMany({
+    where: { userId: user.id, kind: "ai_merge" },
+    select: { goalId: true },
+    distinct: ["goalId"],
+  });
+
+  await prisma.goal.deleteMany({
+    where: {
+      userId: user.id,
+      OR: [{ archived: true }, { goalType: { in: ["moment", "event", "practice"] } }],
     },
   });
+
+  for (const row of digestGoals) {
+    await syncGoalDescriptionFromLog(row.goalId);
+  }
+
+  const orphanCustom = await prisma.themeCategory.findMany({
+    where: {
+      userId: user.id,
+      isSystemCategory: false,
+      goals: { none: {} },
+    },
+    select: { id: true },
+  });
+  if (orphanCustom.length > 0) {
+    await prisma.themeCategory.deleteMany({
+      where: { id: { in: orphanCustom.map((row) => row.id) } },
+    });
+  }
 
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      onboardingScene: null,
-      onboardingHubSlug: null,
-      onboardingPrimaryLimbId: null,
-      firstRunCompleted: false,
+      onboardingThemeId: null,
       unlockedLimbIds: Prisma.JsonNull,
-      onboardingProfileText: null,
-      onboardingProfileData: Prisma.JsonNull,
-      careerEducationContextText: null,
-      lifeWheelRatings: Prisma.JsonNull,
-      lifeWheelHistory: Prisma.JsonNull,
-      lifeWheelAchievementAt: null,
     },
   });
 
   const after = await countLegacy(user.id);
   console.log(
-    `  purged → marks=${after.marks} stream=${after.streamRuns} trunk=${after.trunkEntries} story=${after.storyCache} legacyGoals=${after.legacyGoals}`,
+    `  purged → legacyGoals=${after.legacyGoals} nested=${after.nestedGoals} customBranches=${after.customBranches}`,
   );
 }
 

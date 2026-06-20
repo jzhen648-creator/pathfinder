@@ -230,7 +230,7 @@ export async function classifyProfileFactsFromText(
 export async function upsertProfileFactsForUser(
   userId: string,
   facts: ClassifiedProfileFact[],
-  source: "stream_extracted" | "user_manual",
+  source: "user_manual" = "user_manual",
 ) {
   let createdFacts = 0;
   let updatedFacts = 0;
@@ -249,7 +249,7 @@ export async function upsertProfileFactsForUser(
         },
       });
 
-      if (existing?.source === "user_manual" && source === "stream_extracted") {
+      if (existing?.source === "user_manual" && source !== "user_manual") {
         skippedManualFacts += 1;
         continue;
       }
@@ -291,54 +291,12 @@ export async function getGroupedProfileFacts(userId: string): Promise<GroupedPro
   return groupProfileFacts(facts);
 }
 
-export async function extractProfileFactsForUser(userId: string) {
-  if (!hasGeminiKey()) {
-    throw new GeminiNotConfiguredError("GEMINI_API_KEY not configured.");
-  }
-
-  const entries = await prisma.streamSession.findMany({
-    where: { userId, processedForProfile: false },
-    orderBy: { createdAt: "asc" },
-    take: 10,
-    select: { id: true, createdAt: true, themeId: true, inputText: true },
-  });
-
-  if (entries.length === 0) {
-    return { processedEntries: 0, createdFacts: 0, updatedFacts: 0, skippedManualFacts: 0 };
-  }
-
-  const existingFacts = await prisma.profileFact.findMany({
-    where: { userId },
-    orderBy: [{ category: "asc" }, { updatedAt: "desc" }],
-  });
-
-  const raw = await generateJsonCompletion({
-    system: SYSTEM_PROMPT,
-    user: buildExtractionUserMessage({ entries, existingFacts }),
-    maxTokens: 2048,
-    temperature: 0.15,
-  });
-
-  const classified = await parseFactsFromModelJson(raw);
-  const { createdFacts, updatedFacts, skippedManualFacts } = await upsertProfileFactsForUser(
-    userId,
-    classified,
-    "stream_extracted",
-  );
-
-  const processedAt = new Date();
-  await prisma.streamSession.updateMany({
-    where: { id: { in: entries.map((entry) => entry.id) }, userId },
-    data: {
-      processedForProfile: true,
-      processedForProfileAt: processedAt,
-    },
-  });
-
+/** Stream-based extraction retired — manual classify/batch upsert remains. */
+export async function extractProfileFactsForUser(_userId: string) {
   return {
-    processedEntries: entries.length,
-    createdFacts,
-    updatedFacts,
-    skippedManualFacts,
+    processedEntries: 0,
+    createdFacts: 0,
+    updatedFacts: 0,
+    skippedManualFacts: 0,
   };
 }

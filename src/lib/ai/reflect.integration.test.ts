@@ -128,8 +128,6 @@ function baseDirty(pursuitIds: string[]): ReadingDirtyAnalysis {
   return {
     pursuitIds,
     themeIds: ["work"],
-    hubIds: ["cat-job"],
-    markIds: [],
     hasGlobal: false,
     totalItems: pursuitIds.length,
     hasPursuitArchivedReason: false,

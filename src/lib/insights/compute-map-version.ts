@@ -3,7 +3,7 @@ import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation
 import { prisma } from "@/lib/prisma";
 
 export async function computeMapVersion(userId: string): Promise<string> {
-  const [goals, milestones, marks, branches, relationships] = await Promise.all([
+  const [goals, milestones, branches, relationships] = await Promise.all([
     prisma.goal.aggregate({
       where: { userId, ...interpretationEligiblePursuitWhere },
       _count: { id: true },
@@ -13,11 +13,6 @@ export async function computeMapVersion(userId: string): Promise<string> {
       where: { goal: { userId, ...interpretationEligiblePursuitWhere } },
       _count: { id: true },
       _max: { completedAt: true },
-    }),
-    prisma.mark.aggregate({
-      where: { userId, archived: false },
-      _count: { id: true },
-      _max: { updatedAt: true },
     }),
     prisma.themeCategory.aggregate({
       where: { userId, isActive: true },
@@ -34,13 +29,11 @@ export async function computeMapVersion(userId: string): Promise<string> {
   const fingerprint = {
     pursuits: goals._count.id,
     milestones: milestones._count.id,
-    marks: marks._count.id,
-    hubs: branches._count.id,
+    categories: branches._count.id,
     relationships: relationships._count.id,
     maxUpdatedAt: [
       goals._max.updatedAt?.toISOString() ?? null,
       milestones._max.completedAt?.toISOString() ?? null,
-      marks._max.updatedAt?.toISOString() ?? null,
       branches._max.updatedAt?.toISOString() ?? null,
       relationships._max.confirmedAt?.toISOString() ?? null,
     ]

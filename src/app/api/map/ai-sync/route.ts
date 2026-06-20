@@ -7,14 +7,10 @@ import { MapAiSyncRateLimitError, runMapAiSync } from "@/lib/map/ai-sync";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
-import { storyCacheToPayload } from "@/lib/story/parse-story-cache";
 import { prisma } from "@/lib/prisma";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
-import { StoryGenerationResponseError } from "@/lib/story/generate-story";
 import { ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
-import { ReadingDeltaGenerationResponseError } from "@/lib/map/generate-reading-delta";
 
-/** Alex first refresh runs 2–3 sequential Gemini calls — needs headroom on Vercel. */
 export const maxDuration = 120;
 
 const bodySchema = z.object({
@@ -58,48 +54,24 @@ export async function POST(request: Request) {
       computeMapVersion(userId),
       getMemoryVersion(userId),
     ]);
-    let [insightRow, storyRow] = await Promise.all([
-      prisma.insightCache.findUnique({ where: { userId } }),
-      prisma.storyCache.findUnique({ where: { userId } }),
-    ]);
+    let insightRow = await prisma.insightCache.findUnique({ where: { userId } });
 
-    // Only align cache stamps when content was actually regenerated.
-    if (!result.skipped) {
-      await Promise.all([
-        insightRow && result.insights.refreshed
-          ? prisma.insightCache.update({
-              where: { userId },
-              data: { mapVersion, memoryVersion },
-            })
-          : Promise.resolve(),
-        storyRow && result.story.refreshed
-          ? prisma.storyCache.update({
-              where: { userId },
-              data: { mapVersion, memoryVersion },
-            })
-          : Promise.resolve(),
-      ]);
-      [insightRow, storyRow] = await Promise.all([
-        prisma.insightCache.findUnique({ where: { userId } }),
-        prisma.storyCache.findUnique({ where: { userId } }),
-      ]);
+    if (!result.skipped && insightRow && result.insights.refreshed) {
+      await prisma.insightCache.update({
+        where: { userId },
+        data: { mapVersion, memoryVersion },
+      });
+      insightRow = await prisma.insightCache.findUnique({ where: { userId } });
     }
 
     const insightDrift = insightRow
       ? isReadingDrift(insightRow, mapVersion, memoryVersion)
       : false;
-    const storyDrift = storyRow
-      ? isReadingDrift(storyRow, mapVersion, memoryVersion)
-      : false;
 
     const insightsFresh = !result.skipped && (result.insights.refreshed || !insightDrift);
-    const storyFresh = !result.skipped && (result.story.refreshed || !storyDrift);
 
     const insightPayload = insightRow
       ? insightCacheToPayload(insightRow, insightsFresh ? false : insightDrift)
-      : null;
-    const storyPayload = storyRow
-      ? storyCacheToPayload(storyRow, storyFresh ? false : storyDrift)
       : null;
 
     return NextResponse.json({
@@ -108,8 +80,8 @@ export async function POST(request: Request) {
       memoryVersion,
       cache: {
         insights: insightPayload,
-        story: storyPayload,
-        storyGeneratedAt: storyRow?.generatedAt.toISOString() ?? null,
+        story: null,
+        storyGeneratedAt: null,
       },
     });
   } catch (err) {
@@ -130,16 +102,12 @@ export async function POST(request: Request) {
     if (err instanceof GeminiNotConfiguredError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
-    if (err instanceof InsightGenerationResponseError || err instanceof StoryGenerationResponseError) {
-      console.error("[POST /api/map/ai-sync] insight/story generation failed", err.message);
+    if (err instanceof InsightGenerationResponseError) {
+      console.error("[POST /api/map/ai-sync] insight generation failed", err.message);
       return NextResponse.json({ error: err.message }, { status: 502 });
     }
     if (err instanceof ReadingSyncGenerationResponseError) {
       console.error("[POST /api/map/ai-sync] reading sync generation failed", err.message);
-      return NextResponse.json({ error: err.message }, { status: 502 });
-    }
-    if (err instanceof ReadingDeltaGenerationResponseError) {
-      console.error("[POST /api/map/ai-sync] reading delta generation failed", err.message);
       return NextResponse.json({ error: err.message }, { status: 502 });
     }
     return aiRouteErrorResponse(err, "[POST /api/map/ai-sync]");

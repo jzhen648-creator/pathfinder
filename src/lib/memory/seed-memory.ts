@@ -35,34 +35,12 @@ type ManualProfileSeed = {
   occupation: string | null;
 } | null;
 
-function buildSeedUserMessage(input: {
-  onboardingProfileText: string | null;
-  onboardingProfileData: unknown;
-  careerEducationContextText: string | null;
-  manualProfile: ManualProfileSeed;
-}): string {
-  const profileData =
-    input.onboardingProfileData != null
-      ? JSON.stringify(input.onboardingProfileData, null, 2)
-      : "(none)";
-
-  return [
-    "Onboarding profile text:",
-    input.onboardingProfileText?.trim() || "(none)",
-    "",
-    "Onboarding profile data (JSON):",
-    profileData,
-    "",
-    "Career / education context:",
-    input.careerEducationContextText?.trim() || "(none)",
-    "",
-    "Manual profile fields:",
-    formatManualProfileBlock(input.manualProfile),
-  ].join("\n");
+function buildSeedUserMessage(input: { manualProfile: ManualProfileSeed }): string {
+  return ["Manual profile fields:", formatManualProfileBlock(input.manualProfile)].join("\n");
 }
 
 /**
- * Create the first UserMemory row from onboarding/manual profile data.
+ * Create the first UserMemory row from manual profile data.
  * No-op when a row already exists.
  */
 export async function seedUserMemory(userId: string): Promise<UserMemoryRow | null> {
@@ -74,38 +52,18 @@ export async function seedUserMemory(userId: string): Promise<UserMemoryRow | nu
     return existing;
   }
 
-  const [user, manualProfile] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        onboardingProfileText: true,
-        onboardingProfileData: true,
-        careerEducationContextText: true,
-      },
-    }),
-    prisma.userManualProfile.findUnique({
-      where: { userId },
-      select: {
-        displayName: true,
-        dateOfBirth: true,
-        location: true,
-        languages: true,
-        occupation: true,
-      },
-    }),
-  ]);
+  const manualProfile = await prisma.userManualProfile.findUnique({
+    where: { userId },
+    select: {
+      displayName: true,
+      dateOfBirth: true,
+      location: true,
+      languages: true,
+      occupation: true,
+    },
+  });
 
-  if (!user) return null;
-
-  const hasSource =
-    Boolean(user.onboardingProfileText?.trim()) ||
-    user.onboardingProfileData != null ||
-    Boolean(user.careerEducationContextText?.trim()) ||
-    manualProfile != null;
-
-  if (!hasSource) {
-    return existing;
-  }
+  if (!manualProfile) return existing ?? null;
 
   try {
     const blob = await generateText({
@@ -113,12 +71,7 @@ export async function seedUserMemory(userId: string): Promise<UserMemoryRow | nu
       messages: [
         {
           role: "user",
-          content: buildSeedUserMessage({
-            onboardingProfileText: user.onboardingProfileText,
-            onboardingProfileData: user.onboardingProfileData,
-            careerEducationContextText: user.careerEducationContextText,
-            manualProfile,
-          }),
+          content: buildSeedUserMessage({ manualProfile }),
         },
       ],
       maxTokens: 600,

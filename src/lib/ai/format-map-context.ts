@@ -213,7 +213,6 @@ export async function formatMapContext(
     await prisma.themeCategory.findMany({
       where: {
         userId,
-        parentCategoryId: null,
         ...(filter.themeId ? { themeId: filter.themeId } : {}),
         ...(filter.hubId ? { id: filter.hubId } : {}),
         isActive: true,
@@ -222,7 +221,6 @@ export async function formatMapContext(
         id: true,
         themeId: true,
         label: true,
-        name: true,
         isSystemCategory: true,
         createdAt: true,
         goals: {
@@ -252,7 +250,7 @@ export async function formatMapContext(
         hubs: [],
       };
 
-    const hubRawLabel = branch.label ?? branch.name ?? branch.id;
+    const hubRawLabel = branch.label ?? branch.id;
     const section = canonicalCategoryDisplayLabel(branch.themeId, hubRawLabel);
     const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
 
@@ -305,14 +303,14 @@ export async function formatPursuitContext(
       ...goalSelect,
       categoryId: true,
       themeId: true,
-      themeCategory: { select: { id: true, label: true, name: true, themeId: true } },
+      themeCategory: { select: { id: true, label: true, themeId: true } },
     },
   });
   if (!goal?.categoryId) return null;
 
   const themeId = goal.themeId ?? goal.themeCategory?.themeId ?? "becoming";
   const themeLabel = getLifeArea(themeId)?.label ?? themeId;
-  const hubRawLabel = goal.themeCategory?.label ?? goal.themeCategory?.name ?? goal.categoryId;
+  const hubRawLabel = goal.themeCategory?.label ?? goal.categoryId;
   const section = canonicalCategoryDisplayLabel(themeId, hubRawLabel);
 
   const siblingGoals = await prisma.goal.findMany({
@@ -327,7 +325,7 @@ export async function formatPursuitContext(
       id: true,
       title: true,
       status: true,
-      themeCategory: { select: { label: true, name: true, themeId: true } },
+      themeCategory: { select: { label: true, themeId: true } },
     },
     orderBy: { createdAt: "asc" },
     take: 12,
@@ -349,7 +347,7 @@ export async function formatPursuitContext(
       status: sibling.status,
       section: canonicalCategoryDisplayLabel(
         themeId,
-        sibling.themeCategory?.label ?? sibling.themeCategory?.name ?? "",
+        sibling.themeCategory?.label ?? "",
       ),
     })),
     siblingMarks: [],

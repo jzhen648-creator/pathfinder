@@ -9,37 +9,33 @@ export type OnboardingProgress = {
 };
 
 type OnboardingProgressUser = {
-  onboardingScene: number | null;
   onboardingThemeId: string | null;
-  onboardingHubSlug: string | null;
 };
 
 export function isOnboardingScene(value: number): value is OnboardingScene {
   return Number.isInteger(value) && value >= 1 && value <= 6;
 }
 
+/** Mobile onboarding progress — scene/hub slug are client-only; server tracks theme id. */
 export function getOnboardingProgress(user: OnboardingProgressUser): OnboardingProgress {
-  const rawScene = user.onboardingScene;
   return {
-    scene: rawScene != null && isOnboardingScene(rawScene) ? rawScene : 1,
+    scene: 1,
     themeId: user.onboardingThemeId,
-    hubSlug: user.onboardingHubSlug,
+    hubSlug: null,
   };
 }
 
 export async function advanceOnboardingScene(
   prisma: PrismaClient,
   userId: string,
-  scene: OnboardingScene,
+  _scene: OnboardingScene,
   themeId?: string | null,
-  hubSlug?: string | null,
+  _hubSlug?: string | null,
 ): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: {
-      onboardingScene: scene,
       ...(themeId !== undefined ? { onboardingThemeId: themeId } : {}),
-      ...(hubSlug !== undefined ? { onboardingHubSlug: hubSlug } : {}),
     },
   });
 }
@@ -49,10 +45,7 @@ export async function completeOnboarding(prisma: PrismaClient, userId: string): 
     where: { id: userId },
     data: {
       onboardingCompleted: true,
-      firstRunCompleted: true,
-      onboardingScene: null,
       onboardingThemeId: null,
-      onboardingHubSlug: null,
     },
   });
 }

@@ -10,7 +10,6 @@ import {
 } from "@/lib/ai/people-theme-prompt";
 import { buildEnrichSystemPrompt } from "@/lib/pursuit/generate-pursuit-enrich";
 import { DEFAULT_PURSUIT_ENRICH_OPTIONS } from "@/lib/pursuit/enrich-options";
-import { buildStorySystemPrompt } from "@/lib/story/generate-story";
 
 const CLAUSE_MARKER = "invite them to dinner";
 
@@ -44,9 +43,5 @@ describe("people theme prompt wiring", () => {
     expect(buildReflectSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", false)).toContain(
       CLAUSE_MARKER,
     );
-  });
-
-  it("does not add people rules to whole-map story prompt", () => {
-    expect(buildStorySystemPrompt(5)).not.toContain(CLAUSE_MARKER);
   });
 });

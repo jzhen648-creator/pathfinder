@@ -10,7 +10,6 @@ export type UserMemoryRow = {
   version: number;
   isDirty: boolean;
   lastUserEditedAt: Date | null;
-  streamSessionCount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -53,7 +52,6 @@ type WriteUserMemoryOptions = {
   userEdited?: boolean;
   /** Allow empty blob when the user intentionally clears their summary. */
   allowEmpty?: boolean;
-  incrementStreamSessionCount?: boolean;
   clearDirty?: boolean;
 };
 
@@ -82,9 +80,6 @@ export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<
         version: nextVersion,
         isDirty: options.clearDirty === false ? existing.isDirty : false,
         lastUserEditedAt: options.userEdited ? new Date() : existing.lastUserEditedAt,
-        streamSessionCount: options.incrementStreamSessionCount
-          ? existing.streamSessionCount + 1
-          : existing.streamSessionCount,
       },
     });
     await bumpInsightMemoryVersion(options.userId, await getMemoryVersion(options.userId));
@@ -102,7 +97,6 @@ export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<
       version: 1,
       isDirty: false,
       lastUserEditedAt: options.userEdited ? new Date() : null,
-      streamSessionCount: options.incrementStreamSessionCount ? 1 : 0,
     },
   });
   await bumpInsightMemoryVersion(options.userId, await getMemoryVersion(options.userId));
@@ -126,7 +120,6 @@ export function serializeUserMemory(row: UserMemoryRow, pendingIncorporateCount 
     updatedAt: row.updatedAt.toISOString(),
     lastUserEditedAt: row.lastUserEditedAt?.toISOString() ?? null,
     isDirty: row.isDirty,
-    streamSessionCount: row.streamSessionCount,
     pendingIncorporateCount,
   };
 }

@@ -29,7 +29,6 @@ export async function GET() {
       updatedAt: row?.updatedAt?.toISOString() ?? null,
       lastUserEditedAt: row?.lastUserEditedAt?.toISOString() ?? null,
       isDirty: row?.isDirty ?? false,
-      streamSessionCount: row?.streamSessionCount ?? 0,
       pendingIncorporateCount,
     });
   }
