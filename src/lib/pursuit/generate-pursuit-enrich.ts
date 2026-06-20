@@ -48,6 +48,14 @@ import {
   filterClarifiersAgainstMilestones,
   milestonesToGroundingInput,
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
+import {
+  buildPursuitCachePayload,
+  clarifierPreserveAllowed,
+  resolvePreservedClarifiers,
+  resolvePreservedComparison,
+  resolvePreservedInsightText,
+  resolveReflectSuggestedMilestones,
+} from "@/lib/pursuit/pursuit-cache-patch";
 
 const MAX_ENRICH_PER_RUN = 1;
 
@@ -176,39 +184,6 @@ async function loadPursuitToneGoals(userId: string, pursuitIds: string[]) {
   return byId;
 }
 
-function toCachePayload(
-  result: PursuitEnrichResult,
-  quickQuestionsQuietUntil?: string,
-): PursuitEnrichCachePayload | null {
-  const hasClarifiers = result.clarifiers.length > 0;
-  const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
-  const hasInsight = Boolean(result.insight?.headline?.trim());
-
-  if (!hasClarifiers && !hasMilestones && !hasInsight) return null;
-
-  const clarifiers = hasClarifiers ? result.clarifiers : undefined;
-  const suggestedMilestones = hasMilestones ? result.suggestedMilestones ?? undefined : undefined;
-  const quietField = quickQuestionsQuietUntil ? { quickQuestionsQuietUntil } : {};
-
-  if (hasInsight && result.insight) {
-    return {
-      ...result.insight,
-      clarifiers,
-      suggestedMilestones,
-      ...quietField,
-    };
-  }
-
-  return {
-    tone: "context",
-    headline: "Help Pathfinder read this pursuit",
-    body: "Answer a quick question below — then update your AI reading on Insights.",
-    clarifiers,
-    suggestedMilestones,
-    ...quietField,
-  };
-}
-
 async function generateOnePursuitEnrich(
   userId: string,
   pursuitId: string,
@@ -217,8 +192,9 @@ async function generateOnePursuitEnrich(
   signal: PursuitSignal,
   enrichOptions: Required<PursuitEnrichOptions>,
   amountImpactEligible: boolean,
-  previousQuietUntil?: string | null,
+  cachedEntry?: PursuitEnrichCachePayload,
 ): Promise<{ result: PursuitEnrichResult; quickQuestionsQuietUntil?: string }> {
+  const previousQuietUntil = cachedEntry?.quickQuestionsQuietUntil;
   const milestonesAllowed = shouldSuggestMilestones(signal);
   const pursuitContext = await formatPursuitContext(userId, pursuitId, {
     includeMarks: enrichOptions.includeMarks,
@@ -286,12 +262,44 @@ async function generateOnePursuitEnrich(
     throw new InsightGenerationResponseError("Pursuit enrich missing target pursuit entry.");
   }
 
+  const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
+  const freshClarifiers = filterClarifiersAgainstMilestones(result.clarifiers, milestoneGrounding);
+  const clarifiers = resolvePreservedClarifiers({
+    fresh: freshClarifiers,
+    cached: filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
+    preserveAllowed: clarifierPreserveAllowed({
+      clarifyTitles: enrichOptions.clarifyTitles,
+      status: goal.status ?? "ACTIVE",
+      quickQuestionsQuietUntil: previousQuietUntil,
+    }),
+  });
+  const suggestedMilestones = resolveReflectSuggestedMilestones({
+    fresh: result.suggestedMilestones,
+    cached: cachedEntry?.suggestedMilestones,
+    mapMilestones: goal.milestones,
+    allowed: milestonesAllowed,
+  });
+  const fromMap = resolvePreservedInsightText(result.insight?.fromMap, cachedEntry?.fromMap);
+  const comparison = resolvePreservedComparison(
+    result.insight?.comparison,
+    cachedEntry?.comparison,
+    signal,
+  );
+  const insight = result.insight
+    ? (() => {
+        const { fromMap: _fromMap, comparison: _comparison, ...rest } = result.insight!;
+        return {
+          ...rest,
+          ...(fromMap ? { fromMap } : {}),
+          ...(comparison ? { comparison } : {}),
+        };
+      })()
+    : result.insight;
+
   result = {
-    ...result,
-    clarifiers: filterClarifiersAgainstMilestones(
-      result.clarifiers,
-      milestonesToGroundingInput(goal.milestones),
-    ),
+    clarifiers,
+    insight,
+    suggestedMilestones,
   };
 
   const gated = gateEnrichResult(result, signal, enrichOptions, {
@@ -349,7 +357,7 @@ export async function refreshPursuitEnrich(
     const goal = toneGoals.get(pursuitId);
     if (!goal) continue;
     const signal = pursuitSignalFromGoal(goal);
-    const previousQuietUntil = cachedPursuits[pursuitId]?.quickQuestionsQuietUntil;
+    const cachedEntry = cachedPursuits[pursuitId];
     const { result, quickQuestionsQuietUntil } = await generateOnePursuitEnrich(
       userId,
       pursuitId,
@@ -358,10 +366,10 @@ export async function refreshPursuitEnrich(
       signal,
       enrichOptions,
       amountImpactEligible,
-      previousQuietUntil,
+      cachedEntry,
     );
     geminiCallsMade += 1;
-    const payload = toCachePayload(result, quickQuestionsQuietUntil);
+    const payload = buildPursuitCachePayload(result, quickQuestionsQuietUntil);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
       writtenIds.push(pursuitId);

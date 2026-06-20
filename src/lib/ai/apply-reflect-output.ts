@@ -1,6 +1,7 @@
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
+import { parseInsightLevelRecord, parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import {
   resolvePursuitInsightTone,
   type PursuitToneGoalInput,
@@ -11,7 +12,6 @@ import {
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import {
   gateEnrichResult,
-  gatePursuitComparison,
   gateThemeCombined,
   gateThemeContextual,
   resolveQuickQuestionsQuietUntilAfterGeneration,
@@ -27,6 +27,15 @@ import {
   type QuestionSlotMessageContext,
 } from "@/lib/pursuit/pick-question-slot";
 import {
+  buildPursuitCachePayload,
+  clarifierPreserveAllowed,
+  resolvePreservedClarifiers,
+  resolvePreservedComparison,
+  resolvePreservedInsightText,
+  resolvePreservedThemeText,
+  resolveReflectSuggestedMilestones,
+} from "@/lib/pursuit/pursuit-cache-patch";
+import {
   enrichAnswersSchema,
   type Clarifier,
   type PursuitEnrichCachePayload,
@@ -38,63 +47,11 @@ import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
 import { validateSeasonReadAgainstPursuits } from "@/lib/story/validate-season-read";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { prisma } from "@/lib/prisma";
-import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 
-function dedupeMilestoneTitles<T extends { title: string }>(items: T[]): T[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = item.title.trim().toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-/** @internal Exported for vitest — strips duplicate milestone titles from reflect output. */
-export function dedupeSuggestedMilestones<T extends { title: string }>(
-  suggestions: T[] | null | undefined,
-): T[] | null {
-  if (!suggestions?.length) return suggestions ?? null;
-  const unique = dedupeMilestoneTitles(suggestions);
-  return unique.length > 0 ? unique : null;
-}
-
-function normalizeMilestoneTitle(title: string): string {
-  return title.trim().toLowerCase();
-}
-
-function stripSuggestionsAlreadyOnMap<T extends { title: string }>(
-  suggestions: T[] | null | undefined,
-  mapMilestones: Array<{ title: string }>,
-): T[] | null {
-  if (!suggestions?.length) return suggestions ?? null;
-  const onMap = new Set(mapMilestones.map((milestone) => normalizeMilestoneTitle(milestone.title)));
-  const filtered = suggestions.filter(
-    (suggestion) => !onMap.has(normalizeMilestoneTitle(suggestion.title)),
-  );
-  return filtered.length > 0 ? filtered : null;
-}
-
-/** Prefer fresh reflect output; when the model omits suggestions, keep the prior cache. */
-export function resolveReflectSuggestedMilestones<T extends { title: string }>(input: {
-  fresh: T[] | null | undefined;
-  cached: T[] | undefined;
-  mapMilestones: Array<{ title: string }>;
-  allowed: boolean;
-}): T[] | null {
-  if (!input.allowed) return null;
-
-  const fresh = stripSuggestionsAlreadyOnMap(
-    dedupeSuggestedMilestones(input.fresh ?? null),
-    input.mapMilestones,
-  );
-  if (fresh?.length) return fresh;
-
-  return stripSuggestionsAlreadyOnMap(
-    dedupeSuggestedMilestones(input.cached ?? null),
-    input.mapMilestones,
-  );
-}
+export {
+  dedupeSuggestedMilestones,
+  resolveReflectSuggestedMilestones,
+} from "@/lib/pursuit/pursuit-cache-patch";
 
 function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | null {
   if (!raw || typeof raw !== "object") return null;
@@ -157,39 +114,6 @@ async function loadThemePursuitSignals(
   return loadPursuitSignalsByTheme(userId, themeIds);
 }
 
-function toCachePayload(
-  result: PursuitEnrichResult,
-  quickQuestionsQuietUntil?: string,
-): PursuitEnrichCachePayload | null {
-  const hasClarifiers = result.clarifiers.length > 0;
-  const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
-  const hasInsight = Boolean(result.insight?.headline?.trim());
-
-  if (!hasClarifiers && !hasMilestones && !hasInsight) return null;
-
-  const clarifiers = hasClarifiers ? result.clarifiers : undefined;
-  const suggestedMilestones = hasMilestones ? result.suggestedMilestones ?? undefined : undefined;
-  const quietField = quickQuestionsQuietUntil ? { quickQuestionsQuietUntil } : {};
-
-  if (hasInsight && result.insight) {
-    return {
-      ...result.insight,
-      clarifiers,
-      suggestedMilestones,
-      ...quietField,
-    };
-  }
-
-  return {
-    tone: "context",
-    headline: "Help Pathfinder read this pursuit",
-    body: "Answer a quick question below — then update your AI reading on Insights.",
-    clarifiers,
-    suggestedMilestones,
-    ...quietField,
-  };
-}
-
 async function upsertStoryCache(
   userId: string,
   story: StoryGenerationResult,
@@ -237,9 +161,10 @@ export async function applyReflectOutput(
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
   const existingCache = await prisma.insightCache.findUnique({
     where: { userId },
-    select: { pursuitInsights: true },
+    select: { pursuitInsights: true, themeInsights: true },
   });
   const cachedPursuits = parsePursuitInsightRecord(existingCache?.pursuitInsights, "pursuit");
+  const cachedThemes = parseInsightLevelRecord(existingCache?.themeInsights, "theme");
   const siblingTitlesByTheme = new Map<string, Array<{ id: string; title: string }>>();
   for (const goal of toneGoals.values()) {
     const themeId = goal.themeId ?? "becoming";
@@ -259,13 +184,15 @@ export async function applyReflectOutput(
       tone: entry.tone,
       oneLiner: entry.oneLiner.trim(),
       reflective: entry.reflective.trim(),
-      contextual: gateThemeContextual(
-        entry.contextual?.trim() ?? "",
-        themeSignals.get(themeId) ?? [],
+      contextual: resolvePreservedThemeText(
+        entry.contextual,
+        cachedThemes[themeId]?.contextual,
+        (text) => gateThemeContextual(text, themeSignals.get(themeId) ?? []),
       ),
-      combined: gateThemeCombined(
-        entry.combined?.trim() ?? "",
-        themeSignals.get(themeId) ?? [],
+      combined: resolvePreservedThemeText(
+        entry.combined,
+        cachedThemes[themeId]?.combined,
+        (text) => gateThemeCombined(text, themeSignals.get(themeId) ?? []),
       ),
     };
   }
@@ -276,31 +203,46 @@ export async function applyReflectOutput(
     if (!entry || !goal) continue;
 
     const signal = pursuitSignalFromGoal(goal);
-    const comparison = gatePursuitComparison(entry.comparison?.trim() ?? "", signal);
+    const cachedEntry = cachedPursuits[pursuitId];
+    const comparison = resolvePreservedComparison(entry.comparison, cachedEntry?.comparison, signal);
+    const fromMap = resolvePreservedInsightText(entry.fromMap, cachedEntry?.fromMap);
 
     const enrichAnswersParsed = enrichAnswersSchema.safeParse(goal.enrichAnswers);
     const enrichAnswers = enrichAnswersParsed.success ? enrichAnswersParsed.data : [];
-    const previousQuietUntil = cachedPursuits[pursuitId]?.quickQuestionsQuietUntil;
+    const previousQuietUntil = cachedEntry?.quickQuestionsQuietUntil;
     const milestonesAllowed = shouldSuggestMilestones(signal);
     const suggestedMilestones = resolveReflectSuggestedMilestones({
       fresh: entry.suggestedMilestones ?? null,
-      cached: cachedPursuits[pursuitId]?.suggestedMilestones,
+      cached: cachedEntry?.suggestedMilestones,
       mapMilestones: goal.milestones,
       allowed: milestonesAllowed,
     });
 
+    const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
+    const freshClarifiers = filterClarifiersAgainstMilestones(
+      (entry.clarifiers ?? [])
+        .map((c, index) => normalizeReflectClarifier(c, index))
+        .filter((c): c is Clarifier => c != null),
+      milestoneGrounding,
+    );
+    const clarifiers = resolvePreservedClarifiers({
+      fresh: freshClarifiers,
+      cached: filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
+      preserveAllowed: clarifierPreserveAllowed({
+        clarifyTitles: options.clarifyTitles,
+        status: goal.status ?? "ACTIVE",
+        quickQuestionsQuietUntil: previousQuietUntil,
+        now,
+      }),
+    });
+
     const rawResult: PursuitEnrichResult = {
-      clarifiers: filterClarifiersAgainstMilestones(
-        (entry.clarifiers ?? [])
-          .map((c, index) => normalizeReflectClarifier(c, index))
-          .filter((c): c is Clarifier => c != null),
-        milestonesToGroundingInput(goal.milestones),
-      ),
+      clarifiers,
       insight: {
         tone: resolvePursuitInsightTone(goal, now),
         headline: entry.headline,
         body: entry.body,
-        ...(entry.fromMap?.trim() ? { fromMap: entry.fromMap.trim() } : {}),
+        ...(fromMap ? { fromMap } : {}),
         ...(comparison ? { comparison } : {}),
       },
       suggestedMilestones,
@@ -334,7 +276,7 @@ export async function applyReflectOutput(
       clarifiers: slotted.clarifiers,
       previousQuietUntil,
     });
-    const payload = toCachePayload(slotted, quickQuestionsQuietUntil);
+    const payload = buildPursuitCachePayload(slotted, quickQuestionsQuietUntil);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
     }
