@@ -59,6 +59,43 @@ export function dedupeSuggestedMilestones<T extends { title: string }>(
   return unique.length > 0 ? unique : null;
 }
 
+function normalizeMilestoneTitle(title: string): string {
+  return title.trim().toLowerCase();
+}
+
+function stripSuggestionsAlreadyOnMap<T extends { title: string }>(
+  suggestions: T[] | null | undefined,
+  mapMilestones: Array<{ title: string }>,
+): T[] | null {
+  if (!suggestions?.length) return suggestions ?? null;
+  const onMap = new Set(mapMilestones.map((milestone) => normalizeMilestoneTitle(milestone.title)));
+  const filtered = suggestions.filter(
+    (suggestion) => !onMap.has(normalizeMilestoneTitle(suggestion.title)),
+  );
+  return filtered.length > 0 ? filtered : null;
+}
+
+/** Prefer fresh reflect output; when the model omits suggestions, keep the prior cache. */
+export function resolveReflectSuggestedMilestones<T extends { title: string }>(input: {
+  fresh: T[] | null | undefined;
+  cached: T[] | undefined;
+  mapMilestones: Array<{ title: string }>;
+  allowed: boolean;
+}): T[] | null {
+  if (!input.allowed) return null;
+
+  const fresh = stripSuggestionsAlreadyOnMap(
+    dedupeSuggestedMilestones(input.fresh ?? null),
+    input.mapMilestones,
+  );
+  if (fresh?.length) return fresh;
+
+  return stripSuggestionsAlreadyOnMap(
+    dedupeSuggestedMilestones(input.cached ?? null),
+    input.mapMilestones,
+  );
+}
+
 function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | null {
   if (!raw || typeof raw !== "object") return null;
   const c = raw as Record<string, unknown>;
@@ -244,6 +281,13 @@ export async function applyReflectOutput(
     const enrichAnswersParsed = enrichAnswersSchema.safeParse(goal.enrichAnswers);
     const enrichAnswers = enrichAnswersParsed.success ? enrichAnswersParsed.data : [];
     const previousQuietUntil = cachedPursuits[pursuitId]?.quickQuestionsQuietUntil;
+    const milestonesAllowed = shouldSuggestMilestones(signal);
+    const suggestedMilestones = resolveReflectSuggestedMilestones({
+      fresh: entry.suggestedMilestones ?? null,
+      cached: cachedPursuits[pursuitId]?.suggestedMilestones,
+      mapMilestones: goal.milestones,
+      allowed: milestonesAllowed,
+    });
 
     const rawResult: PursuitEnrichResult = {
       clarifiers: filterClarifiersAgainstMilestones(
@@ -259,9 +303,7 @@ export async function applyReflectOutput(
         ...(entry.fromMap?.trim() ? { fromMap: entry.fromMap.trim() } : {}),
         ...(comparison ? { comparison } : {}),
       },
-      suggestedMilestones: shouldSuggestMilestones(signal)
-        ? dedupeSuggestedMilestones(entry.suggestedMilestones ?? null)
-        : null,
+      suggestedMilestones,
     };
 
     const gated = gateEnrichResult(rawResult, signal, options, {
