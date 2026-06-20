@@ -120,7 +120,8 @@ function buildStoryDepthRules(
           "- Stay within the WORD COUNT block (100–140 words, hard max 150).",
           "- One or two short paragraphs — connect related pursuits and themes; what they reveal together that neither reveals alone.",
           "- Actively relate themes to each other when map data supports it — not only pursuits within one theme.",
-          "- When naming pursuits, prefer significance 4–5; name at most 2–4 total as examples of the overall shape.",
+          "- Name at most 2–4 pursuits total. Choose by cross-theme weight: use mapAggregates.highSignificanceActive — the heaviest active pursuit from each major theme must earn a slot before pursuits chosen only for recency or nearest deadline.",
+          "- Synthesize across themes — not a per-theme roll-call (forbid \"In Work… In Finance…\" inventory structure). Never write \"significance 4\" or \"significance 5\" in prose.",
           "- Calm, specific, not prescriptive. No poster copy, no life-coach framing, no 'where you are' clichés.",
           ...(holisticBenchmarkEligible
             ? [

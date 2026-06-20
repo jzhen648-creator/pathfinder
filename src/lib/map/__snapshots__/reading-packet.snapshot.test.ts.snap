@@ -41,6 +41,20 @@ exports[`reading packet snapshots > matches canonical dense reading packet JSON 
       ]
     }
   ],
+  "mapAggregates": {
+    "totalPursuits": 12,
+    "upcomingDeadlines14d": 2,
+    "upcomingDeadlines30d": 4,
+    "recentCompletions90d": 3,
+    "highSignificanceActive": [
+      "£500,000 ISA",
+      "CeMAP qualification",
+      "Plan wedding",
+      "London Marathon 2027",
+      "Product Lead search",
+      "Clear £10,000 credit card debt"
+    ]
+  },
   "recentEvents": {
     "past": [
       {
@@ -65,18 +79,6 @@ exports[`reading packet snapshots > matches canonical dense reading packet JSON 
         "themeLabel": "Work & Career",
         "significance": 5
       }
-    ]
-  },
-  "mapAggregates": {
-    "totalPursuits": 12,
-    "upcomingDeadlines14d": 2,
-    "upcomingDeadlines30d": 4,
-    "recentCompletions90d": 3,
-    "highSignificanceActive": [
-      "CeMAP qualification",
-      "Product Lead search",
-      "£500,000 ISA",
-      "Plan wedding"
     ]
   },
   "gapFacts": [

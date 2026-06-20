@@ -6,6 +6,40 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-20 — Pursuit detail panel supports tap-to-edit in place (relaxes "long-press owns metadata")
+
+**Shipped:** Every displayed fact in `PursuitDetailPanel` is now tappable to edit in place — title → rename, theme/category eyebrow → category picker, icon badge → icon picker, status/date/significance chips → their pickers. Each tap opens the **same** editor long-press uses by rendering `MapNodeContextMenu` (`layout="centered"`, new additive `initialSubview` prop) + `PursuitIconPickerSheet` from the panel, and every mutation flows through the shared `usePursuitFieldMutations` hook. Tap and long-press are therefore the **identical** handler/cache/dirty path and cannot diverge.
+
+**Why this supersedes the prior rule:** The 2026-06-20 note below ("Read-first departure: … Status, category, icon, title, deadline remain long-press / map metadata edits") made metadata editing hidden and unintuitive — long-press on the map was the *only* surface, and structured quick-question answers (`enrichAnswers`) had **no** visible or editable home at all. The read-first / "long-press owns metadata" rule is **intentionally relaxed**: the panel now owns tap-to-edit in place, and **long-press remains untouched as a shortcut** (`MapNodeContextMenu` on the map is unchanged; tap-to-edit is purely additive). The read-first insight card stays the visual hero — facts are quiet chips that only show an affordance on press.
+
+**New Context segment (third tab beside Milestones | Connections):** lists answered quick-questions as editable facts — the question (quiet) + the answer (tappable to re-pick) — plus freeform notes with Clear, and a quiet empty state. The old collapsible "Context ›" row was removed (this segment replaces it). To make answers re-editable, `enrichAnswer` now persists the `options` offered when answered (additive optional schema field); editing re-uses the existing `POST /clarifier-answers` overwrite-by-`clarifierId` path, and a minimal `DELETE /clarifier-answers` endpoint removes a single answer. Legacy answers without stored options render read-only.
+
+**Docs to reconcile (not edited this pass):** the "long-press owns metadata" framing in the Claude pack (`CONTEXT`/`AGENTS`-style docs) and the read-first departure note below now conflict with this decision — flag for the next Claude-pack sync per `SYNC-CHECKLIST.md`.
+
+## 2026-06-20 — Quick-question answer collapse (single store + structured AI read)
+
+**Shipped:** Quick-question answers live in **`Goal.enrichAnswers` only** — no longer mirrored into `PursuitContextEntry` (`clarifier_answer`) or `Goal.description` prose. Reflect **`map_context`** now includes structured `enrichAnswers` per pursuit row (`format-map-context.ts`). **`npm run build`** runs `migrate:qq-answer-collapse` before `next build` so prose stripping and structured AI read deploy atomically (no double-read window).
+
+**Clear semantics:** **Clear context** wipes **authored notes only** (`description` + empty `manual_edit` log entry). **`enrichAnswers` survive** — quick questions are a separate lifecycle from the Context section.
+
+**Second bug fixed (same pattern):** Clear previously set `description=""` but left the context log untouched, so the next log sync could **resurrect authored prose**. Clear now appends an empty `manual_edit` so `derivePursuitDescriptionFromLog` cannot rebuild cleared notes.
+
+**Unchanged:** `hasMinimumContextSignal` / milestone-readiness gate still uses `enrichAnswerCount` from `enrichAnswers` exactly as before.
+
+**Deferred cleanup (not this PR):** `ai_merge` context-log kind has no writers; `syncGoalDescriptionFromLog` is imported but unused in `goals/[goalId]/route.ts`.
+
+## 2026-06-20 — Milestone readiness gate vs manual add (coupling)
+
+**Shipped:** Pursuit detail panel supports **manual milestone add/delete** (`PursuitMilestonesList`) independent of AI readiness. Users can always add their own steps; the gate governs **AI suggestions only**.
+
+**Coupling (intentional):** Quick-question answers (`enrichAnswerCount` on `Goal.enrichAnswers`) feed `hasMinimumContextSignal` in `pursuit-enrich-readiness.ts` — answering QQs is **one** way to earn AI milestone suggestions (along with description length, deadline + title, etc.). This coupling is deliberate; do not treat readiness as the only path to having milestones.
+
+**Gate rules (unchanged):** `shouldSuggestMilestones` still blocks quantified-target pursuits (`hasQuantifiedTarget` — amount-tracked goals measure progress by the number) and sparse pursuits below the minimum-context bar. Manual add covers those cases.
+
+**Read-first departure:** Milestone create/delete lives in the pursuit detail panel (not long-press metadata). Status, category, icon, title, deadline remain long-press / map metadata edits.
+
+**Doc gap (TODO):** Live app has **manual** pursuit linking via `pursuitRelationship` rows. Claude-project docs (`PATHFINDER-AI.md`, `PATHFINDER-CONTEXT.md`) still describe AI-suggested connections as off-by-default — reconcile in a future Claude-pack sync; not edited in this pass.
+
 ## 2026-06-16 — Design slate open (major redesign)
 
 **FOUNDER:** All **design rulings** are **negotiable** for the upcoming major visual/product pass. Prior docs used “locked”, “frozen”, and “structural vs mood-lock” — **retired as governance**. Replace with three buckets in [`claude-project/PATHFINDER-CONTEXT.md`](../claude-project/PATHFINDER-CONTEXT.md) §7:

@@ -66,13 +66,14 @@ export function goalAchievedForLifecycle(
   milestones: MilestoneLifecycleInput[],
   nowYear: number,
 ): boolean {
-  if (milestones.length === 0) {
-    if (goal.goalType === "moment" || goal.goalType === "event") {
+  if (goal.goalType === "moment" || goal.goalType === "event") {
+    if (milestones.length === 0) {
       return !goal.future && !(goal.year != null && goal.year > nowYear);
     }
-    return false;
+    return milestones.every(milestoneDoneForSemantics);
   }
-  return milestones.every(milestoneDoneForSemantics);
+  // Normal pursuits: milestones are steps — completion is user-driven (status menu), not milestone rollup.
+  return false;
 }
 
 export type GoalLifecycleStatus = "ACTIVE" | "COMPLETE";

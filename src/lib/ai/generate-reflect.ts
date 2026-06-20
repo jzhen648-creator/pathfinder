@@ -127,6 +127,16 @@ const REFLECT_BENCHMARK_INSIGHT_RUBRIC = [
   "honesty (Move 4), not through fabricated numbers.",
 ];
 
+/** Pursuit panel insight only — not whole-map Reading (seasonRead). */
+const PURSUIT_PANEL_MILESTONE_VISIBILITY = [
+  "PURSUIT PANEL — MILESTONE LIST IS ON SCREEN:",
+  "The mobile pursuit sheet shows the milestone list directly below this insight.",
+  "Do NOT restate, enumerate, or quote milestone titles in headline, body, fromMap, or comparison.",
+  'Do NOT write "next step is X" or "your next milestone is X" when X is already a visible milestone row.',
+  "Read milestones as grounding for trajectory (Move 3): pace, gaps, and what completion implies — without naming row labels.",
+  "Speak to overall progress, what it means, or what is notably missing beyond the checklist the user already sees.",
+];
+
 function stripMarkdownFence(raw: string): string {
   const trimmed = raw.trim();
   const match = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(trimmed);
@@ -175,6 +185,7 @@ function buildReflectPursuitsOnlySystemPrompt(
     '- "reading": always return an empty string "".',
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
+    ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
     "- Do NOT include themes.",
   ].join("\n");
 }
@@ -230,6 +241,7 @@ function buildReflectSystemPrompt(
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
     "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields; the mobile UI adds section labels.",
+    ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
     "",
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),

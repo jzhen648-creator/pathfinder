@@ -112,6 +112,9 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(scoped).not.toContain(
       "When age AND location are in user context, include fromMap and/or comparison fields",
     );
+
+    expect(full).toContain("PURSUIT PANEL — MILESTONE LIST IS ON SCREEN");
+    expect(scoped).toContain("Do NOT restate, enumerate, or quote milestone titles");
   });
 });
 

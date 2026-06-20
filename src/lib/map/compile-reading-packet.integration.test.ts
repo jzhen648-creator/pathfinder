@@ -53,6 +53,6 @@ describe("compileReadingPacket map context", () => {
 
     await compileReadingPacket("user-1", dirty);
 
-    expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1");
+    expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1", { includeMarks: true });
   });
 });

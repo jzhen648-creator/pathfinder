@@ -70,6 +70,14 @@ export async function recomputeGoalStatus(goalId: string): Promise<void> {
     return;
   }
 
+  // Pursuit completion is user-driven; only timeline moments/events auto-complete from dates/milestones.
+  if (goal.goalType !== "moment" && goal.goalType !== "event") {
+    if (debugRecompute()) {
+      console.info(`${LOG} exit early: normal pursuit (status not milestone-driven)`, { goalId });
+    }
+    return;
+  }
+
   const milestones = goal.milestones;
   const nowYear = new Date().getFullYear();
 

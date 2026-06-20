@@ -8,8 +8,6 @@ import {
 import {
   buildSpineEventsFromMapContext,
   capSpineEventsForPacket,
-  countRecentCompletions,
-  resolvePursuitCompleteDate,
   type SpineEvent,
 } from "@/lib/timeline/spine-events";
 import { prisma } from "@/lib/prisma";
@@ -39,7 +37,7 @@ export type ReadingPacketCategorySignal = {
 export type ReadingPacket = {
   changeEvents: string[];
   categorySignals: ReadingPacketCategorySignal[];
-  /** Chronological spine — same derivation rules as mobile Timeline tab. */
+  /** Chronological spine — filtered for Reading (goal.completedAt arrival gate; no milestone_complete). */
   recentEvents: {
     past: SpineEvent[];
     upcoming: SpineEvent[];
@@ -63,7 +61,7 @@ const MS_PER_DAY = 86_400_000;
 export const GAP_MIN_SIGNIFICANCE = 4;
 export const GAP_DEADLINE_DAYS = 30;
 // 120d — per-pursuit "arrival" signal for the reading rubric (recently completed arc).
-// Distinct from countRecentCompletions (90d), which drives mapAggregates and thinPacketForMapDepth.
+// Distinct from countReadingPacketRecentCompletions (90d), which drives mapAggregates and thinPacketForMapDepth.
 export const ARRIVAL_WINDOW_DAYS = 120;
 
 const STATUS_SORT_RANK: Record<string, number> = {
@@ -90,8 +88,15 @@ export function countCompletedMilestones(pursuit: FormattedMapPursuit): number {
   return (pursuit.milestones ?? []).filter((m) => m.completed && m.completedAt).length;
 }
 
+/** Reading-packet recency only — goal.completedAt; Timeline uses resolvePursuitCompleteDate in spine-events. */
+export function resolveReadingPacketCompleteDate(pursuit: FormattedMapPursuit): string | null {
+  const raw = pursuit.completedAt?.trim();
+  if (!raw) return null;
+  return raw.slice(0, 10);
+}
+
 export function resolvePursuitCompletedAt(pursuit: FormattedMapPursuit): string | null {
-  return resolvePursuitCompleteDate(pursuit);
+  return resolveReadingPacketCompleteDate(pursuit);
 }
 
 export function computePursuitSignal(
@@ -341,21 +346,69 @@ export function buildCategorySignals(
   );
 }
 
+const HIGH_SIGNIFICANCE_ACTIVE_CAP = 6;
+
+type FlatPursuit = ReturnType<typeof flattenPursuits>[number];
+
+function isHighSignificanceEligible(pursuit: FlatPursuit): boolean {
+  return (
+    (pursuit.status === "ACTIVE" || pursuit.status === "MAINTAINING") &&
+    pursuit.significance >= GAP_MIN_SIGNIFICANCE
+  );
+}
+
+function comparePursuitsBySignificanceDesc(a: FlatPursuit, b: FlatPursuit): number {
+  if (b.significance !== a.significance) return b.significance - a.significance;
+  return a.title.localeCompare(b.title);
+}
+
+/** PANORAMIC: one heaviest active pursuit per theme, then overflow by significance. SPARSE: flat sort. */
+export function buildHighSignificanceActiveTitles(
+  pursuits: ReturnType<typeof flattenPursuits>,
+): string[] {
+  const eligible = pursuits.filter(isHighSignificanceEligible);
+
+  if (pursuits.length <= 2) {
+    return [...eligible]
+      .sort(comparePursuitsBySignificanceDesc)
+      .map((p) => p.title)
+      .slice(0, HIGH_SIGNIFICANCE_ACTIVE_CAP);
+  }
+
+  const byTheme = new Map<string, FlatPursuit>();
+  for (const pursuit of eligible) {
+    const existing = byTheme.get(pursuit.themeId);
+    if (!existing || comparePursuitsBySignificanceDesc(pursuit, existing) < 0) {
+      byTheme.set(pursuit.themeId, pursuit);
+    }
+  }
+
+  const result = [...byTheme.values()]
+    .sort(comparePursuitsBySignificanceDesc)
+    .map((p) => p.title);
+  const seen = new Set(result);
+
+  if (result.length < HIGH_SIGNIFICANCE_ACTIVE_CAP) {
+    for (const pursuit of [...eligible]
+      .filter((p) => !seen.has(p.title))
+      .sort(comparePursuitsBySignificanceDesc)) {
+      if (result.length >= HIGH_SIGNIFICANCE_ACTIVE_CAP) break;
+      result.push(pursuit.title);
+      seen.add(pursuit.title);
+    }
+  }
+
+  return result.slice(0, HIGH_SIGNIFICANCE_ACTIVE_CAP);
+}
+
 export function buildMapAggregates(
   pursuits: ReturnType<typeof flattenPursuits>,
   now = Date.now(),
 ): ReadingPacket["mapAggregates"] {
   let upcomingDeadlines14d = 0;
   let upcomingDeadlines30d = 0;
-  const highSignificanceActive: string[] = [];
 
   for (const pursuit of pursuits) {
-    if (
-      (pursuit.status === "ACTIVE" || pursuit.status === "MAINTAINING") &&
-      pursuit.significance >= 4
-    ) {
-      highSignificanceActive.push(pursuit.title);
-    }
     if (!pursuit.deadline) continue;
     if (pursuit.status === "COMPLETE" || pursuit.status === "PAUSED") {
       continue;
@@ -370,8 +423,20 @@ export function buildMapAggregates(
     totalPursuits: pursuits.length,
     upcomingDeadlines14d,
     upcomingDeadlines30d,
-    recentCompletions90d: countRecentCompletions(pursuits, { now }),
-    highSignificanceActive: highSignificanceActive.slice(0, 6),
+    recentCompletions90d: countReadingPacketRecentCompletions(pursuits, now),
+    highSignificanceActive: buildHighSignificanceActiveTitles(pursuits),
+  };
+}
+
+/** Stable key order for Gemini — mapAggregates before recentEvents. */
+export function orderReadingPacketKeys(packet: ReadingPacket): ReadingPacket {
+  return {
+    changeEvents: packet.changeEvents,
+    categorySignals: packet.categorySignals,
+    mapAggregates: packet.mapAggregates,
+    recentEvents: packet.recentEvents,
+    gapFacts: packet.gapFacts,
+    milestonePaceFacts: packet.milestonePaceFacts,
   };
 }
 
@@ -445,6 +510,57 @@ function parseCalendarDate(value?: string | null): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function daysSinceCalendarDate(calendarDate: string, now: number): number | null {
+  const parsed = parseCalendarDate(calendarDate);
+  if (!parsed) return null;
+  return Math.round((now - parsed.getTime()) / MS_PER_DAY);
+}
+
+function isWithinReadingArrivalWindow(completedAt: string, now: number): boolean {
+  const daysAgo = daysSinceCalendarDate(completedAt, now);
+  return daysAgo != null && daysAgo >= 0 && daysAgo <= ARRIVAL_WINDOW_DAYS;
+}
+
+function countReadingPacketRecentCompletions(pursuits: FormattedMapPursuit[], now: number): number {
+  let count = 0;
+  for (const pursuit of pursuits) {
+    if (pursuit.status !== "COMPLETE") continue;
+    const completedAt = resolveReadingPacketCompleteDate(pursuit);
+    if (!completedAt) continue;
+    const daysAgo = daysSinceCalendarDate(completedAt, now);
+    if (daysAgo == null || daysAgo < 0 || daysAgo > 90) continue;
+    count += 1;
+  }
+  return count;
+}
+
+/** Reading spine — filtered from Timeline spine; no milestone_complete; pursuit_complete gated by goal.completedAt. */
+export function buildReadingPacketRecentEvents(
+  mapContext: FormattedMapContext,
+  now: number,
+): ReadingPacket["recentEvents"] {
+  const spine = capSpineEventsForPacket(buildSpineEventsFromMapContext(mapContext, { now }));
+  const recentCompleteTitles = new Set(
+    flattenPursuits(mapContext)
+      .filter((p) => {
+        if (p.status !== "COMPLETE") return false;
+        const completedAt = resolveReadingPacketCompleteDate(p);
+        if (!completedAt) return false;
+        return isWithinReadingArrivalWindow(completedAt, now);
+      })
+      .map((p) => p.title),
+  );
+
+  return {
+    past: spine.past.filter((event) => {
+      if (event.kind === "milestone_complete") return false;
+      if (event.kind === "pursuit_complete") return recentCompleteTitles.has(event.title);
+      return true;
+    }),
+    upcoming: spine.future,
+  };
+}
+
 function formatElapsedSince(startDate: Date, now: number): string {
   const days = Math.max(0, Math.round((now - startDate.getTime()) / MS_PER_DAY));
   if (days >= 365) {
@@ -501,16 +617,11 @@ export async function compileReadingPacket(
     }),
   );
 
-  const spine = capSpineEventsForPacket(buildSpineEventsFromMapContext(mapContext));
-
   const packet: ReadingPacket = {
     changeEvents,
     categorySignals: buildCategorySignals(pursuits, focusCategoryIds, now),
-    recentEvents: {
-      past: spine.past,
-      upcoming: spine.future,
-    },
     mapAggregates: buildMapAggregates(pursuits, now),
+    recentEvents: buildReadingPacketRecentEvents(mapContext, now),
     gapFacts: buildGapFacts(pursuits, now),
     milestonePaceFacts: buildMilestonePaceFacts(pursuits, now),
   };
@@ -519,7 +630,7 @@ export async function compileReadingPacket(
 }
 
 export function readingPacketToJson(packet: ReadingPacket): string {
-  return JSON.stringify(packet, null, 2);
+  return JSON.stringify(orderReadingPacketKeys(packet), null, 2);
 }
 
 /** Theme label helper for tests. */

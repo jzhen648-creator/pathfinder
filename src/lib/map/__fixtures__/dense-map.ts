@@ -278,10 +278,12 @@ export const DENSE_READING_PACKET: ReadingPacket = {
     upcomingDeadlines30d: 4,
     recentCompletions90d: 3,
     highSignificanceActive: [
-      "CeMAP qualification",
-      "Product Lead search",
       "£500,000 ISA",
+      "CeMAP qualification",
       "Plan wedding",
+      "London Marathon 2027",
+      "Product Lead search",
+      "Clear £10,000 credit card debt",
     ],
   },
   gapFacts: [

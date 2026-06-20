@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   prismaGoalFindMany: vi.fn(),
   prismaStoryFindUnique: vi.fn(),
   prismaStoryUpsert: vi.fn(),
+  prismaPursuitRelationshipFindMany: vi.fn(),
+  prismaAiReadingDirtyItemDeleteMany: vi.fn(),
 }));
 
 vi.mock("@/lib/map/reading-dirty-ledger", async (importOriginal) => {
@@ -56,10 +58,13 @@ vi.mock("@/lib/ai/format-user-context", () => ({
   formatUserContext: mocks.formatUserContext,
 }));
 
-vi.mock("@/lib/map/compile-reading-packet", () => ({
-  compileReadingPacket: mocks.compileReadingPacket,
-  readingPacketToJson: (packet: unknown) => JSON.stringify(packet, null, 2),
-}));
+vi.mock("@/lib/map/compile-reading-packet", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/map/compile-reading-packet")>();
+  return {
+    ...actual,
+    compileReadingPacket: mocks.compileReadingPacket,
+  };
+});
 
 vi.mock("@/lib/insights/merge-insight-cache", () => ({
   mergeNodeInsightsIntoCache: mocks.mergeNodeInsightsIntoCache,
@@ -81,6 +86,12 @@ vi.mock("@/lib/prisma", () => ({
     storyCache: {
       findUnique: mocks.prismaStoryFindUnique,
       upsert: mocks.prismaStoryUpsert,
+    },
+    pursuitRelationship: {
+      findMany: mocks.prismaPursuitRelationshipFindMany,
+    },
+    aiReadingDirtyItem: {
+      deleteMany: mocks.prismaAiReadingDirtyItemDeleteMany,
     },
   },
 }));
@@ -148,6 +159,8 @@ describe("runReflectSync integration", () => {
     mocks.prismaStoryFindUnique.mockResolvedValue({
       payload: JSON.stringify({ schemaVersion: 1, seasonRead: "Previous reading." }),
     });
+    mocks.prismaPursuitRelationshipFindMany.mockResolvedValue([]);
+    mocks.prismaAiReadingDirtyItemDeleteMany.mockResolvedValue({ count: 0 });
   });
 
   afterEach(() => {

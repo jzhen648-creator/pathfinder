@@ -4,8 +4,10 @@ import {
   buildCategorySignals,
   buildChangeEventsFromDirtyRows,
   buildGapFacts,
+  buildHighSignificanceActiveTitles,
   buildMapAggregates,
   buildMilestonePaceFacts,
+  buildReadingPacketRecentEvents,
   computePursuitSignal,
   readingPacketToJson,
   sortPursuitsTemporal,
@@ -17,7 +19,7 @@ import {
   DENSE_FIXTURE_NOW,
   DENSE_MAP_CONTEXT,
 } from "@/lib/map/__fixtures__/dense-map";
-import type { FormattedMapPursuit } from "@/lib/ai/format-map-context";
+import type { FormattedMapContext, FormattedMapPursuit } from "@/lib/ai/format-map-context";
 
 /** Flatten dense-map fixture the same way compileReadingPacket does. */
 function flattenDensePursuits(): Array<
@@ -124,6 +126,88 @@ describe("compile-reading-packet", () => {
     expect(aggregates.highSignificanceActive).toEqual(["Product Lead search"]);
   });
 
+  it("selects one theme rep per theme before overflow on PANORAMIC maps", () => {
+    const pursuits = [
+      {
+        id: "w1",
+        title: "CeMAP qualification",
+        description: "",
+        status: "ACTIVE",
+        significance: 5,
+        deadline: "2026-06-20",
+        milestones: [],
+        themeId: "work",
+        themeLabel: "Work & Career",
+        categoryLabel: "Job",
+        categoryId: "cat-job",
+      },
+      {
+        id: "w2",
+        title: "Product Lead search",
+        description: "",
+        status: "ACTIVE",
+        significance: 5,
+        deadline: "2026-06-25",
+        milestones: [],
+        themeId: "work",
+        themeLabel: "Work & Career",
+        categoryLabel: "Job",
+        categoryId: "cat-job",
+      },
+      {
+        id: "f1",
+        title: "£500,000 ISA",
+        description: "",
+        status: "ACTIVE",
+        significance: 4,
+        deadline: "2028-12-31",
+        targetAmount: 500000,
+        currentAmount: 120000,
+        unit: "GBP",
+        milestones: [],
+        themeId: "finance",
+        themeLabel: "Money & Finance",
+        categoryLabel: "Savings",
+        categoryId: "cat-savings",
+      },
+    ];
+
+    const titles = buildHighSignificanceActiveTitles(pursuits);
+    expect(titles.slice(0, 2)).toEqual(["CeMAP qualification", "£500,000 ISA"]);
+    expect(titles[2]).toBe("Product Lead search");
+  });
+
+  it("builds cross-theme highSignificanceActive for dense fixture at fixed now", () => {
+    const aggregates = buildMapAggregates(flattenDensePursuits(), FIXTURE_NOW);
+    expect(aggregates.highSignificanceActive).toEqual([
+      "£500,000 ISA",
+      "CeMAP qualification",
+      "Plan wedding",
+      "London Marathon 2027",
+      "Product Lead search",
+      "Clear £10,000 credit card debt",
+    ]);
+  });
+
+  it("serializes mapAggregates before recentEvents in reading packet JSON", () => {
+    const packet: ReadingPacket = {
+      changeEvents: [],
+      categorySignals: [],
+      recentEvents: { past: [], upcoming: [] },
+      mapAggregates: {
+        totalPursuits: 3,
+        upcomingDeadlines14d: 0,
+        upcomingDeadlines30d: 0,
+        recentCompletions90d: 0,
+        highSignificanceActive: ["£500,000 ISA"],
+      },
+      gapFacts: [],
+      milestonePaceFacts: [],
+    };
+    const keys = Object.keys(JSON.parse(readingPacketToJson(packet)) as ReadingPacket);
+    expect(keys.indexOf("mapAggregates")).toBeLessThan(keys.indexOf("recentEvents"));
+  });
+
   it("emits no pace fact when pursuit has milestones but zero completions", () => {
     const facts = buildMilestonePaceFacts(
       [
@@ -208,45 +292,97 @@ describe("compile-reading-packet", () => {
     );
   });
 
-  it("keeps milestone_complete but drops pursuit_complete when recentCompletions90d is 0", () => {
-    const packet: ReadingPacket = {
-      changeEvents: [],
-      categorySignals: [],
-      recentEvents: {
-        past: [
-          {
-            kind: "milestone_complete",
-            date: "2026-05-01",
-            placement: "past",
-            title: "Done",
-            themeId: "work",
-            themeLabel: "Work & Career",
-          },
-        ],
-        upcoming: [],
-      },
-      mapAggregates: {
-        totalPursuits: 5,
-        upcomingDeadlines14d: 0,
-        upcomingDeadlines30d: 0,
-        recentCompletions90d: 0,
-        highSignificanceActive: [],
-      },
-      gapFacts: [],
-      milestonePaceFacts: [],
+  it("buildReadingPacketRecentEvents excludes milestone_complete from reading spine", () => {
+    const mapContext: FormattedMapContext = {
+      themes: [
+        {
+          id: "work",
+          label: "Work & Career",
+          marks: [],
+          hubs: [
+            {
+              id: "cat-job",
+              label: "Job",
+              section: "Job",
+              marks: [],
+              pursuits: [
+                {
+                  id: "p-cemap",
+                  title: "CeMAP qualification",
+                  description: "",
+                  status: "ACTIVE",
+                  significance: 5,
+                  deadline: "2026-06-20",
+                  milestones: [
+                    {
+                      id: "m1",
+                      title: "Unit 1",
+                      completed: true,
+                      completedAt: "2026-05-01",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
     };
 
-    const thinned = thinPacketForMapDepth(packet);
-    expect(thinned.recentEvents.past).toEqual([
-      {
-        kind: "milestone_complete",
-        date: "2026-05-01",
-        placement: "past",
-        title: "Done",
-        themeId: "work",
-        themeLabel: "Work & Career",
-      },
-    ]);
+    const events = buildReadingPacketRecentEvents(mapContext, FIXTURE_NOW);
+    expect(events.past.some((e) => e.kind === "milestone_complete")).toBe(false);
+  });
+
+  it("does not flag arrival or reading spine when goal.completedAt is stale but milestones are recent", () => {
+    const now = Date.parse("2026-06-20T12:00:00.000Z");
+    const cemap: FormattedMapPursuit = {
+      id: "cemap",
+      title: "CeMAP Qualification",
+      description: "",
+      status: "COMPLETE",
+      significance: 4,
+      completedAt: "2025-07-01",
+      milestones: [
+        { id: "m1", title: "Module 1", completed: true, completedAt: "2026-06-19" },
+        { id: "m2", title: "Module 2", completed: true, completedAt: "2026-06-19" },
+      ],
+    };
+
+    expect(computePursuitSignal(cemap, now)).toBeNull();
+
+    const mapContext: FormattedMapContext = {
+      themes: [
+        {
+          id: "work",
+          label: "Work & Career",
+          marks: [],
+          hubs: [
+            {
+              id: "cat-job",
+              label: "Job",
+              section: "Job",
+              marks: [],
+              pursuits: [
+                cemap,
+                {
+                  id: "nhse",
+                  title: "New Homes Sales Executive",
+                  description: "",
+                  status: "COMPLETE",
+                  significance: 4,
+                  completedAt: "2024-06-20",
+                  milestones: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const events = buildReadingPacketRecentEvents(mapContext, now);
+    expect(events.past.some((e) => e.kind === "pursuit_complete")).toBe(false);
+    expect(events.past.some((e) => e.kind === "milestone_complete")).toBe(false);
   });
 
   it("drops pursuit_complete spine when recentCompletions90d is 0", () => {

@@ -1,6 +1,6 @@
 /**
- * Re-runs pursuit status lifecycle for every non-paused goal → **ACTIVE** / **COMPLETE**.
- * Safe to run multiple times. Repairs stale **ACTIVE** rows when milestones imply completion.
+ * Re-runs pursuit lifecycle status for timeline **moment/event** rows only.
+ * Normal pursuits: completion is user-driven — this script is a no-op for them after the milestone fix.
  *
  * Run from repo root: npm run backfill:goal-status
  */
@@ -11,7 +11,10 @@ const prisma = new PrismaClient();
 
 async function main() {
   const goals = await prisma.goal.findMany({
-    where: { status: { notIn: ["PAUSED", "MAINTAINING"] } },
+    where: {
+      status: { notIn: ["PAUSED", "MAINTAINING"] },
+      goalType: { in: ["moment", "event"] },
+    },
     select: { id: true },
   });
   let ok = 0;
