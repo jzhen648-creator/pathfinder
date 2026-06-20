@@ -51,6 +51,8 @@ export const enrichAnswerSchema = z.object({
   clarifierId: z.string().min(1),
   prompt: z.string().min(1),
   selectedOption: z.string().min(1),
+  /** The choices offered when answered — lets the detail panel re-open this question to re-pick. */
+  options: z.array(z.string().min(1).max(80)).min(2).max(4).optional(),
 });
 
 export const enrichAnswersSchema = z.array(enrichAnswerSchema);

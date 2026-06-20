@@ -165,14 +165,21 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   if (
     descriptionPatch !== undefined &&
-    descriptionPatch !== existing.description.trim() &&
-    descriptionPatch.length > 0
+    descriptionPatch !== existing.description.trim()
   ) {
-    const syncedDescription = await appendPursuitContextEntryAndSync(userId, goalId, {
-      kind: "manual_edit",
-      text: descriptionPatch,
-    });
-    goal.description = syncedDescription;
+    if (descriptionPatch.length === 0) {
+      const syncedDescription = await appendPursuitContextEntryAndSync(userId, goalId, {
+        kind: "manual_edit",
+        text: "",
+      });
+      goal.description = syncedDescription;
+    } else {
+      const syncedDescription = await appendPursuitContextEntryAndSync(userId, goalId, {
+        kind: "manual_edit",
+        text: descriptionPatch,
+      });
+      goal.description = syncedDescription;
+    }
   }
 
   if (titleChanged) {

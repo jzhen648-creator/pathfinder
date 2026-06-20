@@ -5,10 +5,6 @@ import {
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import {
-  appendPursuitContextEntryAndSync,
-  clarifierAnswerLine,
-} from "@/lib/pursuit/pursuit-context-log";
-import {
   enrichAnswersSchema,
   enrichAnswerSchema,
   type EnrichAnswer,
@@ -18,6 +14,42 @@ import { prisma } from "@/lib/prisma";
 function parseExistingAnswers(raw: unknown): EnrichAnswer[] {
   const parsed = enrichAnswersSchema.safeParse(raw);
   return parsed.success ? parsed.data : [];
+}
+
+/** Strip one AI-suggested milestone title from the pursuit insight cache (case-insensitive). */
+export function filterSuggestedMilestoneByTitle<T extends { title: string }>(
+  items: T[],
+  title: string,
+): T[] {
+  const normalized = title.trim().toLowerCase();
+  if (!normalized) return items;
+  return items.filter((item) => item.title.trim().toLowerCase() !== normalized);
+}
+
+export async function pruneSuggestedMilestoneFromInsightCache(
+  userId: string,
+  goalId: string,
+  title: string,
+): Promise<void> {
+  const cache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  if (!cache?.pursuitInsights) return;
+
+  const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
+  const entry = pursuits[goalId];
+  if (!entry?.suggestedMilestones?.length) return;
+
+  const suggestedMilestones = filterSuggestedMilestoneByTitle(entry.suggestedMilestones, title);
+  pursuits[goalId] = {
+    ...entry,
+    suggestedMilestones: suggestedMilestones.length > 0 ? suggestedMilestones : undefined,
+  };
+  await prisma.insightCache.update({
+    where: { userId },
+    data: { pursuitInsights: pursuits },
+  });
 }
 
 export async function pruneClarifierFromInsightCache(
@@ -49,7 +81,7 @@ export async function pruneClarifierFromInsightCache(
 export async function applyClarifierAnswerForUser(
   userId: string,
   goalId: string,
-  input: { clarifierId: string; prompt: string; selectedOption: string },
+  input: { clarifierId: string; prompt: string; selectedOption: string; options?: string[] },
 ): Promise<{ enrichAnswers: EnrichAnswer[]; description: string }> {
   const parsed = enrichAnswerSchema.safeParse(input);
   if (!parsed.success) {
@@ -82,23 +114,50 @@ export async function applyClarifierAnswerForUser(
   const withoutDup = existing.filter((a) => a.clarifierId !== parsed.data.clarifierId);
   const enrichAnswers = [...withoutDup, parsed.data];
 
-  const description = await appendPursuitContextEntryAndSync(userId, goalId, {
-    kind: "clarifier_answer",
-    text: clarifierAnswerLine(parsed.data.prompt, parsed.data.selectedOption),
-    metadata: {
-      clarifierId: parsed.data.clarifierId,
-      prompt: parsed.data.prompt,
-      selectedOption: parsed.data.selectedOption,
-    },
-  });
-
-  await prisma.goal.update({
+  const updated = await prisma.goal.update({
     where: { id: goalId },
     data: { enrichAnswers },
+    select: { description: true, enrichAnswers: true },
   });
 
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
   await pruneClarifierFromInsightCache(userId, goalId, parsed.data.clarifierId);
 
-  return { enrichAnswers, description };
+  const storedAnswers = parseExistingAnswers(updated.enrichAnswers);
+  return {
+    enrichAnswers: storedAnswers,
+    description: updated.description?.trim() ?? "",
+  };
+}
+
+/** Remove a single stored quick-question answer (by clarifierId). Idempotent. */
+export async function deleteClarifierAnswerForUser(
+  userId: string,
+  goalId: string,
+  clarifierId: string,
+): Promise<{ enrichAnswers: EnrichAnswer[]; description: string }> {
+  const goal = await prisma.goal.findFirst({
+    where: { id: goalId, userId },
+    select: { id: true, description: true, enrichAnswers: true },
+  });
+  if (!goal) {
+    throw new Error("Not found");
+  }
+
+  const existing = parseExistingAnswers(goal.enrichAnswers);
+  const enrichAnswers = existing.filter((a) => a.clarifierId !== clarifierId);
+
+  const updated = await prisma.goal.update({
+    where: { id: goalId },
+    data: { enrichAnswers },
+    select: { description: true, enrichAnswers: true },
+  });
+
+  await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
+
+  const storedAnswers = parseExistingAnswers(updated.enrichAnswers);
+  return {
+    enrichAnswers: storedAnswers,
+    description: updated.description?.trim() ?? "",
+  };
 }
