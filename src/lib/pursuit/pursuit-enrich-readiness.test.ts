@@ -239,50 +239,56 @@ describe("gateEnrichResult", () => {
     expect(gated.clarifiers).toEqual([]);
   });
 
-  it("keeps clarifiers for thin pursuits with an empty description", () => {
-    const gated = gateEnrichResult(
-      sampleResult,
-      signal({ description: "", enrichAnswerCount: 3 }),
-      { clarifyTitles: true },
-    );
-    expect(gated.clarifiers).toHaveLength(1);
-  });
-
-  it("strips clarifiers when description is rich enough for hasMinimumContextSignal", () => {
+  it("strips clarifiers when PAUSED regardless of description richness", () => {
     const gated = gateEnrichResult(
       sampleResult,
       signal({
         description: "Training three times a week for a spring half marathon with a coach.",
-        enrichAnswerCount: 0,
+        status: "PAUSED",
       }),
       { clarifyTitles: true },
+      { status: "PAUSED" },
     );
     expect(gated.clarifiers).toEqual([]);
   });
 
-  it("strips clarifiers at two enrich answers once description is non-empty", () => {
+  it("strips clarifiers during cooldown", () => {
+    const gated = gateEnrichResult(
+      sampleResult,
+      signal(),
+      { clarifyTitles: true },
+      {
+        status: "ACTIVE",
+        quickQuestionsQuietUntil: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+    );
+    expect(gated.clarifiers).toEqual([]);
+  });
+
+  it("keeps clarifiers for rich pursuits — QQ stop is decoupled from hasMinimumContextSignal", () => {
     const gated = gateEnrichResult(
       sampleResult,
       signal({
-        description: "Short note.",
+        description: "Training three times a week for a spring half marathon with a coach.",
         enrichAnswerCount: 2,
       }),
       { clarifyTitles: true },
-    );
-    expect(gated.clarifiers).toEqual([]);
-  });
-
-  it("keeps clarifiers for developing pursuits below the unified richness bar", () => {
-    const gated = gateEnrichResult(
-      sampleResult,
-      signal({
-        description: "Still figuring out the scope.",
-        enrichAnswerCount: 1,
-        hasDeadline: false,
-        title: "Project",
-      }),
-      { clarifyTitles: true },
+      { status: "ACTIVE" },
     );
     expect(gated.clarifiers).toHaveLength(1);
+  });
+
+  it("does not change milestone suggestions when clarifiers are kept", () => {
+    const rich = signal({
+      description: "Training three times a week for a spring half marathon with a coach.",
+      enrichAnswerCount: 2,
+    });
+    const gated = gateEnrichResult(
+      { ...sampleResult, suggestedMilestones: [{ title: "10k", order: 0 }] },
+      rich,
+      { clarifyTitles: true },
+      { status: "ACTIVE" },
+    );
+    expect(gated.suggestedMilestones).toEqual([{ title: "10k", order: 0 }]);
   });
 });

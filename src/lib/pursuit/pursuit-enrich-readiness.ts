@@ -1,11 +1,41 @@
 import type { PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
-import { clarifierKind } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import type { QuestionSlot } from "@/lib/pursuit/pick-question-slot";
 
 /** Interim cap on milestones stored on the map — audit may raise/adjust. */
 export const MILESTONE_MAP_CAP = 8;
+
+/** Default quiet period after a quick-question batch is worked through. */
+export const QUICK_QUESTIONS_COOLDOWN_DAYS = 7;
+
+const MS_PER_DAY = 86_400_000;
+
+export function computeQuickQuestionsQuietUntil(from = Date.now()): string {
+  return new Date(from + QUICK_QUESTIONS_COOLDOWN_DAYS * MS_PER_DAY).toISOString();
+}
+
+export function isQuickQuestionsQuiet(quietUntil: string | null | undefined, now = Date.now()): boolean {
+  if (!quietUntil?.trim()) return false;
+  const until = Date.parse(quietUntil);
+  return Number.isFinite(until) && until > now;
+}
+
+/** Stamp or clear cooldown on insight-cache pursuit rows after generation. */
+export function resolveQuickQuestionsQuietUntilAfterGeneration(input: {
+  slot: QuestionSlot;
+  clarifiers: PursuitEnrichResult["clarifiers"];
+  previousQuietUntil?: string | null;
+}): string | undefined {
+  if (input.clarifiers.length > 0) {
+    return undefined;
+  }
+  if (input.slot === "none") {
+    return input.previousQuietUntil?.trim() || undefined;
+  }
+  return computeQuickQuestionsQuietUntil();
+}
 
 export type PursuitSignal = {
   title: string;
@@ -114,20 +144,26 @@ export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
   return signal.milestoneCount < MILESTONE_MAP_CAP;
 }
 
+export type QuickQuestionGateContext = {
+  status?: string;
+  quickQuestionsQuietUntil?: string | null;
+};
+
 export function gateEnrichResult(
   result: PursuitEnrichResult,
   signal: PursuitSignal,
   enrichOptions?: PursuitEnrichOptions,
+  qqContext?: QuickQuestionGateContext,
 ): PursuitEnrichResult {
   const options = resolvePursuitEnrichOptions(enrichOptions);
-  const clarifiers = !options.clarifyTitles
-    ? []
-    : result.clarifiers.filter((clarifier) => {
-        const kind = clarifierKind(clarifier);
-        if (kind === "connect" || kind === "suggest_add") return true;
-        if (signal.description.trim().length === 0) return true;
-        return !hasMinimumContextSignal(signal);
-      });
+  const status = qqContext?.status ?? signal.status;
+
+  const clarifiers =
+    !options.clarifyTitles ||
+    status === "PAUSED" ||
+    isQuickQuestionsQuiet(qqContext?.quickQuestionsQuietUntil)
+      ? []
+      : result.clarifiers;
 
   const suggestedMilestones = shouldSuggestMilestones(signal)
     ? result.suggestedMilestones

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { pursuitInsightSchema } from "@/lib/insights/insight-types";
 
-export const clarifierKindSchema = z.enum(["clarify", "connect", "suggest_add"]);
+export const clarifierKindSchema = z.enum(["clarify", "connect", "suggest_add", "retrospective"]);
 
 export const clarifierSchema = z
   .object({
@@ -67,6 +67,8 @@ export type EnrichAnswer = z.infer<typeof enrichAnswerSchema>;
 export const pursuitEnrichCacheSchema = pursuitInsightSchema.extend({
   clarifiers: z.array(clarifierSchema).optional(),
   suggestedMilestones: z.array(suggestedMilestoneSchema).optional(),
+  /** ISO timestamp — no new clarifiers until this passes or status/map changes. */
+  quickQuestionsQuietUntil: z.string().datetime().optional(),
 });
 
 export type PursuitEnrichCachePayload = z.infer<typeof pursuitEnrichCacheSchema>;

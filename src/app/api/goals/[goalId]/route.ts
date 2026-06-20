@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { excludePursuitFromInterpretation } from "@/lib/insights/invalidate-reading-caches";
+import { pruneMootPendingClarifiersOnStatusChange } from "@/lib/pursuit/apply-clarifier-answers";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import {
   clearReadingDirtyForPursuits,
@@ -188,6 +189,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
         console.error("[PATCH /api/goals/[goalId]] persistGoalShortLabel failed", err),
       );
     });
+  }
+
+  if (pursuitStatus !== undefined) {
+    await pruneMootPendingClarifiersOnStatusChange(userId, goalId, pursuitStatus);
   }
 
   const dirtyUpdates: Record<string, unknown> = {};

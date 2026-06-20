@@ -6,6 +6,14 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-06-20 — Quick-question model v2 (principle-based generation, batch cadence, status-aware slots)
+
+**Shipped:** Quick questions now generalize to any pursuit via a shared **generation principle** in `clarifier-prompt-blocks.ts` (reflect, enrich, and create paths all import the same blocks — no domain catalog). Per sync the model may return up to **3** clarifiers; mobile reveals **one at a time** (`PursuitClarifiersSection` shows `clarifiers[0]`; answered ids filtered client-side for instant next-on-answer). **Stop rule:** prompt + hard cap + **7-day cooldown** (`quickQuestionsQuietUntil` on insight-cache pursuit rows — no migration); model returns `[]` when no high-value gap remains. **QQ stop is decoupled from `hasMinimumContextSignal`** — that gate still governs milestone suggestions and theme benchmarks only; QQ coverage never blocks readings or milestones.
+
+**Status behaviour:** `pick-question-slot.ts` — ACTIVE/MAINTAINING → forward `clarify`; COMPLETE → `retrospective` first (ids prefixed `retro-`); recently COMPLETE → `suggest_add` follow-on pursuit only after a retrospective answer; PAUSED → silent (`none`). Reflect user message now includes `<quick_question_slots>` per dirty pursuit (production path parity with enrich). **Status change:** `PATCH /api/goals/[goalId]` calls `pruneMootPendingClarifiersOnStatusChange` — drops forward pending on COMPLETE, all pending on PAUSE, clears cooldown; answered `enrichAnswers` untouched.
+
+**Enforcement (4 former “0–1” points, all updated in place):** shared prompt lines (`buildClarifierSystemOutputLines`), `questionSlotUserMessageLines`, `filterClarifiersForQuestionSlot` (slice to 3 not 1), `gateEnrichResult` (status/cooldown/toggle only — not richness strip).
+
 ## 2026-06-20 — Pursuit detail panel supports tap-to-edit in place (relaxes "long-press owns metadata")
 
 **Shipped:** Every displayed fact in `PursuitDetailPanel` is now tappable to edit in place — title → rename, theme/category eyebrow → category picker, icon badge → icon picker, status/date/significance chips → their pickers. Each tap opens the **same** editor long-press uses by rendering `MapNodeContextMenu` (`layout="centered"`, new additive `initialSubview` prop) + `PursuitIconPickerSheet` from the panel, and every mutation flows through the shared `usePursuitFieldMutations` hook. Tap and long-press are therefore the **identical** handler/cache/dirty path and cannot diverge.

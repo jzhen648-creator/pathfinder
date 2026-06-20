@@ -14,6 +14,7 @@ import {
   gatePursuitComparison,
   gateThemeCombined,
   gateThemeContextual,
+  resolveQuickQuestionsQuietUntilAfterGeneration,
   shouldSuggestMilestones,
   pursuitSignalFromGoal,
   type PursuitSignal,
@@ -22,12 +23,14 @@ import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
 import {
   applyQuestionSlotToResult,
   loadRelationshipPeerIdsForGoal,
+  pickQuestionSlotForPursuit,
   type QuestionSlotMessageContext,
 } from "@/lib/pursuit/pick-question-slot";
-import type {
-  Clarifier,
-  PursuitEnrichCachePayload,
-  PursuitEnrichResult,
+import {
+  enrichAnswersSchema,
+  type Clarifier,
+  type PursuitEnrichCachePayload,
+  type PursuitEnrichResult,
 } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
@@ -35,6 +38,7 @@ import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
 import { validateSeasonReadAgainstPursuits } from "@/lib/story/validate-season-read";
 import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { prisma } from "@/lib/prisma";
+import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 
 function dedupeMilestoneTitles<T extends { title: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -116,7 +120,10 @@ async function loadThemePursuitSignals(
   return loadPursuitSignalsByTheme(userId, themeIds);
 }
 
-function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload | null {
+function toCachePayload(
+  result: PursuitEnrichResult,
+  quickQuestionsQuietUntil?: string,
+): PursuitEnrichCachePayload | null {
   const hasClarifiers = result.clarifiers.length > 0;
   const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
   const hasInsight = Boolean(result.insight?.headline?.trim());
@@ -125,12 +132,14 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
 
   const clarifiers = hasClarifiers ? result.clarifiers : undefined;
   const suggestedMilestones = hasMilestones ? result.suggestedMilestones ?? undefined : undefined;
+  const quietField = quickQuestionsQuietUntil ? { quickQuestionsQuietUntil } : {};
 
   if (hasInsight && result.insight) {
     return {
       ...result.insight,
       clarifiers,
       suggestedMilestones,
+      ...quietField,
     };
   }
 
@@ -140,6 +149,7 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
     body: "Answer a quick question below — then update your AI reading on Insights.",
     clarifiers,
     suggestedMilestones,
+    ...quietField,
   };
 }
 
@@ -188,6 +198,11 @@ export async function applyReflectOutput(
   }
 
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
+  const existingCache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  const cachedPursuits = parsePursuitInsightRecord(existingCache?.pursuitInsights, "pursuit");
   const siblingTitlesByTheme = new Map<string, Array<{ id: string; title: string }>>();
   for (const goal of toneGoals.values()) {
     const themeId = goal.themeId ?? "becoming";
@@ -226,6 +241,10 @@ export async function applyReflectOutput(
     const signal = pursuitSignalFromGoal(goal);
     const comparison = gatePursuitComparison(entry.comparison?.trim() ?? "", signal);
 
+    const enrichAnswersParsed = enrichAnswersSchema.safeParse(goal.enrichAnswers);
+    const enrichAnswers = enrichAnswersParsed.success ? enrichAnswersParsed.data : [];
+    const previousQuietUntil = cachedPursuits[pursuitId]?.quickQuestionsQuietUntil;
+
     const rawResult: PursuitEnrichResult = {
       clarifiers: filterClarifiersAgainstMilestones(
         (entry.clarifiers ?? [])
@@ -245,7 +264,10 @@ export async function applyReflectOutput(
         : null,
     };
 
-    const gated = gateEnrichResult(rawResult, signal, options);
+    const gated = gateEnrichResult(rawResult, signal, options, {
+      status: goal.status ?? "ACTIVE",
+      quickQuestionsQuietUntil: previousQuietUntil,
+    });
     const themeId = goal.themeId ?? "becoming";
     const siblingPursuits = (siblingTitlesByTheme.get(themeId) ?? []).filter(
       (s) => s.id !== pursuitId,
@@ -255,13 +277,22 @@ export async function applyReflectOutput(
       signal,
       status: goal.status ?? "ACTIVE",
       completedAt: goal.completedAt ?? null,
+      significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+      enrichAnswers,
+      quickQuestionsQuietUntil: previousQuietUntil,
       siblingGoalIds: siblingPursuits.map((s) => s.id),
       existingRelationshipPeerIds,
       enrichOptions: options,
       siblingPursuits,
     };
+    const slot = pickQuestionSlotForPursuit(slotContext);
     const slotted = applyQuestionSlotToResult(gated, slotContext);
-    const payload = toCachePayload(slotted);
+    const quickQuestionsQuietUntil = resolveQuickQuestionsQuietUntilAfterGeneration({
+      slot,
+      clarifiers: slotted.clarifiers,
+      previousQuietUntil,
+    });
+    const payload = toCachePayload(slotted, quickQuestionsQuietUntil);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
     }

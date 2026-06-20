@@ -4,9 +4,13 @@ import {
   validateClarifierAnswerAgainstMilestones,
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
+import { computeQuickQuestionsQuietUntil } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { RETROSPECTIVE_CLARIFIER_ID_PREFIX } from "@/lib/pursuit/pick-question-slot";
 import {
   enrichAnswersSchema,
   enrichAnswerSchema,
+  clarifierKind,
+  type Clarifier,
   type EnrichAnswer,
 } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
@@ -68,10 +72,68 @@ export async function pruneClarifierFromInsightCache(
   if (!entry?.clarifiers?.length) return;
 
   const clarifiers = entry.clarifiers.filter((c) => c.id !== clarifierId);
+  const batchExhausted = clarifiers.length === 0;
   pursuits[goalId] = {
     ...entry,
     clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
+    ...(batchExhausted
+      ? { quickQuestionsQuietUntil: computeQuickQuestionsQuietUntil() }
+      : {}),
   };
+  await prisma.insightCache.update({
+    where: { userId },
+    data: { pursuitInsights: pursuits },
+  });
+}
+
+function isForwardClarifier(clarifier: Clarifier): boolean {
+  const kind = clarifierKind(clarifier);
+  return (
+    (kind === "clarify" || !clarifier.kind) &&
+    !clarifier.id.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX)
+  );
+}
+
+function isRetrospectiveClarifier(clarifier: Clarifier): boolean {
+  const kind = clarifierKind(clarifier);
+  return kind === "retrospective" || clarifier.id.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX);
+}
+
+/** Drop pending clarifiers that are moot after a status change; clear cooldown. Answered enrichAnswers untouched. */
+export async function pruneMootPendingClarifiersOnStatusChange(
+  userId: string,
+  goalId: string,
+  newStatus: string,
+): Promise<void> {
+  const cache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  if (!cache?.pursuitInsights) return;
+
+  const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
+  const entry = pursuits[goalId];
+  if (!entry) return;
+
+  const pending = entry.clarifiers ?? [];
+  let clarifiers: Clarifier[] = pending;
+
+  if (newStatus === "PAUSED") {
+    clarifiers = [];
+  } else if (newStatus === "COMPLETE") {
+    clarifiers = pending.filter(
+      (c) => isRetrospectiveClarifier(c) || clarifierKind(c) === "suggest_add",
+    );
+  } else {
+    clarifiers = pending.filter((c) => isForwardClarifier(c));
+  }
+
+  pursuits[goalId] = {
+    ...entry,
+    clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
+    quickQuestionsQuietUntil: undefined,
+  };
+
   await prisma.insightCache.update({
     where: { userId },
     data: { pursuitInsights: pursuits },

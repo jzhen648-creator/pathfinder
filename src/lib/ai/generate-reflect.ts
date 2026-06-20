@@ -12,6 +12,7 @@ import { reflectResponseSchema, type ReflectResponse } from "@/lib/ai/reflect-ty
 import { applyReflectOutput } from "@/lib/ai/apply-reflect-output";
 import {
   compileReadingPacket,
+  mapContextForReadingPacketPrompt,
   readingPacketToJson,
 } from "@/lib/map/compile-reading-packet";
 import type { MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
@@ -39,9 +40,16 @@ import {
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import {
-  CONTEXTUAL_QUICK_QUESTIONS,
+  buildClarifierSystemOutputLines,
 } from "@/lib/pursuit/clarifier-prompt-blocks";
 import { buildClarifierKindPromptSection } from "@/lib/pursuit/clarifier-question-prompt";
+import {
+  formatReflectPursuitSlotLines,
+  loadRelationshipPeerIdsForGoal,
+  type QuestionSlotMessageContext,
+} from "@/lib/pursuit/pick-question-slot";
+import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import { generateJsonCompletion, GeminiNotConfiguredError, GeminiProviderError, hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 
@@ -150,11 +158,7 @@ function buildReflectPursuitsOnlySystemPrompt(
   amountImpactEligible: boolean,
 ): string {
   const clarifierRules = options.clarifyTitles
-    ? [
-        "- clarifiers: 0-1 multiple-choice question per pursuit when title is ambiguous OR context is thin.",
-        "  Each clarifier: id (short slug), prompt (question), options (3-4 domain-specific labels).",
-        CONTEXTUAL_QUICK_QUESTIONS,
-      ]
+    ? buildClarifierSystemOutputLines()
     : ["- clarifiers: always return an empty array."];
 
   return [
@@ -201,11 +205,7 @@ function buildReflectSystemPrompt(
     return buildReflectPursuitsOnlySystemPrompt(options, amountImpactEligible);
   }
   const clarifierRules = options.clarifyTitles
-    ? [
-        "- clarifiers: 0-1 multiple-choice question per pursuit when title is ambiguous OR context is thin.",
-        "  Each clarifier: id (short slug), prompt (question), options (3-4 domain-specific labels).",
-        CONTEXTUAL_QUICK_QUESTIONS,
-      ]
+    ? buildClarifierSystemOutputLines()
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
 
   return [
@@ -262,6 +262,47 @@ function buildReflectSystemPrompt(
     "",
     buildStorySystemPrompt(totalPursuitCount, amountImpactEligible, holisticBenchmarkEligible),
   ].join("\n");
+}
+
+async function loadReflectPursuitSlotContexts(
+  userId: string,
+  pursuitIds: string[],
+  pursuitSignals: Map<string, PursuitSignal>,
+  cachedQuietUntilByPursuit: Record<string, string | undefined>,
+): Promise<Map<string, QuestionSlotMessageContext>> {
+  if (pursuitIds.length === 0) return new Map();
+
+  const goals = await prisma.goal.findMany({
+    where: { userId, id: { in: pursuitIds }, archived: false },
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      significance: true,
+      enrichAnswers: true,
+      themeId: true,
+    },
+  });
+
+  const contexts = new Map<string, QuestionSlotMessageContext>();
+  for (const goal of goals) {
+    const signal = pursuitSignals.get(goal.id);
+    if (!signal) continue;
+    const enrichAnswersParsed = enrichAnswersSchema.safeParse(goal.enrichAnswers);
+    const enrichAnswers = enrichAnswersParsed.success ? enrichAnswersParsed.data : [];
+    const existingRelationshipPeerIds = await loadRelationshipPeerIdsForGoal(userId, goal.id);
+    contexts.set(goal.id, {
+      signal,
+      status: goal.status ?? "ACTIVE",
+      completedAt: goal.completedAt ?? null,
+      significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+      enrichAnswers,
+      quickQuestionsQuietUntil: cachedQuietUntilByPursuit[goal.id],
+      siblingGoalIds: [],
+      existingRelationshipPeerIds,
+    });
+  }
+  return contexts;
 }
 
 async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise<Map<string, PursuitSignal>> {
@@ -345,11 +386,26 @@ function buildReflectUserMessage(input: {
   dirtyPursuitIds: string[];
   dirtyThemeIds: string[];
   pursuitSignals: Map<string, PursuitSignal>;
+  pursuitSlotContexts: Map<string, QuestionSlotMessageContext>;
   enrichOptions: Required<PursuitEnrichOptions>;
   scope?: ReflectScope;
 }): string {
   const scope = input.scope ?? "full";
   const milestoneOptions = buildReflectMilestoneOptions(input.dirtyPursuitIds, input.pursuitSignals);
+
+  const quickQuestionSlots =
+    input.enrichOptions.clarifyTitles && input.dirtyPursuitIds.length > 0
+      ? [
+          "",
+          "<quick_question_slots>",
+          ...input.dirtyPursuitIds.flatMap((pursuitId) => {
+            const ctx = input.pursuitSlotContexts.get(pursuitId);
+            if (!ctx) return [];
+            return [formatReflectPursuitSlotLines(pursuitId, ctx)];
+          }),
+          "</quick_question_slots>",
+        ]
+      : [];
 
   const lines = [
     input.userContext || "(No profile context yet.)",
@@ -384,6 +440,7 @@ function buildReflectUserMessage(input: {
     "</dirty_pursuits>",
     "",
     ...(milestoneOptions ? [milestoneOptions, ""] : []),
+    ...quickQuestionSlots,
     "<options>",
     `clarifyTitles: ${input.enrichOptions.clarifyTitles}`,
     `includeMarks: ${input.enrichOptions.includeMarks}`,
@@ -741,7 +798,7 @@ async function generateReflectResponse(
 
   const scope = options?.scope ?? "full";
 
-  const [mapContext, userContext, readingPacket, pursuitSignals, allPursuitSignals] =
+  const [mapContext, userContext, readingPacket, pursuitSignals, allPursuitSignals, insightCacheRow] =
     await Promise.all([
     options?.mapContext
       ? Promise.resolve(options.mapContext)
@@ -756,7 +813,22 @@ async function generateReflectResponse(
     options?.holisticBenchmarkEligible === undefined
       ? loadAllPursuitSignals(userId)
       : Promise.resolve([]),
+    prisma.insightCache.findUnique({ where: { userId }, select: { pursuitInsights: true } }),
   ]);
+
+  const cachedPursuits = parsePursuitInsightRecord(
+    insightCacheRow?.pursuitInsights,
+    "pursuit",
+  );
+  const cachedQuietUntilByPursuit = Object.fromEntries(
+    pursuitIds.map((id) => [id, cachedPursuits[id]?.quickQuestionsQuietUntil]),
+  );
+  const pursuitSlotContexts = await loadReflectPursuitSlotContexts(
+    userId,
+    pursuitIds,
+    pursuitSignals,
+    cachedQuietUntilByPursuit,
+  );
 
   const amountImpactEligible =
     options?.amountImpactEligible ?? isAmountImpactEligible(mapContext);
@@ -768,7 +840,7 @@ async function generateReflectResponse(
   const mapContextForPrompt =
     scope === "pursuits-only"
       ? buildPursuitsOnlyMapContext(mapContext, pursuitIds)
-      : mapContext;
+      : mapContextForReadingPacketPrompt(mapContext);
   const mapContextJson = JSON.stringify(mapContextForPrompt, null, 2);
 
   const totalPursuitCount = countMapPursuits(mapContext);
@@ -788,6 +860,7 @@ async function generateReflectResponse(
     dirtyPursuitIds: pursuitIds,
     dirtyThemeIds: themeIds,
     pursuitSignals,
+    pursuitSlotContexts,
     enrichOptions,
     scope,
   });

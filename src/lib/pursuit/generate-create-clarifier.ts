@@ -1,5 +1,5 @@
 import { generateJsonCompletion } from "@/lib/gemini";
-import { CREATE_CLARIFIER_MILESTONE_GROUNDING } from "@/lib/pursuit/clarifier-prompt-blocks";
+import { buildCreateClarifierSystemPrompt } from "@/lib/pursuit/clarifier-prompt-blocks";
 import {
   filterClarifiersAgainstMilestones,
   type MilestoneGroundingInput,
@@ -8,35 +8,6 @@ import {
   clarifierSchema,
   type Clarifier,
 } from "@/lib/pursuit/pursuit-enrich-types";
-
-const CREATE_CLARIFIER_SYSTEM = [
-  "You suggest ONE optional quick question for someone creating a new pursuit on their life map.",
-  "Return ONLY valid JSON: { \"clarifier\": { \"id\": string, \"prompt\": string, \"options\": string[] } | null }.",
-  "",
-  CREATE_CLARIFIER_MILESTONE_GROUNDING,
-  "",
-  "When to return null:",
-  "- Title is already fully specific (amount, deadline, and outcome all clear)",
-  "- No domain-specific detail would meaningfully change how this pursuit should be read",
-  "- Completed milestones already answer every plausible question",
-  "",
-  "When to return a clarifier:",
-  "- Ask about the domain-specific detail that would MOST change how this pursuit should be understood",
-  "- Use world knowledge: credit cards, mortgages, races, qualifications, ISAs, weddings, etc.",
-  "- Title-disambiguation is allowed when the title alone is ambiguous",
-  "- When status is COMPLETE (historical record): ask a retrospective question — what finishing meant, what it unlocked, or why it mattered — NOT what stage the user is on",
-  "",
-  "RULES:",
-  "- Exactly 0 or 1 clarifier",
-  "- 3–4 specific, plausible answer options — not generic Yes/No/Not sure",
-  "- Concrete answers only — not open reflection (\"How do you feel?\")",
-  "- NEVER ask how one pursuit relates to another",
-  "- NEVER ask the user to evaluate their motivation or commitment",
-  "",
-  "RELATIONSHIP QUESTIONS — DO NOT GENERATE:",
-  '- Never ask how one pursuit relates to another ("How does X relate to Y?")',
-  "- Never ask whether pursuits support, compete, or overlap",
-].join("\n");
 
 function stripMarkdownFence(raw: string): string {
   const trimmed = raw.trim();
@@ -122,11 +93,11 @@ export async function suggestCreateClarifier(
         ]
       : []),
     "",
-    'Return JSON: { "clarifier": { "id", "prompt", "options" } | null }',
+    'Return JSON: { "clarifier": { "id", "prompt", "options", "kind"?: "clarify"|"retrospective" } | null }',
   ].join("\n");
 
   const raw = await generateJsonCompletion({
-    system: CREATE_CLARIFIER_SYSTEM,
+    system: buildCreateClarifierSystemPrompt(),
     user,
     maxTokens: 512,
     temperature: 0.4,

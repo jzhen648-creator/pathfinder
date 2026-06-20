@@ -7,8 +7,10 @@ import { InsightGenerationResponseError } from "@/lib/insights/generate-insights
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { normalizePursuitEnrichBatch } from "@/lib/pursuit/normalize-pursuit-enrich";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
+import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import {
   gateEnrichResult,
+  resolveQuickQuestionsQuietUntilAfterGeneration,
   shouldSuggestMilestones,
   pursuitSignalFromGoal,
   type PursuitSignal,
@@ -30,7 +32,7 @@ import {
 } from "@/lib/pursuit/enrich-options";
 import { prisma } from "@/lib/prisma";
 import {
-  CONTEXTUAL_QUICK_QUESTIONS,
+  buildClarifierSystemOutputLines,
 } from "@/lib/pursuit/clarifier-prompt-blocks";
 import { buildClarifierKindPromptSection } from "@/lib/pursuit/clarifier-question-prompt";
 import {
@@ -81,14 +83,7 @@ function buildEnrichSystemPrompt(
   amountImpactEligible: boolean,
 ): string {
   const clarifierRules = options.clarifyTitles
-    ? [
-        "- clarifiers: 0-1 multiple-choice question when the title is ambiguous OR context is thin.",
-        "  Each clarifier: id (short slug), prompt (question), options (3-4 domain-specific labels).",
-        "  Skip clarifiers when theme + category + deadline + description + enrichAnswers already make the pursuit specific (≥ 120 chars context).",
-        '  Example — title "Project manager", Work theme, Job category, empty description:',
-        '  prompt "What kind of project management?" options ["Tech / software","Construction","Marketing / agency","Not sure"]',
-        CONTEXTUAL_QUICK_QUESTIONS,
-      ]
+    ? buildClarifierSystemOutputLines()
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
 
   return [
@@ -180,7 +175,10 @@ async function loadPursuitToneGoals(userId: string, pursuitIds: string[]) {
   return byId;
 }
 
-function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload | null {
+function toCachePayload(
+  result: PursuitEnrichResult,
+  quickQuestionsQuietUntil?: string,
+): PursuitEnrichCachePayload | null {
   const hasClarifiers = result.clarifiers.length > 0;
   const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
   const hasInsight = Boolean(result.insight?.headline?.trim());
@@ -189,12 +187,14 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
 
   const clarifiers = hasClarifiers ? result.clarifiers : undefined;
   const suggestedMilestones = hasMilestones ? result.suggestedMilestones ?? undefined : undefined;
+  const quietField = quickQuestionsQuietUntil ? { quickQuestionsQuietUntil } : {};
 
   if (hasInsight && result.insight) {
     return {
       ...result.insight,
       clarifiers,
       suggestedMilestones,
+      ...quietField,
     };
   }
 
@@ -204,6 +204,7 @@ function toCachePayload(result: PursuitEnrichResult): PursuitEnrichCachePayload 
     body: "Answer a quick question below — then update your AI reading on Insights.",
     clarifiers,
     suggestedMilestones,
+    ...quietField,
   };
 }
 
@@ -215,7 +216,8 @@ async function generateOnePursuitEnrich(
   signal: PursuitSignal,
   enrichOptions: Required<PursuitEnrichOptions>,
   amountImpactEligible: boolean,
-): Promise<PursuitEnrichResult> {
+  previousQuietUntil?: string | null,
+): Promise<{ result: PursuitEnrichResult; quickQuestionsQuietUntil?: string }> {
   const milestonesAllowed = shouldSuggestMilestones(signal);
   const pursuitContext = await formatPursuitContext(userId, pursuitId, {
     includeMarks: enrichOptions.includeMarks,
@@ -223,11 +225,15 @@ async function generateOnePursuitEnrich(
   if (!pursuitContext) {
     throw new InsightGenerationResponseError("Pursuit enrich missing pursuit context.");
   }
+  const enrichAnswers = parseEnrichAnswers(goal.enrichAnswers);
   const existingRelationshipPeerIds = await loadRelationshipPeerIdsForGoal(userId, pursuitId);
   const slotContext: QuestionSlotMessageContext = {
     signal,
     status: goal.status ?? "ACTIVE",
     completedAt: goal.completedAt ?? null,
+    significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+    enrichAnswers,
+    quickQuestionsQuietUntil: previousQuietUntil,
     siblingGoalIds: pursuitContext.siblingPursuits.map((s) => s.id),
     existingRelationshipPeerIds,
     enrichOptions,
@@ -287,12 +293,20 @@ async function generateOnePursuitEnrich(
     ),
   };
 
-  const gated = gateEnrichResult(result, signal, enrichOptions);
+  const gated = gateEnrichResult(result, signal, enrichOptions, {
+    status: goal.status ?? "ACTIVE",
+    quickQuestionsQuietUntil: previousQuietUntil,
+  });
   const slotted = applyQuestionSlotToResult(gated, slotContext);
   if (slotted.insight) {
     slotted.insight.tone = resolvePursuitInsightTone(goal);
   }
-  return slotted;
+  const quickQuestionsQuietUntil = resolveQuickQuestionsQuietUntilAfterGeneration({
+    slot,
+    clarifiers: slotted.clarifiers,
+    previousQuietUntil,
+  });
+  return { result: slotted, quickQuestionsQuietUntil };
 }
 
 /** Serialized per-pursuit enrich — clarifiers, insight, gated milestones. */
@@ -314,11 +328,16 @@ export async function refreshPursuitEnrich(
   const batchIds = uniqueIds.slice(0, MAX_ENRICH_PER_RUN);
   const remainingIds = uniqueIds.slice(MAX_ENRICH_PER_RUN);
 
-  const [userContext, toneGoals, mapContext] = await Promise.all([
+  const [userContext, toneGoals, mapContext, insightCacheRow] = await Promise.all([
     formatUserContext(userId),
     loadPursuitToneGoals(userId, batchIds),
     formatMapContext(userId),
+    prisma.insightCache.findUnique({ where: { userId }, select: { pursuitInsights: true } }),
   ]);
+  const cachedPursuits = parsePursuitInsightRecord(
+    insightCacheRow?.pursuitInsights,
+    "pursuit",
+  );
   const amountImpactEligible = isAmountImpactEligible(mapContext);
 
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
@@ -329,7 +348,8 @@ export async function refreshPursuitEnrich(
     const goal = toneGoals.get(pursuitId);
     if (!goal) continue;
     const signal = pursuitSignalFromGoal(goal);
-    const result = await generateOnePursuitEnrich(
+    const previousQuietUntil = cachedPursuits[pursuitId]?.quickQuestionsQuietUntil;
+    const { result, quickQuestionsQuietUntil } = await generateOnePursuitEnrich(
       userId,
       pursuitId,
       userContext,
@@ -337,9 +357,10 @@ export async function refreshPursuitEnrich(
       signal,
       enrichOptions,
       amountImpactEligible,
+      previousQuietUntil,
     );
     geminiCallsMade += 1;
-    const payload = toCachePayload(result);
+    const payload = toCachePayload(result, quickQuestionsQuietUntil);
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
       writtenIds.push(pursuitId);
