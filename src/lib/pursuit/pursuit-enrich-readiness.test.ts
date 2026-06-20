@@ -203,6 +203,16 @@ describe("buildStorySystemPrompt Phase 0/1 trust and layering", () => {
     expect(prompt).toContain("Do NOT audit milestones");
     expect(prompt).toContain("Ignore gapFacts, milestonePaceFacts");
   });
+
+  it("adds cross-theme weight guidance only in PANORAMIC mode", () => {
+    const panoramic = buildStorySystemPrompt(3);
+    expect(panoramic).toContain("cross-theme weight");
+    expect(panoramic).toContain("mapAggregates.highSignificanceActive");
+
+    const sparse = buildStorySystemPrompt(2);
+    expect(sparse).not.toContain("cross-theme weight");
+    expect(sparse).not.toContain("mapAggregates.highSignificanceActive");
+  });
 });
 
 describe("gateEnrichResult", () => {
