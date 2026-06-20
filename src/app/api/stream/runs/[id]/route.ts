@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { getPursuitStreamRun } from "@/lib/stream-pursuit-apply";
+import { getPursuitStreamRun } from "@/lib/stream-pursuit-capture";
 
 type RouteProps = { params: Promise<{ id: string }> };
 

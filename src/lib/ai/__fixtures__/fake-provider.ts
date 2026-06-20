@@ -64,7 +64,7 @@ function inferFixtureFromPrompt(user: string): FakeProviderFixtureId {
     return fixtureSequence[index] ?? "fullReflect";
   }
   if (overrideFixture) return overrideFixture;
-  if (user.includes('Return ONLY: { "reading": "", "pursuits"')) {
+  if (user.includes('Return ONLY: { "pursuits"')) {
     return "panelsOnly";
   }
   return "fullReflect";
@@ -89,7 +89,6 @@ function fixtureJson(id: FakeProviderFixtureId, user: string): string {
     case "fullReflect": {
       const pursuits = pursuitPanelsFromUser(user);
       return JSON.stringify({
-        reading: "Whole-map reading for the test fixture.",
         themes: {
           work: {
             tone: "encouraging",
@@ -104,7 +103,7 @@ function fixtureJson(id: FakeProviderFixtureId, user: string): string {
     }
     case "panelsOnly": {
       const pursuits = pursuitPanelsFromUser(user);
-      return JSON.stringify({ reading: "", pursuits });
+      return JSON.stringify({ pursuits });
     }
     case "malformed":
       return "{ not valid json";
@@ -113,7 +112,6 @@ function fixtureJson(id: FakeProviderFixtureId, user: string): string {
     default: {
       const pursuits = pursuitPanelsFromUser(user);
       return JSON.stringify({
-        reading: "Whole-map reading for the test fixture.",
         themes: {},
         pursuits,
       });
@@ -148,5 +146,5 @@ export function panelsOnlyFixtureJson(pursuitIds: string[]): string {
       },
     ]),
   );
-  return JSON.stringify({ reading: "", pursuits });
+  return JSON.stringify({ pursuits });
 }

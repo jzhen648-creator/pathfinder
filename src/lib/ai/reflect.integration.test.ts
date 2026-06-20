@@ -27,8 +27,7 @@ const mocks = vi.hoisted(() => ({
   mergeNodeInsightsIntoCache: vi.fn(),
   clearReadingDirtyLedger: vi.fn(),
   prismaGoalFindMany: vi.fn(),
-  prismaStoryFindUnique: vi.fn(),
-  prismaStoryUpsert: vi.fn(),
+  prismaInsightFindUnique: vi.fn(),
   prismaPursuitRelationshipFindMany: vi.fn(),
   prismaAiReadingDirtyItemDeleteMany: vi.fn(),
 }));
@@ -83,9 +82,8 @@ vi.mock("@/lib/prisma", () => ({
     goal: {
       findMany: mocks.prismaGoalFindMany,
     },
-    storyCache: {
-      findUnique: mocks.prismaStoryFindUnique,
-      upsert: mocks.prismaStoryUpsert,
+    insightCache: {
+      findUnique: mocks.prismaInsightFindUnique,
     },
     pursuitRelationship: {
       findMany: mocks.prismaPursuitRelationshipFindMany,
@@ -155,10 +153,7 @@ describe("runReflectSync integration", () => {
     mocks.compileReadingPacket.mockResolvedValue(DENSE_READING_PACKET);
     mocks.mergeNodeInsightsIntoCache.mockResolvedValue(undefined);
     mocks.clearReadingDirtyLedger.mockResolvedValue(undefined);
-    mocks.prismaStoryUpsert.mockResolvedValue(undefined);
-    mocks.prismaStoryFindUnique.mockResolvedValue({
-      payload: JSON.stringify({ schemaVersion: 1, seasonRead: "Previous reading." }),
-    });
+    mocks.prismaInsightFindUnique.mockResolvedValue({ pursuitInsights: "{}" });
     mocks.prismaPursuitRelationshipFindMany.mockResolvedValue([]);
     mocks.prismaAiReadingDirtyItemDeleteMany.mockResolvedValue({ count: 0 });
   });
@@ -182,7 +177,6 @@ describe("runReflectSync integration", () => {
     const metrics = emptyMapAiSyncMetrics();
     const result = await runReflectSync(USER_ID, MAP_VERSION, MEMORY_VERSION, {
       force: true,
-      storyStale: false,
       insightsStale: false,
       metrics,
     });
@@ -210,7 +204,6 @@ describe("runReflectSync integration", () => {
     const metrics = emptyMapAiSyncMetrics();
     const result = await runReflectSync(USER_ID, MAP_VERSION, MEMORY_VERSION, {
       force: true,
-      storyStale: true,
       insightsStale: true,
       metrics,
     });
@@ -237,7 +230,6 @@ describe("runReflectSync integration", () => {
     const metrics = emptyMapAiSyncMetrics();
     const result = await runReflectSync(USER_ID, MAP_VERSION, MEMORY_VERSION, {
       force: true,
-      storyStale: false,
       insightsStale: true,
       metrics,
     });

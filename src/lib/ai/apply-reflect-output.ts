@@ -43,9 +43,6 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
-import { sanitizeStoryGeneration } from "@/lib/story/sanitize-story";
-import { validateSeasonReadAgainstPursuits } from "@/lib/story/validate-season-read";
-import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { prisma } from "@/lib/prisma";
 
 export {
@@ -114,49 +111,16 @@ async function loadThemePursuitSignals(
   return loadPursuitSignalsByTheme(userId, themeIds);
 }
 
-async function upsertStoryCache(
-  userId: string,
-  story: StoryGenerationResult,
-  mapVersion: string,
-  memoryVersion: number,
-): Promise<void> {
-  const payloadJson = JSON.stringify(story);
-  await prisma.storyCache.upsert({
-    where: { userId },
-    create: { userId, payload: payloadJson, mapVersion, memoryVersion },
-    update: { payload: payloadJson, generatedAt: new Date(), mapVersion, memoryVersion },
-  });
-}
-
-/** Write reflect output to StoryCache + InsightCache pursuit entries. */
+/** Write reflect output to InsightCache pursuit + theme entries. */
 export async function applyReflectOutput(
   userId: string,
   reflect: ReflectResponse,
   pursuitIds: string[],
   enrichOptions: PursuitEnrichOptions | undefined,
-  mapVersion: string,
-  memoryVersion: number,
-): Promise<{ insightsWritten: boolean; storyWritten: boolean }> {
+  _mapVersion: string,
+  _memoryVersion: number,
+): Promise<{ insightsWritten: boolean }> {
   const options = resolvePursuitEnrichOptions(enrichOptions);
-  const reading = reflect.reading.trim();
-
-  let storyWritten = false;
-  if (reading) {
-    const story = sanitizeStoryGeneration({
-      schemaVersion: STORY_SCHEMA_VERSION,
-      seasonRead: reading,
-    });
-    const statusRows = await prisma.goal.findMany({
-      where: { userId, goalType: { notIn: ["moment", "event"] } },
-      select: { title: true, status: true },
-    });
-    validateSeasonReadAgainstPursuits(
-      story.seasonRead,
-      statusRows.map((row) => ({ title: row.title, status: row.status })),
-    );
-    await upsertStoryCache(userId, story, mapVersion, memoryVersion);
-    storyWritten = true;
-  }
 
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
   const existingCache = await prisma.insightCache.findUnique({
@@ -288,5 +252,5 @@ export async function applyReflectOutput(
     insightsWritten = true;
   }
 
-  return { insightsWritten, storyWritten };
+  return { insightsWritten };
 }

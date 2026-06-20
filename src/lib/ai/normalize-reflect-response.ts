@@ -1,5 +1,4 @@
 import { normalizePursuitEnrichEntry } from "@/lib/pursuit/normalize-pursuit-enrich";
-import { REFLECT_READING_MAX_CHARS } from "@/lib/ai/reflect-types";
 
 const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
@@ -11,21 +10,10 @@ export function normalizeThemeTone(raw: unknown): (typeof THEME_TONES)[number] {
   return "encouraging";
 }
 
-function truncateReading(value: unknown): string {
-  if (typeof value !== "string") return "";
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  return trimmed.length <= REFLECT_READING_MAX_CHARS
-    ? trimmed
-    : trimmed.slice(0, REFLECT_READING_MAX_CHARS).trimEnd();
-}
-
 /** Coerce Gemini reflect JSON before Zod — reuse pursuit enrich normalizer for panel entries. */
 export function normalizeReflectResponse(json: unknown): unknown {
   if (!json || typeof json !== "object" || Array.isArray(json)) return json;
   const root = { ...(json as Record<string, unknown>) };
-
-  root.reading = truncateReading(root.reading ?? root.seasonRead);
 
   const pursuits = root.pursuits;
   if (pursuits && typeof pursuits === "object" && !Array.isArray(pursuits)) {

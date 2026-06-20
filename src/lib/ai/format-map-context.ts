@@ -13,8 +13,6 @@ export type MapContextFilter = {
   excludePaused?: boolean;
   /** @deprecated Use excludePaused */
   excludeOnHold?: boolean;
-  /** When false, omit theme/hub marks. Omitted or true keeps legacy mark loading. */
-  includeMarks?: boolean;
 };
 
 export type FormattedMapMark = {
@@ -98,29 +96,6 @@ export type FormattedPursuitContext = {
   }>;
   siblingMarks: FormattedMapMark[];
 };
-
-function serializeMarkRow(mark: {
-  id: string;
-  title: string;
-  description: string | null;
-  date: Date | null;
-  sentiment: string;
-  future?: boolean;
-}): FormattedMapMark {
-  const row: FormattedMapMark = {
-    id: mark.id,
-    title: mark.title,
-    description: mark.description?.trim() ?? "",
-    sentiment: mark.sentiment,
-  };
-  if (mark.date) {
-    row.date = mark.date.toISOString().slice(0, 10);
-  }
-  if (mark.future) {
-    row.future = true;
-  }
-  return row;
-}
 
 export function serializeEnrichAnswersForMapContext(
   raw: unknown,
@@ -220,7 +195,6 @@ export async function formatMapContext(
   userId: string,
   filter: MapContextFilter = {},
 ): Promise<FormattedMapContext> {
-  const includeMarks = filter.includeMarks !== false;
   const branches = canonicalRootHubRows(
     await prisma.themeCategory.findMany({
       where: {
@@ -247,23 +221,6 @@ export async function formatMapContext(
           select: goalSelect,
           orderBy: { createdAt: "asc" },
         },
-        ...(includeMarks
-          ? {
-              marks: {
-                where: { archived: false },
-                select: {
-                  id: true,
-                  title: true,
-                  description: true,
-                  date: true,
-                  sentiment: true,
-                  future: true,
-                  sequencePosition: true,
-                },
-                orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
-              },
-            }
-          : {}),
       },
       orderBy: [{ themeId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
     }),
@@ -281,14 +238,6 @@ export async function formatMapContext(
         hubs: [],
       };
 
-    const branchMarks = includeMarks ? (branch.marks ?? []) : [];
-    const seenMarkIds = new Set(theme.marks.map((mark) => mark.id));
-    for (const mark of branchMarks) {
-      if (seenMarkIds.has(mark.id)) continue;
-      seenMarkIds.add(mark.id);
-      theme.marks.push(serializeMarkRow(mark));
-    }
-
     const hubRawLabel = branch.label ?? branch.name ?? branch.id;
     const section = canonicalCategoryDisplayLabel(branch.themeId, hubRawLabel);
     const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
@@ -297,7 +246,7 @@ export async function formatMapContext(
       id: branch.id,
       label: hubRawLabel,
       section,
-      marks: branchMarks.map((mark) => serializeMarkRow(mark)),
+      marks: [],
       pursuits: branch.goals.map((goal) => buildPursuitRow(goal, pursuitTitleById)),
     });
 
@@ -330,7 +279,6 @@ export async function formatMapContext(
 export async function formatPursuitContext(
   userId: string,
   pursuitId: string,
-  options?: { includeMarks?: boolean },
 ): Promise<FormattedPursuitContext | null> {
   const goal = await prisma.goal.findFirst({
     where: {
@@ -371,31 +319,6 @@ export async function formatPursuitContext(
     take: 12,
   });
 
-  const includeMarks = options?.includeMarks === true;
-
-  const hubMarks = includeMarks
-    ? await prisma.mark.findMany({
-        where: { userId, categoryId: goal.categoryId, archived: false },
-        select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
-        orderBy: [{ sequencePosition: "asc" }, { date: "asc" }],
-        take: 20,
-      })
-    : [];
-
-  const themeMarks = includeMarks
-    ? await prisma.mark.findMany({
-        where: { userId, themeId: themeId, archived: false },
-        select: { id: true, title: true, description: true, date: true, sentiment: true, future: true },
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-        take: 15,
-      })
-    : [];
-
-  const markById = new Map<string, FormattedMapMark>();
-  for (const mark of [...hubMarks, ...themeMarks]) {
-    markById.set(mark.id, serializeMarkRow(mark));
-  }
-
   const pursuitTitleById = new Map([[goal.id, goal.title]]);
 
   return {
@@ -415,6 +338,6 @@ export async function formatPursuitContext(
         sibling.themeCategory?.label ?? sibling.themeCategory?.name ?? "",
       ),
     })),
-    siblingMarks: [...markById.values()],
+    siblingMarks: [],
   };
 }

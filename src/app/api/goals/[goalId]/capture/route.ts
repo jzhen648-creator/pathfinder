@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { savePendingPursuitCapture } from "@/lib/stream-pursuit-apply";
+import { savePendingPursuitCapture } from "@/lib/stream-pursuit-capture";
 
 type RouteProps = { params: Promise<{ goalId: string }> };
 

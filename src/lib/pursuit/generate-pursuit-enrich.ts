@@ -196,9 +196,7 @@ async function generateOnePursuitEnrich(
 ): Promise<{ result: PursuitEnrichResult; quickQuestionsQuietUntil?: string }> {
   const previousQuietUntil = cachedEntry?.quickQuestionsQuietUntil;
   const milestonesAllowed = shouldSuggestMilestones(signal);
-  const pursuitContext = await formatPursuitContext(userId, pursuitId, {
-    includeMarks: enrichOptions.includeMarks,
-  });
+  const pursuitContext = await formatPursuitContext(userId, pursuitId);
   if (!pursuitContext) {
     throw new InsightGenerationResponseError("Pursuit enrich missing pursuit context.");
   }

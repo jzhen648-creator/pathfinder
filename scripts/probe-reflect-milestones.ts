@@ -55,7 +55,6 @@ async function main() {
     probeIds,
     [],
     DEFAULT_PURSUIT_ENRICH_OPTIONS,
-    "",
     metrics,
     { scope: scopeArg as "full" | "pursuits-only" },
   );

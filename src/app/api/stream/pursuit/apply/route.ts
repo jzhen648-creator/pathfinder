@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
-import { savePendingPursuitCapture } from "@/lib/stream-pursuit-apply";
+import { savePendingPursuitCapture } from "@/lib/stream-pursuit-capture";
 import { streamPursuitApplyRequestSchema } from "@/types/stream";
 
 export async function POST(request: Request) {

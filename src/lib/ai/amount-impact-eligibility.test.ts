@@ -91,19 +91,18 @@ describe("amount impact prompt wiring", () => {
     expect(buildReflectPursuitsOnlySystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, true)).toContain(
       AMOUNT_IMPACT_PROSE_MARKER,
     );
-    expect(buildReflectSystemPrompt(5, DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", true)).toContain(
+    expect(buildReflectSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", true)).toContain(
       AMOUNT_IMPACT_PROSE_MARKER,
     );
     expect(buildStorySystemPrompt(5, true)).toContain(AMOUNT_IMPACT_PROSE_MARKER);
   });
 
-  it("adds reading rules to reflect whole-map section only when eligible", () => {
-    const prompt = buildReflectSystemPrompt(5, DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", true);
-    const wholeMapSection = prompt.split("WHOLE-MAP READING:")[1]?.split("OUTPUT:")[0] ?? "";
+  it("adds amount-impact rules to reflect pursuit-body section when eligible", () => {
+    const prompt = buildReflectSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", true);
 
-    expect(wholeMapSection).toContain(AMOUNT_IMPACT_PROSE_MARKER);
-    expect(buildReflectPursuitsOnlySystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, true)).not.toContain(
-      "whole-map reading / seasonRead",
+    expect(prompt).toContain(AMOUNT_IMPACT_PROSE_MARKER);
+    expect(buildReflectPursuitsOnlySystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, true)).toContain(
+      AMOUNT_IMPACT_PROSE_MARKER,
     );
   });
 });

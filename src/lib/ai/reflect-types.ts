@@ -3,8 +3,6 @@ import { clarifierSchema, suggestedMilestoneSchema } from "@/lib/pursuit/pursuit
 import { insightToneSchema } from "@/lib/insights/insight-types";
 import { normalizeLegacyPursuitTone } from "@/lib/insights/resolve-pursuit-insight-tone";
 
-export const REFLECT_READING_MAX_CHARS = 900;
-
 export const reflectPursuitEntrySchema = z.object({
   tone: z
     .unknown()
@@ -29,7 +27,6 @@ export const reflectThemeEntrySchema = z.object({
 });
 
 export const reflectResponseSchema = z.object({
-  reading: z.string().max(REFLECT_READING_MAX_CHARS),
   themes: z.record(z.string(), reflectThemeEntrySchema).optional().default({}),
   pursuits: z.record(z.string(), reflectPursuitEntrySchema),
 });

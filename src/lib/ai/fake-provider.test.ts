@@ -33,10 +33,9 @@ describe("AI_FAKE_PROVIDER seam", () => {
   it("returns deterministic JSON without calling OpenAI", async () => {
     const json = await generateJsonCompletion({
       system: "test",
-      user: '<dirty_pursuits>\n["p-cemap"]\n</dirty_pursuits>\nReturn ONLY: { "reading": "", "pursuits": { ... } }',
+      user: '<dirty_pursuits>\n["p-cemap"]\n</dirty_pursuits>\nReturn ONLY: { "pursuits": { ... } }',
     });
 
-    expect(JSON.parse(json).reading).toBe("");
     expect(JSON.parse(json).pursuits["p-cemap"]).toBeDefined();
     expect(getFakeProviderCallCount()).toBe(1);
   });

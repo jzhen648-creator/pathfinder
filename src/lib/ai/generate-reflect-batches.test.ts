@@ -57,16 +57,15 @@ function emptyMapContext(): FormattedMapContext {
   return { themes: [] };
 }
 
-function batchOptions(needsReadingRefresh: boolean) {
+function batchOptions() {
   return {
-    needsReadingRefresh,
     mapContext: emptyMapContext(),
     amountImpactEligible: false,
     holisticBenchmarkEligible: false,
   };
 }
 
-function mockReflectForBatch(batch: string[], includeReading: boolean): ReflectResponse {
+function mockReflectForBatch(batch: string[], includeThemes: boolean): ReflectResponse {
   const pursuits = Object.fromEntries(
     batch.map((id) => [
       id,
@@ -78,22 +77,30 @@ function mockReflectForBatch(batch: string[], includeReading: boolean): ReflectR
     ]),
   );
   return {
-    reading: includeReading ? "Whole-map reading prose." : "",
     pursuits,
-    themes: {},
+    themes: includeThemes
+      ? {
+          work: {
+            tone: "encouraging" as const,
+            oneLiner: "Work theme",
+            reflective: "Cross-pursuit dynamics.",
+            contextual: "",
+            combined: "",
+          },
+        }
+      : {},
   };
 }
 
 describe("runReflectBatchesIncremental", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(applyReflectOutput).mockImplementation(async (_userId, reflect) => ({
+    vi.mocked(applyReflectOutput).mockImplementation(async () => ({
       insightsWritten: true,
-      storyWritten: Boolean(reflect.reading.trim()),
     }));
     vi.mocked(clearReadingDirtyForPursuits).mockResolvedValue(undefined);
     vi.mocked(clearReadingDirtyLedger).mockResolvedValue(undefined);
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) =>
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) =>
       mockReflectForBatch(batch, options?.scope === "full"),
     );
   });
@@ -105,7 +112,7 @@ describe("runReflectBatchesIncremental", () => {
   it("stops at MAX_REFLECT_CALLS_PER_SYNC on a large dirty set", async () => {
     const ids = pursuitIds(33);
     let callCount = 0;
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) => {
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
       callCount += 1;
       return mockReflectForBatch(batch, options?.scope === "full");
     });
@@ -116,11 +123,10 @@ describe("runReflectBatchesIncremental", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: ["work"], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(true),
+      batchOptions(),
     );
 
     expect(callCount).toBe(MAX_REFLECT_CALLS_PER_SYNC);
@@ -131,7 +137,7 @@ describe("runReflectBatchesIncremental", () => {
     expect(metrics.pendingInsightCount).toBe(1);
     expect(clearReadingDirtyForPursuits).toHaveBeenCalledWith(USER_ID, ids.slice(0, 32));
     expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
-    expect(result.storyRefreshed).toBe(true);
+    expect(result.insightsRefreshed).toBe(true);
   });
 
   it("keeps aiCallsPlanned aligned with completed calls when capped", async () => {
@@ -142,11 +148,10 @@ describe("runReflectBatchesIncremental", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(true),
+      batchOptions(),
     );
 
     expect(metrics.aiCallsPlanned).toBe(metrics.aiCallsCompleted);
@@ -162,11 +167,10 @@ describe("runReflectBatchesIncremental", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(false),
+      batchOptions(),
     );
 
     expect(clearReadingDirtyForPursuits).toHaveBeenCalledWith(USER_ID, ids.slice(0, 32));
@@ -174,10 +178,10 @@ describe("runReflectBatchesIncremental", () => {
     expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
   });
 
-  it("uses full scope for batch 0 when needsReadingRefresh", async () => {
+  it("uses full scope for batch 0 when themeIds are present", async () => {
     const ids = pursuitIds(3);
     const scopes: Array<string | undefined> = [];
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) => {
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
       scopes.push(options?.scope);
       return mockReflectForBatch(batch, options?.scope === "full");
     });
@@ -188,22 +192,21 @@ describe("runReflectBatchesIncremental", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: ["work"], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(true),
+      batchOptions(),
     );
 
     expect(scopes).toEqual(["full"]);
-    expect(result.storyRefreshed).toBe(true);
+    expect(result.insightsRefreshed).toBe(true);
     expect(clearReadingDirtyLedger).toHaveBeenCalledWith(USER_ID);
   });
 
   it("clears completed pursuits when a later batch errors", async () => {
     const ids = pursuitIds(10);
     let callIndex = 0;
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) => {
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
       callIndex += 1;
       if (callIndex === 2) {
         throw new ReflectGenerationResponseError("Reflect call missing pursuit panel.");
@@ -217,11 +220,10 @@ describe("runReflectBatchesIncremental", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(false),
+      batchOptions(),
     );
 
     expect(result.geminiCallsMade).toBe(1);
@@ -235,9 +237,8 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-    vi.mocked(applyReflectOutput).mockImplementation(async (_userId, reflect) => ({
+    vi.mocked(applyReflectOutput).mockImplementation(async () => ({
       insightsWritten: true,
-      storyWritten: Boolean(reflect.reading.trim()),
     }));
     vi.mocked(clearReadingDirtyForPursuits).mockResolvedValue(undefined);
     vi.mocked(clearReadingDirtyLedger).mockResolvedValue(undefined);
@@ -263,7 +264,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
   it("retries once when a batch 503s then succeeds on the retry", async () => {
     let callCount = 0;
     const ids = pursuitIds(3);
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) => {
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
       callCount += 1;
       if (callCount === 1) throw transient503();
       return mockReflectForBatch(batch, options?.scope === "full");
@@ -275,11 +276,10 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: ["work"], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(true),
+      batchOptions(),
     );
     await vi.advanceTimersByTimeAsync(1_500);
     const result = await resultPromise;
@@ -294,7 +294,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
   it("caps at one retry per sync when two batches hit transient 503", async () => {
     let callCount = 0;
     const ids = pursuitIds(10);
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) => {
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
       callCount += 1;
       if (callCount === 1) throw transient503();
       if (callCount === 2) return mockReflectForBatch(batch, options?.scope === "full");
@@ -307,11 +307,10 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(false),
+      batchOptions(),
     );
     await vi.advanceTimersByTimeAsync(1_500);
     const result = await resultPromise;
@@ -340,11 +339,10 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(false),
+      batchOptions(),
     );
 
     expect(callCount).toBe(1);
@@ -368,11 +366,10 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(false),
+      batchOptions(),
     );
     await vi.advanceTimersByTimeAsync(1_500);
     const result = await resultPromise;
@@ -388,7 +385,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
   it("increments aiCallsCompleted once after a successful transient retry", async () => {
     let callCount = 0;
     const ids = pursuitIds(3);
-    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _prev, _metrics, options) => {
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
       callCount += 1;
       if (callCount === 1) throw transient503();
       return mockReflectForBatch(batch, options?.scope === "full");
@@ -400,11 +397,10 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
       emptyDirty(),
       { pursuitIds: ids, themeIds: [], mode: "dirty" },
       DEFAULT_PURSUIT_ENRICH_OPTIONS,
-      "",
       MAP_VERSION,
       MEMORY_VERSION,
       metrics,
-      batchOptions(true),
+      batchOptions(),
     );
     await vi.advanceTimersByTimeAsync(1_500);
     await resultPromise;

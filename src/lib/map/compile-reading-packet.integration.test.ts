@@ -53,7 +53,7 @@ describe("compileReadingPacket map context", () => {
 
     await compileReadingPacket("user-1", dirty);
 
-    expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1", { includeMarks: true });
+    expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1");
   });
 
   it("includes confirmedRelationships from map_context in the reading packet", async () => {

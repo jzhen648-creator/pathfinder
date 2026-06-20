@@ -317,7 +317,6 @@ export const DENSE_USER_CONTEXT = "Name: Alex Carter\nAge: 34\nLocation: London,
 
 /** Build a valid reflect response covering every dirty pursuit ID. */
 export function buildDenseReflectResponse(dirtyIds: string[]): {
-  reading: string;
   themes: Record<
     string,
     {
@@ -365,10 +364,6 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
   }
 
   return {
-    reading:
-      "CeMAP qualification and Product Lead search sit in Work & Career with near deadlines. " +
-      "£500,000 ISA and Clear £10,000 credit card debt carry weight in Money & Finance. " +
-      "Plan wedding is active in People & Relationships. What is the smallest next action on CeMAP qualification?",
     themes: {
       work: {
         tone: "encouraging",
@@ -405,7 +400,6 @@ export const REFLECT_OUTPUT_CHAR_SAFE_LIMIT = Math.floor(
  * Used to measure whether a dense dirty run approaches the reflect truncation ceiling.
  */
 export function buildMaxLoadedDenseReflectResponse(dirtyIds: string[]): {
-  reading: string;
   pursuits: Record<
     string,
     {
@@ -446,7 +440,6 @@ export function buildMaxLoadedDenseReflectResponse(dirtyIds: string[]): {
   }
 
   return {
-    reading: "R".repeat(900),
     pursuits,
   };
 }

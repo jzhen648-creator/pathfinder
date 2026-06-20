@@ -41,19 +41,12 @@ describe("people theme prompt wiring", () => {
     expect(buildReflectPursuitsOnlySystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, false)).toContain(
       CLAUSE_MARKER,
     );
-    expect(buildReflectSystemPrompt(5, DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", false)).toContain(
+    expect(buildReflectSystemPrompt(DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", false)).toContain(
       CLAUSE_MARKER,
     );
   });
 
   it("does not add people rules to whole-map story prompt", () => {
     expect(buildStorySystemPrompt(5)).not.toContain(CLAUSE_MARKER);
-  });
-
-  it("keeps people rules out of reflect whole-map reading section", () => {
-    const prompt = buildReflectSystemPrompt(5, DEFAULT_PURSUIT_ENRICH_OPTIONS, "full", false);
-    const wholeMapSection = prompt.split("WHOLE-MAP READING:")[1]?.split("OUTPUT:")[0] ?? "";
-
-    expect(wholeMapSection).not.toContain(CLAUSE_MARKER);
   });
 });

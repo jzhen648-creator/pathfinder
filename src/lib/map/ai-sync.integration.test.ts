@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runMapAiSync } from "@/lib/map/ai-sync";
 import { MAX_GEMINI_CALLS_PER_SYNC } from "@/lib/map/sync-gemini-budget";
-import { STORY_SCHEMA_VERSION } from "@/lib/story/story-types";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 
 const USER_ID = "test-user";
@@ -10,8 +9,6 @@ const MAP_VERSION = "map-v1";
 const MEMORY_VERSION = 1;
 
 const mocks = vi.hoisted(() => ({
-  countPendingCaptures: vi.fn(),
-  digestPendingCapturesBounded: vi.fn(),
   refreshReadingCachesSmart: vi.fn(),
   runReflectSync: vi.fn(),
   isReflectCallEnabled: vi.fn(),
@@ -25,13 +22,7 @@ const mocks = vi.hoisted(() => ({
   markGlobalReadingDirty: vi.fn(),
   prismaUserFindUnique: vi.fn(),
   prismaInsightFindUnique: vi.fn(),
-  prismaStoryFindUnique: vi.fn(),
   prismaAiReadingDirtyFindMany: vi.fn(),
-}));
-
-vi.mock("@/lib/stream-pursuit-apply", () => ({
-  countPendingCaptures: mocks.countPendingCaptures,
-  digestPendingCapturesBounded: mocks.digestPendingCapturesBounded,
 }));
 
 vi.mock("@/lib/map/incremental-reading-refresh", () => ({
@@ -82,22 +73,11 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mocks.prismaInsightFindUnique,
       update: vi.fn(),
     },
-    storyCache: {
-      findUnique: mocks.prismaStoryFindUnique,
-      update: vi.fn(),
-    },
     aiReadingDirtyItem: {
       findMany: mocks.prismaAiReadingDirtyFindMany,
     },
   },
 }));
-
-function freshStoryPayload() {
-  return JSON.stringify({
-    schemaVersion: STORY_SCHEMA_VERSION,
-    seasonRead: "Product Lead search is active.",
-  });
-}
 
 function baseDirtySummary(overrides?: Partial<{
   pursuitIds: string[];
@@ -126,13 +106,7 @@ function setupFreshCaches() {
     pursuitInsights: "{}",
     generatedAt: new Date(),
   });
-    mocks.prismaStoryFindUnique.mockResolvedValue({
-      mapVersion: MAP_VERSION,
-      memoryVersion: MEMORY_VERSION,
-      payload: freshStoryPayload(),
-      generatedAt: new Date(),
-    });
-    mocks.prismaAiReadingDirtyFindMany.mockResolvedValue([]);
+  mocks.prismaAiReadingDirtyFindMany.mockResolvedValue([]);
   mocks.checkReadingDeliveryGate.mockResolvedValue({
     allowed: true,
     retryAfterMs: 0,
@@ -148,17 +122,7 @@ describe("runMapAiSync integration", () => {
     vi.clearAllMocks();
     setupFreshCaches();
     mocks.isReflectCallEnabled.mockReturnValue(false);
-    mocks.countPendingCaptures.mockResolvedValue(0);
     mocks.listReadingDirtySummary.mockResolvedValue(baseDirtySummary());
-    mocks.digestPendingCapturesBounded.mockResolvedValue({
-      processed: 0,
-      failed: 0,
-      errors: [],
-      rateLimited: false,
-      remaining: 0,
-      memoryTextsDeferred: 0,
-      geminiCallsMade: 0,
-    });
     mocks.refreshReadingCachesSmart.mockResolvedValue({
       insightsRefreshed: false,
       storyRefreshed: false,
@@ -179,15 +143,13 @@ describe("runMapAiSync integration", () => {
         options.metrics.reflectCall = true;
         return {
           insightsRefreshed: false,
-          storyRefreshed: false,
           geminiRateLimited: false,
         };
       },
     );
   });
 
-  it("skips digest on enrich-only Finish tap when caches are fresh", async () => {
-    mocks.countPendingCaptures.mockResolvedValue(2);
+  it("runs legacy refresh on force when dirty ledger has pursuits", async () => {
     mocks.listReadingDirtySummary.mockResolvedValue(
       baseDirtySummary({ pursuitIds: ["p1"], totalItems: 1 }),
     );
@@ -222,104 +184,50 @@ describe("runMapAiSync integration", () => {
 
     const result = await runMapAiSync(USER_ID, { force: true });
 
-    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
     expect(mocks.refreshReadingCachesSmart).toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBeLessThanOrEqual(MAX_GEMINI_CALLS_PER_SYNC);
-    expect(result.metrics.digestRunsRemaining).toBe(2);
-  });
-
-  it("caps digest Gemini calls at remaining unified budget", async () => {
-    mocks.countPendingCaptures.mockResolvedValue(3);
-    mocks.listReadingDirtySummary.mockResolvedValue(
-      baseDirtySummary({ pursuitIds: ["p1"], totalItems: 2 }),
-    );
-    mocks.digestPendingCapturesBounded.mockResolvedValue({
-      processed: 2,
-      failed: 0,
-      errors: [],
-      rateLimited: false,
-      remaining: 1,
-      memoryTextsDeferred: 2,
-      geminiCallsMade: 2,
-    });
-    mocks.refreshReadingCachesSmart.mockResolvedValue({
-      insightsRefreshed: false,
-      storyRefreshed: true,
-      insightsPruned: false,
-      fullRefresh: false,
-      incrementalRefresh: true,
-      backfillCalls: 0,
-      geminiRateLimited: false,
-    });
-    mocks.prismaStoryFindUnique
-      .mockResolvedValueOnce({
-        mapVersion: "stale",
-        memoryVersion: MEMORY_VERSION,
-        payload: freshStoryPayload(),
-        generatedAt: new Date(),
-      })
-      .mockResolvedValueOnce({
-        mapVersion: MAP_VERSION,
-        memoryVersion: MEMORY_VERSION,
-        payload: freshStoryPayload(),
-        generatedAt: new Date(),
-      });
-
-    const result = await runMapAiSync(USER_ID, { force: true });
-
-    expect(mocks.digestPendingCapturesBounded).toHaveBeenCalledWith(USER_ID, {
-      maxGeminiCalls: MAX_GEMINI_CALLS_PER_SYNC,
-    });
-    expect(result.metrics.aiCallsCompleted).toBeLessThanOrEqual(MAX_GEMINI_CALLS_PER_SYNC);
-    expect(result.metrics.digestRunsProcessed).toBe(2);
+    expect(result.story).toEqual({ refreshed: false, skipped: true });
   });
 
   it("uses reflect path with one Gemini call when USE_REFLECT_CALL is on", async () => {
     mocks.isReflectCallEnabled.mockReturnValue(true);
-    mocks.countPendingCaptures.mockResolvedValue(2);
     mocks.listReadingDirtySummary.mockResolvedValue(
       baseDirtySummary({ pursuitIds: ["p1", "p2"], totalItems: 2 }),
     );
 
     const result = await runMapAiSync(USER_ID, { force: true });
 
-    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
     expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
     expect(mocks.runReflectSync).toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(1);
     expect(result.metrics.reflectCall).toBe(true);
-    expect(result.metrics.digestRunsRemaining).toBe(0);
+    expect(result.story).toEqual({ refreshed: false, skipped: true });
   });
 
-  it("reflect on with zero pending StreamRuns skips digest", async () => {
+  it("reflect mode runs sync for dirty pursuits", async () => {
     mocks.isReflectCallEnabled.mockReturnValue(true);
-    mocks.countPendingCaptures.mockResolvedValue(0);
     mocks.listReadingDirtySummary.mockResolvedValue(
       baseDirtySummary({ pursuitIds: ["p1"], totalItems: 1 }),
     );
 
     const result = await runMapAiSync(USER_ID, { force: true });
 
-    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
     expect(mocks.runReflectSync).toHaveBeenCalled();
-    expect(result.metrics.digestRunsRemaining).toBe(0);
+    expect(result.digested).toEqual({ runs: 0, failed: 0, errors: [] });
   });
 
-  it("legacy path with zero pending StreamRuns never runs digest", async () => {
+  it("legacy path with fresh caches and empty dirty ledger skips work", async () => {
     mocks.isReflectCallEnabled.mockReturnValue(false);
-    mocks.countPendingCaptures.mockResolvedValue(0);
 
-    const result = await runMapAiSync(USER_ID, { force: true });
+    const result = await runMapAiSync(USER_ID, { force: false });
 
-    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
-    expect(result.metrics.digestRunsProcessed).toBe(0);
-    expect(result.metrics.digestRunsRemaining).toBe(0);
+    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
+    expect(result.metrics.aiCallsCompleted).toBe(0);
   });
 
   it("makes zero Gemini calls on rapid create with fresh caches and empty dirty ledger", async () => {
     const result = await runMapAiSync(USER_ID);
 
-    expect(mocks.digestPendingCapturesBounded).not.toHaveBeenCalled();
     expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
     expect(mocks.runReflectSync).not.toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(0);
@@ -339,7 +247,6 @@ describe("runMapAiSync integration", () => {
     mocks.runReflectSync.mockResolvedValue({
       skipped: true,
       insightsRefreshed: false,
-      storyRefreshed: false,
       geminiCallsMade: 0,
       geminiRateLimited: false,
     });
@@ -351,18 +258,11 @@ describe("runMapAiSync integration", () => {
     expect(result.skipped).toBe(true);
   });
 
-  it("single Update tap invokes reflect once for dirty + stale story", async () => {
+  it("single Update tap invokes reflect once for dirty pursuits", async () => {
     mocks.isReflectCallEnabled.mockReturnValue(true);
-    mocks.countPendingCaptures.mockResolvedValue(0);
     mocks.listReadingDirtySummary.mockResolvedValue(
       baseDirtySummary({ pursuitIds: ["p1", "p2"], totalItems: 2 }),
     );
-    mocks.prismaStoryFindUnique.mockResolvedValue({
-      mapVersion: "stale",
-      memoryVersion: MEMORY_VERSION,
-      payload: freshStoryPayload(),
-      generatedAt: new Date(),
-    });
 
     await runMapAiSync(USER_ID, { force: true });
 

@@ -35,7 +35,6 @@ async function main() {
 
   const result = await runReflectSync(user.id, mapVersion, memoryVersion, {
     force: true,
-    storyStale: true,
     insightsStale: true,
     metrics,
     enrichOptions: DEFAULT_PURSUIT_ENRICH_OPTIONS,

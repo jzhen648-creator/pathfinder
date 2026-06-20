@@ -1,6 +1,6 @@
 import type { PrismaClient, StreamInputMode } from "@prisma/client";
 
-import { formatPreviousStreamSessionDumps } from "@/lib/ai/stream-extract";
+import { formatPreviousStreamSessionDumps } from "@/lib/ai/stream-session-format";
 
 import { categoryPanelCopy, parseCategoryRedirectTarget } from "@/lib/category-catalog";
 

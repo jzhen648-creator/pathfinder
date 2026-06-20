@@ -1,7 +1,6 @@
 import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
 import {
   amountImpactBodyPromptLines,
-  amountImpactReadingPromptLines,
   isAmountImpactEligible,
 } from "@/lib/ai/amount-impact-eligibility";
 import { PEOPLE_THEME_BODY_CLAUSE } from "@/lib/ai/people-theme-prompt";
@@ -23,11 +22,8 @@ import {
   clearReadingDirtyLedger,
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
-import { buildStorySystemPrompt, countMapPursuits } from "@/lib/story/generate-story";
 import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
-import { isCurrentStoryPayload } from "@/lib/story/parse-story-cache";
-import { STORY_SCHEMA_VERSION, type StoryGenerationResult } from "@/lib/story/story-types";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { planReflectWork } from "@/lib/ai/reflect-sync-plan";
 import {
@@ -67,7 +63,6 @@ export class ReflectGenerationResponseError extends Error {
 
 export type ReflectSyncResult = {
   insightsRefreshed: boolean;
-  storyRefreshed: boolean;
   geminiCallsMade: number;
   geminiRateLimited: boolean;
   skipped?: boolean;
@@ -191,7 +186,6 @@ function buildReflectPursuitsOnlySystemPrompt(
     VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     "OUTPUT:",
-    '- "reading": always return an empty string "".',
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
@@ -202,11 +196,9 @@ function buildReflectPursuitsOnlySystemPrompt(
 }
 
 function buildReflectSystemPrompt(
-  totalPursuitCount: number,
   options: Required<PursuitEnrichOptions>,
   scope: ReflectScope = "full",
   amountImpactEligible = false,
-  holisticBenchmarkEligible = false,
 ): string {
   if (scope === "pursuits-only") {
     return buildReflectPursuitsOnlySystemPrompt(options, amountImpactEligible);
@@ -216,7 +208,7 @@ function buildReflectSystemPrompt(
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
 
   return [
-    "You are Pathfinder's reflection engine. Return a single JSON object with a whole-map reading and per-pursuit insights.",
+    "You are Pathfinder's reflection engine. Return a single JSON object with per-theme synthesis and per-pursuit insight panels.",
     "Return ONLY valid JSON — no preamble, no markdown fences.",
     "",
     "RULES:",
@@ -228,24 +220,18 @@ function buildReflectSystemPrompt(
     PURSUIT_PANEL_CONTEXT_PRECEDENCE,
     HEADLINE_MUST_ADD_MEANING,
     "- Never generic headlines like \"[title] is progressing well\" or \"Your ISA is progressing well\" — state the specific fact.",
-    "- The whole-map reading may include at most one concrete suggestion total (see story prompt) — that limit does NOT apply to suggestedMilestones arrays on pursuit panels.",
     "- Be honest about gaps and sparse maps.",
     "",
     ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
     "",
-    "VOICE ANTI-PATTERNS (reading + pursuit headline/body/fromMap/comparison):",
+    "VOICE ANTI-PATTERNS (pursuit headline/body/fromMap/comparison):",
     "- Do not open any text with the user's name (\"Alex, ...\").",
     "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
     "- Do not use \"significant\" as filler — name what is actually notable.",
     "- Do not write \"You have been making progress\" — say what the progress is.",
-    "- Do not narrate Reading structure (\"First...\", \"In summary...\", \"In your Work theme...\").",
-    '- Wrong: "Your map shows a significant financial arrival." Right: "Clearing the credit card debt ahead of schedule frees capacity before other spend ramps up."',
     VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
-    ...amountImpactReadingPromptLines(amountImpactEligible),
-    "",
     "OUTPUT:",
-    '- "reading": whole-map reflective prose per WHOLE-MAP READING rules in the story prompt below.',
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
@@ -268,8 +254,6 @@ function buildReflectSystemPrompt(
     "  combined: optional forward-looking unlock for the theme (<= 500 chars); empty string if none.",
     "  Do not repeat pursuit-panel execution copy in theme insights — pursuit sheets own per-pursuit velocity; theme insights do not replace suggestedMilestones on pursuit panels.",
     "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
-    "",
-    buildStorySystemPrompt(totalPursuitCount, amountImpactEligible, holisticBenchmarkEligible),
   ].join("\n");
 }
 
@@ -391,7 +375,6 @@ function buildReflectUserMessage(input: {
   userContext: string;
   readingPacketJson: string;
   mapContextJson: string;
-  previousReading: string;
   dirtyPursuitIds: string[];
   dirtyThemeIds: string[];
   pursuitSignals: Map<string, PursuitSignal>;
@@ -431,11 +414,6 @@ function buildReflectUserMessage(input: {
   if (scope === "full") {
     lines.push(
       "",
-      "<previous_reading>",
-      input.previousReading || "None — this is the first reading.",
-      "</previous_reading>",
-      "If the previous reading claims any pursuit is complete but the current map shows that pursuit's status as ACTIVE, PAUSED, or MAINTAINING, remove that claim. The current map status is the only source of truth for completion.",
-      "",
       "<dirty_themes>",
       JSON.stringify(input.dirtyThemeIds),
       "</dirty_themes>",
@@ -452,7 +430,6 @@ function buildReflectUserMessage(input: {
     ...quickQuestionSlots,
     "<options>",
     `clarifyTitles: ${input.enrichOptions.clarifyTitles}`,
-    `includeMarks: ${input.enrichOptions.includeMarks}`,
     "</options>",
     "",
     "Only include pursuit entries for the dirty pursuit IDs listed above.",
@@ -461,12 +438,11 @@ function buildReflectUserMessage(input: {
   if (scope === "full") {
     lines.push(
       "Only include theme entries for the dirty theme IDs listed above.",
-      'Always include "reading" — it reflects the whole map.',
-      'Respond with ONLY a JSON object: { "reading": "...", "themes": { ... }, "pursuits": { ... } }',
+      'Respond with ONLY a JSON object: { "themes": { ... }, "pursuits": { ... } }',
     );
   } else {
     lines.push(
-      'Return ONLY: { "reading": "", "pursuits": { ... } } — one entry per dirty pursuit ID.',
+      'Return ONLY: { "pursuits": { ... } } — one entry per dirty pursuit ID.',
     );
   }
 
@@ -545,7 +521,6 @@ async function finishReflectPartialSync(
   metrics: MapAiSyncMetrics,
   result: {
     insightsRefreshed: boolean;
-    storyRefreshed: boolean;
     callsMade: number;
     geminiRateLimited?: boolean;
   },
@@ -558,28 +533,18 @@ async function finishReflectPartialSync(
   }
   return {
     insightsRefreshed: result.insightsRefreshed,
-    storyRefreshed: result.storyRefreshed,
     geminiCallsMade: result.callsMade,
     geminiRateLimited: result.geminiRateLimited ?? false,
   };
 }
 
-function validateReflectBatch(
-  batchPursuitIds: string[],
-  reflect: ReflectResponse,
-  options: { requireReading?: boolean },
-): void {
+function validateReflectBatch(batchPursuitIds: string[], reflect: ReflectResponse): void {
   for (const pursuitId of batchPursuitIds) {
     if (!reflect.pursuits[pursuitId]) {
       throw new ReflectGenerationResponseError(
         `Reflect call missing pursuit panel for ${pursuitId}. Please try again.`,
       );
     }
-  }
-  if (options.requireReading && !reflect.reading.trim()) {
-    throw new ReflectGenerationResponseError(
-      "Reflect call returned no whole-map reading. Please try again.",
-    );
   }
 }
 
@@ -588,12 +553,10 @@ async function runReflectBatchesIncremental(
   dirty: ReadingDirtyAnalysis,
   plan: { pursuitIds: string[]; themeIds: string[]; mode: import("@/lib/ai/reflect-sync-plan").ReflectWorkMode },
   enrichOptions: Required<PursuitEnrichOptions>,
-  previousReading: string,
   mapVersion: string,
   memoryVersion: number,
   metrics: MapAiSyncMetrics,
   options: {
-    needsReadingRefresh: boolean;
     mapContext: FormattedMapContext;
     amountImpactEligible: boolean;
     holisticBenchmarkEligible: boolean;
@@ -602,7 +565,6 @@ async function runReflectBatchesIncremental(
   const batches = chunkReflectPursuitIds(plan.pursuitIds);
 
   let insightsRefreshed = false;
-  let storyRefreshed = false;
   let callsMade = 0;
   const completedPursuitIds: string[] = [];
   const syncRetryState = { retriesUsed: 0 };
@@ -614,7 +576,7 @@ async function runReflectBatchesIncremental(
     metrics.aiCallsPlanned += 1;
 
     const batch = batches[i];
-    const isFullBatch = i === 0 && options.needsReadingRefresh;
+    const isFullBatch = i === 0 && plan.themeIds.length > 0;
     const reflectInvokeOptions = {
       scope: isFullBatch ? ("full" as const) : ("pursuits-only" as const),
       mapContext: options.mapContext,
@@ -630,7 +592,6 @@ async function runReflectBatchesIncremental(
             batch,
             isFullBatch ? plan.themeIds : [],
             enrichOptions,
-            previousReading,
             metrics,
             reflectInvokeOptions,
           ),
@@ -638,12 +599,12 @@ async function runReflectBatchesIncremental(
         { batchIndex: i },
       );
 
-      validateReflectBatch(batch, reflect, { requireReading: isFullBatch });
+      validateReflectBatch(batch, reflect);
 
       callsMade += 1;
       metrics.aiCallsCompleted += 1;
 
-      const { insightsWritten, storyWritten } = await applyReflectOutput(
+      const { insightsWritten } = await applyReflectOutput(
         userId,
         reflect,
         batch,
@@ -652,14 +613,12 @@ async function runReflectBatchesIncremental(
         memoryVersion,
       );
       if (insightsWritten) insightsRefreshed = true;
-      if (storyWritten) storyRefreshed = true;
       completedPursuitIds.push(...batch);
     } catch (err) {
       if (isGeminiRateLimited(err)) {
         metrics.rateLimited = true;
         return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
           insightsRefreshed,
-          storyRefreshed,
           callsMade,
           geminiRateLimited: true,
         });
@@ -670,7 +629,6 @@ async function runReflectBatchesIncremental(
         metrics.enrichErrors.push(message);
         return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
           insightsRefreshed,
-          storyRefreshed,
           callsMade,
         });
       }
@@ -678,7 +636,6 @@ async function runReflectBatchesIncremental(
         metrics.enrichErrors.push(err.message);
         return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
           insightsRefreshed,
-          storyRefreshed,
           callsMade,
         });
       }
@@ -689,7 +646,6 @@ async function runReflectBatchesIncremental(
   if (completedPursuitIds.length < plan.pursuitIds.length) {
     return finishReflectPartialSync(userId, plan, completedPursuitIds, metrics, {
       insightsRefreshed,
-      storyRefreshed,
       callsMade,
     });
   }
@@ -700,20 +656,18 @@ async function runReflectBatchesIncremental(
 
   return {
     insightsRefreshed,
-    storyRefreshed,
     geminiCallsMade: callsMade,
     geminiRateLimited: false,
   };
 }
 
-/** Single-call reflect sync — Reading + dirty/missing pursuit panels. */
+/** Single-call reflect sync — dirty/missing pursuit panels + theme synthesis. */
 export async function runReflectSync(
   userId: string,
   mapVersion: string,
   memoryVersion: number,
   options: {
     force?: boolean;
-    storyStale: boolean;
     insightsStale: boolean;
     metrics: MapAiSyncMetrics;
     enrichOptions?: PursuitEnrichOptions;
@@ -729,34 +683,21 @@ export async function runReflectSync(
   options.metrics.dirtyPursuits = dirty.pursuitIds.length;
   options.metrics.reflectCall = true;
 
-  const storyRow = await prisma.storyCache.findUnique({ where: { userId } });
-  const previousStory = storyRow ? parsePreviousStory(storyRow.payload) : null;
-  const previousReading = previousStory?.seasonRead?.trim() ?? "";
-  const hasStory = Boolean(previousReading);
-
   const plan = await planReflectWork(userId, dirty, {
     force: options.force,
-    storyStale: options.storyStale,
     insightsStale: options.insightsStale,
-    hasStory,
   });
 
   if (plan.mode === "skip" || plan.pursuitIds.length === 0) {
     return {
       skipped: true,
       insightsRefreshed: false,
-      storyRefreshed: false,
       geminiCallsMade: 0,
       geminiRateLimited: false,
     };
   }
 
-  const needsReadingRefresh =
-    plan.mode === "full" || options.storyStale || !hasStory;
-
-  const mapContext = await formatMapContext(userId, {
-    includeMarks: enrichOptions.includeMarks ? true : false,
-  });
+  const mapContext = await formatMapContext(userId);
   const [amountImpactEligible, allPursuitSignals] = await Promise.all([
     Promise.resolve(isAmountImpactEligible(mapContext)),
     loadAllPursuitSignals(userId),
@@ -768,22 +709,11 @@ export async function runReflectSync(
     dirty,
     plan,
     enrichOptions,
-    previousReading,
     mapVersion,
     memoryVersion,
     options.metrics,
-    { needsReadingRefresh, mapContext, amountImpactEligible, holisticBenchmarkEligible },
+    { mapContext, amountImpactEligible, holisticBenchmarkEligible },
   );
-}
-
-function parsePreviousStory(payload: string | undefined): StoryGenerationResult | null {
-  if (!payload || !isCurrentStoryPayload(payload)) return null;
-  try {
-    const parsed = JSON.parse(payload) as StoryGenerationResult;
-    return parsed.schemaVersion === STORY_SCHEMA_VERSION ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 async function generateReflectResponse(
@@ -792,7 +722,6 @@ async function generateReflectResponse(
   pursuitIds: string[],
   themeIds: string[],
   enrichOptions: Required<PursuitEnrichOptions>,
-  previousReading: string,
   metrics?: MapAiSyncMetrics,
   options?: {
     scope?: ReflectScope;
@@ -811,13 +740,9 @@ async function generateReflectResponse(
     await Promise.all([
     options?.mapContext
       ? Promise.resolve(options.mapContext)
-      : formatMapContext(userId, {
-          includeMarks: enrichOptions.includeMarks ? true : false,
-        }),
+      : formatMapContext(userId),
     formatUserContext(userId),
-    compileReadingPacket(userId, dirty, {
-      includeMarks: enrichOptions.includeMarks ? true : false,
-    }),
+    compileReadingPacket(userId, dirty),
     loadPursuitSignals(userId, pursuitIds),
     options?.holisticBenchmarkEligible === undefined
       ? loadAllPursuitSignals(userId)
@@ -852,20 +777,15 @@ async function generateReflectResponse(
       : mapContextForReadingPacketPrompt(mapContext);
   const mapContextJson = JSON.stringify(mapContextForPrompt, null, 2);
 
-  const totalPursuitCount = countMapPursuits(mapContext);
-
   const systemPrompt = buildReflectSystemPrompt(
-    totalPursuitCount,
     enrichOptions,
     scope,
     amountImpactEligible,
-    holisticBenchmarkEligible,
   );
   const userPrompt = buildReflectUserMessage({
     userContext,
     readingPacketJson,
     mapContextJson,
-    previousReading,
     dirtyPursuitIds: pursuitIds,
     dirtyThemeIds: themeIds,
     pursuitSignals,
@@ -934,9 +854,8 @@ export function setGenerateReflectResponseDelegate(delegate: GenerateReflectResp
 }
 
 function mergeReflectResponses(partials: ReflectResponse[]): ReflectResponse {
-  const merged: ReflectResponse = { reading: "", themes: {}, pursuits: {} };
+  const merged: ReflectResponse = { themes: {}, pursuits: {} };
   for (const partial of partials) {
-    if (partial.reading.trim()) merged.reading = partial.reading;
     merged.themes = { ...merged.themes, ...(partial.themes ?? {}) };
     merged.pursuits = { ...merged.pursuits, ...partial.pursuits };
   }
@@ -961,7 +880,6 @@ async function generateReflectResponseBatched(
   pursuitIds: string[],
   themeIds: string[],
   enrichOptions: Required<PursuitEnrichOptions>,
-  previousReading: string,
   metrics?: MapAiSyncMetrics,
 ): Promise<ReflectResponse> {
   const batches = chunkReflectPursuitIds(pursuitIds);
@@ -975,7 +893,6 @@ async function generateReflectResponseBatched(
         batches[i],
         i === 0 ? themeIds : [],
         enrichOptions,
-        previousReading,
         metrics,
         { scope: i === 0 ? "full" : "pursuits-only" },
       ),
@@ -989,11 +906,6 @@ async function generateReflectResponseBatched(
         `Reflect call missing pursuit panel for ${pursuitId}. Please try again.`,
       );
     }
-  }
-  if (!merged.reading.trim()) {
-    throw new ReflectGenerationResponseError(
-      "Reflect call returned no whole-map reading. Please try again.",
-    );
   }
 
   return merged;

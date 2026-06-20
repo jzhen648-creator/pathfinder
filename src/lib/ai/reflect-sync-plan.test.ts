@@ -54,9 +54,7 @@ describe("planReflectWork", () => {
 
     const plan = await planReflectWork(USER_ID, emptyDirty(), {
       force: true,
-      storyStale: false,
       insightsStale: false,
-      hasStory: true,
     });
 
     expect(plan.mode).toBe("skip");
@@ -73,9 +71,7 @@ describe("planReflectWork", () => {
 
     const plan = await planReflectWork(USER_ID, emptyDirty(), {
       force: true,
-      storyStale: false,
       insightsStale: false,
-      hasStory: true,
     });
 
     expect(plan.mode).toBe("panels-only");
@@ -94,9 +90,7 @@ describe("planReflectWork", () => {
 
     const plan = await planReflectWork(USER_ID, dirty, {
       force: false,
-      storyStale: false,
       insightsStale: false,
-      hasStory: true,
     });
 
     expect(plan.mode).toBe("dirty");

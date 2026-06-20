@@ -60,7 +60,6 @@ vi.mock("@/lib/gemini", () => ({
 const USER_ID = "alex-carter";
 const ENRICH_OPTIONS = {
   clarifyTitles: false,
-  includeMarks: false,
 } as const;
 
 function baseDirtyAnalysis(): ReadingDirtyAnalysis {
@@ -101,7 +100,7 @@ describe("chunkReflectPursuitIds", () => {
 
 describe("buildReflectSystemPrompt benchmark rubric", () => {
   it("replaces generic age/location benchmark lines with BENCHMARK & INSIGHT MOVES", () => {
-    const full = buildReflectSystemPrompt(5, ENRICH_OPTIONS, "full");
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
     expect(full).toContain("BENCHMARK & INSIGHT MOVES");
     expect(full).toContain("At most one observation per pursuit.");
     expect(full).toContain("GROUNDING RULE (mandatory)");
@@ -124,14 +123,12 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(scoped).toContain("durable interpretation context");
   });
 
-  it("full-scope prompt does not suppress suggestedMilestones with reading suggestion limits", () => {
-    const full = buildReflectSystemPrompt(8, ENRICH_OPTIONS, "full");
+  it("full-scope prompt includes suggestedMilestones guidance on pursuit panels", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
 
     expect(full).not.toContain("One concrete suggestion per pursuit, max");
-    expect(full).toContain("that limit does NOT apply to suggestedMilestones");
     expect(full).toContain("PURSUIT PANEL — suggestedMilestones FIELD");
     expect(full).toContain("MUST return 1-6 items in suggestedMilestones");
-    expect(full).not.toContain("pursuit sheets own velocity and milestones.");
   });
 });
 
@@ -230,7 +227,6 @@ describe("generateReflectResponse", () => {
       DENSE_DIRTY_PURSUIT_IDS,
       ["work", "finance"],
       ENRICH_OPTIONS,
-      "",
       metrics,
     );
 
@@ -263,7 +259,6 @@ describe("generateReflectResponse", () => {
       DENSE_DIRTY_PURSUIT_IDS,
       ["work", "finance"],
       ENRICH_OPTIONS,
-      "",
       metrics,
     );
 
@@ -274,7 +269,6 @@ describe("generateReflectResponse", () => {
   it("sends sliced same-category map context for pursuit-only reflect", async () => {
     mocks.generateJsonCompletion.mockResolvedValue(
       JSON.stringify({
-        reading: "",
         themes: {},
         pursuits: {
           "p-cemap": {
@@ -294,7 +288,6 @@ describe("generateReflectResponse", () => {
       ["p-cemap"],
       [],
       ENRICH_OPTIONS,
-      "",
       emptyMapAiSyncMetrics(),
       { scope: "pursuits-only" },
     );
@@ -306,7 +299,7 @@ describe("generateReflectResponse", () => {
     expect(mapContextBlock).toContain("Senior Engineer at Acme");
     expect(mapContextBlock).not.toContain("Public speaking");
     expect(mapContextBlock).not.toContain("£500,000 ISA");
-    expect(user).toContain('Return ONLY: { "reading": "", "pursuits": { ... } }');
+    expect(user).toContain('Return ONLY: { "pursuits": { ... } }');
   });
 
   it("sends confirmedRelationships only in reading_packet on full reflect — not in map_context", async () => {
@@ -319,7 +312,6 @@ describe("generateReflectResponse", () => {
       DENSE_DIRTY_PURSUIT_IDS,
       ["work", "finance"],
       ENRICH_OPTIONS,
-      "",
       emptyMapAiSyncMetrics(),
       { scope: "full" },
     );
@@ -340,7 +332,7 @@ describe("generateReflectResponse", () => {
     const chars = JSON.stringify(maxLoaded).length;
 
     // Prior 2048-token ceiling truncated 15-pursuit Alex first refresh into invalid JSON.
-    expect(chars).toBe(21774);
+    expect(chars).toBe(20861);
     expect(chars).toBeLessThanOrEqual(REFLECT_OUTPUT_CHAR_SAFE_LIMIT);
   });
 
@@ -375,13 +367,12 @@ describe("generateReflectResponse", () => {
       fifteenIds,
       ["work", "finance"],
       ENRICH_OPTIONS,
-      "",
       metrics,
     );
 
     expect(mocks.generateJsonCompletion).toHaveBeenCalledTimes(2);
     assertReflectPursuitCompleteness(fifteenIds, reflect);
-    expect(reflect.reading.length).toBeGreaterThan(0);
+    expect(reflect.themes?.work?.oneLiner).toBeTruthy();
     expect(metrics.reflectResponseChars).toBeGreaterThan(0);
   });
 });

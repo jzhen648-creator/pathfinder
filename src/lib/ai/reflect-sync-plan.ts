@@ -49,22 +49,18 @@ export async function planReflectWork(
   dirty: ReadingDirtyAnalysis,
   options: {
     force?: boolean;
-    storyStale: boolean;
     insightsStale: boolean;
-    hasStory: boolean;
   },
 ): Promise<ReflectWorkPlan> {
   if (dirty.activeDirtyPursuitIds.length > 0) {
-    const themeIds =
-      dirty.themeIds.length > 0 ? dirty.themeIds : options.storyStale ? await listDirtyThemeIds(userId) : [];
     return {
       mode: "dirty",
       pursuitIds: dirty.activeDirtyPursuitIds,
-      themeIds,
+      themeIds: dirty.themeIds,
     };
   }
 
-  if (options.storyStale || options.insightsStale) {
+  if (options.insightsStale) {
     return {
       mode: "full",
       pursuitIds: await listEligiblePursuitIds(userId),
@@ -73,14 +69,6 @@ export async function planReflectWork(
   }
 
   const missingPanelIds = await listMissingPursuitPanelIds(userId);
-
-  if (!options.hasStory && (options.force || missingPanelIds.length > 0)) {
-    return {
-      mode: "full",
-      pursuitIds: await listEligiblePursuitIds(userId),
-      themeIds: await listDirtyThemeIds(userId),
-    };
-  }
 
   if (options.force && missingPanelIds.length > 0) {
     return {
@@ -99,9 +87,7 @@ export async function reflectSyncWouldSkip(
   dirty: ReadingDirtyAnalysis,
   options: {
     force?: boolean;
-    storyStale: boolean;
     insightsStale: boolean;
-    hasStory: boolean;
   },
 ): Promise<boolean> {
   const plan = await planReflectWork(userId, dirty, options);

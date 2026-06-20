@@ -127,7 +127,7 @@ export async function GET(request: Request) {
 
     };
 
-    const [goals, archivedGoals, marks, relationships] = await Promise.all([
+    const [goals, archivedGoals, relationships] = await Promise.all([
 
       prisma.goal.findMany({
 
@@ -158,52 +158,6 @@ export async function GET(request: Request) {
 
       }),
 
-      prisma.mark.findMany({
-
-        where: { userId, archived: false },
-
-        orderBy: [{ sequencePosition: "asc" }, { date: "asc" }, { createdAt: "asc" }],
-
-        select: {
-
-          id: true,
-
-          title: true,
-
-          description: true,
-
-          categoryId: true,
-
-          themeId: true,
-
-          date: true,
-
-          year: true,
-
-          month: true,
-
-          sequencePosition: true,
-
-          kind: true,
-
-          future: true,
-
-          isTurningPoint: true,
-
-          needsResolution: true,
-
-          sentiment: true,
-
-          significance: true,
-
-          createdAt: true,
-
-          updatedAt: true,
-
-        },
-
-      }),
-
       prisma.pursuitRelationship.findMany({
         where: { userId },
         select: {
@@ -221,25 +175,13 @@ export async function GET(request: Request) {
     const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
     const mapCategories = categories.map((c) => ({ ...c, categoryId: c.id }));
 
-    const pendingRuns = await prisma.streamRun.findMany({
-      where: {
-        userId,
-        status: "pending",
-        expiresAt: { gt: new Date() },
-      },
-      select: { goalId: true },
-      distinct: ["goalId"],
-    });
-    const pendingCaptureGoalIds = pendingRuns.map((row) => row.goalId);
-
     return NextResponse.json({
       categories: mapCategories,
       goals,
       archivedGoals,
-      marks,
+      marks: [],
       relationships,
       unlockedLimbIds,
-      pendingCaptureGoalIds,
     });
 
   } catch (err) {

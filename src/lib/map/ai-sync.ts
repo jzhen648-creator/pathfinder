@@ -7,11 +7,8 @@ import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
 import {
-
   discardDeferredMemoryUpdates,
-
   flushDeferredMemoryUpdates,
-
 } from "@/lib/memory/deferred-memory-updates";
 
 import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
@@ -21,7 +18,6 @@ import { isReflectCallEnabled, runReflectSync } from "@/lib/ai/generate-reflect"
 import { reflectSyncWouldSkip } from "@/lib/ai/reflect-sync-plan";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
-import { remainingSyncGeminiBudget } from "@/lib/map/sync-gemini-budget";
 import {
   checkReadingDeliveryGate,
   recordReadingDelivery,
@@ -30,382 +26,157 @@ import {
   clearReadingDirtyLedger,
   analyzeReadingDirty,
   listReadingDirtySummary,
-  markGlobalReadingDirty,
 } from "@/lib/map/reading-dirty-ledger";
 
 import { prisma } from "@/lib/prisma";
 
-import { isCurrentStoryPayload, storyCacheToPayload } from "@/lib/story/parse-story-cache";
-
-import { TAXONOMY_VERSION } from "@/lib/taxonomy";
-
-import {
-
-  countPendingCaptures,
-
-  digestPendingCapturesBounded,
-
-} from "@/lib/stream-pursuit-apply";
-
-
-
 export class MapAiSyncRateLimitError extends Error {
-
   readonly retryAfterMs: number;
-
   readonly partialResult: MapAiSyncResult;
 
-
-
   constructor(retryAfterMs: number, partialResult: MapAiSyncResult) {
-
     super("AI rate limit — try again in a moment.");
-
     this.name = "MapAiSyncRateLimitError";
-
     this.retryAfterMs = retryAfterMs;
-
     this.partialResult = partialResult;
-
   }
-
 }
 
-
-
 export type MapAiSyncResult = {
-
   ok: true;
-
   mapVersion: string;
-
   skipped: boolean;
-
   digested: { runs: number; failed: number; errors: string[] };
-
   insights: { refreshed: boolean; skipped: boolean };
-
+  /** Kept for mobile backward compat — story/seasonRead generation removed. */
   story: { refreshed: boolean; skipped: boolean };
-
   progress: {
-
     startedWork: boolean;
-
     morePending: boolean;
-
     retryableAt: string | null;
-
     deliveryBlocked: boolean;
-
     pendingInsightCount: number;
-
   };
-
   metrics: MapAiSyncMetrics;
-
 };
 
-
-
 async function resolveVersions(userId: string) {
-
   const [mapVersion, memoryVersion, user] = await Promise.all([
-
     computeMapVersion(userId),
-
     getMemoryVersion(userId),
-
     prisma.user.findUnique({
-
       where: { id: userId },
-
       select: { taxonomyVersion: true },
-
     }),
-
   ]);
 
   return {
-
     mapVersion,
-
     memoryVersion,
-
     taxonomyVersion: user?.taxonomyVersion ?? null,
-
   };
-
 }
-
-
 
 function insightCacheStale(
-
   row: { mapVersion: string; memoryVersion: number },
-
   mapVersion: string,
-
   memoryVersion: number,
-
 ): boolean {
-
   return row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion;
-
 }
 
+const EMPTY_DIGESTED = { runs: 0, failed: 0, errors: [] as string[] };
 
-
-function storyCacheStale(
-
-  row: { mapVersion: string; memoryVersion: number; payload: string },
-
-  mapVersion: string,
-
-  memoryVersion: number,
-
-  taxonomyVersion: string | null,
-
-): boolean {
-
-  if (row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion) return true;
-
-  if (taxonomyVersion && taxonomyVersion !== TAXONOMY_VERSION) return true;
-
-  return !isCurrentStoryPayload(row.payload);
-
-}
-
-
-
-function buildBaseResult(
-
-  mapVersion: string,
-
-  metrics: MapAiSyncMetrics,
-
-  digested: MapAiSyncResult["digested"],
-
-): MapAiSyncResult {
-
+function buildBaseResult(mapVersion: string, metrics: MapAiSyncMetrics): MapAiSyncResult {
   return {
-
     ok: true,
-
     mapVersion,
-
     skipped: true,
-
-    digested,
-
+    digested: EMPTY_DIGESTED,
     insights: { refreshed: false, skipped: true },
-
     story: { refreshed: false, skipped: true },
-
     progress: {
-
       startedWork: metrics.startedWork,
-
       morePending: metrics.morePending,
-
       retryableAt: metrics.rateLimited
-
         ? new Date(Date.now() + 120_000).toISOString()
-
         : metrics.deliveryBlocked && metrics.deliveryRetryAfterMs > 0
-
           ? new Date(Date.now() + metrics.deliveryRetryAfterMs).toISOString()
-
           : null,
-
       deliveryBlocked: metrics.deliveryBlocked,
-
       pendingInsightCount: metrics.pendingInsightCount,
-
     },
-
     metrics,
-
   };
-
 }
-
-
 
 const syncChains = new Map<string, Promise<unknown>>();
 
 async function runMapAiSyncInner(
-
   userId: string,
-
   options?: { force?: boolean; enrichOptions?: PursuitEnrichOptions },
-
 ): Promise<MapAiSyncResult> {
-
   if (!hasGeminiKey()) {
-
     throw new GeminiNotConfiguredError();
-
   }
-
-
 
   const force = options?.force === true;
   const enrichOptions = resolvePursuitEnrichOptions(options?.enrichOptions);
-
   const metrics = emptyMapAiSyncMetrics();
+  const { mapVersion, memoryVersion } = await resolveVersions(userId);
 
-  const { mapVersion, memoryVersion, taxonomyVersion } = await resolveVersions(userId);
-
-  const pendingBefore = await countPendingCaptures(userId);
-
-  const [insightRow, storyRow, dirtySummary] = await Promise.all([
+  const [insightRow, dirtySummary] = await Promise.all([
     prisma.insightCache.findUnique({ where: { userId } }),
-    prisma.storyCache.findUnique({ where: { userId } }),
     listReadingDirtySummary(userId),
   ]);
 
   const insightsStale =
     !insightRow || insightCacheStale(insightRow, mapVersion, memoryVersion);
-  const storyStale =
-    !storyRow ||
-    storyCacheStale(storyRow, mapVersion, memoryVersion, taxonomyVersion);
 
   const reflectEnabled = isReflectCallEnabled();
-
-  const enrichOnlyFollowUp =
-    !reflectEnabled &&
-    !insightsStale &&
-    !storyStale &&
-    dirtySummary.pursuitIds.length > 0;
-
-  /** Finish tap — drain pursuit panels only; defer legacy note digest. */
-  const skipDigestForFinishTap = !reflectEnabled && force && enrichOnlyFollowUp;
-
-  let digested = {
-    runs: 0,
-    failed: 0,
-    errors: [] as string[],
-  };
-
-  /**
-   * Legacy digest — only when reflect is off and pending StreamRun rows exist.
-   * Reflect mode (USE_REFLECT_CALL) never burns Gemini on digest; clean accounts
-   * (pendingBefore === 0) skip this block entirely.
-   */
-  const shouldRunLegacyDigest =
-    pendingBefore > 0 && !reflectEnabled && !skipDigestForFinishTap;
-
-  if (shouldRunLegacyDigest) {
-    const digestBudget = remainingSyncGeminiBudget(metrics);
-    if (digestBudget > 0) {
-      metrics.startedWork = true;
-      metrics.aiCallsPlanned += Math.min(pendingBefore, digestBudget);
-
-      const digestResult = await digestPendingCapturesBounded(userId, {
-        maxGeminiCalls: digestBudget,
-      });
-
-      digested = {
-        runs: digestResult.processed,
-        failed: digestResult.failed,
-        errors: digestResult.errors,
-      };
-
-      metrics.digestRunsProcessed = digestResult.processed;
-      metrics.digestRunsFailed = digestResult.failed;
-      metrics.digestRunsRemaining = digestResult.remaining;
-      metrics.morePending = digestResult.remaining > 0;
-      metrics.memoryUpdatesDeferred = digestResult.memoryTextsDeferred;
-      metrics.aiCallsCompleted += digestResult.geminiCallsMade;
-      metrics.rateLimited = digestResult.rateLimited;
-
-      if (digestResult.rateLimited) {
-        discardDeferredMemoryUpdates(userId);
-        const partial = buildBaseResult(mapVersion, metrics, digested);
-        throw new MapAiSyncRateLimitError(120_000, partial);
-      }
-    } else {
-      metrics.digestRunsRemaining = pendingBefore;
-      metrics.morePending = true;
-    }
-  } else if (pendingBefore > 0 && !reflectEnabled && skipDigestForFinishTap) {
-    metrics.digestRunsRemaining = pendingBefore;
-  }
 
   metrics.dirtyItems = dirtySummary.totalItems;
   metrics.dirtyPursuits = dirtySummary.pursuitIds.length;
 
-  const hasStory = Boolean(
-    storyRow &&
-      isCurrentStoryPayload(storyRow.payload) &&
-      storyCacheToPayload(storyRow, false)?.seasonRead?.trim(),
-  );
-
-  let readingWorkNeeded =
-    digested.runs > 0 ||
-    insightsStale ||
-    storyStale ||
-    dirtySummary.totalItems > 0;
+  let insightWorkNeeded = insightsStale || dirtySummary.totalItems > 0;
 
   if (reflectEnabled) {
-    if (!readingWorkNeeded && force) {
+    if (!insightWorkNeeded && force) {
       const dirty = await analyzeReadingDirty(userId);
-      readingWorkNeeded = !(await reflectSyncWouldSkip(userId, dirty, {
+      insightWorkNeeded = !(await reflectSyncWouldSkip(userId, dirty, {
         force: true,
-        storyStale,
         insightsStale,
-        hasStory,
       }));
     }
   } else if (force) {
-    readingWorkNeeded = true;
+    insightWorkNeeded = true;
   }
 
-  if (!readingWorkNeeded && pendingBefore === 0) {
-    return buildBaseResult(mapVersion, metrics, digested);
+  if (!insightWorkNeeded) {
+    return buildBaseResult(mapVersion, metrics);
   }
 
   const deliveryGate = await checkReadingDeliveryGate(userId, {
-    force: force || enrichOnlyFollowUp,
-    hasStoryCache: Boolean(storyRow),
+    force,
+    hasStoryCache: Boolean(insightRow),
   });
 
-  if (!deliveryGate.allowed && readingWorkNeeded) {
+  if (!deliveryGate.allowed && insightWorkNeeded) {
     metrics.deliveryBlocked = true;
     metrics.deliveryRetryAfterMs = deliveryGate.retryAfterMs;
     metrics.morePending = dirtySummary.totalItems > 0 || dirtySummary.pursuitIds.length > 0;
     metrics.pendingInsightCount = dirtySummary.pursuitIds.length;
-    return buildBaseResult(mapVersion, metrics, digested);
+    return buildBaseResult(mapVersion, metrics);
   }
-
-
-
-  if (digested.failed > 0 && digested.runs === 0) {
-
-    discardDeferredMemoryUpdates(userId);
-
-    return buildBaseResult(mapVersion, metrics, digested);
-
-  }
-
-
 
   metrics.startedWork = true;
 
-
-
   let insightsRefreshed = false;
 
-  let storyRefreshed = false;
-
-
-
   try {
-
     if (reflectEnabled) {
       const reflect = await runReflectSync(userId, mapVersion, memoryVersion, {
         force,
-        storyStale,
         insightsStale,
         metrics,
         enrichOptions,
@@ -413,11 +184,10 @@ async function runMapAiSyncInner(
 
       if (reflect.skipped) {
         metrics.startedWork = false;
-        return buildBaseResult(mapVersion, metrics, digested);
+        return buildBaseResult(mapVersion, metrics);
       }
 
       insightsRefreshed = reflect.insightsRefreshed;
-      storyRefreshed = reflect.storyRefreshed;
 
       if (reflect.geminiRateLimited) {
         metrics.rateLimited = true;
@@ -427,25 +197,16 @@ async function runMapAiSyncInner(
       metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
     } else {
       const refresh = await refreshReadingCachesSmart(userId, mapVersion, memoryVersion, {
-
         forceFull: false,
-
         force,
-
         metrics,
-
         enrichOptions,
-
       });
 
       insightsRefreshed = refresh.insightsRefreshed || refresh.insightsPruned;
 
-      storyRefreshed = refresh.storyRefreshed;
-
       metrics.fullRefresh = refresh.fullRefresh;
-
       metrics.incrementalRefresh = refresh.incrementalRefresh;
-
       metrics.backfillCalls = refresh.backfillCalls;
 
       if (refresh.geminiRateLimited) {
@@ -454,156 +215,67 @@ async function runMapAiSyncInner(
       }
 
       await flushDeferredMemoryUpdates(userId);
-
       metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
     }
-
   } catch (err) {
-
     discardDeferredMemoryUpdates(userId);
 
     if (err instanceof AiUserRateLimitError) {
-
       metrics.rateLimited = true;
-
-      const partial = buildBaseResult(mapVersion, metrics, digested);
-
+      const partial = buildBaseResult(mapVersion, metrics);
       partial.skipped = false;
-
       throw new MapAiSyncRateLimitError(err.retryAfterMs, partial);
-
     }
 
     throw err;
-
   }
 
-
-
-  if (!insightsRefreshed && !storyRefreshed && metrics.rateLimited) {
-
+  if (!insightsRefreshed && metrics.rateLimited) {
     discardDeferredMemoryUpdates(userId);
-
-    const partial = buildBaseResult(mapVersion, metrics, digested);
-
+    const partial = buildBaseResult(mapVersion, metrics);
     partial.skipped = false;
-
     throw new MapAiSyncRateLimitError(120_000, partial);
-
   }
-
-
 
   if (insightsRefreshed) {
-
     const row = await prisma.insightCache.findUnique({ where: { userId } });
-
     if (!row || !insightCacheToPayload(row, false)) {
-
       throw new Error("Failed to store insights after sync");
-
     }
-
   }
 
-  if (storyRefreshed) {
-
-    const row = await prisma.storyCache.findUnique({ where: { userId } });
-
-    if (!row || !storyCacheToPayload(row, false)) {
-
-      throw new Error("Failed to store story after sync");
-
-    }
-
-  }
-
-
-
-  if ((insightsRefreshed || storyRefreshed) && !metrics.morePending) {
-
+  if (insightsRefreshed && !metrics.morePending) {
     const fresh = await resolveVersions(userId);
-
-    await Promise.all([
-
-      insightsRefreshed
-
-        ? prisma.insightCache.update({
-
-            where: { userId },
-
-            data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
-
-          })
-
-        : Promise.resolve(),
-
-      storyRefreshed
-
-        ? prisma.storyCache.update({
-
-            where: { userId },
-
-            data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
-
-          })
-
-        : Promise.resolve(),
-
-    ]);
+    await prisma.insightCache.update({
+      where: { userId },
+      data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
+    });
 
     if (!reflectEnabled) {
       await clearReadingDirtyLedger(userId);
     }
-
-  } else if (digested.runs > 0) {
-
-    await markGlobalReadingDirty(userId, "digest_without_reading_refresh");
-
   }
-
-
 
   if (metrics.aiCallsCompleted > 0) {
-
     await recordReadingDelivery(userId);
-
   }
 
-
-
   return {
-
     ok: true,
-
     mapVersion,
-
     skipped: false,
-
-    digested,
-
+    digested: EMPTY_DIGESTED,
     insights: { refreshed: insightsRefreshed, skipped: !insightsRefreshed },
-
-    story: { refreshed: storyRefreshed, skipped: !storyRefreshed },
-
+    story: { refreshed: false, skipped: true },
     progress: {
-
       startedWork: metrics.startedWork,
-
       morePending: metrics.morePending,
-
       retryableAt: null,
-
       deliveryBlocked: false,
-
       pendingInsightCount: metrics.pendingInsightCount,
-
     },
-
     metrics,
-
   };
-
 }
 
 /** Serialize ai-sync per user so debounced + manual taps never run Gemini in parallel. */
@@ -626,5 +298,3 @@ export async function runMapAiSync(
   );
   return run;
 }
-
-

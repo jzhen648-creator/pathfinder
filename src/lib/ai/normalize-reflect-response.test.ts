@@ -12,7 +12,6 @@ describe("normalizeThemeTone", () => {
 describe("normalizeReflectResponse", () => {
   it("coerces invalid theme tone before Zod parse succeeds", () => {
     const raw = {
-      reading: "Whole-map reading.",
       pursuits: {
         "p-1": {
           tone: "informational",
