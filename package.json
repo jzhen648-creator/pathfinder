@@ -43,6 +43,7 @@
     "backfill:user-memory": "npx tsx scripts/backfill-user-memory.ts",
     "audit:map-health": "npx tsx scripts/audit-map-health.ts",
     "audit:legacy-data": "npx tsx scripts/audit-legacy-data.ts",
+    "purge:legacy-desktop-data": "npx tsx scripts/purge-legacy-desktop-data.ts",
     "benchmark:api": "npx tsx scripts/benchmark-api.ts",
     "smoke-test": "npx tsx scripts/smoke-test.ts",
     "qa:live-smoke": "npx tsx scripts/qa-live-smoke.ts",
@@ -51,6 +52,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live-gemini": "npx tsx scripts/test-live-gemini.ts",
+    "verify:prod": "npx tsx scripts/verify-prod-deploy.ts",
+    "verify:prod:reflect": "npx tsx scripts/verify-prod-deploy.ts --reflect",
     "seed:ai-qa": "npx tsx scripts/seed-ai-qa.ts",
     "reseed:alex-qa": "npx tsx scripts/reseed-alex-qa.ts",
     "test:agent": "npx tsx scripts/cursor-run-tests.ts"

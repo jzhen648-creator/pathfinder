@@ -5,6 +5,8 @@ import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
+export const MAX_MILESTONE_DESCRIPTION_CHARS = 200;
+
 export type MapContextFilter = {
   themeId?: string;
   hubId?: string;
@@ -45,6 +47,8 @@ export type FormattedMapPursuit = {
     completed: boolean;
     /** ISO calendar date when milestone was completed. */
     completedAt?: string;
+    /** Optional detail — what this milestone entails. */
+    description?: string;
   }>;
   /** Present when user nested this pursuit under another via edit map. */
   parentPursuitTitle?: string;
@@ -105,6 +109,13 @@ export function serializeEnrichAnswersForMapContext(
   return parsed.data;
 }
 
+function trimMilestoneDescription(description: string | null | undefined): string | undefined {
+  const trimmed = description?.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length <= MAX_MILESTONE_DESCRIPTION_CHARS) return trimmed;
+  return `${trimmed.slice(0, MAX_MILESTONE_DESCRIPTION_CHARS).trim()}…`;
+}
+
 /** @internal Exported for vitest — AI map_context pursuit row shape. */
 export function buildPursuitRow(
   goal: {
@@ -121,7 +132,7 @@ export function buildPursuitRow(
     deadline: Date | null;
     completedAt?: Date | null;
     timelineStart?: Date | null;
-    milestones: Array<{ id: string; title: string; completedAt: Date | null }>;
+    milestones: Array<{ id: string; title: string; completedAt: Date | null; description?: string | null }>;
   },
   pursuitTitleById: Map<string, string>,
 ): FormattedMapPursuit {
@@ -140,6 +151,8 @@ export function buildPursuitRow(
       if (milestone.completedAt) {
         row.completedAt = milestone.completedAt.toISOString().slice(0, 10);
       }
+      const description = trimMilestoneDescription(milestone.description);
+      if (description) row.description = description;
       return row;
     }),
   };
@@ -186,6 +199,7 @@ const goalSelect = {
       id: true,
       title: true,
       completedAt: true,
+      description: true,
     },
     orderBy: { position: "asc" as const },
   },

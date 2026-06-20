@@ -1,135 +1,84 @@
 # Pathfinder ontology
 
-Canonical relationships between persisted entities and derived UI concepts. Use this with [`GLOSSARY.md`](./GLOSSARY.md) for naming.
+Canonical relationships between persisted entities and derived UI concepts. Naming: [`GLOSSARY.md`](./GLOSSARY.md) (persistence) · [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) (UI copy).
 
-## Product surfaces
+## Product surfaces (mobile, 2026-06)
 
-The product is **four categories**, not five competing information sets. Three user-facing names collapse into one category.
+| Surface | Holds truth? | Authoritative for | User can edit? |
+|---------|--------------|-------------------|----------------|
+| **Map** | Yes | Pursuits + placement + progress | Yes (FAB, long-press, sheet) |
+| **Settings** | Yes | Profile, account, archived pursuits | Yes |
+| **Insights** (tab) | No (regenerated) | Theme insight cards, cross-theme links | No — pull to refresh syncs |
+| **Insight** (inline) | No (regenerated) | Theme/pursuit prose in map sheet | No |
+| **Timeline** (tab) | No (derived) | Chronological pursuit record | No |
+| **Map status filter** | No (derived) | Spatial status highlight on hexes | No |
 
-| Surface | Category | Holds truth? | Authoritative for | User can edit? |
-|---------|----------|--------------|-------------------|----------------|
-| **Map** | Store (structured) | Yes | Pursuits + marks + progress | Yes (via **+** and theme detail) |
-| **Settings** | Benchmark fields | Yes | Name, age, location only | Yes (direct) |
-| **Insights** (tab) | View — whole-map scope | Reading: no (regenerated) | nothing | No |
-| **Insight** (inline panel) | View — theme/pursuit scope | No (regenerated) | nothing | No |
-| **Timeline** (tab) | View — chronological | No (derived from map + marks) | nothing | No |
-| **+** (add pursuit) | Input verb | No | nothing | n/a |
-| **Map status filter** | View — spatial highlight | No (derived from map) | nothing | No |
-
-- **One store.** Map = structured truth: **pursuits** on the surface (what you're building) and **marks** in theme detail (facts, events, people, skills — theme context). Settings holds three benchmark fields for the Insights reading (name, age, location).
-- **Views at three scopes.** Insights tab = one whole-map **reading** (AI prose). **Insight** = inline AI block in theme/pursuit detail panels (`DetailInsightSection`). Timeline tab = chronological spine (marks, upcoming target dates, completed pursuits — not past milestone rows, not a status inventory). Map **Filter** dropdown = spatial status highlight on hexes (Active / Maintaining / On hold / Completed).
-- **One input verb.** Centre **+** creates pursuits. Marks are added in theme detail panels. The map **Self node** is decorative only.
+- **One store.** Map = structured truth: **pursuits** on the hex canvas. Settings holds profile fields used by Insights sync.
+- **Views at three scopes.** Insights tab = collated **theme insight cards**. **Insight** = inline AI block in theme/pursuit map sheet. Timeline = pursuit-grouped spine (upcoming + completed). Map **Filter** = status highlight on hexes.
+- **One input verb.** Map FAB + **Build here** creates pursuits. No marks UI on mobile.
 
 **Decision test (check every new feature):**
 
-1. Can the user edit it? → map store (pursuits, marks) or settings (name/age/location).
-2. Does it regenerate from data? → view (Insights tab Reading, panel Insight, or Timeline).
+1. Can the user edit it? → map store (pursuits) or settings.
+2. Does it regenerate from data? → view (Insights tab, panel Insight, or Timeline).
 3. Nothing originates in a view.
 
-**Retired (2026-06):** Profile tab and `UserMemory` blob; **Story** tab name (route redirects to Insights). Season read no longer uses a prose identity summary; map marks + settings fields replace that layer. **Insight ✦ / sparkle button** — replaced by inline **Insight** in detail panels.
+**Retired on mobile (2026-06):** marks UI, Stream, whole-map Reading (`seasonRead`), modal theme/pursuit routes, Profile tab, pursuit nesting, Story tab name.
 
 ## Derived backend (not a user surface)
 
 | Layer | Implementation | Notes |
 |-------|----------------|-------|
-| **Reading compiler** | `compile-reading-packet.ts` | Deterministic facts from pursuit attribute layers before Gemini. Feeds story delta and enrich prompts. See [`docs/READING-COMPILER.md`](./docs/READING-COMPILER.md). |
+| **Reading compiler** | `compile-reading-packet.ts` | Deterministic facts from pursuit fields before Gemini. See [`docs/READING-COMPILER.md`](./docs/READING-COMPILER.md). |
 | **Dirty ledger** | `AiReadingDirtyItem` | Tracks entities changed since last successful sync. |
 
 ## Core entities
 
 | Concept | Implementation | Notes |
-|--------|------------------|--------|
-| **Theme** | Fixed ids (`finance`, `work`, `becoming`, `pleasures`, `people`, `health`); DB column `themeId` (legacy name `limbId` in JSON mirrors); code type `LifeAreaId` | Big pillar of the map — **catalog slice of life**, not a table. **Play & Leisure** (`pleasures`) holds hobbies, culture, and experiences. |
-| **Taxonomy category** | Prisma `ThemeCategory` root row under a theme; FK `categoryId` on `Goal` / `Mark` (JSON may mirror `branchId`) | Named slot under a theme (e.g. Job, Family). **Shown in mobile UI** — theme detail group headers, pursuit eyebrow, Build here picker, long-press menu. Legacy words: hub, track, section. |
-| **ThemeCategory** | Prisma `ThemeCategory` (`@@map("Branch")` on table until optional tail rename) | Persisted taxonomy row (category slot); owns marks and goals via `categoryId`. **`parentCategoryId` / `turningPointId`** exist for **legacy** split rows only — **creating new splits from the tree is removed** (2026-05). |
-| **Goal evolution (legacy data)** | `Goal.parentGoalId` → predecessor; `forkedGoals` relation | Longitudinal **next chapter** rows may still exist. **Fork / Evolve APIs removed (May 2026)** — Stream adds new pursuits. **Not** milestone nesting. |
-| **Goal** | Prisma `Goal` | One transformational pursuit. Types include roadmap projects and timeline-style `moment` / `event`. |
-| **Milestone** | Prisma `Milestone` | Roadmap **phase within a single goal** only; never models goal-to-goal evolution. |
-| **Mark** | Prisma `Mark` | Theme context: facts, events, people, skills. Persisted with `categoryId` (category routing) and denormalized `themeId`. **Not** on map surface — listed in theme detail panel. `date` optional (undated facts). `Mark.kind` ∈ {`mark`, `stream`}. `needsResolution` = legacy extract ambiguous item awaiting user resolution. |
-| **Branch sequence** | `Goal.sequencePosition`, `Mark.sequencePosition` | Explicit linear order along the parent hub's branch line. Co-sorted across both tables to form `DomainHubData.sequencedNodes`. Roadmap-root goals only — continuation children (`parentGoalId != null`) keep parent-anchored satellite layout and have **no** sequence position. Fractional `Float?` with reindex when min gap < `1e-3` (`src/lib/branch-sequence.ts`). |
-| **Soft delete** | `Goal.archived`, `Mark.archived` | Hidden from tree assembly; revive via PATCH. |
-| **Map reorganize** | `POST /api/goals/[goalId]/reorganize` | `moveToHub` (theme-scoped) or `reparent`; edit-map UI in `tree-view.tsx`. |
+|--------|----------------|-------|
+| **Theme** | Fixed ids (`finance`, `work`, `becoming`, `pleasures`, `people`, `health`); DB `themeId`; code type `LifeAreaId` | Catalog slice of life — not a table. |
+| **Category** | Prisma `ThemeCategory` root row; FK `categoryId` on `Goal` | Named slot under a theme. **Shown in mobile UI.** Legacy: hub, track, section, `branchId`. |
+| **Goal** | Prisma `Goal` | User word **pursuit** — no subtypes. Legacy `goalType`, `moment` / `event` rows. |
+| **Milestone** | Prisma `Milestone` | Phase within one goal only. |
+| **Mark** | Prisma `Mark` | **Schema-only on mobile** — no UI. Desktop / legacy data. |
+| **Soft delete** | `Goal.archived` | Hidden from map; restore via Settings. |
+| **Goal evolution (legacy data)** | `Goal.parentGoalId` | Fork API removed — mobile uses flat peers only. |
 
-## Bloom (goal lifecycle)
+## Status (pursuit lifecycle)
 
-Bloom describes **maturity of one goal**, not graph shape.
+User word: **Status** — Active · Maintaining · Paused · Complete.
 
-| Status | Meaning |
-|--------|---------|
-| **BUD** | No milestones yet (roadmap goals); special rules for `moment` / `event` without milestones. |
-| **GROWING** | Milestones exist; pursuit active / not fully achieved. |
-| **BLOOMED** | Goal achieved. |
-| **ENDED** | User abandoned or stopped (explicit flow). |
+Persisted: `Goal.status` (SQL `bloomStatus`). Legacy bloom values (`BUD`, `GROWING`, `BLOOMED`, `ENDED`) normalized at read. Rules: `goal-status-lifecycle.ts`.
 
-**Tree panel status buttons** (`ACTIVE` / `PAUSED` / `COMPLETE` on `Goal.bloomStatus`) are the user-facing pursuit controls on the map; Stream may set them when the user reports pause/finish/resume. Distinct from milestone **GROWING** visuals on the hex.
-
-**`BRANCHED`** on `Goal` rows is **deprecated**: it historically reflected “has evolution successors” and mixed topology with lifecycle. **Do not assign `BRANCHED` from recomputation.** Prefer `npm run backfill:goal-bloom` to normalize legacy rows.
-
-`BloomStatus.BRANCHED` may still appear on **timeline/moment** derivation (legacy `isTurningPoint` markers, etc.) — that is separate from goal lifecycle semantics.
+**Do not** assign lifecycle from graph shape (successor count, nesting). Status is user- or Stream-set, not derived from milestones alone.
 
 ## Deprecated vocabulary
 
-- **`thread` / `threadIdx` / `ThreadData`** — legacy names for **branch-line rendering and taxonomy seeds**, not continuations. **Do not** introduce new `thread*` domain identifiers. See Glossary “Deprecated aliases.”
+- **`thread*`** — legacy geometry / taxonomy seed names, not continuations. Do not introduce new `thread*` domain identifiers.
+- **hub / track / section** — legacy synonyms for **category**. Desktop only.
+- **bloom** — legacy lifecycle word; user-facing **status** only.
+- **Stream** — backend wire only; retired as product surface (Jun 2026).
 
 ## Dangerous collisions (for authors & AI)
 
 | Term | Ambiguity |
 |------|-----------|
-| **Fork** | SVG layout fork vs **removed** goal-evolution fork API vs legacy **branch split** data. Qualify: **layout fork**, **legacy split row**. |
-| **Branch** | Prisma `Branch` vs generic English. In **mobile UI copy**, use **theme** and **category** — never hub/track. Use **ThemeCategory** / **taxonomy category** in code and migrations. |
-| **Hub** / **track** | Legacy synonyms for **taxonomy category**. Desktop legacy UI only; not mobile product language. |
-| **Theme** vs **`LifeAreaId` / `limbId`** | Same ids — **theme** is the product word; code symbols stay until an optional rename pass. |
-| **Child** | `TreeGoalNode.childGoals` = successor goals for layout (goal evolution); not “subtasks.” |
-| **Stream** | **Backend wire only** (`StreamRun`, `/api/stream/*`, pending capture until ai-sync). **Retired** as product surface and UI copy (Jun 2026). Use **Capture** (pending note on a pursuit) and **Reflection sync** (**Update readings** on Insights → `POST /api/map/ai-sync`). Never bare **Stream** in UI. |
+| **Branch** | Prisma SQL table name vs generic English. Mobile UI: **category**. Code: **ThemeCategory**. |
+| **Fork** | SVG layout fork vs removed goal-evolution API vs legacy split row. Qualify: **layout fork**, **legacy split row**. |
+| **Theme** vs **`LifeAreaId` / `limbId`** | Same ids — **theme** is the product word. |
+| **Reading** vs **Insight** | **Reading** retired as user word. Backend **reading compiler** is internal. User word: **Insight**. |
 
-## Terminology policy (permanent)
+## Terminology policy
 
-**Preferred nouns (product copy)**
+**Preferred nouns (mobile UI):** theme · category · pursuit · status · insight
 
-| Use | For |
-|-----|-----|
-| **Theme** | The outer pillar (Money & Finance, Work & Career, …); same ids as `LifeAreaId` / `limbId`. |
-| **Category** | Named slot under a theme in DB/API (`categoryId`; JSON mirror `branchId`). **Shown in mobile UI** — theme detail groups, pursuit eyebrow, create/move pickers (2026-06-11). |
-| **ThemeCategory** | Prisma `ThemeCategory` row (`@@map("Branch")` on SQL table until optional tail rename) — **implementation** and migrations (legacy split columns may still exist on old rows). |
-| **Goal** | One pursuit (`Goal`) |
-| **Milestone** | Phase inside one goal only |
-| **Goal evolution (data)** | `parentGoalId` chain (older prose: **continuation**); new work via **Stream** |
-| **Bloom** / **lifecycle** | `bloomStatus` maturity only (**BUD** / **GROWING** / **BLOOMED** / **ENDED**) |
+**Forbidden in new mobile UI:** hub, track, branch, thread, bloom, mark, Reading, Stream, project, identity, practice
 
-**Forbidden (new work)**
-
-- New **`thread*`** domain identifiers (`threadId`, `Thread` model, user-facing “thread” for goal evolution).
-- Equating **evolution count** with **bloom** or **`BRANCHED`** on goals.
-- Calling goal evolution **subgoals** or **child threads** in product copy.
-- New user-facing **life area** / **branch line** / **hub** / **track** where **theme** is clearer (keep old words only when quoting legacy docs or code symbols).
-
-**Goal evolution semantics**
-
-- Multiple successors from one goal are allowed (DAG); UI may cap visible nodes for layout.
-- **Relation name `GoalFork`** is legacy; treat as **evolution graph**, not nesting.
-
-**Lifecycle semantics**
-
-- Bloom never derives from “has children.” Use `src/lib/goal-bloom-lifecycle.ts` rules only.
-
-**Anti-patterns**
-
-- User-visible **fork** without context (reserve for git-savvy power copy or qualify **layout fork**).
-- Using **thread** in new strings — prefer **theme** in mobile copy; **taxonomy category** in backend comments; **goal evolution** for successor goals.
-- Mixing **legacy split-row** vocabulary with **goal evolution** in the same sentence without distinguishing them.
-
-**Freeze rules (until wider rename passes)**
-
-1. No new **`thread*`** domain concepts (`threadId`, `Thread` model, etc.).
-2. Goal evolution is **`parentGoalId`** data only; no new fork API — use **Stream** for new pursuits.
-3. Goal bloom recomputation must **not** depend on `forkedGoals.length`.
+**Desktop-only (on hold):** tree view, edit-map reorganize, mark hover cards, branch-line sequence — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
 
 ## References
 
-- Historical UX audit (desktop): [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md)
-- **Stabilization phase** (canonical vs transitional, QA checklist, freeze rules): [`docs/STABILIZATION.md`](./docs/STABILIZATION.md)
-- **Milestone projection** (hex dots from relational milestones; legacy JSON fallback): `src/components/tree/milestone-tree-projection.ts`
-- **Tree panel milestone predicates** (has relational vs legacy-only structure): `src/components/tree/goal-milestone-predicates.ts`
-- Pure lifecycle rules: `src/lib/goal-bloom-lifecycle.ts`
-- Persisted recompute: `src/lib/goal-bloom.ts`
-- Legacy row backfill: `npm run backfill:goal-bloom`
+- Historical UX audit: [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md)
+- Stabilization phase: [`docs/STABILIZATION.md`](./docs/STABILIZATION.md)
+- Milestone projection (desktop hex): `src/components/tree/milestone-tree-projection.ts`
+- Status lifecycle: `src/lib/goal-status-lifecycle.ts`

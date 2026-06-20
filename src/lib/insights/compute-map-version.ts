@@ -52,11 +52,28 @@ export async function computeMapVersion(userId: string): Promise<string> {
   return createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex").slice(0, 32);
 }
 
-/** UserMemory.version — insights invalidate when this changes. */
+const MEMORY_VERSION_FACTS_MULTIPLIER = 100_000;
+
+export function profileFactsMemoryOffset(count: number, maxUpdatedAt: Date | null): number {
+  if (count === 0 || !maxUpdatedAt) return 0;
+  return (Math.floor(maxUpdatedAt.getTime() / 1000) % (MEMORY_VERSION_FACTS_MULTIPLIER - 1)) + count;
+}
+
+/** UserMemory.version + profile-fact drift — insights invalidate when either changes. */
 export async function getMemoryVersion(userId: string): Promise<number> {
-  const row = await prisma.userMemory.findUnique({
-    where: { userId },
-    select: { version: true },
-  });
-  return row?.version ?? 0;
+  const [memoryRow, factsAgg] = await Promise.all([
+    prisma.userMemory.findUnique({
+      where: { userId },
+      select: { version: true },
+    }),
+    prisma.profileFact.aggregate({
+      where: { userId },
+      _count: { id: true },
+      _max: { updatedAt: true },
+    }),
+  ]);
+
+  const base = memoryRow?.version ?? 0;
+  const factsOffset = profileFactsMemoryOffset(factsAgg._count.id, factsAgg._max.updatedAt);
+  return base * MEMORY_VERSION_FACTS_MULTIPLIER + factsOffset;
 }

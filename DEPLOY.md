@@ -16,12 +16,23 @@
    ```powershell
    cd pathfinder
    npm run test:live-gemini
+   npm run verify:prod
    ```
 
-5. **Device reflect retest** — one **Update AI reading** tap:
-   - Network: **1** `POST /api/map/ai-sync`
-   - Insights footer: `Reflect sync · 1 Gemini call · 0 panels left`
+5. **Optional reflect smoke** (one ai-sync on production — costs Gemini calls):
+   ```powershell
+   $env:QA_SMOKE_EMAIL="jzhen648+pathfinder@gmail.com"
+   $env:QA_SMOKE_PASSWORD="<password>"
+   npm run verify:prod:reflect
+   ```
+   Expect: `reflect: true` on `/api/health`; ai-sync `reflectCall: true`; 1–4 calls.
+
+6. **Device reflect retest** — one Insights pull-to-refresh on phone:
+   - Network: **1** `POST /api/map/ai-sync` (small dirty set)
+   - Footer: `Reflect sync · 1 Gemini call on last update · 0 panels left`
    - Vercel logs: `reflectCall: true`, `aiCallsCompleted: 1`
+
+Public routes (no auth): `GET /api/health`, `GET /privacy`.
 
 ## Quota hygiene (if legacy digest suspected)
 

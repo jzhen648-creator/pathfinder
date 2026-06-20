@@ -36,10 +36,10 @@ export default function PrivacyPage() {
       <section style={{ marginBottom: 28 }}>
         <h2 style={{ fontSize: 18, marginBottom: 8 }}>How we use it</h2>
         <p style={{ color: "#c8c4bc" }}>
-          Pathfinder stores your map so you can track pursuits over time. When you tap{" "}
-          <strong>Generate AI reading</strong> or <strong>Update AI reading</strong>, we send a
-          structured summary of your map (not a raw export of everything) to Google Gemini to
-          produce readings and inline insights. We do not sell your data.
+          Pathfinder stores your map so you can track pursuits over time. When you pull to refresh on
+          the Insights tab, we send a structured summary of your map (not a raw export of everything)
+          to Google Gemini to produce theme insights and pursuit-level insight cards. We do not sell
+          your data.
         </p>
       </section>
 

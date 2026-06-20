@@ -148,13 +148,11 @@ async function auditUser(userId: string, email: string) {
     "KEEP — mobile live data",
     {
       pursuits_active: pursuitsActive,
-      marks_active: marksActive,
       system_sections: branchesSystem,
       milestones: milestones,
-      subtasks: subtasks,
       manual_profile: manualProfile,
       profile_facts: profileFacts,
-      unresolved_marks: marksNeedsResolution,
+      user_memory: userMemory,
     },
     "Do not delete",
   );
@@ -162,16 +160,19 @@ async function auditUser(userId: string, email: string) {
   printTier(
     "TIER 1 — safe to delete (zero mobile impact)",
     {
+      marks_active: marksActive,
+      marks_archived: marksArchived,
+      unresolved_marks: marksNeedsResolution,
       trunk_segments: trunkSegments,
       trunk_entries: trunkEntries,
-      user_memory: userMemory,
       user_memory_history: userMemoryHistory,
       goal_evaluation_cache: goalEvaluationCache,
       reframes: reframes,
       daily_tasks: dailyTasks,
       checkpoints: checkpoints,
+      subtasks: subtasks,
     },
-    "Whole tables / row types — desktop only",
+    "Retired desktop tables — npm run purge:legacy-desktop-data",
   );
 
   printTier(
@@ -190,17 +191,15 @@ async function auditUser(userId: string, email: string) {
     {
       moment_event_goals: goalsMomentEvent,
       archived_goals: goalsArchived,
-      archived_marks: marksArchived,
       custom_branches: branchesCustom,
       custom_branches_with_refs: branchesCustomWithRefs,
       nested_branch_rows: branchesNested,
       stream_sessions: streamSessions,
       stream_runs_total: streamRunsTotal,
       stream_runs_expired: streamRunsExpired,
-      insight_cache: insightCache,
       story_cache: storyCache,
     },
-    "Review samples before deleting custom branches or moment/event goals",
+    "Review samples before deleting custom branches; purge script handles archived/moment/practice goals",
   );
 
   const desktopFieldCount = [
@@ -246,22 +245,22 @@ async function auditUser(userId: string, email: string) {
   }
 
   const tier1Total =
+    marksActive +
+    marksArchived +
     trunkSegments +
     trunkEntries +
-    userMemory +
     userMemoryHistory +
     goalEvaluationCache +
     reframes +
     dailyTasks +
-    checkpoints;
+    checkpoints +
+    subtasks;
 
   const tier3Deletable =
     goalsMomentEvent +
     goalsArchived +
-    marksArchived +
     streamSessions +
     streamRunsExpired +
-    insightCache +
     storyCache;
 
   return {
@@ -315,12 +314,11 @@ async function main() {
   }
 
   console.log("\nSuggested next steps:");
-  console.log("  npm run backfill:hub-taxonomy");
+  console.log("  npm run purge:legacy-desktop-data -- --dry-run");
+  console.log("  npm run purge:legacy-desktop-data");
   console.log("  npm run backfill:flatten-goal-lineage");
-  console.log("  npm run backfill:goal-bloom");
-  console.log("  npm run backfill:retire-practice");
   console.log("  npm run backfill:short-labels");
-  console.log("  npm run audit:legacy-data -- --email <you>   # re-run after backfills");
+  console.log("  npm run audit:legacy-data -- --email <you>");
 }
 
 main()

@@ -3,8 +3,13 @@
  * Not for CI (costs a Gemini call).
  *
  * Run: npm run test:live-gemini
- * Requires: GEMINI_API_KEY
+ * Requires: GEMINI_API_KEY in pathfinder/.env.local
  */
+import path from "node:path";
+import { config as loadEnv } from "dotenv";
+
+loadEnv({ path: path.resolve(__dirname, "..", ".env.local") });
+
 import { generateJsonCompletion, hasGeminiKey } from "../src/lib/gemini";
 import {
   buildStorySystemPrompt,

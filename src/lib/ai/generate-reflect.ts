@@ -25,7 +25,7 @@ import {
 import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
-import { planReflectWork } from "@/lib/ai/reflect-sync-plan";
+import { listDirtyThemeIds, listEligiblePursuitIds, planReflectWork } from "@/lib/ai/reflect-sync-plan";
 import {
   resolvePursuitEnrichOptions,
   type PursuitEnrichOptions,
@@ -688,7 +688,19 @@ export async function runReflectSync(
     insightsStale: options.insightsStale,
   });
 
-  if (plan.mode === "skip" || plan.pursuitIds.length === 0) {
+  let workPlan = plan;
+  if (workPlan.pursuitIds.length === 0 && options.insightsStale) {
+    const eligibleIds = await listEligiblePursuitIds(userId);
+    if (eligibleIds.length > 0) {
+      workPlan = {
+        mode: "full",
+        pursuitIds: eligibleIds,
+        themeIds: await listDirtyThemeIds(userId),
+      };
+    }
+  }
+
+  if (workPlan.mode === "skip" || workPlan.pursuitIds.length === 0) {
     return {
       skipped: true,
       insightsRefreshed: false,
@@ -707,7 +719,7 @@ export async function runReflectSync(
   return runReflectBatchesIncremental(
     userId,
     dirty,
-    plan,
+    workPlan,
     enrichOptions,
     mapVersion,
     memoryVersion,

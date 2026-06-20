@@ -1,3 +1,4 @@
+import { getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { prisma } from "@/lib/prisma";
 
 const MAX_HISTORY_ROWS = 5;
@@ -86,7 +87,7 @@ export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<
           : existing.streamSessionCount,
       },
     });
-    await bumpInsightMemoryVersion(options.userId, row.version);
+    await bumpInsightMemoryVersion(options.userId, await getMemoryVersion(options.userId));
     return row;
   }
 
@@ -104,7 +105,7 @@ export async function writeUserMemory(options: WriteUserMemoryOptions): Promise<
       streamSessionCount: options.incrementStreamSessionCount ? 1 : 0,
     },
   });
-  await bumpInsightMemoryVersion(options.userId, row.version);
+  await bumpInsightMemoryVersion(options.userId, await getMemoryVersion(options.userId));
   return row;
 }
 

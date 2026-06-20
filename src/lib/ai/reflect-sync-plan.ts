@@ -33,7 +33,7 @@ export async function listMissingPursuitPanelIds(userId: string): Promise<string
   return eligibleIds.filter((id) => !cached[id]?.headline?.trim());
 }
 
-async function listDirtyThemeIds(userId: string): Promise<string[]> {
+export async function listDirtyThemeIds(userId: string): Promise<string[]> {
   const mapContext = await formatMapContext(userId);
   return mapContext.themes
     .filter((theme) => theme.hubs.some((hub) => hub.pursuits.length > 0))

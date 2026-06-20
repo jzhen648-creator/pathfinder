@@ -29,7 +29,9 @@ function finishApi(req: NextRequest, res: NextResponse): NextResponse {
 }
 
 const LOGIN_PATHS = ["/login"];
-const PUBLIC_PATHS = ["/reset-password", WEB_HOME_PATH];
+const PUBLIC_PATHS = ["/reset-password", "/privacy", WEB_HOME_PATH];
+
+const PUBLIC_API_PATHS = ["/api/health"];
 
 function isLoginPath(pathname: string): boolean {
   return LOGIN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -83,6 +85,10 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/api/auth")) {
+    return finishApi(req, NextResponse.next());
+  }
+
+  if (PUBLIC_API_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return finishApi(req, NextResponse.next());
   }
 

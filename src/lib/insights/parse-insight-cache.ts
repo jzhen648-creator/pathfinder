@@ -62,14 +62,27 @@ export function insightCacheToPayload(
   row: InsightCache,
   stale: boolean,
 ): InsightCachePayload | null {
-  const global = parseGlobalInsight(row.globalInsight);
-  if (!global) return null;
+  const themes = parseInsightLevelRecord(row.themeInsights, "theme");
+  const hubs = parseInsightLevelRecord(row.hubInsights, "hub");
+  const pursuits = parsePursuitInsightRecord(row.pursuitInsights, "pursuit");
+
+  let global = parseGlobalInsight(row.globalInsight);
+  const hasNodeContent =
+    Object.keys(themes).length > 0 ||
+    Object.keys(hubs).length > 0 ||
+    Object.keys(pursuits).length > 0;
+
+  if (!global) {
+    if (!hasNodeContent) return null;
+    // Reflect sync stores placeholder global — still serve theme/pursuit panels.
+    global = { greeting: "", sections: [] };
+  }
 
   return {
     global,
-    themes: parseInsightLevelRecord(row.themeInsights, "theme"),
-    hubs: parseInsightLevelRecord(row.hubInsights, "hub"),
-    pursuits: parsePursuitInsightRecord(row.pursuitInsights, "pursuit"),
+    themes,
+    hubs,
+    pursuits,
     generatedAt: row.generatedAt.toISOString(),
     mapVersion: row.mapVersion,
     memoryVersion: row.memoryVersion,

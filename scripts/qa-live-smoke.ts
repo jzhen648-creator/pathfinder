@@ -99,16 +99,22 @@ async function main() {
     });
 
     const body = (await response.json()) as {
-      metrics?: { aiCallsCompleted?: number };
+      metrics?: { aiCallsCompleted?: number; reflectCall?: boolean; pendingInsightCount?: number };
       ok?: boolean;
+      skipped?: boolean;
     };
 
     const calls = body.metrics?.aiCallsCompleted ?? 0;
+    const reflect = body.metrics?.reflectCall === true;
     result = {
-      ok: response.ok && (body.ok ?? true) && calls <= 2,
+      ok: response.ok && (body.ok ?? true) && reflect && calls >= 1 && calls <= 4,
       status: response.status,
       geminiCalls: calls,
-      message: response.ok ? "pass" : `HTTP ${response.status}`,
+      message: response.ok
+        ? reflect
+          ? `reflect · ${calls} call(s) · ${body.metrics?.pendingInsightCount ?? 0} panels pending`
+          : "legacy path (reflectCall=false)"
+        : `HTTP ${response.status}`,
     };
   } catch (err) {
     result = {
