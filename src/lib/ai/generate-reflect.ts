@@ -84,6 +84,49 @@ const HEADLINE_MUST_ADD_MEANING = [
   "- If there's nothing meaningful to add beyond the status, write a shorter, honest headline rather than padding with facts the user already has.",
 ].join("\n");
 
+const REFLECT_BENCHMARK_INSIGHT_RUBRIC = [
+  "BENCHMARK & INSIGHT MOVES",
+  "",
+  "These examples illustrate *moves* — ways of finding the edge in a pursuit. They are NOT a list",
+  "of topics or domains. Each move applies to ANY pursuit regardless of subject. The genres below",
+  "are varied on purpose, to show the same move working across money, fitness, relationships, and",
+  "work — apply these shapes to whatever pursuit you're given, including kinds not shown here. Use",
+  "the user's profile (age, location) and the rest of their map as the material. Name the real",
+  "pursuit. At most one observation per pursuit.",
+  "",
+  "Move 1 — Benchmark against the person. Is this notable for someone like them, given age,",
+  "location, or stage?",
+  '- Weak: "Saving £500k in an ISA is a great financial goal."',
+  '- Strong: "Targeting £500k in an ISA by your mid-thirties is an unusually steep climb — the',
+  '  live question isn\'t the target, it\'s the monthly contribution that gets you there."',
+  "",
+  "Move 2 — Read the combination. What does it mean that these two things sit on the map together?",
+  "(Needs no numbers — works for anything.)",
+  '- Weak: "You have several active pursuits across work and family."',
+  '- Strong: "You\'ve marked being more present at home as significant in the same season three',
+  '  work pursuits are all peaking — those are competing for the same evenings, not running in',
+  '  parallel."',
+  "",
+  "Move 3 — Read the trajectory. Given where they are versus the deadline or milestones, are they",
+  "ahead, on pace, or drifting?",
+  '- Weak: "Your half-marathon training is in progress."',
+  '- Strong: "With the race ten weeks out and your longest run still at 8k, the half-marathon is',
+  '  reachable but the next month is where it\'s won or lost."',
+  "",
+  "Move 4 — Be honest about thin or stalled. When a pursuit is sparse, untouched, or stuck, say so",
+  "plainly instead of padding.",
+  '- Weak: "Learning Spanish is a wonderful journey of growth."',
+  '- Strong: "Learn Spanish has sat on the map since spring with nothing logged — either it\'s',
+  '  waiting for a real start date, or it\'s quietly telling you it\'s not this year\'s priority."',
+  "",
+  "GROUNDING RULE (mandatory): Benchmark only when you have real grounds — age, location, an actual",
+  "number, or another pursuit on the map to weigh against. If a pursuit is qualitative and you have",
+  "nothing concrete to compare it to, reflect on it plainly and specifically; do NOT invent a",
+  "statistic, percentile, or comparison. Never assert a population ranking you cannot derive from",
+  "the context. A relationship or personal-growth pursuit is read through the map (Move 2) and",
+  "honesty (Move 4), not through fabricated numbers.",
+];
+
 function stripMarkdownFence(raw: string): string {
   const trimmed = raw.trim();
   const match = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(trimmed);
@@ -117,6 +160,8 @@ function buildReflectPursuitsOnlySystemPrompt(
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
     "- Direct declarative voice in headline and body — no \"your map shows\", no opening with the user's name, no UI section labels.",
     "",
+    ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
+    "",
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
@@ -130,7 +175,6 @@ function buildReflectPursuitsOnlySystemPrompt(
     '- "reading": always return an empty string "".',
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
-    "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
     "- Do NOT include themes.",
   ].join("\n");
 }
@@ -166,7 +210,8 @@ function buildReflectSystemPrompt(
     "- Never generic headlines like \"[title] is progressing well\" or \"Your ISA is progressing well\" — state the specific fact.",
     "- One concrete suggestion per pursuit, max.",
     "- Be honest about gaps and sparse maps.",
-    "- Use age/location for contextual benchmarking only when data supports it.",
+    "",
+    ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
     "",
     "VOICE ANTI-PATTERNS (reading + pursuit headline/body/fromMap/comparison):",
     "- Do not open any text with the user's name (\"Alex, ...\").",
@@ -184,7 +229,6 @@ function buildReflectSystemPrompt(
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
-    "  When age AND location are in user context, include fromMap and/or comparison fields (<= 200 chars each).",
     "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields; the mobile UI adds section labels.",
     "",
     PEOPLE_THEME_BODY_CLAUSE,
@@ -199,7 +243,7 @@ function buildReflectSystemPrompt(
     "  tone MUST be one of: celebratory | encouraging | nudge",
     "  oneLiner <= 100 chars — theme-level verdict on balance, bottlenecks, or resource friction across pursuits in this theme.",
     "  reflective: 2-3 sentences on cross-pursuit dynamics within the theme — competition, reinforcement, tension (<= 500 chars). Name specific pursuits; do not inventory every row.",
-    "  contextual: optional age/location benchmark for the theme as a whole (<= 500 chars); empty string if none.",
+    "  contextual: optional supplementary theme observation (<= 500 chars); empty string if none.",
     "  combined: optional forward-looking unlock for the theme (<= 500 chars); empty string if none.",
     "  Do not repeat pursuit-panel execution copy — pursuit sheets own velocity and milestones.",
     "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
@@ -714,31 +758,43 @@ async function generateReflectResponse(
       ? buildPursuitsOnlyMapContext(mapContext, pursuitIds)
       : mapContext;
   const mapContextJson = JSON.stringify(mapContextForPrompt, null, 2);
-  if (metrics && scope === "full") {
-    metrics.readingPacketChars = readingPacketJson.length;
-  }
 
   const totalPursuitCount = countMapPursuits(mapContext);
 
+  const systemPrompt = buildReflectSystemPrompt(
+    totalPursuitCount,
+    enrichOptions,
+    scope,
+    amountImpactEligible,
+    holisticBenchmarkEligible,
+  );
+  const userPrompt = buildReflectUserMessage({
+    userContext,
+    readingPacketJson,
+    mapContextJson,
+    previousReading,
+    dirtyPursuitIds: pursuitIds,
+    dirtyThemeIds: themeIds,
+    pursuitSignals,
+    enrichOptions,
+    scope,
+  });
+
+  if (metrics) {
+    metrics.systemPromptChars += systemPrompt.length;
+    metrics.mapContextChars += mapContextJson.length;
+    metrics.userPromptChars += userPrompt.length;
+    metrics.readingPacketChars += readingPacketJson.length;
+    if (scope === "full") {
+      metrics.reflectFullCalls += 1;
+    } else {
+      metrics.reflectScopedCalls += 1;
+    }
+  }
+
   const raw = await generateJsonCompletion({
-    system: buildReflectSystemPrompt(
-      totalPursuitCount,
-      enrichOptions,
-      scope,
-      amountImpactEligible,
-      holisticBenchmarkEligible,
-    ),
-    user: buildReflectUserMessage({
-      userContext,
-      readingPacketJson,
-      mapContextJson,
-      previousReading,
-      dirtyPursuitIds: pursuitIds,
-      dirtyThemeIds: themeIds,
-      pursuitSignals,
-      enrichOptions,
-      scope,
-    }),
+    system: systemPrompt,
+    user: userPrompt,
     maxTokens: REFLECT_MAX_OUTPUT_TOKENS,
     temperature: 0.4,
     queueKey: userId,

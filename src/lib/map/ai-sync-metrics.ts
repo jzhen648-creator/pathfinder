@@ -22,8 +22,18 @@ export type MapAiSyncMetrics = {
   liteFirstReading: boolean;
   storyFullRegen: boolean;
   readingPacketChars: number;
+  /** Reflect system prompt char count (accumulated per Gemini call). */
+  systemPromptChars: number;
+  /** `<map_context>` JSON char count (accumulated per Gemini call). */
+  mapContextChars: number;
+  /** Full reflect user message char count (accumulated per Gemini call). */
+  userPromptChars: number;
   /** Reflect response JSON char count after successful parse. */
   reflectResponseChars: number;
+  /** Full-map reflect calls this sync (whole reading + themes). */
+  reflectFullCalls: number;
+  /** Scoped reflect calls this sync (dirty pursuits only). */
+  reflectScopedCalls: number;
   /** Pursuit enrich failures surfaced to mobile (non-fatal). */
   enrichErrors: string[];
   /** Unified reflect call replaced reading delta + enrich drain. */
@@ -53,7 +63,12 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     liteFirstReading: false,
     storyFullRegen: false,
     readingPacketChars: 0,
+    systemPromptChars: 0,
+    mapContextChars: 0,
+    userPromptChars: 0,
     reflectResponseChars: 0,
+    reflectFullCalls: 0,
+    reflectScopedCalls: 0,
     enrichErrors: [],
     reflectCall: false,
   };

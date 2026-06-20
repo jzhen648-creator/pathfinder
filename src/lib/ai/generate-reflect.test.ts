@@ -4,6 +4,8 @@ import {
   generateReflectResponse,
   buildPursuitsOnlyMapContext,
   buildReflectMilestoneOptions,
+  buildReflectPursuitsOnlySystemPrompt,
+  buildReflectSystemPrompt,
   generateReflectResponseBatched,
 } from "@/lib/ai/generate-reflect";
 import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
@@ -90,6 +92,26 @@ describe("chunkReflectPursuitIds", () => {
   it("splits Alex-sized 15-pursuit first refresh into two batches", () => {
     const ids = Array.from({ length: 15 }, (_, i) => `p${i + 1}`);
     expect(chunkReflectPursuitIds(ids)).toEqual([ids.slice(0, 8), ids.slice(8)]);
+  });
+});
+
+describe("buildReflectSystemPrompt benchmark rubric", () => {
+  it("replaces generic age/location benchmark lines with BENCHMARK & INSIGHT MOVES", () => {
+    const full = buildReflectSystemPrompt(5, ENRICH_OPTIONS, "full");
+    expect(full).toContain("BENCHMARK & INSIGHT MOVES");
+    expect(full).toContain("At most one observation per pursuit.");
+    expect(full).toContain("GROUNDING RULE (mandatory)");
+    expect(full).not.toContain("Use age/location for contextual benchmarking");
+    expect(full).not.toContain(
+      "When age AND location are in user context, include fromMap and/or comparison fields",
+    );
+    expect(full).not.toContain("optional age/location benchmark for the theme");
+
+    const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
+    expect(scoped).toContain("BENCHMARK & INSIGHT MOVES");
+    expect(scoped).not.toContain(
+      "When age AND location are in user context, include fromMap and/or comparison fields",
+    );
   });
 });
 
@@ -195,6 +217,11 @@ describe("generateReflectResponse", () => {
     expect(Object.keys(reflect.pursuits)).toHaveLength(12);
     expect(reflect.themes?.work?.oneLiner).toBeTruthy();
     expect(metrics.readingPacketChars).toBeGreaterThan(0);
+    expect(metrics.systemPromptChars).toBeGreaterThan(0);
+    expect(metrics.mapContextChars).toBeGreaterThan(0);
+    expect(metrics.userPromptChars).toBeGreaterThan(0);
+    expect(metrics.reflectFullCalls).toBe(1);
+    expect(metrics.reflectScopedCalls).toBe(0);
   });
 
   it("fails completeness when a dirty pursuit is missing from truncated output", () => {

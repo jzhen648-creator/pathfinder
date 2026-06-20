@@ -2,6 +2,7 @@ import type { PursuitStatus } from "@prisma/client";
 import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { canonicalRootHubRows } from "@/lib/category-dedupe";
+import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
 export type MapContextFilter = {
@@ -31,6 +32,12 @@ export type FormattedMapPursuit = {
   id: string;
   title: string;
   description: string;
+  /** Structured quick-question answers — authoritative QQ store for AI context. */
+  enrichAnswers?: Array<{
+    clarifierId: string;
+    prompt: string;
+    selectedOption: string;
+  }>;
   status: string;
   /** 1–5; higher = more weight on the map. */
   significance: number;
@@ -41,8 +48,6 @@ export type FormattedMapPursuit = {
     /** ISO calendar date when milestone was completed. */
     completedAt?: string;
   }>;
-  iconName?: string;
-  shortLabel?: string;
   /** Present when user nested this pursuit under another via edit map. */
   parentPursuitTitle?: string;
   targetAmount?: number;
@@ -117,11 +122,21 @@ function serializeMarkRow(mark: {
   return row;
 }
 
-function buildPursuitRow(
+export function serializeEnrichAnswersForMapContext(
+  raw: unknown,
+): FormattedMapPursuit["enrichAnswers"] | undefined {
+  const parsed = enrichAnswersSchema.safeParse(raw);
+  if (!parsed.success || parsed.data.length === 0) return undefined;
+  return parsed.data;
+}
+
+/** @internal Exported for vitest — AI map_context pursuit row shape. */
+export function buildPursuitRow(
   goal: {
     id: string;
     title: string;
     description: string | null;
+    enrichAnswers?: unknown;
     status: string;
     significance: number | null;
     parentGoalId: string | null;
@@ -129,8 +144,6 @@ function buildPursuitRow(
     currentAmount: number | null;
     unit: string | null;
     deadline: Date | null;
-    iconName: string | null;
-    shortLabel: string | null;
     completedAt?: Date | null;
     timelineStart?: Date | null;
     milestones: Array<{ id: string; title: string; completedAt: Date | null }>;
@@ -166,8 +179,9 @@ function buildPursuitRow(
   if (goal.deadline) pursuit.deadline = goal.deadline.toISOString().slice(0, 10);
   if (goal.completedAt) pursuit.completedAt = goal.completedAt.toISOString().slice(0, 10);
   if (goal.timelineStart) pursuit.timelineStart = goal.timelineStart.toISOString().slice(0, 10);
-  if (goal.iconName?.trim()) pursuit.iconName = goal.iconName.trim();
-  if (goal.shortLabel?.trim()) pursuit.shortLabel = goal.shortLabel.trim();
+
+  const enrichAnswers = serializeEnrichAnswersForMapContext(goal.enrichAnswers);
+  if (enrichAnswers) pursuit.enrichAnswers = enrichAnswers;
 
   return pursuit;
 }
@@ -182,6 +196,7 @@ const goalSelect = {
   id: true,
   title: true,
   description: true,
+  enrichAnswers: true,
   status: true,
   significance: true,
   parentGoalId: true,
@@ -191,8 +206,6 @@ const goalSelect = {
   deadline: true,
   completedAt: true,
   timelineStart: true,
-  iconName: true,
-  shortLabel: true,
   milestones: {
     select: {
       id: true,
