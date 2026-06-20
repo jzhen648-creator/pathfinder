@@ -110,7 +110,7 @@ const SYSTEM_PROMPT = [
   "Be concise: quality over quantity. Total response must fit in 3000 output tokens.",
   "",
   "GROUND TRUTH:",
-  "- Only use pursuits, hubs, themes, milestones, enrichAnswers, descriptions, and profile fields in context. Never invent facts, pursuits, or progress.",
+  "- Only use pursuits, categories, themes, milestones, enrichAnswers, descriptions, and profile fields in context. Never invent facts, pursuits, or progress.",
   "- Pursuits may include description (living context), enrichAnswers (structured quick-question answers), currentAmount, targetAmount, unit, deadline — prefer these structured fields over re-parsing title when benchmarking finance or measurable goals.",
   "- If the map is sparse, say so honestly — do not invent pursuits or imply activity that is not in context.",
   "- Some pursuits include parentPursuitTitle — that pursuit grew from the named parent; when generating insight for a nested pursuit, the parent link is relevant context.",
@@ -118,14 +118,14 @@ const SYSTEM_PROMPT = [
   "Surfaces:",
   "- global: whole-map compass in insight cache (greeting + 2–3 short sections + optional streamCta). Story is the live whole-map reading on mobile — global still generated for cache parity. No checklists, no tasks, no obligation.",
   "- themes: one entry per theme id in the map context (finance, work, becoming, people, health).",
-  "- hubs: one entry per hub id in the map context.",
-  "- pursuits: one entry per pursuit id in the map context — use the pursuit schema below (NOT the theme/hub schema).",
+  "- categories: one entry per category id in the map context.",
+  "- pursuits: one entry per pursuit id in the map context — use the pursuit schema below (NOT the theme/category schema).",
   "",
-  "Theme and hub entries have: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
-  "Mobile UI maps theme/hub fields to: Headline (oneLiner), FROM YOUR MAP (reflective), COMPARISON (contextual), WHAT THIS OPENS (combined).",
+  "Theme and category entries have: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
+  "Mobile UI maps theme/category fields to: Headline (oneLiner), FROM YOUR MAP (reflective), COMPARISON (contextual), WHAT THIS OPENS (combined).",
   "",
-  "NON-DUPLICATION RULE (theme/hub prose fields):",
-  "- Theme/hub copy is macro synthesis — balance, bottlenecks, resource friction across pursuits in the theme.",
+  "NON-DUPLICATION RULE (theme/category prose fields):",
+  "- Theme/category copy is macro synthesis — balance, bottlenecks, resource friction across pursuits in the theme.",
   "- Do not restate pursuit titles as inventory or repeat pursuit-panel execution narrative.",
   "- Each field must add information the user could not derive by looking at their own map.",
   "- Do not repeat the same idea across oneLiner, reflective, contextual, and combined.",
@@ -134,7 +134,7 @@ const SYSTEM_PROMPT = [
   "- Forbid form-validation copy: never \"add a description to clarify\" or similar UI suggestions.",
   "- No motivational poster language: never \"you've got this\", \"keep pushing\", \"amazing progress\", \"celebrate\", \"milestone unlocked\".",
   "",
-  "oneLiner (theme/hub headline — macro verdict):",
+  "oneLiner (theme/category headline — macro verdict):",
   "- Judgment on this theme as a system: where attention clusters, what is stalled, what is over-weighted.",
   "- May name one or two pursuits as examples — not a pursuit-by-pursuit list.",
   "",
@@ -156,7 +156,7 @@ const SYSTEM_PROMPT = [
   "- Not a repeat of the verdict (oneLiner) or external benchmark (contextual).",
   "- At most one concrete next step or unlock — not a list.",
   "",
-  "tone field (theme/hub):",
+  "tone field (theme/category):",
   "- Default to encouraging. Use nudge only when map data shows a clear stall.",
   "- For PAUSED pursuits, prefer encouraging — acknowledge the pause; do not nudge to resume.",
   "- Use celebratory only for COMPLETE pursuits — name the achievement plainly without hype; never for active or stalled pursuits.",
@@ -180,10 +180,10 @@ const SYSTEM_PROMPT = [
   "- streamCta: optional warm invitation to capture progress — not a task list. Do not use bare \"Stream\" as a destination label.",
   "",
   "Length limits:",
-  "- Theme/hub fields (oneLiner, reflective, contextual, combined): 2–4 sentences max.",
+  "- Theme/category fields (oneLiner, reflective, contextual, combined): 2–4 sentences max.",
   "- Pursuit headline: under 100 characters. Pursuit body: under 500 characters, single paragraph.",
   "- Global: 4 sentences maximum across greeting, sections, and streamCta.",
-  "- Use compact strings. No paragraphs in theme/hub fields. No markdown.",
+  "- Use compact strings. No paragraphs in theme/category fields. No markdown.",
   "",
   "Voice: direct, informed advisor — calm and map-native. Not a hype coach. Never shame or pressure.",
   "If the map is sparse, say so honestly and invite capture rather than inventing pursuits.",
@@ -200,8 +200,8 @@ function buildUserMessage(mapJson: string, userContext: string): string {
     mapJson,
     "",
     `Include theme keys only for ids present in the map (${themeIds}).`,
-    "Include every hub id and every pursuit id from the map in hubs and pursuits objects.",
-    "Pursuit entries use { tone, headline, body } — not the theme/hub four-field schema.",
+    "Include every category id and every pursuit id from the map in categories and pursuits objects.",
+    "Pursuit entries use { tone, headline, body } — not the theme/category four-field schema.",
     "global.sections: use short ALL-CAPS titles like MOMENTUM, ATTENTION, INTERESTING.",
     "Keep every string short enough that the whole JSON response stays under 3000 output tokens.",
   ].join("\n");
@@ -215,65 +215,72 @@ function stripMarkdownFence(raw: string): string {
 
 function collectMapNodeIds(mapContext: FormattedMapContext): {
   themeIds: string[];
-  hubIds: string[];
+  categoryIds: string[];
   pursuitIds: string[];
 } {
   const themeIds: string[] = [];
-  const hubIds: string[] = [];
+  const categoryIds: string[] = [];
   const pursuitIds: string[] = [];
   for (const theme of mapContext.themes) {
     themeIds.push(theme.id);
-    for (const hub of theme.hubs) {
-      hubIds.push(hub.id);
-      for (const pursuit of hub.pursuits) {
+    for (const category of theme.categories) {
+      categoryIds.push(category.id);
+      for (const pursuit of category.pursuits) {
         pursuitIds.push(pursuit.id);
       }
     }
   }
-  return { themeIds, hubIds, pursuitIds };
+  return { themeIds, categoryIds, pursuitIds };
 }
 
 function filterMapContextForMissingNodes(
   mapContext: FormattedMapContext,
   missingThemeIds: Set<string>,
-  missingHubIds: Set<string>,
+  missingCategoryIds: Set<string>,
   missingPursuitIds: Set<string>,
 ): FormattedMapContext {
   const themes = mapContext.themes
     .map((theme) => ({
       ...theme,
-      hubs: theme.hubs
-        .map((hub) => ({
-          ...hub,
-          pursuits: hub.pursuits.filter((pursuit) => missingPursuitIds.has(pursuit.id)),
+      categories: theme.categories
+        .map((category) => ({
+          ...category,
+          pursuits: category.pursuits.filter((pursuit) => missingPursuitIds.has(pursuit.id)),
         }))
         .filter(
-          (hub) =>
-            missingHubIds.has(hub.id) ||
-            hub.pursuits.length > 0,
+          (category) =>
+            missingCategoryIds.has(category.id) ||
+            category.pursuits.length > 0,
         ),
     }))
     .filter(
       (theme) =>
         missingThemeIds.has(theme.id) ||
-        theme.hubs.length > 0,
+        theme.categories.length > 0,
     );
   return { themes };
 }
 
-const themeHubNodeInsightSchema = z.object({
-  themes: z.record(z.string(), insightLevelSchema).optional(),
-  hubs: z.record(z.string(), insightLevelSchema).optional(),
-});
+const themeCategoryNodeInsightSchema = z
+  .object({
+    themes: z.record(z.string(), insightLevelSchema).optional(),
+    categories: z.record(z.string(), insightLevelSchema).optional(),
+    /** @deprecated AI may still emit `hubs` — coerced to categories on parse. */
+    hubs: z.record(z.string(), insightLevelSchema).optional(),
+  })
+  .transform((data) => ({
+    themes: data.themes,
+    categories: { ...(data.hubs ?? {}), ...(data.categories ?? {}) },
+  }));
 
 const pursuitNodeInsightSchema = z.object({
   pursuits: z.record(z.string(), pursuitInsightSchema).optional(),
 });
 
 const BACKFILL_SYSTEM_PROMPT = [
-  "You generate missing theme/hub insights for Pathfinder.",
+  "You generate missing theme/category insights for Pathfinder.",
   "Follow the grounding rules in generate-insights.ts and the main insight generator.",
-  "Return ONLY valid JSON: { themes?, hubs? } — each a record of id -> insight object.",
+  "Return ONLY valid JSON: { themes?, categories? } — each a record of id -> insight object.",
   "Include ONLY the ids listed in the user message — no extra keys.",
   "Each insight object has: oneLiner, reflective, contextual, combined, tone (encouraging|nudge|celebratory).",
   "Field jobs: oneLiner = theme macro verdict; reflective = cross-pursuit dynamics in theme; contextual = external benchmarks (COMPARISON); combined = forward-looking (WHAT THIS OPENS).",
@@ -292,28 +299,28 @@ const PURSUIT_BACKFILL_SYSTEM_PROMPT = [
 export type GenerateNodeInsightsRequest = {
   pursuitIds?: string[];
   themeIds?: string[];
-  hubIds?: string[];
+  categoryIds?: string[];
 };
 
-function emptyNodeInsightPatch(): Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits"> {
-  return { themes: {}, hubs: {}, pursuits: {} };
+function emptyNodeInsightPatch(): Pick<InsightGenerationResult, "themes" | "categories" | "pursuits"> {
+  return { themes: {}, categories: {}, pursuits: {} };
 }
 
-async function generateThemeHubNodeInsights(
+async function generateThemeCategoryNodeInsights(
   userId: string,
   mapContext: FormattedMapContext,
   userContext: string,
   themeIds: Set<string>,
-  hubIds: Set<string>,
-): Promise<Pick<InsightGenerationResult, "themes" | "hubs">> {
-  if (themeIds.size === 0 && hubIds.size === 0) {
-    return { themes: {}, hubs: {} };
+  categoryIds: Set<string>,
+): Promise<Pick<InsightGenerationResult, "themes" | "categories">> {
+  if (themeIds.size === 0 && categoryIds.size === 0) {
+    return { themes: {}, categories: {} };
   }
 
   const slimContext = filterMapContextForMissingNodes(
     mapContext,
     themeIds,
-    hubIds,
+    categoryIds,
     new Set(),
   );
 
@@ -324,7 +331,7 @@ async function generateThemeHubNodeInsights(
       "",
       "Missing insight ids:",
       `themes: ${[...themeIds].join(", ") || "(none)"}`,
-      `hubs: ${[...hubIds].join(", ") || "(none)"}`,
+      `categories: ${[...categoryIds].join(", ") || "(none)"}`,
       "",
       "Relevant map JSON:",
       JSON.stringify(slimContext, null, 2),
@@ -337,16 +344,16 @@ async function generateThemeHubNodeInsights(
   try {
     json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
-    console.error("[insights] theme/hub insight generation returned invalid JSON", { err, raw });
+    console.error("[insights] theme/category insight generation returned invalid JSON", { err, raw });
     throw new InsightGenerationResponseError(
       "Insight generation returned incomplete JSON. Please try refreshing again.",
       { cause: err },
     );
   }
 
-  const parsed = themeHubNodeInsightSchema.safeParse(json);
+  const parsed = themeCategoryNodeInsightSchema.safeParse(json);
   if (!parsed.success) {
-    console.error("[insights] theme/hub insight generation returned invalid shape", {
+    console.error("[insights] theme/category insight generation returned invalid shape", {
       issues: parsed.error.issues,
       raw,
     });
@@ -359,7 +366,7 @@ async function generateThemeHubNodeInsights(
 
   return {
     themes: await gateThemeInsightsPatch(userId, parsed.data.themes ?? {}),
-    hubs: parsed.data.hubs ?? {},
+    categories: parsed.data.categories ?? {},
   };
 }
 
@@ -415,11 +422,11 @@ async function generatePursuitNodeInsights(
   return { pursuits: parsed.data.pursuits ?? {} };
 }
 
-/** Focused node-level generation — one or more pursuits/themes/hubs without a full-map pass. */
+/** Focused node-level generation — one or more pursuits/themes/categories without a full-map pass. */
 export async function generateNodeInsights(
   userId: string,
   request: GenerateNodeInsightsRequest,
-): Promise<Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">> {
+): Promise<Pick<InsightGenerationResult, "themes" | "categories" | "pursuits">> {
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
   }
@@ -430,18 +437,18 @@ export async function generateNodeInsights(
   ]);
 
   const themeIds = new Set(request.themeIds ?? []);
-  const hubIds = new Set(request.hubIds ?? []);
+  const categoryIds = new Set(request.categoryIds ?? []);
   const pursuitIds = new Set(request.pursuitIds ?? []);
-  if (themeIds.size === 0 && hubIds.size === 0 && pursuitIds.size === 0) {
+  if (themeIds.size === 0 && categoryIds.size === 0 && pursuitIds.size === 0) {
     return emptyNodeInsightPatch();
   }
 
-  const themeHubPatch = await generateThemeHubNodeInsights(
+  const themeCategoryPatch = await generateThemeCategoryNodeInsights(
     userId,
     mapContext,
     userContext,
     themeIds,
-    hubIds,
+    categoryIds,
   );
   const pursuitPatch = await generatePursuitNodeInsights(
     userId,
@@ -451,8 +458,8 @@ export async function generateNodeInsights(
   );
 
   return {
-    themes: themeHubPatch.themes,
-    hubs: themeHubPatch.hubs,
+    themes: themeCategoryPatch.themes,
+    categories: themeCategoryPatch.categories,
     pursuits: pursuitPatch.pursuits,
   };
 }
@@ -476,14 +483,14 @@ async function backfillMissingNodeInsights(
   _userContext: string,
   generated: InsightGenerationResult,
 ): Promise<InsightGenerationResult> {
-  const { themeIds, hubIds, pursuitIds } = collectMapNodeIds(mapContext);
+  const { themeIds, categoryIds, pursuitIds } = collectMapNodeIds(mapContext);
   const missingThemeIds = new Set(themeIds.filter((id) => !generated.themes[id]));
-  const missingHubIds = new Set(hubIds.filter((id) => !generated.hubs[id]));
+  const missingCategoryIds = new Set(categoryIds.filter((id) => !generated.categories[id]));
   const missingPursuitIds = new Set(pursuitIds.filter((id) => !generated.pursuits[id]));
 
   if (
     missingThemeIds.size === 0 &&
-    missingHubIds.size === 0 &&
+    missingCategoryIds.size === 0 &&
     missingPursuitIds.size === 0
   ) {
     return generated;
@@ -491,15 +498,15 @@ async function backfillMissingNodeInsights(
 
   console.warn("[insights] backfilling missing node insights", {
     themes: missingThemeIds.size,
-    hubs: missingHubIds.size,
+    categories: missingCategoryIds.size,
     pursuits: missingPursuitIds.size,
   });
 
-  let patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">;
+  let patch: Pick<InsightGenerationResult, "themes" | "categories" | "pursuits">;
   try {
     patch = await generateNodeInsights(userId, {
       themeIds: [...missingThemeIds],
-      hubIds: [...missingHubIds],
+      categoryIds: [...missingCategoryIds],
       pursuitIds: [...missingPursuitIds],
     });
   } catch (err) {
@@ -515,7 +522,7 @@ async function backfillMissingNodeInsights(
   return {
     global: generated.global,
     themes: mergeLevel(generated.themes, patch.themes),
-    hubs: mergeLevel(generated.hubs, patch.hubs),
+    categories: mergeLevel(generated.categories, patch.categories),
     pursuits: mergeLevel(generated.pursuits, patch.pursuits),
   };
 }

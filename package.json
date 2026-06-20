@@ -46,7 +46,6 @@
     "qa:quality-eval": "npx tsx scripts/qa-quality-eval.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:live-gemini": "npx tsx scripts/test-live-gemini.ts",
     "verify:prod": "npx tsx scripts/verify-prod-deploy.ts",
     "verify:prod:reflect": "npx tsx scripts/verify-prod-deploy.ts --reflect",
     "seed:ai-qa": "npx tsx scripts/seed-ai-qa.ts",

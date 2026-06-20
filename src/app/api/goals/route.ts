@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   }
 
   const branchRecord = await prisma.themeCategory.findFirst({
-    where: { id: input.branchId.trim(), userId },
+    where: { id: input.categoryId.trim(), userId },
     select: { id: true, themeId: true, label: true, isActive: true },
   });
   if (!branchRecord) {
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
           themeId: branchRecord.themeId,
           deadline,
           significance,
-          status: input.bloomStatus ?? "ACTIVE",
+          status: input.status ?? "ACTIVE",
           aiGenerated: false,
           future,
           year,
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
       });
     }
 
-    if (input.bloomStatus !== "COMPLETE") {
+    if (input.status !== "COMPLETE") {
       try {
         await recomputeGoalStatus(goal.id);
       } catch (recErr) {
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
 
     if (
       shouldGenerateRoadmap(input.generateRoadmap) &&
-      input.bloomStatus !== "MAINTAINING" &&
+      input.status !== "MAINTAINING" &&
       input.goalType !== "identity"
     ) {
       const deadlineStr = deadline ? deadline.toISOString().slice(0, 10) : "No fixed deadline";
@@ -240,7 +240,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const branchLabel = branchRecord.label ?? "Branch";
+    const categoryLabel = branchRecord.label ?? "Category";
 
     await markPursuitReadingDirty(userId, goal.id, "pursuit_created", {
       details: { event: "created", title: goal.title },
@@ -249,7 +249,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         goal: { id: goal.id, title: goal.title },
-        branchLabel,
+        categoryLabel,
+        branchLabel: categoryLabel,
       },
       { status: 201 },
     );

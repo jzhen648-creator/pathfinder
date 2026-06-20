@@ -25,7 +25,7 @@ export function isReadingDeliveryBypassed(): boolean {
 
 export async function checkReadingDeliveryGate(
   userId: string,
-  options?: { force?: boolean; hasStoryCache?: boolean },
+  options?: { force?: boolean; hasInsightCache?: boolean },
 ): Promise<ReadingDeliveryGateResult> {
   const intervalMs = deliveryIntervalMs();
   if (options?.force === true || isReadingDeliveryBypassed() || intervalMs === 0) {
@@ -39,8 +39,8 @@ export async function checkReadingDeliveryGate(
 
   const lastDeliveredAt = user?.lastReadingDeliveredAt ?? null;
 
-  // First reading — no story cache yet; allow delivery without waiting.
-  if (!options?.hasStoryCache && !lastDeliveredAt) {
+  // First reading — no insight cache yet; allow delivery without waiting.
+  if (!options?.hasInsightCache && !lastDeliveredAt) {
     return { allowed: true, retryAfterMs: 0, lastDeliveredAt, intervalMs };
   }
 

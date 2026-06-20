@@ -38,6 +38,6 @@ export async function POST(request: Request) {
 
   const themeIds = parsed.data.themeIds ?? parsed.data.limbIds;
   await ensureTaxonomyCurrent(prisma, userId);
-  const unlockedLimbIds = await unlockThemesForUser(prisma, userId, themeIds);
-  return NextResponse.json({ unlockedLimbIds });
+  const unlockedThemeIds = await unlockThemesForUser(prisma, userId, themeIds);
+  return NextResponse.json({ unlockedThemeIds, unlockedLimbIds: unlockedThemeIds });
 }

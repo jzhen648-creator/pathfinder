@@ -12,10 +12,9 @@
 
 3. **Verify deployment SHA** — Vercel → Deployments → latest Ready → commit matches `pathfinder` repo HEAD.
 
-4. **Manual live check** (one Gemini call, not CI):
+4. **Manual live check** (not CI):
    ```powershell
    cd pathfinder
-   npm run test:live-gemini
    npm run verify:prod
    ```
 

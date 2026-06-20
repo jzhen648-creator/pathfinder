@@ -31,17 +31,17 @@ function pursuit(
   };
 }
 
-function mapContext(...items: Array<{ hubId: string; pursuits: ReturnType<typeof pursuit>[] }>): FormattedMapContext {
+function mapContext(...items: Array<{ categoryId: string; pursuits: ReturnType<typeof pursuit>[] }>): FormattedMapContext {
   return {
     themes: [
       {
         id: "finance",
         label: "Finance",
         marks: [],
-        hubs: items.map((item) => ({
-          id: item.hubId,
-          label: item.hubId,
-          section: "",
+        categories: items.map((item) => ({
+          id: item.categoryId,
+          label: item.categoryId,
+          categoryLabel: "",
           pursuits: item.pursuits,
           marks: [],
         })),
@@ -58,9 +58,9 @@ describe("amount impact eligibility", () => {
   });
 
   it("requires at least two amount-tracked pursuits", () => {
-    const one = mapContext({ hubId: "savings", pursuits: [pursuit("a", { targetAmount: 1000 })] });
+    const one = mapContext({ categoryId: "savings", pursuits: [pursuit("a", { targetAmount: 1000 })] });
     const two = mapContext({
-      hubId: "savings",
+      categoryId: "savings",
       pursuits: [
         pursuit("a", { targetAmount: 1000 }),
         pursuit("b", { currentAmount: 200 }),

@@ -29,11 +29,11 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       id: "work",
       label: "Work & Career",
       marks: [],
-      hubs: [
+      categories: [
         {
           id: "cat-job",
           label: "Job",
-          section: "Job",
+          categoryLabel: "Job",
           marks: [],
           pursuits: [
             pursuit("p-cemap", "CeMAP qualification", "ACTIVE", 5, {
@@ -70,7 +70,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
         {
           id: "cat-skills",
           label: "Skills",
-          section: "Skills",
+          categoryLabel: "Skills",
           marks: [],
           pursuits: [
             pursuit("p-speaking", "Public speaking", "MAINTAINING", 3, {
@@ -91,11 +91,11 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       id: "finance",
       label: "Money & Finance",
       marks: [],
-      hubs: [
+      categories: [
         {
           id: "cat-savings",
           label: "Savings",
-          section: "Savings",
+          categoryLabel: "Savings",
           marks: [],
           pursuits: [
             pursuit("p-isa", "£500,000 ISA", "ACTIVE", 5, {
@@ -121,11 +121,11 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       id: "health",
       label: "Health & Body",
       marks: [],
-      hubs: [
+      categories: [
         {
           id: "cat-fitness",
           label: "Fitness",
-          section: "Fitness",
+          categoryLabel: "Fitness",
           marks: [],
           pursuits: [
             pursuit("p-marathon", "London Marathon 2027", "ACTIVE", 4, {
@@ -147,11 +147,11 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       id: "people",
       label: "People & Relationships",
       marks: [],
-      hubs: [
+      categories: [
         {
           id: "cat-family",
           label: "Family",
-          section: "Family",
+          categoryLabel: "Family",
           marks: [],
           pursuits: [
             pursuit("p-wedding", "Plan wedding", "ACTIVE", 5, {
@@ -166,11 +166,11 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       id: "becoming",
       label: "Self & Mind",
       marks: [],
-      hubs: [
+      categories: [
         {
           id: "cat-mind",
           label: "Mind",
-          section: "Mind",
+          categoryLabel: "Mind",
           marks: [],
           pursuits: [
             pursuit("p-meditation", "Daily meditation", "MAINTAINING", 3),
@@ -182,11 +182,11 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
       id: "pleasures",
       label: "Play & Leisure",
       marks: [],
-      hubs: [
+      categories: [
         {
           id: "cat-hobby",
           label: "Hobbies",
-          section: "Hobbies",
+          categoryLabel: "Hobbies",
           marks: [],
           pursuits: [
             pursuit("p-guitar", "Learn guitar", "ACTIVE", 3, {
@@ -210,7 +210,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
 
 /** All pursuit IDs on the dense map. */
 export const DENSE_ALL_PURSUIT_IDS = DENSE_MAP_CONTEXT.themes.flatMap((theme) =>
-  theme.hubs.flatMap((hub) => hub.pursuits.map((p) => p.id)),
+  theme.categories.flatMap((category) => category.pursuits.map((p) => p.id)),
 );
 
 /**
@@ -351,7 +351,7 @@ export function buildDenseReflectResponse(dirtyIds: string[]): {
 
   for (const id of dirtyIds) {
     const pursuitRow = DENSE_MAP_CONTEXT.themes
-      .flatMap((t) => t.hubs.flatMap((h) => h.pursuits))
+      .flatMap((t) => t.categories.flatMap((c) => c.pursuits))
       .find((p) => p.id === id);
     const title = pursuitRow?.title ?? id;
     pursuits[id] = {

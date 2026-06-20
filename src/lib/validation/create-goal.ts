@@ -30,9 +30,12 @@ export const createGoalPayloadSchema = z
     title: z.string(),
     description: z.string(),
     branchId: z.string().optional(),
-    /** Phase 2 alias for `branchId` (taxonomy category row id). */
+    /** Taxonomy category row id (preferred). */
     categoryId: z.string().optional(),
     goalType: z.enum(GOAL_TYPE_VALUES),
+    /** Canonical pursuit status on create. */
+    status: z.enum(["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE"]).optional(),
+    /** @deprecated Use `status`. */
     bloomStatus: z.enum(["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE"]).optional(),
     deadline: z.string(),
     significance: z.coerce.number().int(),
@@ -51,7 +54,7 @@ export const createGoalPayloadSchema = z
     createdFromGoalId: z.string().optional(),
     /** Optional pursuit start date (YYYY-MM-DD) for timeline + AI pace facts. */
     timelineStart: z.string().optional(),
-    /** When creating a historical record — completion date (YYYY-MM-DD). Requires bloomStatus COMPLETE. */
+    /** When creating a historical record — completion date (YYYY-MM-DD). Requires status COMPLETE. */
     completedAt: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -82,8 +85,8 @@ export const createGoalPayloadSchema = z
     if (!branchId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Category is required (branchId or categoryId)",
-        path: ["branchId"],
+        message: "Category is required (categoryId)",
+        path: ["categoryId"],
       });
     }
 
@@ -138,11 +141,12 @@ export const createGoalPayloadSchema = z
     }
 
     const completedAtTrim = data.completedAt?.trim() ?? "";
+    const createStatus = data.status ?? data.bloomStatus;
     if (completedAtTrim.length > 0) {
-      if (data.bloomStatus !== "COMPLETE") {
+      if (createStatus !== "COMPLETE") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "completedAt requires bloomStatus COMPLETE",
+          message: "completedAt requires status COMPLETE",
           path: ["completedAt"],
         });
       } else if (!parseLocalDateOnly(completedAtTrim)) {
@@ -156,7 +160,8 @@ export const createGoalPayloadSchema = z
   })
   .transform((data) => ({
     ...data,
-    branchId: resolveBranchIdFromBody(data),
+    categoryId: resolveBranchIdFromBody(data),
+    status: data.status ?? data.bloomStatus,
   }));
 
 export type CreateGoalPayloadInput = z.input<typeof createGoalPayloadSchema>;

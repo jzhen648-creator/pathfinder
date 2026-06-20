@@ -15,7 +15,9 @@ Desktop tree vocabulary: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md) and [`docs
 | Category row | Prisma **`ThemeCategory`** | SQL table **`Branch`** until optional tail rename |
 | FK on Goal | **`categoryId`** | JSON **`branchId`** |
 | Theme on map entities | **`themeId`** | JSON **`limbId`** |
-| Pursuit lifecycle | Prisma **`Goal.status`** | SQL column **`bloomStatus`** |
+| Pursuit lifecycle | Prisma **`Goal.status`** | SQL column **`bloomStatus`**; JSON **`bloomStatus`** deprecated on create |
+| Insight cache (category tier) | **`categoryInsights`** / API **`categories`** | SQL column **`hubInsights`** via `@map`; JSON **`hubs`** (dual-read, retiring) |
+| Unlocked themes | **`unlockedThemeIds`** on map-data | JSON column **`unlockedLimbIds`** on User (SQL name unchanged) |
 | Taxonomy stamp | Prisma **`User.taxonomyVersion`** | SQL column **`hubTaxonomyVersion`** |
 
 Taxonomy Phases 1–3 shipped — see root [`TAXONOMY-CLEANUP.md`](../TAXONOMY-CLEANUP.md). Do **not** re-run migration work.
@@ -33,7 +35,7 @@ Map entities use **`themeId`** and **`categoryId`** in Postgres. JSON may still 
 | **Category** | Prisma **`ThemeCategory`** root row; **`categoryId`** on `Goal`. Shown in mobile UI — theme detail groups, pursuit eyebrow, create/move pickers. Legacy words: hub, track, section, **`Branch`**. |
 | **Goal / Pursuit** | Prisma **`Goal`**. User word **pursuit** — **no subtypes**. **`goalType`** column is legacy wire (default `"project"` until dropped). Use **status** (especially **Maintaining**) for ongoing pursuits. Legacy `moment` / `event` rows are timeline-only, not map pursuits. |
 | **Milestone** | Prisma **`Milestone`** — phase within one goal only; never goal-to-goal evolution. |
-| **Mark** | Prisma **`Mark`** — **schema-only on mobile** (no UI; `map-data` returns `marks: []`). Rows preserved for desktop / legacy data. |
+| **Mark** | **Retired** — `Mark` table dropped (`20260621120000_drop_legacy_desktop_schema`); mobile never showed marks |
 | **Archived** | `Goal.archived` — hidden from map; restore via Settings → Archived pursuits (`PATCH` `archived: false`). |
 | **Goal evolution (legacy data)** | `Goal.parentGoalId` / `forkedGoals`. Fork API removed — peers only on mobile. |
 | **Sequence position** | `Goal.sequencePosition` — desktop branch-line order only. |
@@ -53,7 +55,7 @@ Persisted: Prisma **`Goal.status`** (`@map("bloomStatus")` on SQL column). Value
 - **`MAINTAINING`** — ongoing practice (legacy `practice` goalType → project + MAINTAINING).
 - **`ABANDONED`** — off map.
 
-Legacy **`ON_HOLD`**, **`BUD`**, **`GROWING`**, **`BLOOMED`**, **`ENDED`** normalized at read via `normalizeLegacyBloomStatus`. See `goal-status-lifecycle.ts`, `npm run backfill:goal-bloom`.
+Legacy **`ON_HOLD`**, **`BUD`**, **`GROWING`**, **`BLOOMED`**, **`ENDED`** normalized at read via `normalizeLegacyPursuitStatus`. See `goal-status-lifecycle.ts`, `npm run backfill:goal-bloom`.
 
 ---
 

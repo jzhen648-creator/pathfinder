@@ -13,7 +13,6 @@ import {
 
 import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 
-import { refreshReadingCachesSmart } from "@/lib/map/incremental-reading-refresh";
 import { isReflectCallEnabled, runReflectSync } from "@/lib/ai/generate-reflect";
 import { reflectSyncWouldSkip } from "@/lib/ai/reflect-sync-plan";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
@@ -158,7 +157,7 @@ async function runMapAiSyncInner(
 
   const deliveryGate = await checkReadingDeliveryGate(userId, {
     force,
-    hasStoryCache: Boolean(insightRow),
+    hasInsightCache: Boolean(insightRow),
   });
 
   if (!deliveryGate.allowed && insightWorkNeeded) {
@@ -169,54 +168,36 @@ async function runMapAiSyncInner(
     return buildBaseResult(mapVersion, metrics);
   }
 
+  if (!reflectEnabled) {
+    console.warn("[map/ai-sync] USE_REFLECT_CALL is not enabled — sync skipped");
+    return buildBaseResult(mapVersion, metrics);
+  }
+
   metrics.startedWork = true;
 
   let insightsRefreshed = false;
 
   try {
-    if (reflectEnabled) {
-      const reflect = await runReflectSync(userId, mapVersion, memoryVersion, {
-        force,
-        insightsStale,
-        metrics,
-        enrichOptions,
-      });
+    const reflect = await runReflectSync(userId, mapVersion, memoryVersion, {
+      force,
+      insightsStale,
+      metrics,
+      enrichOptions,
+    });
 
-      if (reflect.skipped) {
-        metrics.startedWork = false;
-        return buildBaseResult(mapVersion, metrics);
-      }
-
-      insightsRefreshed = reflect.insightsRefreshed;
-
-      if (reflect.geminiRateLimited) {
-        metrics.rateLimited = true;
-      }
-
-      await flushDeferredMemoryUpdates(userId);
-      metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
-    } else {
-      const refresh = await refreshReadingCachesSmart(userId, mapVersion, memoryVersion, {
-        forceFull: false,
-        force,
-        metrics,
-        enrichOptions,
-      });
-
-      insightsRefreshed = refresh.insightsRefreshed || refresh.insightsPruned;
-
-      metrics.fullRefresh = refresh.fullRefresh;
-      metrics.incrementalRefresh = refresh.incrementalRefresh;
-      metrics.backfillCalls = refresh.backfillCalls;
-
-      if (refresh.geminiRateLimited) {
-        metrics.rateLimited = true;
-        metrics.morePending = true;
-      }
-
-      await flushDeferredMemoryUpdates(userId);
-      metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
+    if (reflect.skipped) {
+      metrics.startedWork = false;
+      return buildBaseResult(mapVersion, metrics);
     }
+
+    insightsRefreshed = reflect.insightsRefreshed;
+
+    if (reflect.geminiRateLimited) {
+      metrics.rateLimited = true;
+    }
+
+    await flushDeferredMemoryUpdates(userId);
+    metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
   } catch (err) {
     discardDeferredMemoryUpdates(userId);
 
@@ -251,9 +232,7 @@ async function runMapAiSyncInner(
       data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
     });
 
-    if (!reflectEnabled) {
-      await clearReadingDirtyLedger(userId);
-    }
+    await clearReadingDirtyLedger(userId);
   }
 
   if (metrics.aiCallsCompleted > 0) {

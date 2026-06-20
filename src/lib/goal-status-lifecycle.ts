@@ -55,11 +55,6 @@ export function normalizeLegacyPursuitStatus(status: string): PursuitStatus | nu
 /** Input shape for lifecycle normalization (includes explicit milestone completion). */
 export type MilestoneLifecycleInput = MilestoneSemanticsInput;
 
-/** @deprecated Prefer {@link milestoneDoneForSemantics}; kept for call-site churn control. */
-export function milestoneIsFullyCompleted(milestone: MilestoneLifecycleInput): boolean {
-  return milestoneDoneForSemantics(milestone);
-}
-
 /** Pursuit (`Goal` row) is achieved for lifecycle → COMPLETE. */
 export function goalAchievedForLifecycle(
   goal: { goalType: string; future: boolean; year: number | null },
@@ -87,18 +82,3 @@ export function computeGoalLifecycleStatus(
   if (goalAchievedForLifecycle(goal, milestones, nowYear)) return "COMPLETE";
   return "ACTIVE";
 }
-
-/** @deprecated Use {@link PursuitStatusBadgeBucket}. */
-export type BloomBadgeBucket = PursuitStatusBadgeBucket;
-/** @deprecated Use {@link formatPursuitStatusLabel}. */
-export const formatBloomStatusLabel = formatPursuitStatusLabel;
-/** @deprecated Use {@link badgeBucketFromStatus}. */
-export const badgeBucketFromBloom = badgeBucketFromStatus;
-/** @deprecated Use {@link normalizeLegacyPursuitStatus}. */
-export const normalizeLegacyBloomStatus = normalizeLegacyPursuitStatus;
-/** @deprecated Use {@link goalAchievedForLifecycle}. */
-export const goalAchievedForBloomLifecycle = goalAchievedForLifecycle;
-/** @deprecated Use {@link GoalLifecycleStatus}. */
-export type GoalLifecycleBloom = GoalLifecycleStatus;
-/** @deprecated Use {@link computeGoalLifecycleStatus}. */
-export const computeGoalLifecycleBloom = computeGoalLifecycleStatus;

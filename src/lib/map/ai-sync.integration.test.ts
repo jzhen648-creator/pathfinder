@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runMapAiSync } from "@/lib/map/ai-sync";
-import { MAX_GEMINI_CALLS_PER_SYNC } from "@/lib/map/sync-gemini-budget";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 
 const USER_ID = "test-user";
@@ -9,7 +8,6 @@ const MAP_VERSION = "map-v1";
 const MEMORY_VERSION = 1;
 
 const mocks = vi.hoisted(() => ({
-  refreshReadingCachesSmart: vi.fn(),
   runReflectSync: vi.fn(),
   isReflectCallEnabled: vi.fn(),
   computeMapVersion: vi.fn(),
@@ -23,10 +21,6 @@ const mocks = vi.hoisted(() => ({
   prismaUserFindUnique: vi.fn(),
   prismaInsightFindUnique: vi.fn(),
   prismaAiReadingDirtyFindMany: vi.fn(),
-}));
-
-vi.mock("@/lib/map/incremental-reading-refresh", () => ({
-  refreshReadingCachesSmart: mocks.refreshReadingCachesSmart,
 }));
 
 vi.mock("@/lib/ai/generate-reflect", () => ({
@@ -100,7 +94,7 @@ function setupFreshCaches() {
     memoryVersion: MEMORY_VERSION,
     globalInsight: JSON.stringify({ greeting: "", sections: [] }),
     themeInsights: "{}",
-    hubInsights: "{}",
+    categoryInsights: "{}",
     pursuitInsights: "{}",
     generatedAt: new Date(),
   });
@@ -121,15 +115,6 @@ describe("runMapAiSync integration", () => {
     setupFreshCaches();
     mocks.isReflectCallEnabled.mockReturnValue(false);
     mocks.listReadingDirtySummary.mockResolvedValue(baseDirtySummary());
-    mocks.refreshReadingCachesSmart.mockResolvedValue({
-      insightsRefreshed: false,
-      storyRefreshed: false,
-      insightsPruned: false,
-      fullRefresh: false,
-      incrementalRefresh: false,
-      backfillCalls: 0,
-      geminiRateLimited: false,
-    });
     mocks.runReflectSync.mockImplementation(
       async (
         _userId: string,
@@ -147,44 +132,17 @@ describe("runMapAiSync integration", () => {
     );
   });
 
-  it("runs legacy refresh on force when dirty ledger has pursuits", async () => {
+  it("skips sync when reflect is disabled even with dirty ledger", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(false);
     mocks.listReadingDirtySummary.mockResolvedValue(
       baseDirtySummary({ pursuitIds: ["p1"], totalItems: 1 }),
     );
-    mocks.refreshReadingCachesSmart.mockImplementation(
-      async (
-        _userId: string,
-        _mapVersion: string,
-        _memoryVersion: number,
-        options: { metrics: { aiCallsCompleted: number } },
-      ) => {
-        options.metrics.aiCallsCompleted = 1;
-        return {
-          insightsRefreshed: true,
-          storyRefreshed: false,
-          insightsPruned: false,
-          fullRefresh: false,
-          incrementalRefresh: true,
-          backfillCalls: 0,
-          geminiRateLimited: false,
-        };
-      },
-    );
-    mocks.prismaInsightFindUnique.mockResolvedValue({
-      mapVersion: MAP_VERSION,
-      memoryVersion: MEMORY_VERSION,
-      globalInsight: JSON.stringify({ greeting: "Hi", sections: [] }),
-      themeInsights: "{}",
-      hubInsights: "{}",
-      pursuitInsights: "{}",
-      generatedAt: new Date(),
-    });
 
     const result = await runMapAiSync(USER_ID, { force: true });
 
-    expect(mocks.refreshReadingCachesSmart).toHaveBeenCalled();
-    expect(result.metrics.aiCallsCompleted).toBeLessThanOrEqual(MAX_GEMINI_CALLS_PER_SYNC);
-    expect(result.story).toEqual({ refreshed: false, skipped: true });
+    expect(mocks.runReflectSync).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(true);
+    expect(result.metrics.aiCallsCompleted).toBe(0);
   });
 
   it("uses reflect path with one Gemini call when USE_REFLECT_CALL is on", async () => {
@@ -195,7 +153,6 @@ describe("runMapAiSync integration", () => {
 
     const result = await runMapAiSync(USER_ID, { force: true });
 
-    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
     expect(mocks.runReflectSync).toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(1);
     expect(result.metrics.reflectCall).toBe(true);
@@ -214,19 +171,17 @@ describe("runMapAiSync integration", () => {
     expect(result.digested).toEqual({ runs: 0, failed: 0, errors: [] });
   });
 
-  it("legacy path with fresh caches and empty dirty ledger skips work", async () => {
+  it("reflect-disabled path with fresh caches and empty dirty ledger skips work", async () => {
     mocks.isReflectCallEnabled.mockReturnValue(false);
 
     const result = await runMapAiSync(USER_ID, { force: false });
 
-    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(0);
   });
 
   it("makes zero Gemini calls on rapid create with fresh caches and empty dirty ledger", async () => {
     const result = await runMapAiSync(USER_ID);
 
-    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
     expect(mocks.runReflectSync).not.toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(0);
   });
@@ -238,7 +193,7 @@ describe("runMapAiSync integration", () => {
       memoryVersion: MEMORY_VERSION,
       globalInsight: JSON.stringify({ greeting: "", sections: [] }),
       themeInsights: "{}",
-      hubInsights: "{}",
+      categoryInsights: "{}",
       pursuitInsights: "{}",
       generatedAt: new Date(),
     });
@@ -265,6 +220,5 @@ describe("runMapAiSync integration", () => {
     await runMapAiSync(USER_ID, { force: true });
 
     expect(mocks.runReflectSync).toHaveBeenCalledTimes(1);
-    expect(mocks.refreshReadingCachesSmart).not.toHaveBeenCalled();
   });
 });

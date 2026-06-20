@@ -6,7 +6,7 @@ import { shouldSuggestMilestones, type PursuitSignal } from "@/lib/pursuit/pursu
 import { DENSE_MAP_CONTEXT } from "@/lib/map/__fixtures__/dense-map";
 
 const ALL_PURSUIT_IDS = DENSE_MAP_CONTEXT.themes.flatMap((theme) =>
-  theme.hubs.flatMap((hub) => hub.pursuits.map((pursuit) => pursuit.id)),
+  theme.categories.flatMap((category) => category.pursuits.map((pursuit) => pursuit.id)),
 );
 
 function baseSignal(overrides: Partial<PursuitSignal> = {}): PursuitSignal {
@@ -32,19 +32,19 @@ describe("reflect invariants", () => {
           const sliced = buildPursuitsOnlyMapContext(DENSE_MAP_CONTEXT, dirtyIds);
           const dirtyCategories = new Set(
             DENSE_MAP_CONTEXT.themes.flatMap((theme) =>
-              theme.hubs.flatMap((hub) =>
-                hub.pursuits.some((pursuit) => dirtyIds.includes(pursuit.id)) ? [hub.id] : [],
+              theme.categories.flatMap((category) =>
+                category.pursuits.some((pursuit) => dirtyIds.includes(pursuit.id)) ? [category.id] : [],
               ),
             ),
           );
           const outputIds = sliced.themes.flatMap((theme) =>
-            theme.hubs.flatMap((hub) => hub.pursuits.map((pursuit) => pursuit.id)),
+            theme.categories.flatMap((category) => category.pursuits.map((pursuit) => pursuit.id)),
           );
           for (const id of outputIds) {
-            const hubId = DENSE_MAP_CONTEXT.themes
-              .flatMap((theme) => theme.hubs)
-              .find((hub) => hub.pursuits.some((pursuit) => pursuit.id === id))?.id;
-            expect(dirtyCategories.has(hubId ?? "")).toBe(true);
+            const categoryId = DENSE_MAP_CONTEXT.themes
+              .flatMap((theme) => theme.categories)
+              .find((category) => category.pursuits.some((pursuit) => pursuit.id === id))?.id;
+            expect(dirtyCategories.has(categoryId ?? "")).toBe(true);
           }
         },
       ),
@@ -74,10 +74,10 @@ describe("reflect invariants", () => {
     const full = buildPursuitsOnlyMapContext(DENSE_MAP_CONTEXT, [dirtyId]);
     const scoped = buildPursuitsOnlyMapContext(DENSE_MAP_CONTEXT, [dirtyId]);
     const fullTitles = full.themes.flatMap((theme) =>
-      theme.hubs.flatMap((hub) => hub.pursuits.map((p) => p.title)),
+      theme.categories.flatMap((category) => category.pursuits.map((p) => p.title)),
     );
     const scopedTitles = scoped.themes.flatMap((theme) =>
-      theme.hubs.flatMap((hub) => hub.pursuits.map((p) => p.title)),
+      theme.categories.flatMap((category) => category.pursuits.map((p) => p.title)),
     );
     expect(fullTitles).toContain("CeMAP qualification");
     expect(scopedTitles).toContain("CeMAP qualification");

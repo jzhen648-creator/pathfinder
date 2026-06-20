@@ -39,12 +39,21 @@ export const globalNowInsightSchema = z.object({
   streamCta: z.string().optional(),
 });
 
-export const insightGenerationSchema = z.object({
-  global: globalNowInsightSchema,
-  themes: z.record(z.string(), insightLevelSchema),
-  hubs: z.record(z.string(), insightLevelSchema),
-  pursuits: z.record(z.string(), pursuitInsightSchema),
-});
+export const insightGenerationSchema = z
+  .object({
+    global: globalNowInsightSchema,
+    themes: z.record(z.string(), insightLevelSchema),
+    categories: z.record(z.string(), insightLevelSchema).optional(),
+    /** @deprecated AI may still emit `hubs` — coerced to categories on parse. */
+    hubs: z.record(z.string(), insightLevelSchema).optional(),
+    pursuits: z.record(z.string(), pursuitInsightSchema),
+  })
+  .transform((data) => ({
+    global: data.global,
+    themes: data.themes,
+    categories: { ...(data.hubs ?? {}), ...(data.categories ?? {}) },
+    pursuits: data.pursuits,
+  }));
 
 export type InsightLevelPayload = z.infer<typeof insightLevelSchema>;
 export type PursuitInsightPayload = z.infer<typeof pursuitInsightSchema>;
@@ -54,7 +63,7 @@ export type InsightGenerationResult = z.infer<typeof insightGenerationSchema>;
 export type InsightCachePayload = {
   global: GlobalNowInsight;
   themes: Record<string, InsightLevelPayload>;
-  hubs: Record<string, InsightLevelPayload>;
+  categories: Record<string, InsightLevelPayload>;
   pursuits: Record<string, PursuitInsightPayload>;
   generatedAt: string;
   mapVersion: string;

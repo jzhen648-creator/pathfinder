@@ -9,7 +9,7 @@ export function isLifeAreaId(value: string): value is LifeAreaId {
 }
 
 /** Parse `User.unlockedLimbIds` JSON — invalid entries dropped. */
-export function parseUnlockedLimbIds(raw: unknown): LifeAreaId[] {
+export function parseUnlockedThemeIds(raw: unknown): LifeAreaId[] {
   if (!Array.isArray(raw)) return [];
   const out: LifeAreaId[] = [];
   for (const item of raw) {
@@ -20,34 +20,43 @@ export function parseUnlockedLimbIds(raw: unknown): LifeAreaId[] {
   return out;
 }
 
+/** @deprecated Use {@link parseUnlockedThemeIds}. */
+export const parseUnlockedLimbIds = parseUnlockedThemeIds;
+
 /**
- * Themes on the map: persisted unlock list plus any limb that already has an active hub
+ * Themes on the map: persisted unlock list plus any theme that already has an active category row
  * (legacy users who activated before theme-only unlock).
  */
-export function mergeUnlockedLimbIds(
+export function mergeUnlockedThemeIds(
   stored: readonly LifeAreaId[],
-  branchRows: readonly { themeId?: string; limbId?: string; isActive?: boolean | null }[],
+  categoryRows: readonly { themeId?: string; limbId?: string; isActive?: boolean | null }[],
 ): LifeAreaId[] {
   const set = new Set<LifeAreaId>(stored);
-  for (const b of branchRows) {
-    const rowTheme = b.themeId ?? b.limbId;
-    if (b.isActive === true && rowTheme && isLifeAreaId(rowTheme)) {
+  for (const row of categoryRows) {
+    const rowTheme = row.themeId ?? row.limbId;
+    if (row.isActive === true && rowTheme && isLifeAreaId(rowTheme)) {
       set.add(rowTheme);
     }
   }
   return LIFE_AREA_IDS.filter((id) => set.has(id));
 }
 
-export function dormantLimbIdsFromUnlocked(unlocked: readonly LifeAreaId[]): LifeAreaId[] {
+/** @deprecated Use {@link mergeUnlockedThemeIds}. */
+export const mergeUnlockedLimbIds = mergeUnlockedThemeIds;
+
+export function dormantThemeIdsFromUnlocked(unlocked: readonly LifeAreaId[]): LifeAreaId[] {
   const set = new Set(unlocked);
   return LIFE_AREA_IDS.filter((id) => !set.has(id));
 }
 
-/** Unlock themes on the map without activating hub rows. */
+/** @deprecated Use {@link dormantThemeIdsFromUnlocked}. */
+export const dormantLimbIdsFromUnlocked = dormantThemeIdsFromUnlocked;
+
+/** Unlock themes on the map without activating category rows. */
 export async function unlockThemesForUser(
   prisma: PrismaClient,
   userId: string,
-  limbIds: readonly LifeAreaId[],
+  themeIds: readonly LifeAreaId[],
 ): Promise<LifeAreaId[]> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -55,9 +64,9 @@ export async function unlockThemesForUser(
   });
   if (!user) return [];
 
-  const current = parseUnlockedLimbIds(user.unlockedLimbIds);
+  const current = parseUnlockedThemeIds(user.unlockedLimbIds);
   const next = new Set<LifeAreaId>(current);
-  for (const id of limbIds) {
+  for (const id of themeIds) {
     if (isLifeAreaId(id)) next.add(id);
   }
   const merged = LIFE_AREA_IDS.filter((id) => next.has(id));

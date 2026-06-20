@@ -9,7 +9,6 @@ import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { prisma } from "@/lib/prisma";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
-import { ReadingSyncGenerationResponseError } from "@/lib/map/generate-reading-sync";
 
 export const maxDuration = 120;
 
@@ -104,10 +103,6 @@ export async function POST(request: Request) {
     }
     if (err instanceof InsightGenerationResponseError) {
       console.error("[POST /api/map/ai-sync] insight generation failed", err.message);
-      return NextResponse.json({ error: err.message }, { status: 502 });
-    }
-    if (err instanceof ReadingSyncGenerationResponseError) {
-      console.error("[POST /api/map/ai-sync] reading sync generation failed", err.message);
       return NextResponse.json({ error: err.message }, { status: 502 });
     }
     return aiRouteErrorResponse(err, "[POST /api/map/ai-sync]");

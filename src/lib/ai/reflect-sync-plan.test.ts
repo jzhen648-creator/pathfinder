@@ -37,7 +37,7 @@ describe("planReflectWork", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.formatMapContext.mockResolvedValue({
-      themes: [{ id: "work", hubs: [{ pursuits: [{ id: "p1" }] }] }],
+      themes: [{ id: "work", categories: [{ pursuits: [{ id: "p1" }] }] }],
     });
   });
 

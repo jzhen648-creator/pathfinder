@@ -142,7 +142,7 @@ export async function POST(request: Request) {
         userId,
         globalInsight: JSON.stringify(generated.global),
         themeInsights: generated.themes,
-        hubInsights: generated.hubs,
+        categoryInsights: generated.categories,
         pursuitInsights: generated.pursuits,
         mapVersion,
         memoryVersion,
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       update: {
         globalInsight: JSON.stringify(generated.global),
         themeInsights: generated.themes,
-        hubInsights: generated.hubs,
+        categoryInsights: generated.categories,
         pursuitInsights: generated.pursuits,
         generatedAt: new Date(),
         mapVersion,

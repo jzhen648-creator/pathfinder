@@ -188,11 +188,11 @@ describe("buildPursuitsOnlyMapContext", () => {
   it("keeps dirty pursuits with same-category siblings and drops unrelated map context", () => {
     const sliced = buildPursuitsOnlyMapContext(DENSE_MAP_CONTEXT, ["p-cemap"]);
     const pursuits = sliced.themes.flatMap((theme) =>
-      theme.hubs.flatMap((hub) => hub.pursuits.map((pursuit) => pursuit.title)),
+      theme.categories.flatMap((category) => category.pursuits.map((pursuit) => pursuit.title)),
     );
 
     expect(sliced.themes.map((theme) => theme.id)).toEqual(["work"]);
-    expect(sliced.themes[0]?.hubs.map((hub) => hub.id)).toEqual(["cat-job"]);
+    expect(sliced.themes[0]?.categories.map((category) => category.id)).toEqual(["cat-job"]);
     expect(pursuits).toEqual([
       "CeMAP qualification",
       "Product Lead search",

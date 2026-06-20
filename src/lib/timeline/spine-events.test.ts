@@ -21,11 +21,11 @@ const mapContext: FormattedMapContext = {
           date: "2026-07-01",
         },
       ],
-      hubs: [
+      categories: [
         {
           id: "cat-job",
           label: "Job",
-          section: "Job",
+          categoryLabel: "Job",
           marks: [],
           pursuits: [
             {
@@ -74,12 +74,12 @@ describe("spine-events", () => {
 
   it("resolves pursuit complete date from milestones", () => {
     expect(
-      resolvePursuitCompleteDate(mapContext.themes[0]!.hubs[0]!.pursuits[0]!),
+      resolvePursuitCompleteDate(mapContext.themes[0]!.categories[0]!.pursuits[0]!),
     ).toBe("2026-08-05");
   });
 
   it("counts recent completions within 90 days", () => {
-    const pursuits = mapContext.themes[0]!.hubs[0]!.pursuits;
+    const pursuits = mapContext.themes[0]!.categories[0]!.pursuits;
     expect(
       countRecentCompletions(pursuits, { now: Date.parse("2026-08-20T00:00:00.000Z") }),
     ).toBe(1);

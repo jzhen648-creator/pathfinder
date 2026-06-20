@@ -248,7 +248,7 @@ export async function applyReflectOutput(
 
   let insightsWritten = false;
   if (Object.keys(themes).length > 0 || Object.keys(pursuits).length > 0) {
-    await mergeNodeInsightsIntoCache(userId, { themes, hubs: {}, pursuits });
+    await mergeNodeInsightsIntoCache(userId, { themes, categories: {}, pursuits });
     insightsWritten = true;
   }
 

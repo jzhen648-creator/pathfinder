@@ -9,6 +9,8 @@ export const MAX_MILESTONE_DESCRIPTION_CHARS = 200;
 
 export type MapContextFilter = {
   themeId?: string;
+  categoryId?: string;
+  /** @deprecated Use categoryId */
   hubId?: string;
   pursuitId?: string;
   /** Omit paused pursuits — e.g. Story scope. */
@@ -67,10 +69,10 @@ export type FormattedMapContext = {
     id: string;
     label: string;
     marks: FormattedMapMark[];
-    hubs: Array<{
+    categories: Array<{
       id: string;
       label: string;
-      section: string;
+      categoryLabel: string;
       marks: FormattedMapMark[];
       pursuits: FormattedMapPursuit[];
     }>;
@@ -89,14 +91,14 @@ export type FormattedPursuitContext = {
   pursuit: FormattedMapPursuit & {
     themeId: string;
     themeLabel: string;
-    hubId: string;
-    section: string;
+    categoryId: string;
+    categoryLabel: string;
   };
   siblingPursuits: Array<{
     id: string;
     title: string;
     status: string;
-    section: string;
+    categoryLabel: string;
   }>;
   siblingMarks: FormattedMapMark[];
 };
@@ -214,7 +216,7 @@ export async function formatMapContext(
       where: {
         userId,
         ...(filter.themeId ? { themeId: filter.themeId } : {}),
-        ...(filter.hubId ? { id: filter.hubId } : {}),
+        ...((filter.categoryId ?? filter.hubId) ? { id: filter.categoryId ?? filter.hubId } : {}),
         isActive: true,
       },
       select: {
@@ -247,17 +249,17 @@ export async function formatMapContext(
         id: branch.themeId,
         label: getLifeArea(branch.themeId)?.label ?? branch.themeId,
         marks: [],
-        hubs: [],
+        categories: [],
       };
 
-    const hubRawLabel = branch.label ?? branch.id;
-    const section = canonicalCategoryDisplayLabel(branch.themeId, hubRawLabel);
+    const categoryRawLabel = branch.label ?? branch.id;
+    const categoryLabel = canonicalCategoryDisplayLabel(branch.themeId, categoryRawLabel);
     const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
 
-    theme.hubs.push({
+    theme.categories.push({
       id: branch.id,
-      label: hubRawLabel,
-      section,
+      label: categoryRawLabel,
+      categoryLabel,
       marks: [],
       pursuits: branch.goals.map((goal) => buildPursuitRow(goal, pursuitTitleById)),
     });
@@ -310,8 +312,8 @@ export async function formatPursuitContext(
 
   const themeId = goal.themeId ?? goal.themeCategory?.themeId ?? "becoming";
   const themeLabel = getLifeArea(themeId)?.label ?? themeId;
-  const hubRawLabel = goal.themeCategory?.label ?? goal.categoryId;
-  const section = canonicalCategoryDisplayLabel(themeId, hubRawLabel);
+  const categoryRawLabel = goal.themeCategory?.label ?? goal.categoryId;
+  const categoryLabel = canonicalCategoryDisplayLabel(themeId, categoryRawLabel);
 
   const siblingGoals = await prisma.goal.findMany({
     where: {
@@ -338,14 +340,14 @@ export async function formatPursuitContext(
       ...buildPursuitRow(goal, pursuitTitleById),
       themeId,
       themeLabel,
-      hubId: goal.categoryId,
-      section,
+      categoryId: goal.categoryId,
+      categoryLabel,
     },
     siblingPursuits: siblingGoals.map((sibling) => ({
       id: sibling.id,
       title: sibling.title,
       status: sibling.status,
-      section: canonicalCategoryDisplayLabel(
+      categoryLabel: canonicalCategoryDisplayLabel(
         themeId,
         sibling.themeCategory?.label ?? "",
       ),

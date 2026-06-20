@@ -15,7 +15,7 @@ describe("merge-insight-cache", () => {
             combined: "",
           },
         },
-        hubs: {},
+        categories: {},
         pursuits: {
           "p-1": {
             tone: "context",
@@ -28,6 +28,6 @@ describe("merge-insight-cache", () => {
   });
 
   it("returns false for empty patch", () => {
-    expect(patchHasNodeInsightContent({ themes: {}, hubs: {}, pursuits: {} })).toBe(false);
+    expect(patchHasNodeInsightContent({ themes: {}, categories: {}, pursuits: {} })).toBe(false);
   });
 });

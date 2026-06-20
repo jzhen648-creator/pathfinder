@@ -9,7 +9,7 @@ function baseRow(overrides: Partial<InsightCache>): InsightCache {
     userId: "user-1",
     globalInsight: "",
     themeInsights: {},
-    hubInsights: {},
+    categoryInsights: {},
     pursuitInsights: {},
     generatedAt: new Date("2026-06-01T00:00:00.000Z"),
     mapVersion: "abc",

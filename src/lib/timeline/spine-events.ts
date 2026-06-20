@@ -65,8 +65,8 @@ function flattenMarks(mapContext: FormattedMapContext): Array<FormattedMapMark &
     for (const mark of theme.marks) {
       byId.set(mark.id, { ...mark, themeId: theme.id, themeLabel: theme.label });
     }
-    for (const hub of theme.hubs) {
-      for (const mark of hub.marks) {
+    for (const category of theme.categories) {
+      for (const mark of category.marks) {
         byId.set(mark.id, { ...mark, themeId: theme.id, themeLabel: theme.label });
       }
     }
@@ -81,13 +81,13 @@ function flattenPursuits(
     FormattedMapPursuit & { themeId: string; themeLabel: string; categoryLabel: string }
   > = [];
   for (const theme of mapContext.themes) {
-    for (const hub of theme.hubs) {
-      for (const pursuit of hub.pursuits) {
+    for (const category of theme.categories) {
+      for (const pursuit of category.pursuits) {
         rows.push({
           ...pursuit,
           themeId: theme.id,
           themeLabel: theme.label,
-          categoryLabel: hub.section || hub.label,
+          categoryLabel: category.categoryLabel || category.label,
         });
       }
     }

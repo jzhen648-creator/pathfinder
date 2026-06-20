@@ -31,7 +31,7 @@ async function runFullInsightRefresh(userId: string): Promise<void> {
       userId,
       globalInsight: JSON.stringify(generated.global),
       themeInsights: generated.themes,
-      hubInsights: generated.hubs,
+      categoryInsights: generated.categories,
       pursuitInsights: generated.pursuits,
       mapVersion,
       memoryVersion,
@@ -39,7 +39,7 @@ async function runFullInsightRefresh(userId: string): Promise<void> {
     update: {
       globalInsight: JSON.stringify(generated.global),
       themeInsights: generated.themes,
-      hubInsights: generated.hubs,
+      categoryInsights: generated.categories,
       pursuitInsights: generated.pursuits,
       generatedAt: new Date(),
       mapVersion,

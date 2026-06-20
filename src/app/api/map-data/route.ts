@@ -17,7 +17,7 @@ import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 
 
-import { mergeUnlockedLimbIds, parseUnlockedLimbIds } from "@/lib/unlocked-themes";
+import { mergeUnlockedThemeIds, parseUnlockedThemeIds } from "@/lib/unlocked-themes";
 
 
 
@@ -155,7 +155,7 @@ export async function GET(request: Request) {
 
     ]);
 
-    const unlockedLimbIds = mergeUnlockedLimbIds(parseUnlockedLimbIds(user.unlockedLimbIds), categories);
+    const unlockedThemeIds = mergeUnlockedThemeIds(parseUnlockedThemeIds(user.unlockedLimbIds), categories);
     const mapCategories = categories.map((c) => ({ ...c, categoryId: c.id }));
 
     return NextResponse.json({
@@ -164,7 +164,8 @@ export async function GET(request: Request) {
       archivedGoals,
       marks: [],
       relationships,
-      unlockedLimbIds,
+      unlockedThemeIds,
+      unlockedLimbIds: unlockedThemeIds,
     });
 
   } catch (err) {

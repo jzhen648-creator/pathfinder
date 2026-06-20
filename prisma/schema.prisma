@@ -217,9 +217,10 @@ model InsightCache {
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   globalInsight   String   @db.Text
-  themeInsights   Json
-  hubInsights     Json
-  pursuitInsights Json
+  themeInsights     Json
+  /// Category-tier insight JSON. SQL column retains legacy name until optional tail rename.
+  categoryInsights  Json     @map("hubInsights")
+  pursuitInsights   Json
   generatedAt     DateTime @default(now())
   /// Hash of pursuit/milestone counts + latest updatedAt; invalidates cache when map changes.
   mapVersion      String

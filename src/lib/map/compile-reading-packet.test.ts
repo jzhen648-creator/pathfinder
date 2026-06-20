@@ -42,14 +42,14 @@ function flattenDensePursuits(): Array<
     }
   > = [];
   for (const theme of DENSE_MAP_CONTEXT.themes) {
-    for (const hub of theme.hubs) {
-      for (const pursuit of hub.pursuits) {
+    for (const category of theme.categories) {
+      for (const pursuit of category.pursuits) {
         rows.push({
           ...pursuit,
           themeId: theme.id,
           themeLabel: theme.label,
-          categoryLabel: hub.section || hub.label,
-          categoryId: hub.id,
+          categoryLabel: category.categoryLabel || category.label,
+          categoryId: category.id,
         });
       }
     }
@@ -392,11 +392,11 @@ describe("compile-reading-packet", () => {
           id: "work",
           label: "Work & Career",
           marks: [],
-          hubs: [
+          categories: [
             {
               id: "cat-job",
               label: "Job",
-              section: "Job",
+              categoryLabel: "Job",
               marks: [],
               pursuits: [
                 {
@@ -449,11 +449,11 @@ describe("compile-reading-packet", () => {
           id: "work",
           label: "Work & Career",
           marks: [],
-          hubs: [
+          categories: [
             {
               id: "cat-job",
               label: "Job",
-              section: "Job",
+              categoryLabel: "Job",
               marks: [],
               pursuits: [
                 cemap,

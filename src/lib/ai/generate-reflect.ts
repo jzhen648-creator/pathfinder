@@ -329,22 +329,22 @@ export function buildPursuitsOnlyMapContext(
 
   return {
     themes: mapContext.themes.flatMap((theme) => {
-      const hubs = theme.hubs.flatMap((hub) => {
-        const dirtyPursuits = hub.pursuits.filter((pursuit) => dirtyIds.has(pursuit.id));
+      const categories = theme.categories.flatMap((category) => {
+        const dirtyPursuits = category.pursuits.filter((pursuit) => dirtyIds.has(pursuit.id));
         if (dirtyPursuits.length === 0) return [];
 
-        const siblingPursuits = hub.pursuits.filter((pursuit) => !dirtyIds.has(pursuit.id));
+        const siblingPursuits = category.pursuits.filter((pursuit) => !dirtyIds.has(pursuit.id));
         return [
           {
-            ...hub,
+            ...category,
             // Same-category siblings keep local context without sending the whole map.
             pursuits: [...dirtyPursuits, ...siblingPursuits],
           },
         ];
       });
 
-      if (hubs.length === 0) return [];
-      return [{ ...theme, hubs }];
+      if (categories.length === 0) return [];
+      return [{ ...theme, categories }];
     }),
   };
 }

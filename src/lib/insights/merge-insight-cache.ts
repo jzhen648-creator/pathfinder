@@ -3,6 +3,7 @@ import { generateInsights, generateNodeInsights } from "@/lib/insights/generate-
 import {
   parseInsightLevelRecord,
   parsePursuitInsightRecord,
+  readCategoryInsightsRaw,
 } from "@/lib/insights/parse-insight-cache";
 import type { InsightGenerationResult } from "@/lib/insights/insight-types";
 import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
@@ -22,11 +23,11 @@ function emptyGlobalInsightJson(): string {
 
 /** True when a reflect/enrich patch carries node-level insight rows to persist. */
 export function patchHasNodeInsightContent(
-  patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">,
+  patch: Pick<InsightGenerationResult, "themes" | "categories" | "pursuits">,
 ): boolean {
   return (
     Object.keys(patch.themes).length > 0 ||
-    Object.keys(patch.hubs).length > 0 ||
+    Object.keys(patch.categories).length > 0 ||
     Object.keys(patch.pursuits).length > 0
   );
 }
@@ -34,7 +35,7 @@ export function patchHasNodeInsightContent(
 /** Merge node-level insight patches into the user's cache without wiping unrelated entries. */
 export async function mergeNodeInsightsIntoCache(
   userId: string,
-  patch: Pick<InsightGenerationResult, "themes" | "hubs" | "pursuits">,
+  patch: Pick<InsightGenerationResult, "themes" | "categories" | "pursuits">,
   options?: { stampMapVersion?: boolean },
 ): Promise<void> {
   const gatedThemes =
@@ -56,7 +57,7 @@ export async function mergeNodeInsightsIntoCache(
           userId,
           globalInsight: emptyGlobalInsightJson(),
           themeInsights: gatedThemes,
-          hubInsights: patch.hubs,
+          categoryInsights: patch.categories,
           pursuitInsights: patch.pursuits,
           mapVersion,
           memoryVersion,
@@ -71,7 +72,7 @@ export async function mergeNodeInsightsIntoCache(
         userId,
         globalInsight: JSON.stringify(generated.global),
         themeInsights: generated.themes,
-        hubInsights: generated.hubs,
+        categoryInsights: generated.categories,
         pursuitInsights: generated.pursuits,
         mapVersion,
         memoryVersion,
@@ -84,9 +85,9 @@ export async function mergeNodeInsightsIntoCache(
     parseInsightLevelRecord(existing.themeInsights, "theme"),
     gatedThemes,
   );
-  const hubs = mergeLevelRecords(
-    parseInsightLevelRecord(existing.hubInsights, "hub"),
-    patch.hubs,
+  const categories = mergeLevelRecords(
+    parseInsightLevelRecord(readCategoryInsightsRaw(existing), "category"),
+    patch.categories,
   );
   const pursuits = mergeLevelRecords(
     parsePursuitInsightRecord(existing.pursuitInsights, "pursuit"),
@@ -95,7 +96,7 @@ export async function mergeNodeInsightsIntoCache(
 
   const pursuitOnlyPatch =
     Object.keys(patch.themes).length === 0 &&
-    Object.keys(patch.hubs).length === 0 &&
+    Object.keys(patch.categories).length === 0 &&
     Object.keys(patch.pursuits).length > 0;
 
   let nextMapVersion = existing.mapVersion;
@@ -124,7 +125,7 @@ export async function mergeNodeInsightsIntoCache(
     where: { userId },
     data: {
       themeInsights: themes,
-      hubInsights: hubs,
+      categoryInsights: categories,
       pursuitInsights: pursuits,
       generatedAt: new Date(),
       mapVersion: nextMapVersion,

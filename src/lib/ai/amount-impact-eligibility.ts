@@ -12,8 +12,8 @@ export function pursuitHasAmountField(
 export function countAmountTrackedPursuits(mapContext: FormattedMapContext): number {
   let count = 0;
   for (const theme of mapContext.themes) {
-    for (const hub of theme.hubs) {
-      for (const pursuit of hub.pursuits) {
+    for (const category of theme.categories) {
+      for (const pursuit of category.pursuits) {
         if (pursuitHasAmountField(pursuit)) {
           count += 1;
         }

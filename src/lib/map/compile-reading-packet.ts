@@ -200,14 +200,14 @@ function flattenPursuits(mapContext: FormattedMapContext): Array<
     FormattedMapPursuit & { themeId: string; themeLabel: string; categoryLabel: string; categoryId: string }
   > = [];
   for (const theme of mapContext.themes) {
-    for (const hub of theme.hubs) {
-      for (const pursuit of hub.pursuits) {
+    for (const category of theme.categories) {
+      for (const pursuit of category.pursuits) {
         rows.push({
           ...pursuit,
           themeId: theme.id,
           themeLabel: theme.label,
-          categoryLabel: hub.section || hub.label,
-          categoryId: hub.id,
+          categoryLabel: category.categoryLabel || category.label,
+          categoryId: category.id,
         });
       }
     }

@@ -375,7 +375,7 @@ export async function refreshPursuitEnrich(
   }
 
   if (Object.keys(pursuits).length > 0) {
-    await mergeNodeInsightsIntoCache(userId, { themes: {}, hubs: {}, pursuits }, {
+    await mergeNodeInsightsIntoCache(userId, { themes: {}, categories: {}, pursuits }, {
       stampMapVersion: remainingIds.length === 0 && writtenIds.length === batchIds.length,
     });
   }

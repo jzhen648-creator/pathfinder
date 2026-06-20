@@ -12,6 +12,16 @@ import {
   type PursuitEnrichCachePayload,
 } from "@/lib/pursuit/pursuit-enrich-types";
 
+type InsightCacheRow = InsightCache & {
+  categoryInsights?: unknown;
+  /** Pre-migration column — dual-read until all DBs renamed. */
+  hubInsights?: unknown;
+};
+
+export function readCategoryInsightsRaw(row: InsightCacheRow): unknown {
+  return row.categoryInsights ?? row.hubInsights;
+}
+
 export function parseInsightLevelRecord(
   raw: unknown,
   label: string,
@@ -62,14 +72,15 @@ export function insightCacheToPayload(
   row: InsightCache,
   stale: boolean,
 ): InsightCachePayload | null {
+  const cacheRow = row as InsightCacheRow;
   const themes = parseInsightLevelRecord(row.themeInsights, "theme");
-  const hubs = parseInsightLevelRecord(row.hubInsights, "hub");
+  const categories = parseInsightLevelRecord(readCategoryInsightsRaw(cacheRow), "category");
   const pursuits = parsePursuitInsightRecord(row.pursuitInsights, "pursuit");
 
   let global = parseGlobalInsight(row.globalInsight);
   const hasNodeContent =
     Object.keys(themes).length > 0 ||
-    Object.keys(hubs).length > 0 ||
+    Object.keys(categories).length > 0 ||
     Object.keys(pursuits).length > 0;
 
   if (!global) {
@@ -81,7 +92,7 @@ export function insightCacheToPayload(
   return {
     global,
     themes,
-    hubs,
+    categories,
     pursuits,
     generatedAt: row.generatedAt.toISOString(),
     mapVersion: row.mapVersion,
