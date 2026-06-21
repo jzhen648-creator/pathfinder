@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-slug";
+import { AMOUNT_BASIS_VALUES } from "@/lib/pursuit/category-amount-profile";
 import { PURSUIT_STATUS_VALUES } from "@/lib/pursuit-status-api";
 
 const pursuitStatusSchema = z.enum(PURSUIT_STATUS_VALUES);
@@ -32,6 +33,10 @@ export const updateGoalPayloadSchema = z
     mapGridR: z.number().int().nullable().optional(),
     /** Lucide kebab-case slug; `null` clears stored icon (hub / auto fallback at render). */
     iconName: z.string().nullable().optional(),
+    currentAmount: z.number().nullable().optional(),
+    targetAmount: z.number().nullable().optional(),
+    unit: z.string().nullable().optional(),
+    amountBasis: z.enum(AMOUNT_BASIS_VALUES).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =
@@ -46,7 +51,11 @@ export const updateGoalPayloadSchema = z
       data.bloomStatus !== undefined ||
       data.mapGridQ !== undefined ||
       data.mapGridR !== undefined ||
-      data.iconName !== undefined;
+      data.iconName !== undefined ||
+      data.currentAmount !== undefined ||
+      data.targetAmount !== undefined ||
+      data.unit !== undefined ||
+      data.amountBasis !== undefined;
     if (!hasField) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -113,6 +122,20 @@ export const updateGoalPayloadSchema = z
           path: ["iconName"],
         });
       }
+    }
+    if (data.targetAmount != null && data.targetAmount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Target amount must be positive",
+        path: ["targetAmount"],
+      });
+    }
+    if (data.currentAmount != null && data.currentAmount < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Current amount cannot be negative",
+        path: ["currentAmount"],
+      });
     }
   });
 

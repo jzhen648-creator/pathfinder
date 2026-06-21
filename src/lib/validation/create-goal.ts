@@ -43,6 +43,8 @@ export const createGoalPayloadSchema = z
     targetAmount: z.string(),
     currentAmount: z.string(),
     unit: z.string(),
+    /** gross | net for flow income amounts. */
+    amountBasis: z.string().optional(),
     /** When true, generate and persist relational milestones after goal creation. */
     generateRoadmap: z.boolean().optional(),
     /** Optional insert-and-reflow anchor — omit to append at the end of the branch line. */
@@ -112,10 +114,21 @@ export const createGoalPayloadSchema = z
 
     if (data.hasMeasurableTarget) {
       const target = Number(data.targetAmount);
-      if (!Number.isFinite(target) || target <= 0) {
+      const current = Number(data.currentAmount);
+      const targetValid = Number.isFinite(target) && target > 0;
+      const currentValid = Number.isFinite(current) && current > 0;
+      if (targetValid) {
+        if (!Number.isFinite(current) || current < 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Current amount must be zero or a positive number",
+            path: ["currentAmount"],
+          });
+        }
+      } else if (!currentValid) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Target amount must be a positive number",
+          message: "Enter a positive target or current amount",
           path: ["targetAmount"],
         });
       }

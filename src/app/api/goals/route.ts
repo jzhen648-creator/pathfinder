@@ -124,17 +124,27 @@ export async function POST(request: Request) {
 
   const measurable = input.hasMeasurableTarget;
   const targetNum = measurable ? Number(input.targetAmount) : NaN;
-  if (measurable && (!Number.isFinite(targetNum) || targetNum <= 0)) {
-    return NextResponse.json({ error: "Target amount must be a positive number" }, { status: 400 });
-  }
+  const targetValid = measurable && Number.isFinite(targetNum) && targetNum > 0;
   let currentNum = measurable ? Number(input.currentAmount) : null;
   if (measurable) {
+    const currentValid = Number.isFinite(currentNum) && (currentNum ?? 0) > 0;
+    if (!targetValid && !currentValid) {
+      return NextResponse.json(
+        { error: "Enter a positive target or current amount" },
+        { status: 400 },
+      );
+    }
     if (!Number.isFinite(currentNum) || (currentNum ?? 0) < 0) {
-      currentNum = 0;
+      currentNum = targetValid ? 0 : null;
     }
   }
 
   const unit = measurable && input.unit.trim().length > 0 ? input.unit.trim() : null;
+  const amountBasisTrim = input.amountBasis?.trim() ?? "";
+  const amountBasis =
+    measurable && (amountBasisTrim === "gross" || amountBasisTrim === "net")
+      ? amountBasisTrim
+      : null;
   const lifeArea = getLifeArea(branchRecord.themeId)?.label ?? "Other";
 
   const sigRaw = Number(input.significance);
@@ -171,9 +181,10 @@ export async function POST(request: Request) {
           createdFromGoalId,
           ...(measurable
             ? {
-                targetAmount: targetNum,
-                currentAmount: currentNum,
+                ...(targetValid ? { targetAmount: targetNum } : {}),
+                ...(currentNum != null && currentNum > 0 ? { currentAmount: currentNum } : {}),
                 ...(unit ? { unit } : {}),
+                ...(amountBasis ? { amountBasis } : {}),
               }
             : {}),
           ...(input.mapGridQ !== undefined && input.mapGridR !== undefined

@@ -90,6 +90,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     mapGridQ?: number | null;
     mapGridR?: number | null;
     iconName?: string | null;
+    currentAmount?: number | null;
+    targetAmount?: number | null;
+    unit?: string | null;
+    amountBasis?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
   const descriptionPatch =
@@ -126,6 +130,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     data.iconName =
       input.iconName == null ? null : input.iconName.trim().toLowerCase() || null;
   }
+  if (input.currentAmount !== undefined) data.currentAmount = input.currentAmount;
+  if (input.targetAmount !== undefined) data.targetAmount = input.targetAmount;
+  if (input.unit !== undefined) data.unit = input.unit?.trim() || null;
+  if (input.amountBasis !== undefined) data.amountBasis = input.amountBasis;
   if (input.completedAt !== undefined) {
     data.completedAt = new Date(`${input.completedAt}T00:00:00.000Z`);
   }

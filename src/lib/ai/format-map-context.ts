@@ -57,6 +57,7 @@ export type FormattedMapPursuit = {
   targetAmount?: number;
   currentAmount?: number;
   unit?: string;
+  amountBasis?: string;
   deadline?: string;
   /** ISO calendar date when pursuit was marked complete. */
   completedAt?: string;
@@ -131,6 +132,7 @@ export function buildPursuitRow(
     targetAmount: number | null;
     currentAmount: number | null;
     unit: string | null;
+    amountBasis?: string | null;
     deadline: Date | null;
     completedAt?: Date | null;
     timelineStart?: Date | null;
@@ -166,6 +168,7 @@ export function buildPursuitRow(
   if (goal.targetAmount != null) pursuit.targetAmount = goal.targetAmount;
   if (goal.currentAmount != null) pursuit.currentAmount = goal.currentAmount;
   if (goal.unit?.trim()) pursuit.unit = goal.unit.trim();
+  if (goal.amountBasis?.trim()) pursuit.amountBasis = goal.amountBasis.trim();
   if (goal.deadline) pursuit.deadline = goal.deadline.toISOString().slice(0, 10);
   if (goal.completedAt) pursuit.completedAt = goal.completedAt.toISOString().slice(0, 10);
   if (goal.timelineStart) pursuit.timelineStart = goal.timelineStart.toISOString().slice(0, 10);
@@ -193,6 +196,7 @@ const goalSelect = {
   targetAmount: true,
   currentAmount: true,
   unit: true,
+  amountBasis: true,
   deadline: true,
   completedAt: true,
   timelineStart: true,

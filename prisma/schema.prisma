@@ -259,6 +259,8 @@ model Goal {
   targetAmount      Float?
   currentAmount     Float?
   unit              String?
+  /// gross | net — how currentAmount should be read (flow income pursuits).
+  amountBasis       String?
   deadline          DateTime?
   /// Swimlane / timeline span start; when null the UI uses {@link createdAt}.
   timelineStart     DateTime?
