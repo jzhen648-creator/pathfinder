@@ -9,6 +9,9 @@ import { formatMapContext } from "@/lib/ai/format-map-context";
 import {
   gateThemeCombined,
   gateThemeContextual,
+  gateThemeContextualContent,
+  gateThemeReflective,
+  type ThemeLinkGateRow,
   type ThemeContextualGateInput,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
@@ -46,11 +49,24 @@ async function loadPursuitThemeMap(userId: string): Promise<Map<string, string>>
   return new Map(goals.map((g) => [g.id, g.themeId ?? "becoming"]));
 }
 
-async function loadConfirmedRelationships(userId: string) {
-  return prisma.pursuitRelationship.findMany({
+async function loadConfirmedRelationships(userId: string): Promise<ThemeLinkGateRow[]> {
+  const rows = await prisma.pursuitRelationship.findMany({
     where: { userId },
-    select: { goalAId: true, goalBId: true },
+    select: {
+      goalAId: true,
+      goalBId: true,
+      label: true,
+      goalA: { select: { title: true } },
+      goalB: { select: { title: true } },
+    },
   });
+  return rows.map((row) => ({
+    goalAId: row.goalAId,
+    goalBId: row.goalBId,
+    label: row.label,
+    goalATitle: row.goalA.title,
+    goalBTitle: row.goalB.title,
+  }));
 }
 
 function benchmarkPursuitsForTheme(
@@ -94,11 +110,22 @@ export async function gateThemeInsightsPatch(
       benchmarkApplicable,
     };
     const hasLinks = themeHasConfirmedLinks(themeId, relationships, pursuitThemeMap);
+    const combined = gateThemeCombined(entry.combined?.trim() ?? "", hasLinks);
+    const contextual = gateThemeContextualContent(
+      gateThemeContextual(entry.contextual?.trim() ?? "", themeSignals, gateInput),
+    );
+    const reflective = gateThemeReflective(
+      entry.reflective?.trim() ?? "",
+      themeId,
+      relationships,
+      pursuitThemeMap,
+    );
 
     gated[themeId] = {
       ...entry,
-      contextual: gateThemeContextual(entry.contextual?.trim() ?? "", themeSignals, gateInput),
-      combined: gateThemeCombined(entry.combined?.trim() ?? "", hasLinks),
+      reflective,
+      contextual,
+      combined,
     };
   }
   return gated;

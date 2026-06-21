@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   gateThemeCombined,
   gateThemeContextual,
+  gateThemeContextualContent,
+  gateThemeReflective,
   gatePursuitComparison,
   hasMinimumContextSignal,
   type PursuitSignal,
@@ -65,5 +67,36 @@ describe("pursuit-enrich-readiness gates", () => {
   it("hasMinimumContextSignal counts enrich answers", () => {
     expect(hasMinimumContextSignal(thinSignal)).toBe(false);
     expect(hasMinimumContextSignal(richSignal)).toBe(true);
+  });
+
+  it("gateThemeContextualContent strips editorial Comparison filler", () => {
+    expect(
+      gateThemeContextualContent(
+        "For a 29-year-old in London, pursuing DipPFS is valued in a competitive market.",
+      ),
+    ).toBe("");
+    expect(gateThemeContextualContent("Median ISA balance near £20k at age 29.")).toBe(
+      "Median ISA balance near £20k at age 29.",
+    );
+  });
+
+  it("gateThemeReflective strips confirmed link sentences", () => {
+    const themeMap = new Map([
+      ["p-cemap", "work"],
+      ["p-broker", "work"],
+    ]);
+    const reflective =
+      "CeMAP and Sales role are active. You linked CeMAP qualification to Independent broker via feeds into.";
+    const stripped = gateThemeReflective(reflective, "work", [
+      {
+        goalAId: "p-cemap",
+        goalBId: "p-broker",
+        label: "feeds into",
+        goalATitle: "CeMAP qualification",
+        goalBTitle: "Independent broker",
+      },
+    ], themeMap);
+    expect(stripped).toBe("CeMAP and Sales role are active.");
+    expect(stripped.toLowerCase()).not.toContain("feeds into");
   });
 });

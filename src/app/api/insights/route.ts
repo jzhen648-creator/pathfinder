@@ -11,7 +11,7 @@ import {
   InsightGenerationResponseError,
 } from "@/lib/insights/generate-insights";
 
-import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
+import { applyThemeInsightGatesToPayload } from "@/lib/insights/apply-theme-insight-gates";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { refreshPursuitInsights } from "@/lib/insights/merge-insight-cache";
 
@@ -67,13 +67,10 @@ export async function GET() {
       return NextResponse.json({ cache: null, mapVersion, memoryVersion });
     }
 
-    const gatedThemes =
-      Object.keys(payload.themes).length > 0
-        ? await gateThemeInsightsPatch(userId, payload.themes)
-        : payload.themes;
+    const gatedPayload = await applyThemeInsightGatesToPayload(userId, payload);
 
     return NextResponse.json({
-      cache: { ...payload, themes: gatedThemes },
+      cache: gatedPayload,
       mapVersion,
       memoryVersion,
       canAutoRefresh: stale,

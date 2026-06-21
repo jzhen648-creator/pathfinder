@@ -4,6 +4,7 @@ import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { MapAiSyncRateLimitError, runMapAiSync } from "@/lib/map/ai-sync";
+import { applyThemeInsightGatesToPayload } from "@/lib/insights/apply-theme-insight-gates";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
@@ -69,8 +70,12 @@ export async function POST(request: Request) {
 
     const insightsFresh = !result.skipped && (result.insights.refreshed || !insightDrift);
 
-    const insightPayload = insightRow
+    const insightPayloadRaw = insightRow
       ? insightCacheToPayload(insightRow, insightsFresh ? false : insightDrift)
+      : null;
+
+    const insightPayload = insightPayloadRaw
+      ? await applyThemeInsightGatesToPayload(userId, insightPayloadRaw)
       : null;
 
     return NextResponse.json({

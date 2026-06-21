@@ -129,6 +129,65 @@ export function gateThemeCombined(
   return combined.trim();
 }
 
+/** Strip legacy editorial Comparison copy that is not a concrete benchmark. */
+export function gateThemeContextualContent(contextual: string): string {
+  const text = contextual.trim();
+  if (!text) return "";
+  const editorial =
+    /\b(pivot|deliberate(?:ly)?|shows commitment|competitive market|holistic commitment|valued in a|demonstrates dedication|career narrative)\b/i;
+  if (editorial.test(text)) return "";
+  return text;
+}
+
+export type ThemeLinkGateRow = {
+  goalAId: string;
+  goalBId: string;
+  label: string | null;
+  goalATitle: string;
+  goalBTitle: string;
+};
+
+/** Remove user-confirmed link prose from reflective — links belong in combined only. */
+export function gateThemeReflective(
+  reflective: string,
+  themeId: string,
+  relationships: ThemeLinkGateRow[],
+  pursuitIdToThemeId: Map<string, string>,
+): string {
+  const text = reflective.trim();
+  if (!text) return "";
+
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length === 0) return text;
+
+  const kept = sentences.filter((sentence) => {
+    const lower = sentence.toLowerCase();
+    for (const rel of relationships) {
+      const inTheme =
+        pursuitIdToThemeId.get(rel.goalAId) === themeId ||
+        pursuitIdToThemeId.get(rel.goalBId) === themeId;
+      if (!inTheme) continue;
+
+      const label = rel.label?.trim();
+      if (label && lower.includes(label.toLowerCase())) return false;
+
+      const titleA = rel.goalATitle.trim();
+      const titleB = rel.goalBTitle.trim();
+      if (
+        titleA &&
+        titleB &&
+        lower.includes(titleA.toLowerCase()) &&
+        lower.includes(titleB.toLowerCase())
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  return kept.join(" ").trim();
+}
+
 /** Strip pursuit comparison benchmarks when the focal pursuit lacks enough user context. */
 export function gatePursuitComparison(
   comparison: string,
