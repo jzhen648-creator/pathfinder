@@ -161,8 +161,9 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
 
   it("full-scope prompt steers theme synthesis on confirmedRelationships", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
-    expect(full).toContain("confirmedRelationships lists user-confirmed links");
-    expect(full).toContain("Never invent links not in confirmedRelationships");
+    expect(full).toContain("reading_packet confirmedRelationships lists links");
+    expect(full).toContain("combined (UI: ACROSS PURSUITS");
+    expect(full).toContain("Do NOT cite confirmedRelationships");
   });
 
   it("full-scope prompt includes suggestedMilestones guidance on pursuit panels", () => {

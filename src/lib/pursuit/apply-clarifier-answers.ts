@@ -4,7 +4,6 @@ import {
   validateClarifierAnswerAgainstMilestones,
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
-import { computeQuickQuestionsQuietUntil } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { RETROSPECTIVE_CLARIFIER_ID_PREFIX } from "@/lib/pursuit/pick-question-slot";
 import {
   enrichAnswersSchema,
@@ -72,13 +71,11 @@ export async function pruneClarifierFromInsightCache(
   if (!entry?.clarifiers?.length) return;
 
   const clarifiers = entry.clarifiers.filter((c) => c.id !== clarifierId);
-  const batchExhausted = clarifiers.length === 0;
   pursuits[goalId] = {
     ...entry,
     clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
-    ...(batchExhausted
-      ? { quickQuestionsQuietUntil: computeQuickQuestionsQuietUntil() }
-      : {}),
+    // Option B: finishing a batch does not start cooldown — only model returning [] on sync does.
+    quickQuestionsQuietUntil: undefined,
   };
   await prisma.insightCache.update({
     where: { userId },

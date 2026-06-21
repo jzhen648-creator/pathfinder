@@ -1,6 +1,12 @@
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
+import {
+  benchmarkFactsApplicable,
+  flattenBenchmarkPursuitsFromMapContext,
+} from "@/lib/insights/benchmark-facts";
+import { formatMapContext } from "@/lib/ai/format-map-context";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
+import { themeHasConfirmedLinks } from "@/lib/insights/theme-relationship-eligibility";
 import { parseInsightLevelRecord, parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import { resolvePursuitInsightTone } from "@/lib/insights/resolve-pursuit-insight-tone";
@@ -16,6 +22,7 @@ import {
   shouldSuggestMilestones,
   pursuitSignalFromGoal,
   type PursuitSignal,
+  type ThemeContextualGateInput,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
 import {
@@ -109,12 +116,58 @@ export async function applyReflectOutput(
   }
   const themeIds = Object.keys(reflect.themes ?? {});
   const themeSignals = await loadThemePursuitSignals(userId, themeIds);
+
+  const profile = await prisma.userManualProfile.findUnique({
+    where: { userId },
+    select: { dateOfBirth: true, location: true },
+  });
+  let profileAge: number | null = null;
+  if (profile?.dateOfBirth) {
+    const nowDate = new Date();
+    profileAge = nowDate.getFullYear() - profile.dateOfBirth.getFullYear();
+    const monthDiff = nowDate.getMonth() - profile.dateOfBirth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && nowDate.getDate() < profile.dateOfBirth.getDate())) {
+      profileAge -= 1;
+    }
+    if (profileAge < 0) profileAge = null;
+  }
+  const profileLocation = profile?.location?.trim() || null;
+
+  const [relationships, pursuitThemeRows, mapContext] = await Promise.all([
+    prisma.pursuitRelationship.findMany({
+      where: { userId },
+      select: { goalAId: true, goalBId: true },
+    }),
+    prisma.goal.findMany({
+      where: { userId, archived: false },
+      select: { id: true, themeId: true },
+    }),
+    formatMapContext(userId),
+  ]);
+  const pursuitThemeMap = new Map(
+    pursuitThemeRows.map((row) => [row.id, row.themeId ?? "becoming"]),
+  );
+  const allBenchmarkPursuits = flattenBenchmarkPursuitsFromMapContext(mapContext);
+
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
   const now = Date.now();
 
   for (const [themeId, entry] of Object.entries(reflect.themes ?? {})) {
     if (!entry.oneLiner?.trim() && !entry.reflective?.trim()) continue;
+    const themeSignalList = themeSignals.get(themeId) ?? [];
+    const gateInput: ThemeContextualGateInput = {
+      themeId,
+      age: profileAge,
+      location: profileLocation,
+      benchmarkApplicable: benchmarkFactsApplicable(
+        themeId,
+        allBenchmarkPursuits,
+        profileAge,
+        profileLocation,
+      ),
+    };
+    const hasLinks = themeHasConfirmedLinks(themeId, relationships, pursuitThemeMap);
     themes[themeId] = {
       tone: entry.tone,
       oneLiner: entry.oneLiner.trim(),
@@ -122,12 +175,12 @@ export async function applyReflectOutput(
       contextual: resolvePreservedThemeText(
         entry.contextual,
         cachedThemes[themeId]?.contextual,
-        (text) => gateThemeContextual(text, themeSignals.get(themeId) ?? []),
+        (text) => gateThemeContextual(text, themeSignalList, gateInput),
       ),
       combined: resolvePreservedThemeText(
         entry.combined,
         cachedThemes[themeId]?.combined,
-        (text) => gateThemeCombined(text, themeSignals.get(themeId) ?? []),
+        (text) => gateThemeCombined(text, hasLinks),
       ),
     };
   }

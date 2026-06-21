@@ -100,24 +100,33 @@ export function isHolisticBenchmarkEligible(signals: PursuitSignal[]): boolean {
   return countMinimumContextSignals(signals) >= HOLISTIC_BENCHMARK_MIN_RICH_PURSUITS;
 }
 
-/** Strip theme contextual benchmarks when no pursuit in the theme has enough user context. */
+export type ThemeContextualGateInput = {
+  themeId: string;
+  age: number | null;
+  location: string | null;
+  benchmarkApplicable: boolean;
+};
+
+/** Strip theme contextual when benchmark preconditions are not met. */
 export function gateThemeContextual(
   contextual: string,
-  pursuitSignals: PursuitSignal[],
+  _pursuitSignals: PursuitSignal[],
+  gate?: ThemeContextualGateInput,
 ): string {
   if (!contextual.trim()) return "";
-  if (pursuitSignals.some(hasMinimumContextSignal)) return contextual.trim();
-  return "";
+  if (gate && !gate.benchmarkApplicable) return "";
+  if (!gate && !_pursuitSignals.some(hasMinimumContextSignal)) return "";
+  return contextual.trim();
 }
 
-/** Strip theme combined forward-looking content when no pursuit in the theme has enough user context. */
+/** Strip theme combined unless a user-confirmed link touches the theme. */
 export function gateThemeCombined(
   combined: string,
-  pursuitSignals: PursuitSignal[],
+  hasConfirmedLinksInTheme: boolean,
 ): string {
   if (!combined.trim()) return "";
-  if (pursuitSignals.some(hasMinimumContextSignal)) return combined.trim();
-  return "";
+  if (!hasConfirmedLinksInTheme) return "";
+  return combined.trim();
 }
 
 /** Strip pursuit comparison benchmarks when the focal pursuit lacks enough user context. */

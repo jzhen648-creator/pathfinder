@@ -1,6 +1,6 @@
 /** Shared quick-question prompt rules for reflect + pursuit enrich + create. */
 
-export const CLARIFIER_BATCH_MAX = 3;
+export const CLARIFIER_BATCH_MAX = 5;
 
 export const CLARIFIER_DURABLE_CONTEXT = [
   "DURABLE CONTEXT (prefer over progress stage):",
@@ -37,11 +37,18 @@ export const CLARIFIER_GENERATION_PRINCIPLE = [
   '- Running when 5k is already complete on the map: Wrong — "What\'s your longest run?" with "Under 5k". Right — ask a durable constraint ("How many days per week can you train?") or let milestones track distance progress.',
 ].join("\n");
 
+export const CLARIFIER_BENCHMARK_STEER = [
+  "BENCHMARK-ENABLING FACTS (prefer when map lacks age, location, or quantified targets):",
+  "- Ask facts that unlock population comparison later — contribution rate, salary band, qualification level, training frequency, visa route, financing approach.",
+  "- Prefer durable interpretation context over progress-stage snapshots (milestones own stage).",
+].join("\n");
+
 export const CLARIFIER_STOP_AND_CADENCE_RULES = [
   "STOP / CADENCE:",
   `- Return up to ${CLARIFIER_BATCH_MAX} clarifiers per pursuit per sync, ordered highest-value first — the UI reveals one at a time.`,
   "- Return an empty array when no high-value gap remains — do not barrel-scrape (no colour-of-car trivia when essentials are covered).",
-  "- Scale how many you offer by significance (1–5 in map context): significance 4–5 → up to 3; 3 → up to 2; 1–2 → 1–2 then prefer [].",
+  "- Scale how many you offer by significance (1–5 in map context): significance 4–5 → up to 5; 3 → up to 3; 1–2 → 1–2 then prefer [].",
+  "- Answering the last pending question does NOT block future batches — return [] only when no high-value gap remains.",
   "- Read enrichAnswers in map context — never repeat what is already answered; build on prior answers and go deeper.",
   "- Never ask about relationships between pursuits (see RELATIONSHIP QUESTIONS rule).",
   '- Never ask the user to evaluate motivation or commitment ("How important is this?") — significance already covers that.',
@@ -81,6 +88,8 @@ export const SUGGESTED_MILESTONES_OUTPUT_LINES = [
 export const CONTEXTUAL_QUICK_QUESTIONS = [
   "CONTEXTUAL QUICK QUESTIONS:",
   CLARIFIER_GENERATION_PRINCIPLE,
+  "",
+  CLARIFIER_BENCHMARK_STEER,
   "",
   CLARIFIER_DURABLE_CONTEXT,
   "",

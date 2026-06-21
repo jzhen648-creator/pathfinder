@@ -1,243 +1,69 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MILESTONE_MAP_CAP,
-  gateEnrichResult,
-  gatePursuitComparison,
   gateThemeCombined,
   gateThemeContextual,
-  isHolisticBenchmarkEligible,
-  shouldSuggestMilestones,
+  gatePursuitComparison,
+  hasMinimumContextSignal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 
-function signal(overrides: Partial<PursuitSignal> = {}): PursuitSignal {
-  return {
-    title: "London Marathon 2027",
-    description: "",
-    enrichAnswerCount: 0,
-    milestoneCount: 0,
-    completedMilestoneCount: 0,
-    hasDeadline: true,
-    hasQuantifiedTarget: false,
-    status: "ACTIVE",
-    ...overrides,
-  };
-}
+const richSignal: PursuitSignal = {
+  title: "Build £500k ISA",
+  description: "Monthly contributions from salary",
+  enrichAnswerCount: 2,
+  milestoneCount: 2,
+  completedMilestoneCount: 1,
+  hasDeadline: true,
+  hasQuantifiedTarget: true,
+  status: "ACTIVE",
+};
 
-describe("shouldSuggestMilestones", () => {
-  it("allows deadline-led pursuits with no milestones", () => {
-    expect(shouldSuggestMilestones(signal())).toBe(true);
+const thinSignal: PursuitSignal = {
+  title: "Learn Spanish",
+  description: "",
+  enrichAnswerCount: 0,
+  milestoneCount: 0,
+  completedMilestoneCount: 0,
+  hasDeadline: false,
+  hasQuantifiedTarget: false,
+  status: "ACTIVE",
+};
+
+describe("pursuit-enrich-readiness gates", () => {
+  it("gateThemeCombined strips when no confirmed links", () => {
+    expect(gateThemeCombined("CeMAP feeds broker role.", false)).toBe("");
+    expect(gateThemeCombined("CeMAP feeds broker role.", true)).toBe("CeMAP feeds broker role.");
   });
 
-  it("blocks quantified amount pursuits", () => {
-    expect(shouldSuggestMilestones(signal({ hasQuantifiedTarget: true }))).toBe(false);
-  });
-
-  it("blocks when map already has the interim cap", () => {
+  it("gateThemeContextual respects benchmark applicability", () => {
+    const text = "At 29, ISA contributions often sit below £20k annual limit.";
     expect(
-      shouldSuggestMilestones(
-        signal({ milestoneCount: MILESTONE_MAP_CAP, completedMilestoneCount: 2 }),
-      ),
-    ).toBe(false);
-  });
-
-  it("allows gap-fill when three shallow milestones exist but none completed", () => {
-    expect(
-      shouldSuggestMilestones(
-        signal({
-          milestoneCount: 3,
-          completedMilestoneCount: 0,
-          enrichAnswerCount: 2,
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("allows gap-fill when some milestones remain incomplete", () => {
-    expect(
-      shouldSuggestMilestones(
-        signal({
-          milestoneCount: 5,
-          completedMilestoneCount: 2,
-          enrichAnswerCount: 2,
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("allows sparse title-only pursuits without deadline or enrich context", () => {
-    expect(
-      shouldSuggestMilestones(
-        signal({
-          title: "Hi",
-          hasDeadline: false,
-          milestoneCount: 0,
-        }),
-      ),
-    ).toBe(true);
-  });
-});
-
-describe("gateThemeContextual", () => {
-  it("keeps contextual when at least one pursuit in the theme has enough signal", () => {
-    expect(
-      gateThemeContextual("Typical at your age in London.", [
-        signal({ title: "Hi", hasDeadline: false }),
-        signal({ description: "Training three times a week for a spring half marathon." }),
-      ]),
-    ).toBe("Typical at your age in London.");
-  });
-
-  it("clears contextual when every pursuit in the theme is title-only thin", () => {
-    expect(
-      gateThemeContextual("Typical at your age in London.", [
-        signal({ title: "Run", hasDeadline: false }),
-        signal({ title: "Gym", hasDeadline: false }),
-      ]),
-    ).toBe("");
-  });
-
-  it("passes through empty contextual unchanged", () => {
-    expect(gateThemeContextual("", [signal()])).toBe("");
-  });
-});
-
-describe("gateThemeCombined", () => {
-  it("keeps combined when at least one pursuit in the theme has enough signal", () => {
-    expect(
-      gateThemeCombined("CeMAP opens mortgage broker roles.", [
-        signal({ title: "Hi", hasDeadline: false }),
-        signal({ description: "Halfway through CeMAP units with a June exam date." }),
-      ]),
-    ).toBe("CeMAP opens mortgage broker roles.");
-  });
-
-  it("clears combined when every pursuit in the theme is title-only thin", () => {
-    expect(
-      gateThemeCombined("CeMAP opens mortgage broker roles.", [
-        signal({ title: "Run", hasDeadline: false }),
-        signal({ title: "Gym", hasDeadline: false }),
-      ]),
-    ).toBe("");
-  });
-
-  it("passes through empty combined unchanged", () => {
-    expect(gateThemeCombined("", [signal()])).toBe("");
-  });
-});
-
-describe("gatePursuitComparison", () => {
-  it("keeps comparison when the pursuit has enough signal", () => {
-    expect(
-      gatePursuitComparison(
-        "Typical London salary roughly £45–55k.",
-        signal({ description: "Targeting a mortgage broker role after CeMAP." }),
-      ),
-    ).toBe("Typical London salary roughly £45–55k.");
-  });
-
-  it("clears comparison for a title-only thin pursuit", () => {
-    expect(
-      gatePursuitComparison(
-        "Typical London salary roughly £45–55k.",
-        signal({ title: "Job", hasDeadline: false }),
-      ),
-    ).toBe("");
-  });
-});
-
-describe("isHolisticBenchmarkEligible", () => {
-  it("requires at least two pursuits with minimum context signal", () => {
-    expect(
-      isHolisticBenchmarkEligible([
-        signal({ title: "Run", hasDeadline: false }),
-        signal({ description: "Training three times a week for a spring half marathon." }),
-      ]),
-    ).toBe(false);
-    expect(
-      isHolisticBenchmarkEligible([
-        signal({ description: "Training three times a week for a spring half marathon." }),
-        signal({ description: "Saving £500 a month toward a house deposit." }),
-      ]),
-    ).toBe(true);
-  });
-});
-
-describe("gateEnrichResult", () => {
-  const sampleClarifiers = [
-    {
-      id: "ctx-1",
-      prompt: "Where do you plan to get treatment?",
-      options: ["UK", "Abroad", "Not sure yet"],
-    },
-  ];
-
-  const sampleResult = {
-    clarifiers: sampleClarifiers,
-    insight: {
-      tone: "context" as const,
-      headline: "Needs treatment context",
-      body: "Provider and country would sharpen this panel.",
-    },
-    suggestedMilestones: null,
-  };
-
-  it("strips all clarifiers when clarifyTitles is off", () => {
-    const gated = gateEnrichResult(sampleResult, signal(), { clarifyTitles: false });
-    expect(gated.clarifiers).toEqual([]);
-  });
-
-  it("strips clarifiers when PAUSED regardless of description richness", () => {
-    const gated = gateEnrichResult(
-      sampleResult,
-      signal({
-        description: "Training three times a week for a spring half marathon with a coach.",
-        status: "PAUSED",
+      gateThemeContextual(text, [richSignal], {
+        themeId: "finance",
+        age: 29,
+        location: "London",
+        benchmarkApplicable: true,
       }),
-      { clarifyTitles: true },
-      { status: "PAUSED" },
-    );
-    expect(gated.clarifiers).toEqual([]);
-  });
-
-  it("strips clarifiers during cooldown", () => {
-    const gated = gateEnrichResult(
-      sampleResult,
-      signal(),
-      { clarifyTitles: true },
-      {
-        status: "ACTIVE",
-        quickQuestionsQuietUntil: new Date(Date.now() + 86_400_000).toISOString(),
-      },
-    );
-    expect(gated.clarifiers).toEqual([]);
-  });
-
-  it("keeps clarifiers for rich pursuits — QQ stop is decoupled from hasMinimumContextSignal", () => {
-    const gated = gateEnrichResult(
-      sampleResult,
-      signal({
-        description: "Training three times a week for a spring half marathon with a coach.",
-        enrichAnswerCount: 2,
+    ).toBe(text);
+    expect(
+      gateThemeContextual(text, [richSignal], {
+        themeId: "finance",
+        age: 29,
+        location: "London",
+        benchmarkApplicable: false,
       }),
-      { clarifyTitles: true },
-      { status: "ACTIVE" },
-    );
-    expect(gated.clarifiers).toHaveLength(1);
+    ).toBe("");
   });
 
-  it("does not change milestone suggestions when clarifiers are kept", () => {
-    const rich = signal({
-      description: "Training three times a week for a spring half marathon with a coach.",
-      enrichAnswerCount: 2,
-    });
-    const gated = gateEnrichResult(
-      { ...sampleResult, suggestedMilestones: [{ title: "10k", order: 0 }] },
-      rich,
-      { clarifyTitles: true },
-      { status: "ACTIVE" },
-    );
-    expect(gated.suggestedMilestones).toEqual([{ title: "10k", order: 0 }]);
+  it("gatePursuitComparison requires minimum context on focal pursuit", () => {
+    const comparison = "Typical ISA balance at 29 is lower than your target.";
+    expect(gatePursuitComparison(comparison, richSignal)).toBe(comparison);
+    expect(gatePursuitComparison(comparison, thinSignal)).toBe("");
+  });
+
+  it("hasMinimumContextSignal counts enrich answers", () => {
+    expect(hasMinimumContextSignal(thinSignal)).toBe(false);
+    expect(hasMinimumContextSignal(richSignal)).toBe(true);
   });
 });

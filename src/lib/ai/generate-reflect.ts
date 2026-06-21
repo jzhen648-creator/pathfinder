@@ -30,6 +30,17 @@ import {
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
+import {
+  buildBenchmarkFactsBlock,
+  flattenBenchmarkPursuitsFromMapContext,
+  parseAgeFromUserContext,
+  parseLocationFromUserContext,
+} from "@/lib/insights/benchmark-facts";
+import {
+  HOLISTIC_BENCHMARK_THEME_CONTEXTUAL_RULE,
+  PURSUIT_COMPARISON_FIELD_JOBS,
+  THEME_INSIGHT_FIELD_JOBS,
+} from "@/lib/insights/theme-insight-prompt-blocks";
 import { buildPursuitToneGuidanceBlock } from "@/lib/insights/pursuit-tone-prompt";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { listDirtyThemeIds, listEligiblePursuitIds, planReflectWork } from "@/lib/ai/reflect-sync-plan";
@@ -185,6 +196,7 @@ function buildReflectPursuitsOnlySystemPrompt(
     "OUTPUT:",
     '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
+    PURSUIT_COMPARISON_FIELD_JOBS,
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
     ...SUGGESTED_MILESTONES_OUTPUT_LINES,
@@ -196,6 +208,7 @@ function buildReflectSystemPrompt(
   options: Required<PursuitEnrichOptions>,
   scope: ReflectScope = "full",
   amountImpactEligible = false,
+  holisticBenchmarkEligible = true,
 ): string {
   if (scope === "pursuits-only") {
     return buildReflectPursuitsOnlySystemPrompt(options, amountImpactEligible);
@@ -203,6 +216,10 @@ function buildReflectSystemPrompt(
   const clarifierRules = options.clarifyTitles
     ? buildClarifierSystemOutputLines()
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
+
+  const holisticLines = holisticBenchmarkEligible
+    ? []
+    : ["", HOLISTIC_BENCHMARK_THEME_CONTEXTUAL_RULE];
 
   return [
     "You are Pathfinder's reflection engine. Return a single JSON object with per-theme synthesis and per-pursuit insight panels.",
@@ -237,6 +254,7 @@ function buildReflectSystemPrompt(
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
     "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields; the mobile UI adds section labels.",
+    PURSUIT_COMPARISON_FIELD_JOBS,
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
     ...SUGGESTED_MILESTONES_OUTPUT_LINES,
@@ -246,16 +264,8 @@ function buildReflectSystemPrompt(
     ...clarifierRules,
     buildClarifierKindPromptSection(options),
     "",
-    "THEME INSIGHTS (macro synthesis — not per-pursuit narrative):",
-    "- \"themes\": map of themeId -> { tone, oneLiner, reflective, contextual?, combined? }",
-    "  tone MUST be one of: celebratory | encouraging | nudge",
-    "  oneLiner <= 100 chars — theme-level verdict on balance, bottlenecks, or resource friction across pursuits in this theme.",
-    "  reflective: 2-3 sentences on cross-pursuit dynamics within the theme — competition, reinforcement, tension (<= 500 chars). Name specific pursuits; do not inventory every row.",
-    "  contextual: optional supplementary theme observation (<= 500 chars); empty string if none.",
-    "  combined: optional cross-pursuit synthesis — name tensions or reinforcements between facts on the map (<= 500 chars); empty string if none. Do not forecast outcomes or unlocks.",
-    "  When reading_packet confirmedRelationships lists user-confirmed links touching pursuits in a dirty theme, cite at least one in reflective or combined — both pursuit titles and the user's relationship label. Never invent links not in confirmedRelationships.",
-    "  Do not repeat pursuit-panel execution copy in theme insights — pursuit sheets own per-pursuit velocity; theme insights do not replace suggestedMilestones on pursuit panels.",
-    "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
+    THEME_INSIGHT_FIELD_JOBS,
+    ...holisticLines,
   ].join("\n");
 }
 
@@ -377,6 +387,7 @@ function buildReflectUserMessage(input: {
   userContext: string;
   readingPacketJson: string;
   mapContextJson: string;
+  mapContext?: FormattedMapContext;
   dirtyPursuitIds: string[];
   dirtyThemeIds: string[];
   pursuitSignals: Map<string, PursuitSignal>;
@@ -384,6 +395,7 @@ function buildReflectUserMessage(input: {
   enrichOptions: Required<PursuitEnrichOptions>;
   scope?: ReflectScope;
   pursuitToneGuidance?: string | null;
+  holisticBenchmarkEligible?: boolean;
 }): string {
   const scope = input.scope ?? "full";
   const milestoneOptions = buildReflectMilestoneOptions(input.dirtyPursuitIds, input.pursuitSignals);
@@ -402,6 +414,16 @@ function buildReflectUserMessage(input: {
         ]
       : [];
 
+  const benchmarkFactsBlock =
+    scope === "full" && input.mapContext
+      ? buildBenchmarkFactsBlock({
+          age: parseAgeFromUserContext(input.userContext),
+          location: parseLocationFromUserContext(input.userContext),
+          themeIds: input.dirtyThemeIds,
+          pursuits: flattenBenchmarkPursuitsFromMapContext(input.mapContext),
+        })
+      : null;
+
   const lines = [
     input.userContext || "(No profile context yet.)",
     "",
@@ -413,6 +435,19 @@ function buildReflectUserMessage(input: {
     input.mapContextJson,
     "</map_context>",
   ];
+
+  if (benchmarkFactsBlock) {
+    lines.push("", "<benchmark_facts>", benchmarkFactsBlock, "</benchmark_facts>");
+  }
+
+  if (scope === "full") {
+    lines.push(
+      "",
+      "<options>",
+      `holisticBenchmarkEligible: ${input.holisticBenchmarkEligible !== false}`,
+      "</options>",
+    );
+  }
 
   if (scope === "full") {
     lines.push(
@@ -806,11 +841,13 @@ async function generateReflectResponse(
     enrichOptions,
     scope,
     amountImpactEligible,
+    holisticBenchmarkEligible,
   );
   const userPrompt = buildReflectUserMessage({
     userContext,
     readingPacketJson,
     mapContextJson,
+    mapContext: mapContextForPrompt,
     dirtyPursuitIds: pursuitIds,
     dirtyThemeIds: themeIds,
     pursuitSignals,
@@ -818,6 +855,7 @@ async function generateReflectResponse(
     enrichOptions,
     scope,
     pursuitToneGuidance,
+    holisticBenchmarkEligible,
   });
 
   if (metrics) {
@@ -894,6 +932,7 @@ export { isReflectCallEnabled };
 export {
   buildReflectPursuitsOnlySystemPrompt,
   buildReflectSystemPrompt,
+  buildReflectUserMessage,
   generateReflectResponse,
   generateReflectResponseBatched,
   mergeReflectResponses,
