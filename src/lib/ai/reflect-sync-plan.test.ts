@@ -41,7 +41,7 @@ describe("planReflectWork", () => {
     });
   });
 
-  it("skips when force is true but reading and panels are fresh", async () => {
+  it("runs full refresh when force is true even if reading and panels are fresh", async () => {
     mocks.goalFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
     mocks.insightFindUnique.mockResolvedValue({
       pursuitInsights: {
@@ -55,11 +55,12 @@ describe("planReflectWork", () => {
       insightsStale: false,
     });
 
-    expect(plan.mode).toBe("skip");
-    expect(plan.pursuitIds).toEqual([]);
+    expect(plan.mode).toBe("full");
+    expect(plan.pursuitIds).toEqual(["p1", "p2"]);
+    expect(plan.themeIds).toEqual(["work"]);
   });
 
-  it("repairs only missing pursuit panels on force", async () => {
+  it("repairs only missing pursuit panels when not forced", async () => {
     mocks.goalFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }, { id: "p3" }]);
     mocks.insightFindUnique.mockResolvedValue({
       pursuitInsights: {
@@ -68,7 +69,7 @@ describe("planReflectWork", () => {
     });
 
     const plan = await planReflectWork(USER_ID, emptyDirty(), {
-      force: true,
+      force: false,
       insightsStale: false,
     });
 

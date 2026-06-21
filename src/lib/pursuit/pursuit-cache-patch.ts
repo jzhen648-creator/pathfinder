@@ -105,14 +105,15 @@ export function clarifierPreserveAllowed(input: {
   );
 }
 
-/** Prefer fresh gated theme text; when the model omits it, keep the prior cache. */
+/** Prefer fresh gated theme text; when reflect returned the field (even empty), do not resurrect stale cache. */
 export function resolvePreservedThemeText(
-  fresh: string | undefined,
+  fresh: string | undefined | null,
   cached: string | undefined,
   gate: (text: string) => string,
 ): string {
-  const gatedFresh = gate(fresh?.trim() ?? "");
-  if (gatedFresh) return gatedFresh;
+  if (fresh !== undefined && fresh !== null) {
+    return gate(fresh.trim());
+  }
   return gate(cached?.trim() ?? "");
 }
 

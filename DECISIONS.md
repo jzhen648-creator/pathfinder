@@ -84,7 +84,7 @@ Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-pr
 
 ## 2026-06-15 — AI sync reliability (no-op guard + resumable panels)
 
-**Shipped:** Manual **Update AI reading** skips Gemini when Reading + all pursuit panels are already fresh (`planReflectWork` skip mode). Force refresh repairs **missing panels only** (not the whole map). Batched reflect **commits each batch** before the next — partial panel progress survives batch-2 failures. Reflect mode shows **Finish pursuit insights (N)** when `pendingInsightCount > 0`. Pursuit panels support structured `fromMap` / `comparison` fields (not prefix parsing only).
+**Shipped:** Manual **Update AI reading** (pull-to-refresh on Reading) runs a **full reflect** when `force: true` — all theme readings and pursuit panels regenerate. Automatic background sync still skips when fresh. Batched reflect **commits each batch** before the next — partial panel progress survives batch-2 failures. Reflect mode shows **Finish pursuit insights (N)** when `pendingInsightCount > 0`. Pursuit panels support structured `fromMap` / `comparison` fields (not prefix parsing only). Theme `combined` / `contextual` beats are **hard-gated on read** (`GET /api/insights`) and on write.
 
 **Rationale:** No-change Update was burning 2 Gemini calls and triggering rate-limit UX; all-or-nothing batching required multiple full refreshes for Alex-sized maps.
 

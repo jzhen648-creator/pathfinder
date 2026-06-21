@@ -42,7 +42,7 @@ export async function listDirtyThemeIds(userId: string): Promise<string[]> {
 
 /**
  * Decide which pursuits/themes need reflect work.
- * force alone does not trigger a full refresh — only missing panels or stale caches.
+ * Manual force refresh regenerates theme readings + all pursuit panels.
  */
 export async function planReflectWork(
   userId: string,
@@ -60,7 +60,7 @@ export async function planReflectWork(
     };
   }
 
-  if (options.insightsStale) {
+  if (options.insightsStale || options.force) {
     return {
       mode: "full",
       pursuitIds: await listEligiblePursuitIds(userId),
@@ -70,7 +70,7 @@ export async function planReflectWork(
 
   const missingPanelIds = await listMissingPursuitPanelIds(userId);
 
-  if (options.force && missingPanelIds.length > 0) {
+  if (missingPanelIds.length > 0) {
     return {
       mode: "panels-only",
       pursuitIds: missingPanelIds,
