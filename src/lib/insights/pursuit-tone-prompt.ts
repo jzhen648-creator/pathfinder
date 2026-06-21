@@ -15,7 +15,7 @@ export function pursuitToneVoiceLines(tone: PursuitInsightTone): string[] {
     case "worth_a_look":
       return [
         "Tone: worth_a_look — significant pursuit, deadline close, no milestone or amount progress yet.",
-        "Gentle factual nudge only. Name deadline proximity and no start — never pace judgment or elapsed-time shame.",
+        "Gentle factual nudge only. Name deadline proximity and no start in tension — never pace judgment, elapsed-time shame, or forecast consequences.",
       ];
     case "paused":
       return [

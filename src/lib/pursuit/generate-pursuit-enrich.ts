@@ -18,6 +18,10 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import {
+  TENSION_NOT_FORECAST_RULE,
+  VOICE_EVALUATIVE_ANTI_PATTERNS,
+} from "@/lib/insights/insight-voice-prompt-blocks";
+import {
   formatPursuitToneGuidanceEntry,
   pursuitToneVoiceLines,
 } from "@/lib/insights/pursuit-tone-prompt";
@@ -64,19 +68,6 @@ import {
 } from "@/lib/pursuit/pursuit-cache-patch";
 
 const MAX_ENRICH_PER_RUN = 1;
-
-const VOICE_EVALUATIVE_ANTI_PATTERNS = [
-  "EVALUATIVE LANGUAGE (never use):",
-  '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',
-  '- Do not grade their progress: "significant achievement", "impressive", "remarkable", "outstanding"',
-  "- Do not write like a performance review or recommendation letter",
-  "- Instead: describe what actually happened, in plain language, and let the user feel what they feel about it",
-  '- Wrong: "Passing Module 2 marks significant progress towards your CeMAP qualification, demonstrating strong dedication to professional development."',
-  '- Right: "Two modules down, one to go — Module 3 is in sixteen days."',
-  '- Wrong: "This balanced approach to debt reduction and asset growth demonstrates robust financial management."',
-  '- Right: "The debt\'s cleared and the ISA is a quarter of the way there. Two different speeds, both moving."',
-  "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
-].join("\n");
 
 const HEADLINE_MUST_ADD_MEANING = [
   "HEADLINE MUST ADD MEANING:",
@@ -129,6 +120,8 @@ function buildEnrichSystemPrompt(
     "RULES:",
     "- Ground every field in provided scoped context JSON only.",
     "- Null/empty arrays are correct when unsure.",
+    "",
+    TENSION_NOT_FORECAST_RULE,
     "",
     "VOICE ANTI-PATTERNS:",
     "- Do not open headline or body with the user's name.",

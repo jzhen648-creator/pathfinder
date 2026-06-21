@@ -31,14 +31,11 @@ function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   return process.env.ENABLE_AI_ROADMAPS_IN_DEV?.trim().toLowerCase() === "true";
 }
 
-function redirectToMoments(request: Request) {
-  const url = new URL(request.url);
-  url.pathname = "/api/marks";
-  return NextResponse.redirect(url, 308);
-}
-
-export async function GET(request: Request) {
-  return redirectToMoments(request);
+export async function GET() {
+  return NextResponse.json(
+    { error: "Listing goals via GET is retired. Use GET /api/map-data." },
+    { status: 410 },
+  );
 }
 
 export async function POST(request: Request) {

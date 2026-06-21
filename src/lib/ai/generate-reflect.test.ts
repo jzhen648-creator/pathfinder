@@ -137,6 +137,9 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(full).toContain("BENCHMARK & INSIGHT MOVES");
     expect(full).toContain("At most one observation per pursuit.");
     expect(full).toContain("GROUNDING RULE (mandatory)");
+    expect(full).toContain("TENSION, NOT FORECAST:");
+    expect(full).toContain("Those two facts sit in tension.");
+    expect(full).not.toContain("won or lost");
     expect(full).not.toContain("Use age/location for contextual benchmarking");
     expect(full).not.toContain(
       "When age AND location are in user context, include fromMap and/or comparison fields",
@@ -154,6 +157,12 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(scoped).toContain("MUST return 1-6 chronological outcome waypoints");
     expect(scoped).toContain("PURSUIT CONTEXT PRECEDENCE");
     expect(scoped).toContain("durable interpretation context");
+  });
+
+  it("full-scope prompt steers theme synthesis on confirmedRelationships", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    expect(full).toContain("confirmedRelationships lists user-confirmed links");
+    expect(full).toContain("Never invent links not in confirmedRelationships");
   });
 
   it("full-scope prompt includes suggestedMilestones guidance on pursuit panels", () => {

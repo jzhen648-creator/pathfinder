@@ -26,6 +26,10 @@ import {
 import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
+import {
+  TENSION_NOT_FORECAST_RULE,
+  VOICE_EVALUATIVE_ANTI_PATTERNS,
+} from "@/lib/insights/insight-voice-prompt-blocks";
 import { buildPursuitToneGuidanceBlock } from "@/lib/insights/pursuit-tone-prompt";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { listDirtyThemeIds, listEligiblePursuitIds, planReflectWork } from "@/lib/ai/reflect-sync-plan";
@@ -71,19 +75,6 @@ export type ReflectSyncResult = {
   skipped?: boolean;
 };
 
-const VOICE_EVALUATIVE_ANTI_PATTERNS = [
-  "EVALUATIVE LANGUAGE (never use):",
-  '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',
-  '- Do not grade their progress: "significant achievement", "impressive", "remarkable", "outstanding"',
-  "- Do not write like a performance review or recommendation letter",
-  "- Instead: describe what actually happened, in plain language, and let the user feel what they feel about it",
-  '- Wrong: "Passing Module 2 marks significant progress towards your CeMAP qualification, demonstrating strong dedication to professional development."',
-  '- Right: "Two modules down, one to go — Module 3 is in sixteen days."',
-  '- Wrong: "This balanced approach to debt reduction and asset growth demonstrates robust financial management."',
-  '- Right: "The debt\'s cleared and the ISA is a quarter of the way there. Two different speeds, both moving."',
-  "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
-].join("\n");
-
 const HEADLINE_MUST_ADD_MEANING = [
   "HEADLINE MUST ADD MEANING:",
   '- Never restate the status line ("X is paused with a deadline of Y") or the milestone count ("X has N milestones complete")',
@@ -104,29 +95,28 @@ const REFLECT_BENCHMARK_INSIGHT_RUBRIC = [
   "pursuit. At most one observation per pursuit.",
   "",
   "Move 1 — Benchmark against the person. Is this notable for someone like them, given age,",
-  "location, or stage?",
+  "location, or stage? State the fact and any benchmark tension — do not predict outcomes.",
   '- Weak: "Saving £500k in an ISA is a great financial goal."',
-  '- Strong: "Targeting £500k in an ISA by your mid-thirties is an unusually steep climb — the',
-  '  live question isn\'t the target, it\'s the monthly contribution that gets you there."',
+  '- Strong: "The ISA target is £500k by your mid-thirties; the balance and contribution on the',
+  "  map are a fraction of that — those two numbers sit in tension.",
   "",
-  "Move 2 — Read the combination. What does it mean that these two things sit on the map together?",
+  "Move 2 — Read the combination. What tension exists because these two things sit on the map together?",
   "(Needs no numbers — works for anything.)",
   '- Weak: "You have several active pursuits across work and family."',
-  '- Strong: "You\'ve marked being more present at home as significant in the same season three',
-  '  work pursuits are all peaking — those are competing for the same evenings, not running in',
-  '  parallel."',
+  '- Strong: "Being more present at home is marked significant in the same season three work pursuits',
+  '  are all active — those are competing for the same evenings, not running in parallel."',
   "",
-  "Move 3 — Read the trajectory. Given where they are versus the deadline or milestones, are they",
-  "ahead, on pace, or drifting?",
+  "Move 3 — Name the gap between what the map shows now and what the user committed to",
+  "(deadline, target, milestone frontier). State both facts and that they sit in tension —",
+  "do not judge pace, predict success, or describe consequences.",
   '- Weak: "Your half-marathon training is in progress."',
-  '- Strong: "With the race ten weeks out and your longest run still at 8k, the half-marathon is',
-  '  reachable but the next month is where it\'s won or lost."',
+  '- Strong: "The race is ten weeks out and the longest logged run is still 8k — those two facts',
+  '  sit in tension."',
   "",
-  "Move 4 — Be honest about thin or stalled. When a pursuit is sparse, untouched, or stuck, say so",
-  "plainly instead of padding.",
+  "Move 4 — Be honest about thin or stalled. When a pursuit is sparse, untouched, or stuck, name",
+  "the facts plainly instead of padding or guessing intent.",
   '- Weak: "Learning Spanish is a wonderful journey of growth."',
-  '- Strong: "Learn Spanish has sat on the map since spring with nothing logged — either it\'s',
-  '  waiting for a real start date, or it\'s quietly telling you it\'s not this year\'s priority."',
+  '- Strong: "Learn Spanish has been active since spring with no milestones and no context logged yet."',
   "",
   "GROUNDING RULE (mandatory): Benchmark only when you have real grounds — age, location, an actual",
   "number, or another pursuit on the map to weigh against. If a pursuit is qualitative and you have",
@@ -181,6 +171,8 @@ function buildReflectPursuitsOnlySystemPrompt(
     "",
     ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
     "",
+    TENSION_NOT_FORECAST_RULE,
+    "",
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
@@ -231,6 +223,8 @@ function buildReflectSystemPrompt(
     "",
     ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
     "",
+    TENSION_NOT_FORECAST_RULE,
+    "",
     "VOICE ANTI-PATTERNS (pursuit headline/body/fromMap/comparison):",
     "- Do not open any text with the user's name (\"Alex, ...\").",
     "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
@@ -258,7 +252,8 @@ function buildReflectSystemPrompt(
     "  oneLiner <= 100 chars — theme-level verdict on balance, bottlenecks, or resource friction across pursuits in this theme.",
     "  reflective: 2-3 sentences on cross-pursuit dynamics within the theme — competition, reinforcement, tension (<= 500 chars). Name specific pursuits; do not inventory every row.",
     "  contextual: optional supplementary theme observation (<= 500 chars); empty string if none.",
-    "  combined: optional forward-looking unlock for the theme (<= 500 chars); empty string if none.",
+    "  combined: optional cross-pursuit synthesis — name tensions or reinforcements between facts on the map (<= 500 chars); empty string if none. Do not forecast outcomes or unlocks.",
+    "  When reading_packet confirmedRelationships lists user-confirmed links touching pursuits in a dirty theme, cite at least one in reflective or combined — both pursuit titles and the user's relationship label. Never invent links not in confirmedRelationships.",
     "  Do not repeat pursuit-panel execution copy in theme insights — pursuit sheets own per-pursuit velocity; theme insights do not replace suggestedMilestones on pursuit panels.",
     "  Only include themes listed in <dirty_themes>. Skip themes with no pursuits.",
   ].join("\n");

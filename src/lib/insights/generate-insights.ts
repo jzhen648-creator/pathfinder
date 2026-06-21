@@ -13,6 +13,10 @@ import {
 } from "./insight-types";
 import { clampInsightGenerationJson } from "./clamp-insight-json";
 import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
+import {
+  TENSION_NOT_FORECAST_RULE,
+  VOICE_EVALUATIVE_ANTI_PATTERNS,
+} from "@/lib/insights/insight-voice-prompt-blocks";
 
 export class InsightGenerationResponseError extends Error {
   status = 503;
@@ -51,7 +55,7 @@ const PURSUIT_INSIGHT_RULES = [
   "2. BODY: 2-4 sentences, under 500 characters total. Single prose paragraph — no headers, no labels, no bullet points. Must satisfy AT LEAST TWO of these three:",
   "   a) NAME another pursuit on the map and explain how it connects, conflicts with, or supports this one",
   "   b) STATE a concrete benchmark — a number, percentage, typical timeline, salary range, or cost estimate grounded in real-world knowledge for someone of this age/location. If you cannot provide a concrete benchmark, skip this — do NOT write vague sentences like \"many people your age are working towards similar goals\"",
-  "   c) IDENTIFY one specific next step, risk, or opportunity that the user likely hasn't considered",
+  "   c) NAME a tension between two real map facts, or a cross-pursuit conflict the user may not have linked — do not predict consequences or future outcomes",
   "",
   "3. NEVER DO ANY OF THESE:",
   "   - Restate the pursuit title in full — use a short reference (\"the ISA\", \"this role\", \"the marathon\")",
@@ -77,16 +81,9 @@ const PURSUIT_INSIGHT_RULES = [
   "- Do not write \"You have been making progress\" — state what the progress is.",
   "- Never generic headlines like \"[title] is progressing well\".",
   "",
-  "EVALUATIVE LANGUAGE (never use):",
-  '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',
-  '- Do not grade their progress: "significant achievement", "impressive", "remarkable", "outstanding"',
-  "- Do not write like a performance review or recommendation letter",
-  "- Instead: describe what actually happened, in plain language, and let the user feel what they feel about it",
-  '- Wrong: "Passing Module 2 marks significant progress towards your CeMAP qualification, demonstrating strong dedication to professional development."',
-  '- Right: "Two modules down, one to go — Module 3 is in sixteen days."',
-  '- Wrong: "This balanced approach to debt reduction and asset growth demonstrates robust financial management."',
-  '- Right: "The debt\'s cleared and the ISA is a quarter of the way there. Two different speeds, both moving."',
-  "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
+  TENSION_NOT_FORECAST_RULE,
+  "",
+  VOICE_EVALUATIVE_ANTI_PATTERNS,
 ].join("\n");
 
 const PURSUIT_INSIGHT_SYSTEM_PROMPT = [
@@ -129,8 +126,11 @@ const SYSTEM_PROMPT = [
   "- Do not repeat the same idea across oneLiner, reflective, contextual, and combined.",
   "- 2–4 sentences per field. Density over length.",
   "- Forbid hedging: never \"it seems like\", \"you might want to\", \"perhaps\", \"could be worth\".",
+  "- Forbid forecasting: never \"might mean\", \"could\", \"potentially\", \"this puts you at risk of\", or any clause describing a future outcome or its effect on the user — see TENSION NOT FORECAST below.",
   "- Forbid form-validation copy: never \"add a description to clarify\" or similar UI suggestions.",
   "- No motivational poster language: never \"you've got this\", \"keep pushing\", \"amazing progress\", \"celebrate\", \"milestone unlocked\".",
+  "",
+  TENSION_NOT_FORECAST_RULE,
   "",
   "oneLiner (theme/category headline — macro verdict):",
   "- Judgment on this theme as a system: where attention clusters, what is stalled, what is over-weighted.",
@@ -139,6 +139,7 @@ const SYSTEM_PROMPT = [
   "reflective (FROM YOUR MAP — cross-pursuit dynamics in theme):",
   "- How pursuits in this theme compete for time, reinforce each other, or create tension.",
   "- Must name at least two specific pursuits when data supports it.",
+  "- When map context includes confirmedRelationships touching this theme, cite at least one user-confirmed link by pursuit titles and label — never invent relationships.",
   "- Never category labels like \"your finance pursuits\" when specific titles exist in context.",
   "",
   "contextual (COMPARISON — external benchmarks for the theme):",
@@ -149,10 +150,10 @@ const SYSTEM_PROMPT = [
   '- Bad: "This pursuit is important for your career." — inferable from the title alone.',
   "- If age OR location is unknown, set contextual to an empty string — do not guess or use \"someone your age\".",
   "",
-  "combined (WHAT THIS OPENS — forward-looking for the theme):",
-  "- One forward-looking block: what completing or advancing pursuits in this theme unlocks next.",
+  "combined (WHAT THIS OPENS — cross-pursuit synthesis for the theme):",
+  "- Name tensions or reinforcements between pursuits in this theme — facts on the map, not predicted outcomes.",
   "- Not a repeat of the verdict (oneLiner) or external benchmark (contextual).",
-  "- At most one concrete next step or unlock — not a list.",
+  "- At most one tension or reinforcement — not a list.",
   "",
   "tone field (theme/category):",
   "- Default to encouraging. Use nudge only when map data shows a clear stall.",

@@ -1,5 +1,5 @@
 /**
- * Layer 6 advisory quality eval — grades fake-provider fixture outputs.
+ * Layer 6 advisory quality eval — grades fake-provider and static fixture outputs.
  * Never gates CI. Writes qa-quality-report.json + .md under pathfinder/.
  */
 import fs from "node:fs";
@@ -9,46 +9,40 @@ import {
   resetFakeProviderState,
   resolveFakeJsonCompletion,
 } from "../src/lib/ai/__fixtures__/fake-provider";
+import { gradeInsightQuality } from "../src/lib/qa/insight-quality-grade";
+import { STATIC_INSIGHT_QUALITY_FIXTURES } from "../src/lib/qa/insight-quality-fixtures";
 
 const OUT_DIR = path.resolve(__dirname, "..");
-
-const BANNED_FILLER = ["connective tissue", "threads together", "woven through"];
 
 type FixtureReport = {
   id: string;
   flags: string[];
   pass: boolean;
+  source: "static" | "fake-provider";
 };
 
-function gradeOutput(raw: string): string[] {
-  const flags: string[] = [];
-  let parsed: { reading?: string; pursuits?: Record<string, { headline?: string; body?: string }> };
-  try {
-    parsed = JSON.parse(raw) as typeof parsed;
-  } catch {
-    return ["invalid-json"];
-  }
-
-  const reading = parsed.reading ?? "";
-  for (const phrase of BANNED_FILLER) {
-    if (reading.toLowerCase().includes(phrase)) flags.push(`banned-filler:${phrase}`);
-  }
-
-  for (const panel of Object.values(parsed.pursuits ?? {})) {
-    const headline = panel.headline?.toLowerCase() ?? "";
-    if (headline.includes("active pursuit") || headline.includes("maintaining status")) {
-      flags.push("status-narration-headline");
-    }
-  }
-
-  return flags;
+function gradePayload(payload: Parameters<typeof gradeInsightQuality>[0]): string[] {
+  return gradeInsightQuality(payload);
 }
 
 async function main() {
+  const reports: FixtureReport[] = [];
+
+  for (const fixture of STATIC_INSIGHT_QUALITY_FIXTURES) {
+    const flags = gradePayload(fixture.payload);
+    const gradedClean = flags.length === 0;
+    reports.push({
+      id: fixture.id,
+      flags,
+      pass: gradedClean === fixture.expectPass,
+      source: "static",
+    });
+  }
+
   process.env.AI_FAKE_PROVIDER = "1";
   resetFakeProviderState();
 
-  const fixtures: Array<{ id: string; user: string }> = [
+  const liveFixtures: Array<{ id: string; user: string }> = [
     {
       id: "sparse-panels",
       user: '<dirty_pursuits>\n["p1"]\n</dirty_pursuits>\nReturn ONLY: { "reading": "", "pursuits": { ... } }',
@@ -57,15 +51,24 @@ async function main() {
       id: "dense-panels",
       user: `<dirty_pursuits>\n${JSON.stringify(Array.from({ length: 8 }, (_, i) => `p${i + 1}`))}\n</dirty_pursuits>\nReturn ONLY: { "reading": "", "pursuits": { ... } }`,
     },
+    {
+      id: "full-reflect-themes",
+      user: `<dirty_pursuits>\n["p-cemap","p-isa"]\n</dirty_pursuits>\n<dirty_themes>\n["finance","work"]\n</dirty_themes>\nReturn themes and pursuits.`,
+    },
   ];
 
-  const reports: FixtureReport[] = [];
-
-  for (const fixture of fixtures) {
+  for (const fixture of liveFixtures) {
     resetFakeProviderState();
     const raw = await resolveFakeJsonCompletion({ user: fixture.user });
-    const flags = gradeOutput(raw);
-    reports.push({ id: fixture.id, flags, pass: flags.length === 0 });
+    let parsed: Parameters<typeof gradeInsightQuality>[0];
+    try {
+      parsed = JSON.parse(raw) as Parameters<typeof gradeInsightQuality>[0];
+    } catch {
+      reports.push({ id: fixture.id, flags: ["invalid-json"], pass: false, source: "fake-provider" });
+      continue;
+    }
+    const flags = gradePayload(parsed);
+    reports.push({ id: fixture.id, flags, pass: flags.length === 0, source: "fake-provider" });
   }
 
   const jsonPath = path.join(OUT_DIR, "qa-quality-report.json");
@@ -78,7 +81,9 @@ async function main() {
       "",
       `Generated: ${new Date().toISOString()}`,
       "",
-      ...reports.map((r) => `- **${r.id}:** ${r.pass ? "pass" : `flags: ${r.flags.join(", ")}`}`),
+      ...reports.map(
+        (r) => `- **${r.id}** (${r.source}): ${r.pass ? "pass" : `flags: ${r.flags.join(", ")}`}`,
+      ),
       "",
     ].join("\n"),
   );
