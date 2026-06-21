@@ -1,4 +1,5 @@
 import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
+import { pursuitStatusPromptBlock } from "@/lib/ai/pursuit-status-prompt";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
@@ -60,12 +61,9 @@ const PURSUIT_INSIGHT_RULES = [
   "   - Use \"exciting\", \"ambitious\", \"significant\", \"forward-thinking\", \"proactive\", \"demonstrates dedication\" — these are filler words that carry zero information",
   "   - Fill space when you have nothing useful to say — a 2-sentence insight that says something real is better than 4 sentences of padding",
   "",
-  "4. TONE TAG: Choose the tone that matches reality, not positivity bias.",
-  "   - \"celebratory\" — only if real progress has been made (milestones completed, status COMPLETE)",
-  "   - \"encouraging\" — active pursuit with visible momentum",
-  "   - \"nudge\" — active pursuit with stalled milestones or no recent progress",
-  "   - \"reality_check\" — pursuit that conflicts with other map evidence or has structural issues",
-  "   - \"informational\" — factual benchmark or context, no emotional framing needed",
+  "4. PURSUIT TONE: Assigned server-side on the reflect path — do not set tone in JSON output.",
+  "   Voice constraints arrive in <pursuit_tone_guidance> on reflect/enrich calls.",
+  "   Legacy generate-insights pursuit TONE TAG rules (celebratory/nudge/reality_check) do not apply to reflect.",
   "",
   "5. CROSS-MAP AWARENESS: You can see every pursuit on the map. USE THIS. The most valuable thing you can do is connect pursuits the user might not have linked themselves. If a finance pursuit and a career pursuit are clearly related, say so. If two pursuits compete for the same time/resources, flag it.",
   "",
@@ -164,10 +162,7 @@ const SYSTEM_PROMPT = [
   "--- Pursuit entries (schema: tone, headline, body) ---",
   PURSUIT_INSIGHT_RULES,
   "",
-  "Pursuit status (status field in map context):",
-  "- COMPLETE — acknowledge as a real achievement. Explain what completing this specific pursuit says about the person. Never treat completed pursuits as gaps, nudges, or suggestions.",
-  "- ACTIVE — assess momentum from milestone progress, description, and enrichAnswers.",
-  "- PAUSED — the pursuit is deliberately paused. Reflect why the pause may be intentional or what is waiting — warm, no pressure to resume. Do not treat as a gap, failure, or nudge to unpause.",
+  pursuitStatusPromptBlock(),
   "",
   "global (whole-map cache):",
   "- greeting must name at least one real pursuit by title immediately — not a generic observation.",

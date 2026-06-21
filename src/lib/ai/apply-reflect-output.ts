@@ -2,10 +2,8 @@ import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import { parseInsightLevelRecord, parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
-import {
-  resolvePursuitInsightTone,
-  type PursuitToneGoalInput,
-} from "@/lib/insights/resolve-pursuit-insight-tone";
+import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
+import { resolvePursuitInsightTone } from "@/lib/insights/resolve-pursuit-insight-tone";
 import {
   filterClarifiersAgainstMilestones,
   milestonesToGroundingInput,
@@ -75,33 +73,6 @@ function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | nul
       : {}),
     ...(typeof c.suggestedThemeId === "string" ? { suggestedThemeId: c.suggestedThemeId } : {}),
   };
-}
-
-async function loadPursuitToneGoals(
-  userId: string,
-  pursuitIds: string[],
-): Promise<Map<string, PursuitToneGoalInput & { id: string; themeId: string | null }>> {
-  const goals = await prisma.goal.findMany({
-    where: { userId, id: { in: pursuitIds }, archived: false },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      enrichAnswers: true,
-      deadline: true,
-      status: true,
-      themeId: true,
-      significance: true,
-      targetAmount: true,
-      currentAmount: true,
-      completedAt: true,
-      milestones: {
-        select: { id: true, title: true, completedAt: true },
-        orderBy: { position: "asc" },
-      },
-    },
-  });
-  return new Map(goals.map((goal) => [goal.id, goal]));
 }
 
 async function loadThemePursuitSignals(

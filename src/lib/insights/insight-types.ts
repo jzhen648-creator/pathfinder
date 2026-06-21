@@ -8,6 +8,7 @@ export const pursuitInsightToneSchema = z.enum([
   "in_focus",
   "worth_a_look",
   "context",
+  "paused",
 ]);
 
 export type PursuitInsightTone = z.infer<typeof pursuitInsightToneSchema>;

@@ -278,7 +278,7 @@ Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-pr
 
 > **Partially superseded:** categories are **visible in mobile UI** as of **Work category Job rename + category UI lock** (same day). Phase 1 “hidden category” rule applied only before category pickers shipped.
 
-**User-facing model:** theme · pursuit · mark. **Category** is the doc word for taxonomy slots under a theme (22 locked templates).
+**User-facing model:** theme · pursuit · mark. **Category** is the doc word for taxonomy slots under a theme (23 locked templates).
 
 **Rules:**
 - Mobile UI copy source of truth: `pathfinder-mobile/TERMINOLOGY.md`.

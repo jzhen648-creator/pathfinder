@@ -29,6 +29,7 @@ const LEGACY_TONE_MAP: Record<string, PursuitInsightTone> = {
   in_focus: "in_focus",
   worth_a_look: "worth_a_look",
   context: "context",
+  paused: "paused",
 };
 
 function toFormattedMapPursuitSlice(goal: PursuitToneGoalInput): FormattedMapPursuit {
@@ -80,6 +81,7 @@ export function resolvePursuitInsightTone(
   now = Date.now(),
 ): PursuitInsightTone {
   if (goal.status === "COMPLETE") return "arrival";
+  if (goal.status === "PAUSED") return "paused";
 
   const pursuit = toFormattedMapPursuitSlice(goal);
   if (computePursuitSignal(pursuit, now) === "gap") return "worth_a_look";

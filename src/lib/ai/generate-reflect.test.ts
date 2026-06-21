@@ -57,6 +57,29 @@ vi.mock("@/lib/gemini", () => ({
   },
 }));
 
+vi.mock("@/lib/insights/load-pursuit-tone-goals", () => ({
+  loadPursuitToneGoals: vi.fn(async (_userId: string, pursuitIds: string[]) => {
+    const now = new Date("2026-07-01T00:00:00.000Z");
+    return new Map(
+      pursuitIds.map((id) => [
+        id,
+        {
+          id,
+          title: id === "p-cemap" ? "CeMAP qualification" : "Test pursuit",
+          description: null,
+          enrichAnswers: [],
+          status: id === "p-done" ? "COMPLETE" : "ACTIVE",
+          significance: 4,
+          deadline: now,
+          targetAmount: null,
+          currentAmount: null,
+          milestones: [],
+        },
+      ]),
+    );
+  }),
+}));
+
 const USER_ID = "alex-carter";
 const ENRICH_OPTIONS = {
   clarifyTitles: false,
@@ -97,6 +120,18 @@ describe("chunkReflectPursuitIds", () => {
 });
 
 describe("buildReflectSystemPrompt benchmark rubric", () => {
+  it("includes pursuit status rubric with MAINTAINING on full and pursuits-only scopes", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
+
+    for (const prompt of [full, scoped]) {
+      expect(prompt).toContain("Pursuit status (status field in map context):");
+      expect(prompt).toContain("- MAINTAINING —");
+      expect(prompt).toContain("MUST NOT treat absent milestone movement");
+      expect(prompt).toContain("- PAUSED —");
+    }
+  });
+
   it("replaces generic age/location benchmark lines with BENCHMARK & INSIGHT MOVES", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
     expect(full).toContain("BENCHMARK & INSIGHT MOVES");
@@ -297,6 +332,8 @@ describe("generateReflectResponse", () => {
     expect(mapContextBlock).toContain("Senior Engineer at Acme");
     expect(mapContextBlock).not.toContain("Public speaking");
     expect(mapContextBlock).not.toContain("£500,000 ISA");
+    expect(user).toContain("<pursuit_tone_guidance>");
+    expect(user).toContain("Tone: worth_a_look");
     expect(user).toContain('Return ONLY: { "pursuits": { ... } }');
   });
 

@@ -1,4 +1,5 @@
 import { formatMapContext, formatPursuitContext } from "@/lib/ai/format-map-context";
+import { pursuitStatusPromptBlock } from "@/lib/ai/pursuit-status-prompt";
 import { isAmountImpactEligible, amountImpactBodyPromptLines } from "@/lib/ai/amount-impact-eligibility";
 import { PEOPLE_THEME_BODY_CLAUSE, shouldApplyPeopleThemeBodyRules } from "@/lib/ai/people-theme-prompt";
 import { formatUserContext } from "@/lib/ai/format-user-context";
@@ -15,6 +16,11 @@ import {
   pursuitSignalFromGoal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
+import {
+  formatPursuitToneGuidanceEntry,
+  pursuitToneVoiceLines,
+} from "@/lib/insights/pursuit-tone-prompt";
 import {
   resolvePursuitInsightTone,
   type PursuitToneGoalInput,
@@ -106,6 +112,8 @@ function buildEnrichSystemPrompt(
     ...clarifierRules,
     buildClarifierKindPromptSection(options),
     "- insight: headline (verdict, <=100 chars) + body (2-4 sentences, <=500 chars). Tone is assigned server-side — do not set tone.",
+    "",
+    pursuitStatusPromptBlock(),
     HEADLINE_MUST_ADD_MEANING,
     "  Body: single prose paragraph — no section labels, no \"From your map:\" or \"Comparison:\" prefixes (the UI renders labels).",
     "  When sibling pursuits support a cross-link, weave one sentence into the body naturally.",
@@ -142,11 +150,17 @@ function buildPursuitEnrichUserMessage(
   userContext: string,
   milestonesAllowed: boolean,
   slotLines: string[],
+  tone: ReturnType<typeof resolvePursuitInsightTone>,
 ): string {
   return [
     userContext || "(No profile context yet.)",
     "",
     `Generate enrich output for pursuit id: ${pursuitId}`,
+    "",
+    formatPursuitToneGuidanceEntry(pursuitId, tone),
+    "",
+    ...pursuitToneVoiceLines(tone),
+    "",
     ...slotLines,
     milestonesAllowed
       ? "Milestones: allowed — suggest 1-6 chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers."
@@ -155,33 +169,6 @@ function buildPursuitEnrichUserMessage(
     "Scoped pursuit context JSON (focal pursuit + sibling pursuits):",
     contextJson,
   ].join("\n");
-}
-
-async function loadPursuitToneGoals(userId: string, pursuitIds: string[]) {
-  const goals = await prisma.goal.findMany({
-    where: { userId, id: { in: pursuitIds }, archived: false },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      enrichAnswers: true,
-      deadline: true,
-      status: true,
-      significance: true,
-      targetAmount: true,
-      currentAmount: true,
-      completedAt: true,
-      milestones: {
-        select: { id: true, title: true, completedAt: true },
-        orderBy: { position: "asc" },
-      },
-    },
-  });
-  const byId = new Map<string, PursuitToneGoalInput>();
-  for (const goal of goals) {
-    byId.set(goal.id, goal);
-  }
-  return byId;
 }
 
 async function generateOnePursuitEnrich(
@@ -224,7 +211,14 @@ async function generateOnePursuitEnrich(
       shouldApplyPeopleThemeBodyRules(pursuitContext.pursuit.themeId),
       amountImpactEligible,
     ),
-    user: buildPursuitEnrichUserMessage(pursuitId, contextJson, userContext, milestonesAllowed, slotLines),
+    user: buildPursuitEnrichUserMessage(
+      pursuitId,
+      contextJson,
+      userContext,
+      milestonesAllowed,
+      slotLines,
+      resolvePursuitInsightTone(goal),
+    ),
     maxTokens: 2048,
     queueKey: userId,
   });

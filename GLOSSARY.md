@@ -31,7 +31,7 @@ Map entities use **`themeId`** and **`categoryId`** in Postgres. JSON may still 
 | Term | Implementation |
 |------|----------------|
 | **Self** | The user / center of the life map (conceptual). |
-| **Theme** | Six fixed ids: `finance`, `work`, `becoming`, `pleasures`, `people`, `health`. Locked category templates in `src/lib/taxonomy.ts` (**22** slots). **Catalog/config only** — not a DB table. Code type: **`LifeAreaId`**. UI label for `becoming`: **Self & Mind**. |
+| **Theme** | Six fixed ids: `finance`, `work`, `becoming`, `pleasures`, `people`, `health`. Locked category templates in `src/lib/taxonomy.ts` (**23** slots). **Catalog/config only** — not a DB table. Code type: **`LifeAreaId`**. UI label for `becoming`: **Self & Mind**. |
 | **Category** | Prisma **`ThemeCategory`** root row; **`categoryId`** on `Goal`. Shown in mobile UI — theme detail groups, pursuit eyebrow, create/move pickers. Legacy words: hub, track, section, **`Branch`**. |
 | **Goal / Pursuit** | Prisma **`Goal`**. User word **pursuit** — **no subtypes**. **`goalType`** column is legacy wire (default `"project"` until dropped). Use **status** (especially **Maintaining**) for ongoing pursuits. Legacy `moment` / `event` rows are timeline-only, not map pursuits. |
 | **Milestone** | Prisma **`Milestone`** — phase within one goal only; never goal-to-goal evolution. |

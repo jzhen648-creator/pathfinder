@@ -104,9 +104,10 @@ Forcing all six original ideas into the QQ pathway would **increase** complexity
 - Prompt explicitly forbids asserting links as fact in Reading/insight prose unless map structure supports it
 - **No** `PursuitRelationship` table; **no** `peerGoalId` on `enrichAnswers`; only legacy `parentGoalId` (continuation, not peers)
 
-**Suggest-add (absent)**
+**Suggest-add (partial)**
 
-- `suggestedContinuations`, `createdFrom` — **not in repo**
+- `createdFromGoalId` provenance **ships** (schema, POST, mobile suggest-add → prefilled create)
+- `suggestedContinuations` + suggest-add **inheritance** — **not built**
 - `suggestedMilestones` is within-pursuit steps only
 - Theme `combined` forward prose exists but does not drive create flow
 

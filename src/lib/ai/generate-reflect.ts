@@ -1,4 +1,5 @@
 import { formatMapContext, type FormattedMapContext } from "@/lib/ai/format-map-context";
+import { pursuitStatusPromptBlock } from "@/lib/ai/pursuit-status-prompt";
 import {
   amountImpactBodyPromptLines,
   isAmountImpactEligible,
@@ -24,6 +25,8 @@ import {
 } from "@/lib/map/reading-dirty-ledger";
 import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
+import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
+import { buildPursuitToneGuidanceBlock } from "@/lib/insights/pursuit-tone-prompt";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { listDirtyThemeIds, listEligiblePursuitIds, planReflectWork } from "@/lib/ai/reflect-sync-plan";
 import {
@@ -174,6 +177,8 @@ function buildReflectPursuitsOnlySystemPrompt(
     "- headline <= 100 chars; body 2-4 sentences, <= 500 chars.",
     "- Direct declarative voice in headline and body — no \"your map shows\", no opening with the user's name, no UI section labels.",
     "",
+    pursuitStatusPromptBlock(),
+    "",
     ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
     "",
     PEOPLE_THEME_BODY_CLAUSE,
@@ -221,6 +226,8 @@ function buildReflectSystemPrompt(
     HEADLINE_MUST_ADD_MEANING,
     "- Never generic headlines like \"[title] is progressing well\" or \"Your ISA is progressing well\" — state the specific fact.",
     "- Be honest about gaps and sparse maps.",
+    "",
+    pursuitStatusPromptBlock(),
     "",
     ...REFLECT_BENCHMARK_INSIGHT_RUBRIC,
     "",
@@ -381,6 +388,7 @@ function buildReflectUserMessage(input: {
   pursuitSlotContexts: Map<string, QuestionSlotMessageContext>;
   enrichOptions: Required<PursuitEnrichOptions>;
   scope?: ReflectScope;
+  pursuitToneGuidance?: string | null;
 }): string {
   const scope = input.scope ?? "full";
   const milestoneOptions = buildReflectMilestoneOptions(input.dirtyPursuitIds, input.pursuitSignals);
@@ -425,6 +433,13 @@ function buildReflectUserMessage(input: {
     "<dirty_pursuits>",
     JSON.stringify(input.dirtyPursuitIds),
     "</dirty_pursuits>",
+  );
+
+  if (input.pursuitToneGuidance) {
+    lines.push("", input.pursuitToneGuidance);
+  }
+
+  lines.push(
     "",
     ...(milestoneOptions ? [milestoneOptions, ""] : []),
     ...quickQuestionSlots,
@@ -748,7 +763,7 @@ async function generateReflectResponse(
 
   const scope = options?.scope ?? "full";
 
-  const [mapContext, userContext, readingPacket, pursuitSignals, allPursuitSignals, insightCacheRow] =
+  const [mapContext, userContext, readingPacket, pursuitSignals, allPursuitSignals, insightCacheRow, toneGoals] =
     await Promise.all([
     options?.mapContext
       ? Promise.resolve(options.mapContext)
@@ -760,6 +775,7 @@ async function generateReflectResponse(
       ? loadAllPursuitSignals(userId)
       : Promise.resolve([]),
     prisma.insightCache.findUnique({ where: { userId }, select: { pursuitInsights: true } }),
+    loadPursuitToneGoals(userId, pursuitIds),
   ]);
 
   const cachedPursuits = parsePursuitInsightRecord(
@@ -789,6 +805,8 @@ async function generateReflectResponse(
       : mapContextForReadingPacketPrompt(mapContext);
   const mapContextJson = JSON.stringify(mapContextForPrompt, null, 2);
 
+  const pursuitToneGuidance = buildPursuitToneGuidanceBlock(pursuitIds, toneGoals);
+
   const systemPrompt = buildReflectSystemPrompt(
     enrichOptions,
     scope,
@@ -804,6 +822,7 @@ async function generateReflectResponse(
     pursuitSlotContexts,
     enrichOptions,
     scope,
+    pursuitToneGuidance,
   });
 
   if (metrics) {
