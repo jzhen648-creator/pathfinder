@@ -75,10 +75,11 @@ export function resolvePreservedComparison(
   freshRaw: string | undefined,
   cached: string | undefined,
   signal: PursuitSignal,
+  profile?: { age: number | null; location: string | null },
 ): string | undefined {
-  const gatedFresh = gatePursuitComparison(freshRaw?.trim() ?? "", signal);
+  const gatedFresh = gatePursuitComparison(freshRaw?.trim() ?? "", signal, profile);
   if (gatedFresh) return gatedFresh;
-  const gatedCached = gatePursuitComparison(cached?.trim() ?? "", signal);
+  const gatedCached = gatePursuitComparison(cached?.trim() ?? "", signal, profile);
   return gatedCached || undefined;
 }
 

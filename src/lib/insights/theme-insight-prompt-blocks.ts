@@ -32,6 +32,7 @@ export const THEME_INSIGHT_FIELD_JOBS = [
   "  - Do NOT repeat pursuit-panel comparison lines verbatim; synthesize at theme level when multiple pursuits share a theme.",
   "  - Do NOT write editorial observations (\"suggests a pivot\", \"shows commitment\") — benchmarks only.",
   "  - If <benchmark_facts> is absent, age AND location are both unknown, or nothing is benchmarkable, contextual MUST be \"\".",
+  "  - When <benchmark_facts> covers this theme and pursuits have quantified fields, deadlines, or milestones, contextual SHOULD cite one concrete benchmark.",
   "",
   THEME_INSIGHT_NON_DUPLICATION,
   "  Do not repeat pursuit-panel execution copy in theme insights — pursuit sheets own per-pursuit velocity.",
@@ -47,7 +48,8 @@ export const PURSUIT_COMPARISON_FIELD_JOBS = [
   "PURSUIT comparison field (UI label: Comparison):",
   "- Population / typical-norm benchmark for THIS pursuit only — not map-fact restatement (use fromMap for map facts).",
   "- Use pursuit quantified fields, answered enrichAnswers, user age/location, and <benchmark_facts> when present in the user message.",
-  "- Do NOT invent statistics not in <benchmark_facts>. Omit comparison (omit field or empty) when no defensible benchmark.",
+  "- When <benchmark_facts> is present and this pursuit has quantified targets, a deadline, milestones, or enrichAnswers, include comparison unless no defensible benchmark exists.",
+  "- Do NOT invent statistics not in <benchmark_facts>. Omit comparison only when no defensible benchmark.",
   "- Do NOT write editorial career narratives or vague filler.",
   "- At most one benchmark observation per pursuit.",
 ].join("\n");

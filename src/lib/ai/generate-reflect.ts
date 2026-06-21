@@ -414,15 +414,21 @@ function buildReflectUserMessage(input: {
         ]
       : [];
 
-  const benchmarkFactsBlock =
-    scope === "full" && input.mapContext
-      ? buildBenchmarkFactsBlock({
+  const benchmarkFactsBlock = input.mapContext
+    ? (() => {
+        const pursuits = flattenBenchmarkPursuitsFromMapContext(input.mapContext!);
+        const themeIds =
+          pursuits.length > 0
+            ? [...new Set(pursuits.map((p) => p.themeId))]
+            : input.dirtyThemeIds;
+        return buildBenchmarkFactsBlock({
           age: parseAgeFromUserContext(input.userContext),
           location: parseLocationFromUserContext(input.userContext),
-          themeIds: input.dirtyThemeIds,
-          pursuits: flattenBenchmarkPursuitsFromMapContext(input.mapContext),
-        })
-      : null;
+          themeIds,
+          pursuits,
+        });
+      })()
+    : null;
 
   const lines = [
     input.userContext || "(No profile context yet.)",
@@ -755,11 +761,19 @@ export async function runReflectSync(
   }
 
   const mapContext = await formatMapContext(userId);
+  const userContext = await formatUserContext(userId);
+  const benchmarkProfile = {
+    age: parseAgeFromUserContext(userContext),
+    location: parseLocationFromUserContext(userContext),
+  };
   const [amountImpactEligible, allPursuitSignals] = await Promise.all([
     Promise.resolve(isAmountImpactEligible(mapContext)),
     loadAllPursuitSignals(userId),
   ]);
-  const holisticBenchmarkEligible = isHolisticBenchmarkEligible(allPursuitSignals);
+  const holisticBenchmarkEligible = isHolisticBenchmarkEligible(
+    allPursuitSignals,
+    benchmarkProfile,
+  );
 
   return runReflectBatchesIncremental(
     userId,
@@ -826,7 +840,10 @@ async function generateReflectResponse(
     options?.amountImpactEligible ?? isAmountImpactEligible(mapContext);
   const holisticBenchmarkEligible =
     options?.holisticBenchmarkEligible ??
-    isHolisticBenchmarkEligible(allPursuitSignals);
+    isHolisticBenchmarkEligible(allPursuitSignals, {
+      age: parseAgeFromUserContext(userContext),
+      location: parseLocationFromUserContext(userContext),
+    });
 
   const readingPacketJson = readingPacketToJson(readingPacket);
   const mapContextForPrompt =
@@ -847,7 +864,7 @@ async function generateReflectResponse(
     userContext,
     readingPacketJson,
     mapContextJson,
-    mapContext: mapContextForPrompt,
+    mapContext,
     dirtyPursuitIds: pursuitIds,
     dirtyThemeIds: themeIds,
     pursuitSignals,

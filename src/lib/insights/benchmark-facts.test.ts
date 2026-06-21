@@ -59,6 +59,8 @@ describe("benchmark-facts", () => {
         title: "ISA",
         targetAmount: 100_000,
         enrichAnswerCount: 0,
+        milestoneCount: 0,
+        hasDeadline: true,
       },
     ];
     expect(benchmarkFactsApplicable("finance", pursuits, 29, "London")).toBe(true);
@@ -71,5 +73,21 @@ describe("benchmark-facts", () => {
         null,
       ),
     ).toBe(false);
+  });
+
+  it("benchmarkFactsApplicable allows health theme with milestones and full profile", () => {
+    const pursuits = [
+      {
+        id: "p-hm",
+        themeId: "health",
+        title: "Half marathon",
+        enrichAnswerCount: 0,
+        milestoneCount: 2,
+        completedMilestoneCount: 1,
+        hasDeadline: true,
+      },
+    ];
+    expect(benchmarkFactsApplicable("health", pursuits, 29, "London")).toBe(true);
+    expect(benchmarkFactsApplicable("health", pursuits, 29, null)).toBe(false);
   });
 });

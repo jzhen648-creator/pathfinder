@@ -7,6 +7,7 @@ import {
   gateThemeReflective,
   gatePursuitComparison,
   hasMinimumContextSignal,
+  isHolisticBenchmarkEligible,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 
@@ -58,10 +59,26 @@ describe("pursuit-enrich-readiness gates", () => {
     ).toBe("");
   });
 
-  it("gatePursuitComparison requires minimum context on focal pursuit", () => {
-    const comparison = "Typical ISA balance at 29 is lower than your target.";
-    expect(gatePursuitComparison(comparison, richSignal)).toBe(comparison);
-    expect(gatePursuitComparison(comparison, thinSignal)).toBe("");
+  it("gatePursuitComparison allows benchmarks with profile + milestones", () => {
+    const comparison = "Typical half-marathon prep is 12-16 weeks from a 5k base.";
+    const marathonSignal: PursuitSignal = {
+      title: "Half marathon",
+      description: "",
+      enrichAnswerCount: 0,
+      milestoneCount: 3,
+      completedMilestoneCount: 1,
+      hasDeadline: false,
+      hasQuantifiedTarget: false,
+      status: "ACTIVE",
+    };
+    expect(gatePursuitComparison(comparison, marathonSignal)).toBe("");
+    expect(
+      gatePursuitComparison(comparison, marathonSignal, { age: 29, location: "London" }),
+    ).toBe(comparison);
+  });
+
+  it("isHolisticBenchmarkEligible when age and location are both known", () => {
+    expect(isHolisticBenchmarkEligible([], { age: 29, location: "London" })).toBe(true);
   });
 
   it("hasMinimumContextSignal counts enrich answers", () => {

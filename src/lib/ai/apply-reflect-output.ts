@@ -192,7 +192,12 @@ export async function applyReflectOutput(
 
     const signal = pursuitSignalFromGoal(goal);
     const cachedEntry = cachedPursuits[pursuitId];
-    const comparison = resolvePreservedComparison(entry.comparison, cachedEntry?.comparison, signal);
+    const comparison = resolvePreservedComparison(
+      entry.comparison,
+      cachedEntry?.comparison,
+      signal,
+      { age: profileAge, location: profileLocation },
+    );
     const fromMap = resolvePreservedInsightText(entry.fromMap, cachedEntry?.fromMap);
 
     const enrichAnswersParsed = enrichAnswersSchema.safeParse(goal.enrichAnswers);

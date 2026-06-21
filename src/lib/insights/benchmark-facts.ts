@@ -11,6 +11,9 @@ export type BenchmarkPursuitRow = {
   currentAmount?: number;
   unit?: string;
   enrichAnswerCount: number;
+  milestoneCount?: number;
+  completedMilestoneCount?: number;
+  hasDeadline?: boolean;
 };
 
 export type BenchmarkFactsInput = {
@@ -57,9 +60,21 @@ function themeHasQuantifiedPursuit(pursuits: BenchmarkPursuitRow[]): boolean {
   );
 }
 
+function themeHasBenchmarkAnchor(pursuits: BenchmarkPursuitRow[]): boolean {
+  return pursuits.some(
+    (p) =>
+      (p.targetAmount ?? 0) > 0 ||
+      (p.currentAmount ?? 0) > 0 ||
+      p.enrichAnswerCount > 0 ||
+      (p.milestoneCount ?? 0) > 0 ||
+      p.hasDeadline === true,
+  );
+}
+
 function financeFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): string[] {
   const lines: string[] = [
     `finance: UK ISA annual subscription limit approx £20,000 (${BENCHMARK_FACTS_AS_OF}).`,
+    "finance: UK median household savings buffer often quoted around 1-3 months essential spend — use approx only.",
   ];
   const band = ageBandLabel(age);
   if (band === "25-34") {
@@ -79,22 +94,35 @@ function financeFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): stri
   return lines;
 }
 
-function workFacts(_age: number | null, pursuits: BenchmarkPursuitRow[]): string[] {
+function workFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): string[] {
+  const band = ageBandLabel(age);
   const lines = [
     "work: part-time professional qualifications (e.g. CeMAP, DipPFS) often quoted at 6-12 months part-time — use approx ranges only.",
     "work: cite salary bands only when enrichAnswers or pursuit title imply a specific role and user location is known.",
   ];
+  if (band === "25-34") {
+    lines.push(
+      "work: UK age 25-34 — early-career qualification + role-change timelines often 6-18 months combined; use approx ranges only.",
+    );
+  }
   if (pursuits.some((p) => p.enrichAnswerCount > 0)) {
     lines.push("work: use answered enrichAnswers (role type, location, employed vs independent) to anchor benchmarks.");
   }
   return lines;
 }
 
-function healthFacts(): string[] {
-  return [
+function healthFacts(age: number | null): string[] {
+  const band = ageBandLabel(age);
+  const lines = [
     "health: couch-to-5k style plans often use approx 8-10 weeks; half-marathon prep commonly quoted at 12-16 weeks from a 5k base — ranges only.",
-    "health: compare logged milestone pace to these bands when deadline and completions exist on the map.",
+    "health: compare logged milestone pace and deadline to these bands when completions exist on the map.",
   ];
+  if (band === "25-34") {
+    lines.push(
+      "health: recreational runners 25-34 — finishing a half marathon is common but rarely without 3+ months structured training from a sedentary start.",
+    );
+  }
+  return lines;
 }
 
 function peopleFacts(): string[] {
@@ -115,7 +143,7 @@ const THEME_FACT_BUILDERS: Record<
 > = {
   finance: financeFacts,
   work: workFacts,
-  health: (_age, _pursuits) => healthFacts(),
+  health: (age) => healthFacts(age),
   people: (_age, _pursuits) => peopleFacts(),
   becoming: (_age, _pursuits) => becomingFacts(),
 };
@@ -131,18 +159,19 @@ export function benchmarkFactsApplicable(
   if (inTheme.length === 0) return false;
 
   const hasProfile = age != null || Boolean(location?.trim());
+  const hasFullProfile = age != null && Boolean(location?.trim());
   if (!hasProfile && !themeHasQuantifiedPursuit(inTheme)) return false;
 
   if (themeId === "finance" || themeId === "work") {
     return locationLooksUk(location) && (hasProfile || themeHasQuantifiedPursuit(inTheme));
   }
   if (themeId === "health") {
-    return inTheme.some((p) => p.enrichAnswerCount > 0 || (p.targetAmount ?? 0) > 0) && hasProfile;
+    return hasFullProfile && themeHasBenchmarkAnchor(inTheme);
   }
   if (themeId === "people" || themeId === "becoming") {
-    return inTheme.some((p) => p.enrichAnswerCount >= 1) && hasProfile;
+    return hasFullProfile && themeHasBenchmarkAnchor(inTheme);
   }
-  return hasProfile && themeHasQuantifiedPursuit(inTheme);
+  return hasProfile && themeHasBenchmarkAnchor(inTheme);
 }
 
 /** Compact fact bullets for reflect user message — null when nothing applies. */
@@ -187,6 +216,10 @@ export function flattenBenchmarkPursuitsFromMapContext(
           currentAmount: pursuit.currentAmount,
           unit: pursuit.unit,
           enrichAnswerCount: pursuit.enrichAnswers?.length ?? 0,
+          milestoneCount: pursuit.milestones?.length ?? 0,
+          completedMilestoneCount:
+            pursuit.milestones?.filter((m) => m.completed).length ?? 0,
+          hasDeadline: Boolean(pursuit.deadline),
         });
       }
     }

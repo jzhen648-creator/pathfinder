@@ -92,11 +92,37 @@ export function hasMinimumContextSignal(signal: PursuitSignal): boolean {
 /** Min pursuits with user context before whole-map holistic benchmark prompt fires. */
 export const HOLISTIC_BENCHMARK_MIN_RICH_PURSUITS = 2;
 
+export type BenchmarkProfileContext = {
+  age: number | null;
+  location: string | null;
+};
+
+export function hasBenchmarkProfileContext(profile?: BenchmarkProfileContext): boolean {
+  return profile?.age != null && Boolean(profile.location?.trim());
+}
+
 export function countMinimumContextSignals(signals: PursuitSignal[]): number {
   return signals.filter(hasMinimumContextSignal).length;
 }
 
-export function isHolisticBenchmarkEligible(signals: PursuitSignal[]): boolean {
+/** Looser bar for pursuit/theme Comparison fields when age+location are known. */
+export function hasPursuitBenchmarkSignal(
+  signal: PursuitSignal,
+  profile?: BenchmarkProfileContext,
+): boolean {
+  if (hasMinimumContextSignal(signal)) return true;
+  if (!hasBenchmarkProfileContext(profile)) return false;
+  if (signal.hasQuantifiedTarget || signal.hasDeadline) return true;
+  if (signal.enrichAnswerCount >= 1) return true;
+  if (signal.milestoneCount >= 1 || signal.completedMilestoneCount >= 1) return true;
+  return signal.title.trim().length >= 10;
+}
+
+export function isHolisticBenchmarkEligible(
+  signals: PursuitSignal[],
+  profile?: BenchmarkProfileContext,
+): boolean {
+  if (hasBenchmarkProfileContext(profile)) return true;
   return countMinimumContextSignals(signals) >= HOLISTIC_BENCHMARK_MIN_RICH_PURSUITS;
 }
 
@@ -192,9 +218,10 @@ export function gateThemeReflective(
 export function gatePursuitComparison(
   comparison: string,
   signal: PursuitSignal,
+  profile?: BenchmarkProfileContext,
 ): string {
   if (!comparison.trim()) return "";
-  if (hasMinimumContextSignal(signal)) return comparison.trim();
+  if (hasPursuitBenchmarkSignal(signal, profile)) return comparison.trim();
   return "";
 }
 
