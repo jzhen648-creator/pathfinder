@@ -159,11 +159,14 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(scoped).toContain("durable interpretation context");
   });
 
-  it("full-scope prompt steers theme synthesis on confirmedRelationships", () => {
+  it("full-scope prompt steers theme synthesis as reflective-only", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
-    expect(full).toContain("reading_packet confirmedRelationships lists links");
-    expect(full).toContain("combined (UI: ACROSS PURSUITS");
-    expect(full).toContain("Do NOT cite confirmedRelationships");
+    expect(full).toContain('{ tone, oneLiner, reflective }');
+    expect(full).toContain("FROM YOUR MAP — endogenous map facts only");
+    expect(full).toContain("map_context and a fact the user entered there");
+    expect(full).toContain("Relate pursuits to each other within the theme");
+    expect(full).not.toContain("combined (UI: ACROSS PURSUITS");
+    expect(full).not.toContain("contextual (UI: COMPARISON");
   });
 
   it("full-scope prompt includes suggestedMilestones guidance on pursuit panels", () => {

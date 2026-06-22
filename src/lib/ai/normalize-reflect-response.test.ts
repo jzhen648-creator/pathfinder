@@ -1,39 +1,55 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeReflectResponse, normalizeThemeTone } from "@/lib/ai/normalize-reflect-response";
-import { reflectResponseSchema } from "@/lib/ai/reflect-types";
+import {
+  normalizeReflectResponse,
+  truncateThemeOneLiner,
+} from "@/lib/ai/normalize-reflect-response";
 
-describe("normalizeThemeTone", () => {
-  it("maps pursuit-only tone informational to encouraging", () => {
-    expect(normalizeThemeTone("informational")).toBe("encouraging");
+describe("truncateThemeOneLiner", () => {
+  it("returns short text unchanged", () => {
+    expect(truncateThemeOneLiner("Work is the bottleneck this season.")).toBe(
+      "Work is the bottleneck this season.",
+    );
+  });
+
+  it("truncates on a word boundary with an ellipsis", () => {
+    const long =
+      "Work is carrying the season with CeMAP study and mortgage broker job search both pressing against the same June deadline window";
+
+    const truncated = truncateThemeOneLiner(long);
+    expect(truncated).toMatch(/…$/);
+    expect(truncated.length).toBeLessThanOrEqual(100);
+
+    const body = truncated.slice(0, -1);
+    expect(long.startsWith(body)).toBe(true);
+    expect(long[body.length] === " " || long[body.length] === undefined).toBe(true);
   });
 });
 
 describe("normalizeReflectResponse", () => {
-  it("coerces invalid theme tone before Zod parse succeeds", () => {
-    const raw = {
-      pursuits: {
-        "p-1": {
-          tone: "informational",
-          headline: "Next step",
-          body: "Body copy.",
-        },
-      },
+  it("applies word-boundary oneLiner truncation on theme entries", () => {
+    const longOneLiner =
+      "Work is carrying the season with CeMAP study and mortgage broker job search both pressing against the same June deadline window";
+
+    const normalized = normalizeReflectResponse({
       themes: {
         work: {
-          tone: "informational",
-          oneLiner: "Work is live",
-          reflective: "CeMAP and Product Lead search both have deadlines in view.",
+          tone: "encouraging",
+          oneLiner: longOneLiner,
+          reflective: "CeMAP and Mortgage broker job search both have June deadlines.",
         },
       },
-    };
+      pursuits: {},
+    }) as { themes: Record<string, { oneLiner: string }> };
 
-    const normalized = normalizeReflectResponse(raw);
-    const parsed = reflectResponseSchema.safeParse(normalized);
+    const oneLiner = normalized.themes.work.oneLiner;
+    expect(oneLiner).toMatch(/…$/);
+    expect(oneLiner.length).toBeLessThanOrEqual(100);
 
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) return;
-    expect(parsed.data.themes.work?.tone).toBe("encouraging");
-    expect(parsed.data.pursuits["p-1"]?.tone).toBe("context");
+    const body = oneLiner.slice(0, -1);
+    expect(longOneLiner.startsWith(body)).toBe(true);
+    expect(longOneLiner[body.length] === " " || longOneLiner[body.length] === undefined).toBe(
+      true,
+    );
   });
 });

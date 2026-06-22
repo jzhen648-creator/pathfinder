@@ -21,7 +21,7 @@ export const reflectPursuitEntrySchema = z.object({
 export const reflectThemeEntrySchema = z.object({
   tone: insightToneSchema,
   oneLiner: z.string().max(100),
-  reflective: z.string().max(500),
+  reflective: z.string().max(800),
   contextual: z.string().max(500).optional().default(""),
   combined: z.string().max(500).optional().default(""),
 });

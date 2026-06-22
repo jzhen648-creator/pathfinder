@@ -2,6 +2,28 @@ import { normalizePursuitEnrichEntry } from "@/lib/pursuit/normalize-pursuit-enr
 
 const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
+const THEME_ONE_LINER_MAX = 100;
+const THEME_REFLECTIVE_MAX = 800;
+
+/** Trim text to max length on a word boundary; append … when shortened. */
+export function truncateAtWordBoundary(text: string, max: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+
+  const budget = max - 1;
+  let slice = trimmed.slice(0, budget);
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace > 0) {
+    slice = slice.slice(0, lastSpace);
+  }
+  return `${slice.trimEnd()}…`;
+}
+
+/** Trim theme oneLiner to max length on a word boundary; append … when shortened. */
+export function truncateThemeOneLiner(text: string, max = THEME_ONE_LINER_MAX): string {
+  return truncateAtWordBoundary(text, max);
+}
+
 /** Coerce Gemini theme tone drift before Zod — pursuit-only tones map to default. */
 export function normalizeThemeTone(raw: unknown): (typeof THEME_TONES)[number] {
   if (typeof raw === "string" && (THEME_TONES as readonly string[]).includes(raw)) {
@@ -51,8 +73,8 @@ export function normalizeReflectResponse(json: unknown): unknown {
       if (!oneLiner && !reflective) continue;
       normalizedThemes[themeId] = {
         tone: normalizeThemeTone(row.tone),
-        oneLiner: oneLiner.slice(0, 100),
-        reflective: reflective.slice(0, 500),
+        oneLiner: truncateThemeOneLiner(oneLiner),
+        reflective: truncateAtWordBoundary(reflective, THEME_REFLECTIVE_MAX),
         contextual: typeof row.contextual === "string" ? row.contextual.slice(0, 500) : "",
         combined: typeof row.combined === "string" ? row.combined.slice(0, 500) : "",
       };

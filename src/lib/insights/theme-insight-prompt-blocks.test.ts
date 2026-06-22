@@ -6,11 +6,11 @@ import {
 } from "@/lib/insights/theme-insight-prompt-blocks";
 
 describe("theme-insight-prompt-blocks", () => {
-  it("routes confirmed relationships to combined only", () => {
-    expect(THEME_INSIGHT_FIELD_JOBS).toContain("combined (UI: ACROSS PURSUITS");
-    expect(THEME_INSIGHT_FIELD_JOBS).toContain("Do NOT cite confirmedRelationships");
-    expect(THEME_INSIGHT_FIELD_JOBS).toContain("contextual (UI: COMPARISON");
-    expect(THEME_INSIGHT_FIELD_JOBS).toContain("<benchmark_facts>");
+  it("describes theme card as oneLiner + reflective only", () => {
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("{ tone, oneLiner, reflective }");
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("FROM YOUR MAP");
+    expect(THEME_INSIGHT_FIELD_JOBS).not.toContain("ACROSS PURSUITS");
+    expect(THEME_INSIGHT_FIELD_JOBS).not.toContain("COMPARISON");
   });
 
   it("defines pursuit comparison as population benchmarks", () => {
