@@ -1,6 +1,19 @@
 /** Shared quick-question prompt rules for reflect + pursuit enrich + create. */
 
-export const CLARIFIER_BATCH_MAX = 5;
+/** Max pending quick questions visible in Context at once. */
+export const CLARIFIER_PENDING_CAP = 6;
+
+/** First generation batch after create or empty queue. */
+export const CLARIFIER_INITIAL_BATCH = 6;
+
+/** Replacement batch after user dismisses all pending cards. */
+export const CLARIFIER_REPLENISH_BATCH = 3;
+
+/** @deprecated Use CLARIFIER_INITIAL_BATCH or CLARIFIER_REPLENISH_BATCH. */
+export const CLARIFIER_BATCH_MAX = CLARIFIER_INITIAL_BATCH;
+
+/** Max skipped prompt strings remembered per pursuit (anti-repeat wording only). */
+export const CLARIFIER_SKIPPED_PROMPTS_MAX = 10;
 
 export const CLARIFIER_DURABLE_CONTEXT = [
   "DURABLE CONTEXT (prefer over progress stage):",
@@ -45,11 +58,12 @@ export const CLARIFIER_BENCHMARK_STEER = [
 
 export const CLARIFIER_STOP_AND_CADENCE_RULES = [
   "STOP / CADENCE:",
-  `- Return up to ${CLARIFIER_BATCH_MAX} clarifiers per pursuit per sync, ordered highest-value first — the UI reveals one at a time.`,
-  "- Return an empty array when no high-value gap remains — do not barrel-scrape (no colour-of-car trivia when essentials are covered).",
-  "- Scale how many you offer by significance (1–5 in map context): significance 4–5 → up to 5; 3 → up to 3; 1–2 → 1–2 then prefer [].",
-  "- Answering the last pending question does NOT block future batches — return [] only when no high-value gap remains.",
-  "- Read enrichAnswers in map context — never repeat what is already answered; build on prior answers and go deeper.",
+  `- Initial batch: up to ${CLARIFIER_INITIAL_BATCH} clarifiers per pursuit, ordered highest-value first — all shown in Context.`,
+  `- Replenishment batch (after user skipped pending cards): up to ${CLARIFIER_REPLENISH_BATCH} new clarifiers.`,
+  "- Return an empty array when no high-value gap remains — do not barrel-scrape.",
+  "- When enrichAnswers or milestones already cover the decisive facts, return [].",
+  `- Scale initial batch by significance (1–5): 4–5 → up to ${CLARIFIER_INITIAL_BATCH}; 3 → up to 4; 1–2 → up to 2 then prefer [].`,
+  "- Read enrichAnswers in map context — never repeat what is already answered; build on prior answers.",
   "- Never ask about relationships between pursuits (see RELATIONSHIP QUESTIONS rule).",
   '- Never ask the user to evaluate motivation or commitment ("How important is this?") — significance already covers that.',
   "",
@@ -101,7 +115,7 @@ export const CONTEXTUAL_QUICK_QUESTIONS = [
 /** System-prompt OUTPUT lines shared by reflect + enrich (single source — do not duplicate). */
 export function buildClarifierSystemOutputLines(): string[] {
   return [
-    `- clarifiers: 0-${CLARIFIER_BATCH_MAX} multiple-choice questions per pursuit when the user message requests a quick-question slot.`,
+    `- clarifiers: 0-${CLARIFIER_INITIAL_BATCH} multiple-choice questions per pursuit when the user message requests a quick-question slot.`,
     "  Each clarifier: id (short slug), prompt, options (3-4 specific labels), optional kind.",
     "  Kinds: clarify (default forward-looking), retrospective (COMPLETE pursuits — what finishing unlocked), suggest_add (follow-on pursuit — only when user message requests that slot).",
     "  Return [] when no high-value gap remains — significance scales count; never barrel-scrape.",

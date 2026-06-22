@@ -76,21 +76,43 @@ describe("pickQuestionSlotForPursuit", () => {
     expect(pickQuestionSlotForPursuit({ ...baseCtx, status: "ACTIVE" })).toBe("clarify");
     expect(pickQuestionSlotForPursuit({ ...baseCtx, status: "MAINTAINING" })).toBe("clarify");
   });
+
+  it("returns clarify for deadline+title pursuit with no enrich answers", () => {
+    expect(
+      pickQuestionSlotForPursuit({
+        ...baseCtx,
+        status: "ACTIVE",
+        signal: {
+          title: "Save for house deposit",
+          description: "",
+          enrichAnswerCount: 0,
+          milestoneCount: 0,
+          completedMilestoneCount: 0,
+          hasDeadline: true,
+          hasQuantifiedTarget: false,
+          status: "ACTIVE",
+        },
+      }),
+    ).toBe("clarify");
+  });
 });
 
 describe("filterClarifiersForQuestionSlot", () => {
-  it("keeps up to three forward clarifiers for clarify slot", () => {
+  it("keeps up to six forward clarifiers for clarify slot", () => {
     const filtered = filterClarifiersForQuestionSlot(
       [
         { id: "a", prompt: "Q1?", options: ["A", "B"], kind: "clarify" },
         { id: "b", prompt: "Q2?", options: ["A", "B"], kind: "clarify" },
         { id: "c", prompt: "Q3?", options: ["A", "B"], kind: "clarify" },
         { id: "d", prompt: "Q4?", options: ["A", "B"], kind: "clarify" },
+        { id: "e", prompt: "Q5?", options: ["A", "B"], kind: "clarify" },
+        { id: "f", prompt: "Q6?", options: ["A", "B"], kind: "clarify" },
+        { id: "g", prompt: "Q7?", options: ["A", "B"], kind: "clarify" },
       ],
       "clarify",
     );
-    expect(filtered).toHaveLength(3);
-    expect(filtered.map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(filtered).toHaveLength(6);
+    expect(filtered.map((c) => c.id)).toEqual(["a", "b", "c", "d", "e", "f"]);
   });
 
   it("keeps one suggest_add only", () => {

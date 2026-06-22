@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  gateEnrichResult,
   gateThemeCombined,
   gateThemeContextual,
   gateThemeContextualContent,
@@ -84,6 +85,30 @@ describe("pursuit-enrich-readiness gates", () => {
   it("hasMinimumContextSignal counts enrich answers", () => {
     expect(hasMinimumContextSignal(thinSignal)).toBe(false);
     expect(hasMinimumContextSignal(richSignal)).toBe(true);
+  });
+
+  it("gateEnrichResult keeps clarifiers for deadline+title pursuits (QQ decoupled from richness)", () => {
+    const deadlineTitleSignal: PursuitSignal = {
+      title: "Save for house deposit",
+      description: "",
+      enrichAnswerCount: 0,
+      milestoneCount: 0,
+      completedMilestoneCount: 0,
+      hasDeadline: true,
+      hasQuantifiedTarget: false,
+      status: "ACTIVE",
+    };
+    expect(hasMinimumContextSignal(deadlineTitleSignal)).toBe(true);
+    const gated = gateEnrichResult(
+      {
+        clarifiers: [{ id: "route", prompt: "What route?", options: ["A", "B"], kind: "clarify" }],
+        insight: { tone: "context", headline: "Headline", body: "Body" },
+        suggestedMilestones: null,
+      },
+      deadlineTitleSignal,
+      { clarifyTitles: true },
+    );
+    expect(gated.clarifiers).toHaveLength(1);
   });
 
   it("gateThemeContextualContent strips editorial Comparison filler", () => {

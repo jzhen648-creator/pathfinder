@@ -1,6 +1,6 @@
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { isRecentlyCompletedPursuit } from "@/lib/map/reading-dirty-ledger";
-import { CLARIFIER_BATCH_MAX } from "@/lib/pursuit/clarifier-prompt-blocks";
+import { CLARIFIER_INITIAL_BATCH, CLARIFIER_REPLENISH_BATCH } from "@/lib/pursuit/clarifier-prompt-blocks";
 import {
   isQuickQuestionsQuiet,
   type PursuitSignal,
@@ -28,6 +28,9 @@ export type QuestionSlotContext = {
   siblingGoalIds: string[];
   existingRelationshipPeerIds: string[];
   enrichOptions?: PursuitEnrichOptions;
+  /** Max clarifiers to keep after slot filter (initial vs replenish). */
+  clarifierOutputMax?: number;
+  skippedClarifierPrompts?: string[];
 };
 
 export function hasRetrospectiveEnrichAnswer(enrichAnswers: EnrichAnswer[]): boolean {
@@ -63,6 +66,7 @@ export function pickQuestionSlotForPursuit(ctx: QuestionSlotContext): QuestionSl
 export function filterClarifiersForQuestionSlot(
   clarifiers: Clarifier[],
   slot: QuestionSlot,
+  maxOutput = CLARIFIER_INITIAL_BATCH,
 ): Clarifier[] {
   if (slot === "none") {
     return [];
@@ -75,11 +79,11 @@ export function filterClarifiersForQuestionSlot(
 
   if (slot === "retrospective") {
     const tagged = clarifiers.filter((c) => clarifierKind(c) === "retrospective");
-    if (tagged.length > 0) return tagged.slice(0, CLARIFIER_BATCH_MAX);
+    if (tagged.length > 0) return tagged.slice(0, maxOutput);
     const legacyRetro = clarifiers.filter((c) =>
       c.id.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX),
     );
-    if (legacyRetro.length > 0) return legacyRetro.slice(0, CLARIFIER_BATCH_MAX);
+    if (legacyRetro.length > 0) return legacyRetro.slice(0, maxOutput);
     return [];
   }
 
@@ -91,7 +95,7 @@ export function filterClarifiersForQuestionSlot(
       !c.id.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX)
     );
   });
-  return forward.slice(0, CLARIFIER_BATCH_MAX);
+  return forward.slice(0, maxOutput);
 }
 
 export function applyQuestionSlotToResult(
@@ -99,15 +103,22 @@ export function applyQuestionSlotToResult(
   ctx: QuestionSlotContext,
 ): PursuitEnrichResult {
   const slot = pickQuestionSlotForPursuit(ctx);
+  const maxOutput = ctx.clarifierOutputMax ?? CLARIFIER_INITIAL_BATCH;
   return {
     ...result,
-    clarifiers: filterClarifiersForQuestionSlot(result.clarifiers, slot),
+    clarifiers: filterClarifiersForQuestionSlot(result.clarifiers, slot, maxOutput),
   };
 }
 
 export type QuestionSlotMessageContext = QuestionSlotContext & {
   siblingPursuits?: Array<{ id: string; title: string }>;
+  /** When true, user skipped prior pending cards — ask different framing, not fewer topics. */
+  replenishAfterDismiss?: boolean;
 };
+
+function maxOutputFromContext(ctx: QuestionSlotMessageContext): number {
+  return ctx.clarifierOutputMax ?? CLARIFIER_INITIAL_BATCH;
+}
 
 export function questionSlotUserMessageLines(
   slot: QuestionSlot,
@@ -118,6 +129,20 @@ export function questionSlotUserMessageLines(
     `Pursuit status: ${ctx.status}`,
     `Significance: ${ctx.significance}`,
   ];
+
+  if (ctx.skippedClarifierPrompts?.length) {
+    lines.push(
+      "User skipped these exact prompts without answering — do NOT repeat this wording:",
+      ...ctx.skippedClarifierPrompts.map((p) => `- ${p}`),
+      "Skipped ≠ answered. The underlying gap may still exist — ask a sharper angle or next unknown.",
+    );
+  }
+
+  if (ctx.replenishAfterDismiss) {
+    lines.push(
+      `Replenishment batch after user skipped pending cards — return up to ${CLARIFIER_REPLENISH_BATCH} new clarifiers.`,
+    );
+  }
 
   if (slot === "none") {
     lines.push("Do NOT generate quick questions for this pursuit on this sync.");
@@ -142,7 +167,7 @@ export function questionSlotUserMessageLines(
 
   if (slot === "retrospective") {
     lines.push(
-      `Generate up to ${CLARIFIER_BATCH_MAX} retrospective clarifiers (kind: "retrospective").`,
+      `Generate up to ${maxOutputFromContext(ctx)} retrospective clarifiers (kind: "retrospective").`,
       'Each id MUST start with "retro-" (e.g. "retro-what-unlocked").',
       "Ask what finishing unlocked, what made it work, or what changed — NEVER what stage the user is on.",
       "Read enrichAnswers — do not repeat answered facts.",
@@ -152,7 +177,7 @@ export function questionSlotUserMessageLines(
   }
 
   lines.push(
-    `Generate up to ${CLARIFIER_BATCH_MAX} forward-looking clarify clarifiers (kind: "clarify" or omit kind).`,
+    `Generate up to ${maxOutputFromContext(ctx)} forward-looking clarify clarifiers (kind: "clarify" or omit kind).`,
     "Read enrichAnswers — do not repeat answered facts; build on prior answers.",
     "Return [] when no high-value gap remains.",
   );

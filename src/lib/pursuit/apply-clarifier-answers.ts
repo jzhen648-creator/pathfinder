@@ -5,6 +5,9 @@ import {
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import { RETROSPECTIVE_CLARIFIER_ID_PREFIX } from "@/lib/pursuit/pick-question-slot";
+import { appendSkippedClarifierPrompt } from "@/lib/pursuit/pursuit-cache-patch";
+import { syncPursuitPanel } from "@/lib/pursuit/generate-pursuit-enrich";
+import { DEFAULT_PURSUIT_ENRICH_OPTIONS } from "@/lib/pursuit/enrich-options";
 import {
   enrichAnswersSchema,
   enrichAnswerSchema,
@@ -59,28 +62,70 @@ export async function pruneClarifierFromInsightCache(
   userId: string,
   goalId: string,
   clarifierId: string,
-): Promise<void> {
+): Promise<{ shouldReplenish: boolean }> {
   const cache = await prisma.insightCache.findUnique({
     where: { userId },
     select: { pursuitInsights: true },
   });
-  if (!cache?.pursuitInsights) return;
+  if (!cache?.pursuitInsights) return { shouldReplenish: false };
 
   const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
   const entry = pursuits[goalId];
-  if (!entry?.clarifiers?.length) return;
+  if (!entry?.clarifiers?.length) return { shouldReplenish: false };
 
+  const dismissed = entry.clarifiers.find((c) => c.id === clarifierId);
   const clarifiers = entry.clarifiers.filter((c) => c.id !== clarifierId);
+  const pendingClearedByDismiss = clarifiers.length === 0;
+  const skippedClarifierPrompts = dismissed
+    ? appendSkippedClarifierPrompt(entry.skippedClarifierPrompts, dismissed.prompt)
+    : entry.skippedClarifierPrompts;
+
   pursuits[goalId] = {
     ...entry,
     clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
-    // Option B: finishing a batch does not start cooldown — only model returning [] on sync does.
-    quickQuestionsQuietUntil: undefined,
+    skippedClarifierPrompts,
+    // Dismiss-only empty queue: no cooldown — replenish may follow immediately.
+    quickQuestionsQuietUntil: pendingClearedByDismiss
+      ? undefined
+      : entry.quickQuestionsQuietUntil,
   };
   await prisma.insightCache.update({
     where: { userId },
     data: { pursuitInsights: pursuits },
   });
+
+  return { shouldReplenish: pendingClearedByDismiss };
+}
+
+/** Remove a pending quick question without storing an answer — idempotent. */
+export async function dismissClarifierForUser(
+  userId: string,
+  goalId: string,
+  clarifierId: string,
+  options?: { clarifyTitles?: boolean },
+): Promise<{ replenished: boolean; clarifierCount: number }> {
+  const goal = await prisma.goal.findFirst({
+    where: { id: goalId, userId },
+    select: { id: true },
+  });
+  if (!goal) {
+    throw new Error("Not found");
+  }
+  const { shouldReplenish } = await pruneClarifierFromInsightCache(userId, goalId, clarifierId);
+  const clarifyTitles = options?.clarifyTitles !== false;
+  if (!shouldReplenish || !clarifyTitles) {
+    return { replenished: false, clarifierCount: 0 };
+  }
+  try {
+    const result = await syncPursuitPanel(userId, goalId, "replenish", {
+      ...DEFAULT_PURSUIT_ENRICH_OPTIONS,
+      clarifyTitles: true,
+    });
+    return { replenished: true, clarifierCount: result.clarifierCount };
+  } catch (err) {
+    console.error("[dismissClarifierForUser] replenish failed", err);
+    return { replenished: false, clarifierCount: 0 };
+  }
 }
 
 function isForwardClarifier(clarifier: Clarifier): boolean {

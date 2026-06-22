@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pursuitInsightSchema } from "@/lib/insights/insight-types";
+import { CLARIFIER_INITIAL_BATCH, CLARIFIER_SKIPPED_PROMPTS_MAX } from "@/lib/pursuit/clarifier-prompt-blocks";
 
 export const clarifierKindSchema = z.enum(["clarify", "connect", "suggest_add", "retrospective"]);
 
@@ -38,7 +39,7 @@ export const suggestedMilestoneSchema = z.object({
 });
 
 export const pursuitEnrichResultSchema = z.object({
-  clarifiers: z.array(clarifierSchema).max(3),
+  clarifiers: z.array(clarifierSchema).max(CLARIFIER_INITIAL_BATCH),
   insight: pursuitInsightSchema.nullable(),
   suggestedMilestones: z.array(suggestedMilestoneSchema).max(6).nullable(),
 });
@@ -69,6 +70,8 @@ export const pursuitEnrichCacheSchema = pursuitInsightSchema.extend({
   suggestedMilestones: z.array(suggestedMilestoneSchema).optional(),
   /** ISO timestamp — no new clarifiers until this passes or status/map changes. */
   quickQuestionsQuietUntil: z.string().datetime().optional(),
+  /** Skipped prompt wording — do not repeat exact phrasing; not a topic blacklist. */
+  skippedClarifierPrompts: z.array(z.string().min(1).max(200)).max(CLARIFIER_SKIPPED_PROMPTS_MAX).optional(),
 });
 
 export type PursuitEnrichCachePayload = z.infer<typeof pursuitEnrichCacheSchema>;

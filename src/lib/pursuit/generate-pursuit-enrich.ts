@@ -18,6 +18,7 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import {
+  DATE_DEADLINE_ARITHMETIC_RULE,
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
@@ -61,11 +62,16 @@ import {
 import {
   buildPursuitCachePayload,
   clarifierPreserveAllowed,
-  resolvePreservedClarifiers,
+  mergePreservedClarifiers,
+  type ClarifierMergeMode,
   resolvePreservedComparison,
   resolvePreservedInsightText,
   resolveReflectSuggestedMilestones,
 } from "@/lib/pursuit/pursuit-cache-patch";
+import {
+  CLARIFIER_INITIAL_BATCH,
+  CLARIFIER_REPLENISH_BATCH,
+} from "@/lib/pursuit/clarifier-prompt-blocks";
 
 const MAX_ENRICH_PER_RUN = 1;
 
@@ -123,6 +129,8 @@ function buildEnrichSystemPrompt(
     "",
     TENSION_NOT_FORECAST_RULE,
     "",
+    DATE_DEADLINE_ARITHMETIC_RULE,
+    "",
     "VOICE ANTI-PATTERNS:",
     "- Do not open headline or body with the user's name.",
     "- Do not say \"your map shows\", \"the app sees\", or embed UI chrome in prose.",
@@ -173,8 +181,10 @@ async function generateOnePursuitEnrich(
   enrichOptions: Required<PursuitEnrichOptions>,
   amountImpactEligible: boolean,
   cachedEntry?: PursuitEnrichCachePayload,
+  mergeMode: ClarifierMergeMode = "routine",
 ): Promise<{ result: PursuitEnrichResult; quickQuestionsQuietUntil?: string }> {
   const previousQuietUntil = cachedEntry?.quickQuestionsQuietUntil;
+  const skippedClarifierPrompts = cachedEntry?.skippedClarifierPrompts;
   const milestonesAllowed = shouldSuggestMilestones(signal);
   const pursuitContext = await formatPursuitContext(userId, pursuitId);
   if (!pursuitContext) {
@@ -182,6 +192,8 @@ async function generateOnePursuitEnrich(
   }
   const enrichAnswers = parseEnrichAnswers(goal.enrichAnswers);
   const existingRelationshipPeerIds = await loadRelationshipPeerIdsForGoal(userId, pursuitId);
+  const clarifierOutputMax =
+    mergeMode === "replenish" ? CLARIFIER_REPLENISH_BATCH : CLARIFIER_INITIAL_BATCH;
   const slotContext: QuestionSlotMessageContext = {
     signal,
     status: goal.status ?? "ACTIVE",
@@ -193,6 +205,9 @@ async function generateOnePursuitEnrich(
     existingRelationshipPeerIds,
     enrichOptions,
     siblingPursuits: pursuitContext.siblingPursuits,
+    clarifierOutputMax,
+    skippedClarifierPrompts,
+    replenishAfterDismiss: mergeMode === "replenish",
   };
   const slot = pickQuestionSlotForPursuit(slotContext);
   const slotLines = questionSlotUserMessageLines(slot, slotContext);
@@ -249,7 +264,7 @@ async function generateOnePursuitEnrich(
 
   const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
   const freshClarifiers = filterClarifiersAgainstMilestones(result.clarifiers, milestoneGrounding);
-  const clarifiers = resolvePreservedClarifiers({
+  const clarifiers = mergePreservedClarifiers({
     fresh: freshClarifiers,
     cached: filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
     preserveAllowed: clarifierPreserveAllowed({
@@ -257,6 +272,8 @@ async function generateOnePursuitEnrich(
       status: goal.status ?? "ACTIVE",
       quickQuestionsQuietUntil: previousQuietUntil,
     }),
+    mode: mergeMode,
+    skippedPrompts: skippedClarifierPrompts,
   });
   const suggestedMilestones = resolveReflectSuggestedMilestones({
     fresh: result.suggestedMilestones,
@@ -352,9 +369,13 @@ export async function refreshPursuitEnrich(
       enrichOptions,
       amountImpactEligible,
       cachedEntry,
+      "routine",
     );
     geminiCallsMade += 1;
-    const payload = buildPursuitCachePayload(result, quickQuestionsQuietUntil);
+    const payload = buildPursuitCachePayload(result, {
+      quickQuestionsQuietUntil,
+      skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
+    });
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
       writtenIds.push(pursuitId);
@@ -377,6 +398,73 @@ export async function refreshPursuitEnrich(
 }
 
 export { MAX_ENRICH_PER_RUN };
+
+/** Pursuit-only panel + quick questions — after create (initial) or dismiss replenish. */
+export async function syncPursuitPanel(
+  userId: string,
+  pursuitId: string,
+  mode: "initial" | "replenish",
+  options?: PursuitEnrichOptions,
+): Promise<{ clarifierCount: number; headline?: string }> {
+  const enrichOptions = resolvePursuitEnrichOptions(options ?? DEFAULT_PURSUIT_ENRICH_OPTIONS);
+  if (!enrichOptions.clarifyTitles && mode === "replenish") {
+    return { clarifierCount: 0 };
+  }
+  if (!hasGeminiKey()) {
+    throw new GeminiNotConfiguredError();
+  }
+
+  const mergeMode: ClarifierMergeMode = mode === "replenish" ? "replenish" : "initial";
+  const [userContext, toneGoals, mapContext, insightCacheRow] = await Promise.all([
+    formatUserContext(userId),
+    loadPursuitToneGoals(userId, [pursuitId]),
+    formatMapContext(userId),
+    prisma.insightCache.findUnique({ where: { userId }, select: { pursuitInsights: true } }),
+  ]);
+  const goal = toneGoals.get(pursuitId);
+  if (!goal) {
+    throw new InsightGenerationResponseError("Pursuit not found for panel sync.");
+  }
+
+  const cachedPursuits = parsePursuitInsightRecord(
+    insightCacheRow?.pursuitInsights,
+    "pursuit",
+  );
+  const cachedEntry = cachedPursuits[pursuitId];
+  const signal = pursuitSignalFromGoal(goal);
+  const amountImpactEligible = isAmountImpactEligible(mapContext);
+
+  const { result, quickQuestionsQuietUntil } = await generateOnePursuitEnrich(
+    userId,
+    pursuitId,
+    userContext,
+    goal,
+    signal,
+    enrichOptions,
+    amountImpactEligible,
+    cachedEntry,
+    mergeMode,
+  );
+
+  const payload = buildPursuitCachePayload(result, {
+    quickQuestionsQuietUntil,
+    skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
+  });
+  if (!payload) {
+    return { clarifierCount: 0 };
+  }
+
+  await mergeNodeInsightsIntoCache(
+    userId,
+    { themes: {}, categories: {}, pursuits: { [pursuitId]: payload } },
+    { stampMapVersion: false },
+  );
+
+  return {
+    clarifierCount: payload.clarifiers?.length ?? 0,
+    headline: payload.headline?.trim() || undefined,
+  };
+}
 
 /** @internal Vitest — pursuit enrich prompt builder. */
 export { buildEnrichSystemPrompt };

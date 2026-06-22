@@ -34,7 +34,7 @@ import {
 import {
   buildPursuitCachePayload,
   clarifierPreserveAllowed,
-  resolvePreservedClarifiers,
+  mergePreservedClarifiers,
   resolvePreservedComparison,
   resolvePreservedInsightText,
   resolvePreservedThemeText,
@@ -218,7 +218,7 @@ export async function applyReflectOutput(
         .filter((c): c is Clarifier => c != null),
       milestoneGrounding,
     );
-    const clarifiers = resolvePreservedClarifiers({
+    const clarifiers = mergePreservedClarifiers({
       fresh: freshClarifiers,
       cached: filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
       preserveAllowed: clarifierPreserveAllowed({
@@ -227,6 +227,8 @@ export async function applyReflectOutput(
         quickQuestionsQuietUntil: previousQuietUntil,
         now,
       }),
+      mode: "routine",
+      skippedPrompts: cachedEntry?.skippedClarifierPrompts,
     });
 
     const rawResult: PursuitEnrichResult = {
@@ -261,6 +263,7 @@ export async function applyReflectOutput(
       existingRelationshipPeerIds,
       enrichOptions: options,
       siblingPursuits,
+      skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
     };
     const slot = pickQuestionSlotForPursuit(slotContext);
     const slotted = applyQuestionSlotToResult(gated, slotContext);
@@ -269,7 +272,10 @@ export async function applyReflectOutput(
       clarifiers: slotted.clarifiers,
       previousQuietUntil,
     });
-    const payload = buildPursuitCachePayload(slotted, quickQuestionsQuietUntil);
+    const payload = buildPursuitCachePayload(slotted, {
+      quickQuestionsQuietUntil,
+      skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
+    });
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
     }

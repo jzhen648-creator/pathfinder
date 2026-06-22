@@ -1,9 +1,40 @@
 import {
+  CLARIFIER_INITIAL_BATCH,
+  CLARIFIER_PENDING_CAP,
+  CLARIFIER_REPLENISH_BATCH,
+  CLARIFIER_SKIPPED_PROMPTS_MAX,
+} from "@/lib/pursuit/clarifier-prompt-blocks";
+import {
   gatePursuitComparison,
   isQuickQuestionsQuiet,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import type { Clarifier, PursuitEnrichCachePayload, PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
+
+export type ClarifierMergeMode = "routine" | "initial" | "replenish";
+
+function normalizeClarifierPrompt(prompt: string): string {
+  return prompt.trim().toLowerCase();
+}
+
+function filterFreshAgainstSkipped(fresh: Clarifier[], skippedPrompts?: string[]): Clarifier[] {
+  if (!skippedPrompts?.length) return fresh;
+  const skipped = new Set(skippedPrompts.map(normalizeClarifierPrompt));
+  return fresh.filter((c) => !skipped.has(normalizeClarifierPrompt(c.prompt)));
+}
+
+/** Append a skipped prompt to the rolling anti-repeat list (wording only, not topics). */
+export function appendSkippedClarifierPrompt(
+  existing: string[] | undefined,
+  prompt: string,
+): string[] | undefined {
+  const trimmed = prompt.trim();
+  if (!trimmed) return existing?.length ? existing : undefined;
+  const normalized = normalizeClarifierPrompt(trimmed);
+  const withoutDup = (existing ?? []).filter((p) => normalizeClarifierPrompt(p) !== normalized);
+  const next = [...withoutDup, trimmed].slice(-CLARIFIER_SKIPPED_PROMPTS_MAX);
+  return next.length > 0 ? next : undefined;
+}
 
 function dedupeMilestoneTitles<T extends { title: string }>(items: T[]): T[] {
   const seen = new Set<string>();
@@ -83,14 +114,60 @@ export function resolvePreservedComparison(
   return gatedCached || undefined;
 }
 
+export function mergePreservedClarifiers(input: {
+  fresh: Clarifier[];
+  cached: Clarifier[] | undefined;
+  preserveAllowed: boolean;
+  mode: ClarifierMergeMode;
+  skippedPrompts?: string[];
+}): Clarifier[] {
+  const cached = input.cached ?? [];
+  const fresh = filterFreshAgainstSkipped(input.fresh, input.skippedPrompts);
+
+  if (!input.preserveAllowed) {
+    return cached.length > 0 ? cached.slice(0, CLARIFIER_PENDING_CAP) : [];
+  }
+
+  if (input.mode === "routine") {
+    if (cached.length > 0) return cached.slice(0, CLARIFIER_PENDING_CAP);
+    if (fresh.length > 0) return fresh.slice(0, CLARIFIER_INITIAL_BATCH);
+    return [];
+  }
+
+  if (input.mode === "initial") {
+    if (cached.length > 0) return cached.slice(0, CLARIFIER_PENDING_CAP);
+    return fresh.slice(0, CLARIFIER_INITIAL_BATCH);
+  }
+
+  // replenish — pending queue was cleared by dismiss; add up to REPLENISH_BATCH new cards.
+  const room = CLARIFIER_PENDING_CAP - cached.length;
+  if (room <= 0) return cached;
+  const seenIds = new Set(cached.map((c) => c.id));
+  const seenPrompts = new Set(cached.map((c) => normalizeClarifierPrompt(c.prompt)));
+  const merged = [...cached];
+  for (const clarifier of fresh) {
+    if (merged.length >= CLARIFIER_PENDING_CAP) break;
+    if (merged.length - cached.length >= CLARIFIER_REPLENISH_BATCH) break;
+    if (seenIds.has(clarifier.id)) continue;
+    const normalized = normalizeClarifierPrompt(clarifier.prompt);
+    if (seenPrompts.has(normalized)) continue;
+    merged.push(clarifier);
+    seenIds.add(clarifier.id);
+    seenPrompts.add(normalized);
+  }
+  return merged;
+}
+
+/** @deprecated Use mergePreservedClarifiers with an explicit mode. */
 export function resolvePreservedClarifiers(input: {
   fresh: Clarifier[];
   cached: Clarifier[] | undefined;
   preserveAllowed: boolean;
 }): Clarifier[] {
-  if (input.fresh.length > 0) return input.fresh;
-  if (!input.preserveAllowed || !input.cached?.length) return [];
-  return input.cached;
+  return mergePreservedClarifiers({
+    ...input,
+    mode: "routine",
+  });
 }
 
 export function clarifierPreserveAllowed(input: {
@@ -121,7 +198,10 @@ export function resolvePreservedThemeText(
 /** Build pursuit insight-cache row — optional fields omitted when empty. */
 export function buildPursuitCachePayload(
   result: PursuitEnrichResult,
-  quickQuestionsQuietUntil?: string,
+  options?: {
+    quickQuestionsQuietUntil?: string;
+    skippedClarifierPrompts?: string[];
+  },
 ): PursuitEnrichCachePayload | null {
   const hasClarifiers = result.clarifiers.length > 0;
   const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
@@ -131,7 +211,12 @@ export function buildPursuitCachePayload(
 
   const clarifiers = hasClarifiers ? result.clarifiers : undefined;
   const suggestedMilestones = hasMilestones ? result.suggestedMilestones ?? undefined : undefined;
-  const quietField = quickQuestionsQuietUntil ? { quickQuestionsQuietUntil } : {};
+  const quietField = options?.quickQuestionsQuietUntil
+    ? { quickQuestionsQuietUntil: options.quickQuestionsQuietUntil }
+    : {};
+  const skippedField = options?.skippedClarifierPrompts?.length
+    ? { skippedClarifierPrompts: options.skippedClarifierPrompts }
+    : {};
 
   if (hasInsight && result.insight) {
     return {
@@ -139,6 +224,7 @@ export function buildPursuitCachePayload(
       clarifiers,
       suggestedMilestones,
       ...quietField,
+      ...skippedField,
     };
   }
 
@@ -149,5 +235,6 @@ export function buildPursuitCachePayload(
     clarifiers,
     suggestedMilestones,
     ...quietField,
+    ...skippedField,
   };
 }
