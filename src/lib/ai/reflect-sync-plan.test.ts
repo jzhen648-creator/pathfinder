@@ -96,4 +96,48 @@ describe("planReflectWork", () => {
     expect(plan.pursuitIds).toEqual(["p9"]);
     expect(plan.themeIds).toEqual(["finance"]);
   });
+
+  it("runs full refresh when force is true even with dirty pursuits on the ledger", async () => {
+    mocks.goalFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
+
+    const dirty: ReadingDirtyAnalysis = {
+      ...emptyDirty(),
+      activeDirtyPursuitIds: ["p9"],
+      themeIds: [],
+      totalItems: 2,
+      pursuitIds: ["p9"],
+      hasGlobal: true,
+    };
+
+    const plan = await planReflectWork(USER_ID, dirty, {
+      force: true,
+      insightsStale: false,
+    });
+
+    expect(plan.mode).toBe("full");
+    expect(plan.pursuitIds).toEqual(["p1", "p2"]);
+    expect(plan.themeIds).toEqual(["work"]);
+  });
+
+  it("derives theme ids from dirty pursuits when the ledger has no theme rows", async () => {
+    mocks.goalFindMany.mockResolvedValue([{ themeId: "health" }]);
+
+    const dirty: ReadingDirtyAnalysis = {
+      ...emptyDirty(),
+      activeDirtyPursuitIds: ["p9"],
+      themeIds: [],
+      totalItems: 1,
+      pursuitIds: ["p9"],
+      hasGlobal: true,
+    };
+
+    const plan = await planReflectWork(USER_ID, dirty, {
+      force: false,
+      insightsStale: false,
+    });
+
+    expect(plan.mode).toBe("dirty");
+    expect(plan.pursuitIds).toEqual(["p9"]);
+    expect(plan.themeIds).toEqual(["health"]);
+  });
 });

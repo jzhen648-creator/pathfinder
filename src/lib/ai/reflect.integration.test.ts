@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   clearReadingDirtyLedger: vi.fn(),
   prismaGoalFindMany: vi.fn(),
   prismaInsightFindUnique: vi.fn(),
+  prismaUserManualProfileFindUnique: vi.fn(),
   prismaPursuitRelationshipFindMany: vi.fn(),
   prismaAiReadingDirtyItemDeleteMany: vi.fn(),
 }));
@@ -84,6 +85,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     insightCache: {
       findUnique: mocks.prismaInsightFindUnique,
+    },
+    userManualProfile: {
+      findUnique: mocks.prismaUserManualProfileFindUnique,
     },
     pursuitRelationship: {
       findMany: mocks.prismaPursuitRelationshipFindMany,
@@ -152,6 +156,7 @@ describe("runReflectSync integration", () => {
     mocks.mergeNodeInsightsIntoCache.mockResolvedValue(undefined);
     mocks.clearReadingDirtyLedger.mockResolvedValue(undefined);
     mocks.prismaInsightFindUnique.mockResolvedValue({ pursuitInsights: "{}" });
+    mocks.prismaUserManualProfileFindUnique.mockResolvedValue(null);
     mocks.prismaPursuitRelationshipFindMany.mockResolvedValue([]);
     mocks.prismaAiReadingDirtyItemDeleteMany.mockResolvedValue({ count: 0 });
   });

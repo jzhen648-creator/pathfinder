@@ -94,7 +94,7 @@ Forcing all six original ideas into the QQ pathway would **increase** complexity
 
 - Settings → `quick-questions-preferences.ts` → `ai-sync` body → `generate-pursuit-enrich.ts` / `apply-reflect-output.ts`
 - Clarifiers land in `InsightCache.pursuitInsights[id].clarifiers`
-- Mobile: `PursuitClarifiersSection.tsx` → `postClarifierAnswer` → `apply-clarifier-answers.ts`
+- Mobile: `PursuitContextSection.tsx` (Context tab) → `postClarifierAnswer` → `apply-clarifier-answers.ts`
 - Answered clarifiers hidden from cache; readings marked stale
 
 **Connect stub (not real relationships)**
@@ -130,7 +130,7 @@ Forcing all six original ideas into the QQ pathway would **increase** complexity
 | Clarifier gate | `pathfinder/src/lib/pursuit/pursuit-enrich-readiness.ts` |
 | Answer persistence | `pathfinder/src/lib/pursuit/apply-clarifier-answers.ts` |
 | Dirty priority sort | `pathfinder/src/lib/map/reading-dirty-ledger.ts` |
-| Mobile card | `pathfinder-mobile/components/pursuit/PursuitClarifiersSection.tsx` |
+| Mobile UI | `pathfinder-mobile/components/pursuit/PursuitContextSection.tsx` (Context tab) |
 | Settings toggles | `pathfinder-mobile/components/settings/SettingsQuickQuestions.tsx` |
 
 ---

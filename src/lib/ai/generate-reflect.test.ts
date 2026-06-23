@@ -165,8 +165,22 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(full).toContain("FROM YOUR MAP — endogenous map facts only");
     expect(full).toContain("map_context and a fact the user entered there");
     expect(full).toContain("Relate pursuits to each other within the theme");
+    expect(full).toContain("THEME OUTPUT (reflect path — map-only)");
+    expect(full).toContain('contextual and combined MUST be empty strings ""');
     expect(full).not.toContain("combined (UI: ACROSS PURSUITS");
     expect(full).not.toContain("contextual (UI: COMPARISON");
+    expect(full).not.toContain("holisticBenchmarkEligible");
+  });
+
+  it("includes context-tab non-duplication on full and pursuits-only scopes", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
+
+    for (const prompt of [full, scoped]) {
+      expect(prompt).toContain("PURSUIT CONTEXT TAB NON-DUPLICATION");
+      expect(prompt).toContain("enrichAnswers (Quick Question answers)");
+      expect(prompt).toContain("Do NOT restate enrichAnswers");
+    }
   });
 
   it("full-scope prompt includes suggestedMilestones guidance on pursuit panels", () => {
@@ -175,6 +189,51 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(full).not.toContain("One concrete suggestion per pursuit, max");
     expect(full).toContain("PURSUIT PANEL — suggestedMilestones FIELD");
     expect(full).toContain("MUST return 1-6 items in suggestedMilestones");
+  });
+
+  it("includes cross-pursuit domain-context body rule and grounding carve-out on full and pursuits-only scopes", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
+
+    for (const prompt of [full, scoped]) {
+      expect(prompt).toContain("PURSUIT INSIGHT FIELD LANES");
+      expect(prompt).toContain("PURSUIT body — optional cross-pursuit domain context (qualitative only)");
+      expect(prompt).toContain("what this pursuit type is");
+      expect(prompt).toContain("AT MOST ONE sentence");
+      expect(prompt).toContain("Exception — pursuit body only");
+      expect(prompt).toContain("standalone pursuit-type domain context belongs in comparison");
+      expect(prompt).toContain("Never invent pursuits or connections not in the data");
+      expect(prompt).toContain("Name pursuits VERBATIM from map context");
+    }
+  });
+
+  it("omits fromMap from pursuit OUTPUT shape on full and pursuits-only scopes", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
+
+    for (const prompt of [full, scoped]) {
+      expect(prompt).toContain('{ headline, body, comparison?, clarifiers?, suggestedMilestones? }');
+      expect(prompt).toContain("Worth knowing ·");
+      expect(prompt).toContain("Do NOT borrow another pursuit's progress story");
+      expect(prompt).not.toContain("fromMap");
+    }
+  });
+
+  it("full-scope theme oneLiner asks for a complete sentence within 140 chars", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    expect(full).toContain("oneLiner <= 140 chars");
+    expect(full).toContain("self-contained thought");
+    expect(full).not.toContain("oneLiner <= 100 chars");
+  });
+});
+
+describe("pursuit body prescriptive guardrail", () => {
+  it("lists banned prescriptive patterns in the domain-context rule", () => {
+    const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
+    for (const phrase of ["you should", "consider", "I recommend", "try"]) {
+      expect(full).toContain(phrase);
+    }
+    expect(full).toContain("no suggesting new pursuits");
   });
 });
 

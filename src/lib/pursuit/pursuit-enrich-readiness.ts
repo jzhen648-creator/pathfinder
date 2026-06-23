@@ -214,15 +214,32 @@ export function gateThemeReflective(
   return kept.join(" ").trim();
 }
 
-/** Strip pursuit comparison benchmarks when the focal pursuit lacks enough user context. */
+const PRESCRIPTIVE_WORTH_KNOWING =
+  /\b(you should|consider|I recommend|try|add a pursuit)\b/i;
+
+/** Quantified population benchmarks still need benchmark signal; qualitative domain may pass without it. */
+export function looksLikeQuantifiedWorthKnowing(text: string): boolean {
+  return /\b(\d+\s*%|\d[\d,]*\s*(?:months?|weeks?|years?|days?)|percentile|median|typical\s+(?:time|prep|is)\s+(?:is\s+)?\d|\d+\s*-\s*\d+\s*(?:months?|weeks?|years?))/i.test(
+    text,
+  );
+}
+
+/** Gate pursuit worth-knowing (JSON key `comparison`): strip prescriptive/editorial; keep qualitative domain without benchmark signal. */
 export function gatePursuitComparison(
   comparison: string,
   signal: PursuitSignal,
   profile?: BenchmarkProfileContext,
 ): string {
-  if (!comparison.trim()) return "";
-  if (hasPursuitBenchmarkSignal(signal, profile)) return comparison.trim();
-  return "";
+  const text = comparison.trim();
+  if (!text) return "";
+  if (PRESCRIPTIVE_WORTH_KNOWING.test(text)) return "";
+
+  const cleaned = gateThemeContextualContent(text);
+  if (!cleaned) return "";
+
+  if (hasPursuitBenchmarkSignal(signal, profile)) return cleaned;
+  if (looksLikeQuantifiedWorthKnowing(cleaned)) return "";
+  return cleaned;
 }
 
 /** Milestone suggestions when path has room to grow. AI-only — never blocks manual milestone add. */

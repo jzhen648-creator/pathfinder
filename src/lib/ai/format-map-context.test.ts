@@ -143,4 +143,31 @@ describe("buildPursuitRow", () => {
 
     expect(row.milestones[0]).not.toHaveProperty("description");
   });
+
+  it("includes daysUntilDeadline when a deadline is set", () => {
+    const now = Date.parse("2026-06-21T12:00:00.000Z");
+    const row = buildPursuitRow(
+      {
+        id: "g1",
+        title: "London Marathon",
+        description: "Training plan",
+        status: "ACTIVE",
+        significance: 4,
+        parentGoalId: null,
+        targetAmount: null,
+        currentAmount: null,
+        unit: null,
+        deadline: new Date("2027-04-26T00:00:00.000Z"),
+        completedAt: null,
+        timelineStart: null,
+        milestones: [],
+      },
+      new Map(),
+      now,
+    );
+
+    expect(row.deadline).toBe("2027-04-26");
+    expect(row.daysUntilDeadline).toBeGreaterThan(250);
+    expect(row.daysUntilDeadline).toBeLessThan(400);
+  });
 });

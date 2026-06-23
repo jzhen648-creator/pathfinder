@@ -2,6 +2,7 @@ import type { PursuitStatus } from "@prisma/client";
 import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { canonicalRootHubRows } from "@/lib/category-dedupe";
+import { daysUntilCalendarDate } from "@/lib/map/deadline-calendar";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
@@ -59,6 +60,8 @@ export type FormattedMapPursuit = {
   unit?: string;
   amountBasis?: string;
   deadline?: string;
+  /** Whole days from today until deadline — precomputed for AI; positive = future. */
+  daysUntilDeadline?: number;
   /** ISO calendar date when pursuit was marked complete. */
   completedAt?: string;
   /** ISO calendar date when pursuit span begins (optional). */
@@ -139,6 +142,7 @@ export function buildPursuitRow(
     milestones: Array<{ id: string; title: string; completedAt: Date | null; description?: string | null }>;
   },
   pursuitTitleById: Map<string, string>,
+  now = Date.now(),
 ): FormattedMapPursuit {
   const pursuit: FormattedMapPursuit = {
     id: goal.id,
@@ -169,7 +173,11 @@ export function buildPursuitRow(
   if (goal.currentAmount != null) pursuit.currentAmount = goal.currentAmount;
   if (goal.unit?.trim()) pursuit.unit = goal.unit.trim();
   if (goal.amountBasis?.trim()) pursuit.amountBasis = goal.amountBasis.trim();
-  if (goal.deadline) pursuit.deadline = goal.deadline.toISOString().slice(0, 10);
+  if (goal.deadline) {
+    pursuit.deadline = goal.deadline.toISOString().slice(0, 10);
+    const daysUntilDeadline = daysUntilCalendarDate(pursuit.deadline, now);
+    if (daysUntilDeadline != null) pursuit.daysUntilDeadline = daysUntilDeadline;
+  }
   if (goal.completedAt) pursuit.completedAt = goal.completedAt.toISOString().slice(0, 10);
   if (goal.timelineStart) pursuit.timelineStart = goal.timelineStart.toISOString().slice(0, 10);
 

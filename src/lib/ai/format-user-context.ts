@@ -1,4 +1,5 @@
 import type { ProfileFactCategory } from "@prisma/client";
+import { isoCalendarDate } from "@/lib/map/deadline-calendar";
 import { loadUserMemoryBlobForContext } from "@/lib/memory/memory-read";
 import { PROFILE_FACT_CATEGORIES } from "@/lib/profile-memory";
 import { prisma } from "@/lib/prisma";
@@ -138,7 +139,7 @@ export async function formatUserContext(userId: string): Promise<string> {
   }
 
   const factLines = formatProfileFactsForContext(profileFacts);
-  const blocks: string[] = [];
+  const blocks: string[] = [`Today: ${isoCalendarDate()}`];
   if (lines.length > 0) {
     blocks.push(["User context:", ...lines].join("\n"));
   }

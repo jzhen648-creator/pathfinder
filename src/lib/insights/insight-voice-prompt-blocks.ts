@@ -17,6 +17,16 @@ export const TENSION_NOT_FORECAST_RULE = [
   "a future outcome or its effect on the user.",
 ].join("\n");
 
+export const DATE_DEADLINE_ARITHMETIC_RULE = [
+  "DATE / DEADLINE ARITHMETIC:",
+  "- User context includes Today (ISO date). Pursuit rows in map_context include daysUntilDeadline when a deadline exists.",
+  "- reading_packet may also include precomputed lines like \"deadline in Nd\" — treat these as authoritative.",
+  "- Never infer \"N years away\" from the deadline year alone (e.g. deadline 2027 does NOT mean \"two years away\" when Today is 2026).",
+  "- Use daysUntilDeadline or \"deadline in Nd\" for proximity: under ~45 days → days; under ~18 months → months; beyond that → years, rounded down (14 months is not \"two years\").",
+  "- Wrong when Today is 2026-06-21 and daysUntilDeadline is ~300: \"the race is still two years away\".",
+  "- Right: \"London Marathon is about ten months out\" or \"deadline in 300d\".",
+].join("\n");
+
 export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
   "EVALUATIVE LANGUAGE (never use):",
   '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',

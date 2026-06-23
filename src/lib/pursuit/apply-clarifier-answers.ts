@@ -97,6 +97,31 @@ export async function pruneClarifierFromInsightCache(
   return { shouldReplenish: pendingClearedByDismiss };
 }
 
+/** Clear QQ cooldown on an insight-cache pursuit row — used when user deletes stored answers (path b). */
+export async function clearQuickQuestionsQuietUntilInCache(
+  userId: string,
+  goalId: string,
+): Promise<void> {
+  const cache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  if (!cache?.pursuitInsights) return;
+
+  const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
+  const entry = pursuits[goalId];
+  if (!entry?.quickQuestionsQuietUntil) return;
+
+  pursuits[goalId] = {
+    ...entry,
+    quickQuestionsQuietUntil: undefined,
+  };
+  await prisma.insightCache.update({
+    where: { userId },
+    data: { pursuitInsights: pursuits },
+  });
+}
+
 /** Remove a pending quick question without storing an answer — idempotent. */
 export async function dismissClarifierForUser(
   userId: string,
@@ -258,6 +283,7 @@ export async function deleteClarifierAnswerForUser(
   });
 
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
+  await clearQuickQuestionsQuietUntilInCache(userId, goalId);
 
   const storedAnswers = parseExistingAnswers(updated.enrichAnswers);
   return {

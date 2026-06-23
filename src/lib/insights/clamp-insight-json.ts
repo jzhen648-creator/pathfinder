@@ -1,9 +1,17 @@
 import type { PursuitInsightTone } from "@/lib/insights/insight-types";
+import {
+  PURSUIT_INSIGHT_BODY_MAX,
+  PURSUIT_INSIGHT_COMPARISON_MAX,
+  PURSUIT_INSIGHT_HEADLINE_MAX,
+} from "@/lib/insights/insight-field-limits";
 import { normalizeLegacyPursuitTone } from "@/lib/insights/resolve-pursuit-insight-tone";
 
 /** Max lengths aligned with Zod schemas in insight-types / pursuit-enrich-types. */
-export const PURSUIT_INSIGHT_HEADLINE_MAX = 100;
-export const PURSUIT_INSIGHT_BODY_MAX = 500;
+export {
+  PURSUIT_INSIGHT_BODY_MAX,
+  PURSUIT_INSIGHT_COMPARISON_MAX,
+  PURSUIT_INSIGHT_HEADLINE_MAX,
+} from "@/lib/insights/insight-field-limits";
 
 export type { PursuitInsightTone };
 
@@ -28,6 +36,9 @@ function clampPursuitInsightFields(row: Record<string, unknown>): void {
   if ("body" in row) {
     row.body = truncateString(row.body, PURSUIT_INSIGHT_BODY_MAX);
   }
+  if ("comparison" in row) {
+    row.comparison = truncateString(row.comparison, PURSUIT_INSIGHT_COMPARISON_MAX);
+  }
 }
 
 function clampPursuitsMap(pursuits: unknown): void {
@@ -35,7 +46,7 @@ function clampPursuitsMap(pursuits: unknown): void {
   for (const entry of Object.values(pursuits as Record<string, unknown>)) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const row = entry as Record<string, unknown>;
-    if ("headline" in row || "body" in row) {
+    if ("headline" in row || "body" in row || "comparison" in row) {
       clampPursuitInsightFields(row);
     }
     if (row.insight && typeof row.insight === "object" && !Array.isArray(row.insight)) {

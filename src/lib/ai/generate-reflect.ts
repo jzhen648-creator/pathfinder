@@ -23,10 +23,9 @@ import {
   clearReadingDirtyLedger,
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
-import { isHolisticBenchmarkEligible } from "@/lib/pursuit/pursuit-enrich-readiness";
-import { loadAllPursuitSignals } from "@/lib/pursuit/load-pursuit-signals";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import {
+  DATE_DEADLINE_ARITHMETIC_RULE,
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
@@ -37,9 +36,12 @@ import {
   parseLocationFromUserContext,
 } from "@/lib/insights/benchmark-facts";
 import {
-  HOLISTIC_BENCHMARK_THEME_CONTEXTUAL_RULE,
+  PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
   PURSUIT_COMPARISON_FIELD_JOBS,
+  PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
+  PURSUIT_INSIGHT_FIELD_LANES,
   THEME_INSIGHT_FIELD_JOBS,
+  THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 import { buildPursuitToneGuidanceBlock } from "@/lib/insights/pursuit-tone-prompt";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
@@ -135,13 +137,17 @@ const REFLECT_BENCHMARK_INSIGHT_RUBRIC = [
   "statistic, percentile, or comparison. Never assert a population ranking you cannot derive from",
   "the context. A relationship or personal-growth pursuit is read through the map (Move 2) and",
   "honesty (Move 4), not through fabricated numbers.",
+  "Exception — pursuit body only: one qualitative cross-pursuit domain sentence is allowed per PURSUIT body",
+  "domain-context rule; standalone pursuit-type domain context belongs in comparison (Worth knowing), not body.",
+  "Exception — pursuit comparison (Worth knowing): qualitative domain context for THIS pursuit belongs there;",
+  "quantified norms require <benchmark_facts> or other real grounds — do not invent numbers.",
 ];
 
 /** Pursuit panel insight only — not whole-map Reading (seasonRead). */
 const PURSUIT_PANEL_MILESTONE_VISIBILITY = [
   "PURSUIT PANEL — MILESTONE LIST IS ON SCREEN:",
   "The mobile pursuit sheet shows the milestone list directly below this insight.",
-  "Do NOT restate, enumerate, or quote milestone titles in headline, body, fromMap, or comparison.",
+  "Do NOT restate, enumerate, or quote milestone titles in headline, body, or comparison.",
   'Do NOT write "next step is X" or "your next milestone is X" when X is already a visible milestone row.',
   "Read milestones as grounding for trajectory (Move 3): pace, gaps, and what completion implies — without naming row labels.",
   "Speak to overall progress, what it means, or what is notably missing beyond the checklist the user already sees.",
@@ -184,6 +190,7 @@ function buildReflectPursuitsOnlySystemPrompt(
     "",
     TENSION_NOT_FORECAST_RULE,
     "",
+    DATE_DEADLINE_ARITHMETIC_RULE,
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
@@ -194,8 +201,11 @@ function buildReflectPursuitsOnlySystemPrompt(
     VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     "OUTPUT:",
-    '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
+    '- "pursuits": map of pursuitId -> { headline, body, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
+    PURSUIT_INSIGHT_FIELD_LANES,
+    PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
+    PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
     PURSUIT_COMPARISON_FIELD_JOBS,
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
@@ -208,7 +218,6 @@ function buildReflectSystemPrompt(
   options: Required<PursuitEnrichOptions>,
   scope: ReflectScope = "full",
   amountImpactEligible = false,
-  holisticBenchmarkEligible = true,
 ): string {
   if (scope === "pursuits-only") {
     return buildReflectPursuitsOnlySystemPrompt(options, amountImpactEligible);
@@ -216,10 +225,6 @@ function buildReflectSystemPrompt(
   const clarifierRules = options.clarifyTitles
     ? buildClarifierSystemOutputLines()
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
-
-  const holisticLines = holisticBenchmarkEligible
-    ? []
-    : ["", HOLISTIC_BENCHMARK_THEME_CONTEXTUAL_RULE];
 
   return [
     "You are Pathfinder's reflection engine. Return a single JSON object with per-theme synthesis and per-pursuit insight panels.",
@@ -242,7 +247,8 @@ function buildReflectSystemPrompt(
     "",
     TENSION_NOT_FORECAST_RULE,
     "",
-    "VOICE ANTI-PATTERNS (pursuit headline/body/fromMap/comparison):",
+    DATE_DEADLINE_ARITHMETIC_RULE,
+    "VOICE ANTI-PATTERNS (pursuit headline/body/comparison):",
     "- Do not open any text with the user's name (\"Alex, ...\").",
     "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
     "- Do not use \"significant\" as filler — name what is actually notable.",
@@ -250,10 +256,13 @@ function buildReflectSystemPrompt(
     VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     "OUTPUT:",
-    '- "pursuits": map of pursuitId -> { headline, body, fromMap?, comparison?, clarifiers?, suggestedMilestones? }',
+    '- "pursuits": map of pursuitId -> { headline, body, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
-    "  Do NOT embed \"From your map:\" or \"Comparison:\" prefixes inside body — use the structured fields; the mobile UI adds section labels.",
+    "  Do NOT embed section labels inside body — use the structured comparison field (Worth knowing); the mobile UI adds labels.",
+    PURSUIT_INSIGHT_FIELD_LANES,
+    PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
+    PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
     PURSUIT_COMPARISON_FIELD_JOBS,
     ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
@@ -265,7 +274,8 @@ function buildReflectSystemPrompt(
     buildClarifierKindPromptSection(options),
     "",
     THEME_INSIGHT_FIELD_JOBS,
-    ...holisticLines,
+    "",
+    THEME_REFLECT_OUTPUT_CONTRACT,
   ].join("\n");
 }
 
@@ -395,7 +405,6 @@ function buildReflectUserMessage(input: {
   enrichOptions: Required<PursuitEnrichOptions>;
   scope?: ReflectScope;
   pursuitToneGuidance?: string | null;
-  holisticBenchmarkEligible?: boolean;
 }): string {
   const scope = input.scope ?? "full";
   const milestoneOptions = buildReflectMilestoneOptions(input.dirtyPursuitIds, input.pursuitSignals);
@@ -444,15 +453,6 @@ function buildReflectUserMessage(input: {
 
   if (benchmarkFactsBlock) {
     lines.push("", "<benchmark_facts>", benchmarkFactsBlock, "</benchmark_facts>");
-  }
-
-  if (scope === "full") {
-    lines.push(
-      "",
-      "<options>",
-      `holisticBenchmarkEligible: ${input.holisticBenchmarkEligible !== false}`,
-      "</options>",
-    );
   }
 
   if (scope === "full") {
@@ -610,7 +610,6 @@ async function runReflectBatchesIncremental(
   options: {
     mapContext: FormattedMapContext;
     amountImpactEligible: boolean;
-    holisticBenchmarkEligible: boolean;
   },
 ): Promise<ReflectSyncResult> {
   const batches = chunkReflectPursuitIds(plan.pursuitIds);
@@ -632,7 +631,6 @@ async function runReflectBatchesIncremental(
       scope: isFullBatch ? ("full" as const) : ("pursuits-only" as const),
       mapContext: options.mapContext,
       amountImpactEligible: options.amountImpactEligible,
-      holisticBenchmarkEligible: options.holisticBenchmarkEligible,
     };
     try {
       const reflect = await invokeReflectBatchWithSyncCappedTransientRetry(
@@ -761,19 +759,7 @@ export async function runReflectSync(
   }
 
   const mapContext = await formatMapContext(userId);
-  const userContext = await formatUserContext(userId);
-  const benchmarkProfile = {
-    age: parseAgeFromUserContext(userContext),
-    location: parseLocationFromUserContext(userContext),
-  };
-  const [amountImpactEligible, allPursuitSignals] = await Promise.all([
-    Promise.resolve(isAmountImpactEligible(mapContext)),
-    loadAllPursuitSignals(userId),
-  ]);
-  const holisticBenchmarkEligible = isHolisticBenchmarkEligible(
-    allPursuitSignals,
-    benchmarkProfile,
-  );
+  const amountImpactEligible = isAmountImpactEligible(mapContext);
 
   return runReflectBatchesIncremental(
     userId,
@@ -783,7 +769,7 @@ export async function runReflectSync(
     mapVersion,
     memoryVersion,
     options.metrics,
-    { mapContext, amountImpactEligible, holisticBenchmarkEligible },
+    { mapContext, amountImpactEligible },
   );
 }
 
@@ -798,7 +784,6 @@ async function generateReflectResponse(
     scope?: ReflectScope;
     mapContext?: FormattedMapContext;
     amountImpactEligible?: boolean;
-    holisticBenchmarkEligible?: boolean;
   },
 ): Promise<ReflectResponse> {
   if (!hasGeminiKey()) {
@@ -807,7 +792,7 @@ async function generateReflectResponse(
 
   const scope = options?.scope ?? "full";
 
-  const [mapContext, userContext, readingPacket, pursuitSignals, allPursuitSignals, insightCacheRow, toneGoals] =
+  const [mapContext, userContext, readingPacket, pursuitSignals, insightCacheRow, toneGoals] =
     await Promise.all([
     options?.mapContext
       ? Promise.resolve(options.mapContext)
@@ -815,9 +800,6 @@ async function generateReflectResponse(
     formatUserContext(userId),
     compileReadingPacket(userId, dirty),
     loadPursuitSignals(userId, pursuitIds),
-    options?.holisticBenchmarkEligible === undefined
-      ? loadAllPursuitSignals(userId)
-      : Promise.resolve([]),
     prisma.insightCache.findUnique({ where: { userId }, select: { pursuitInsights: true } }),
     loadPursuitToneGoals(userId, pursuitIds),
   ]);
@@ -838,12 +820,6 @@ async function generateReflectResponse(
 
   const amountImpactEligible =
     options?.amountImpactEligible ?? isAmountImpactEligible(mapContext);
-  const holisticBenchmarkEligible =
-    options?.holisticBenchmarkEligible ??
-    isHolisticBenchmarkEligible(allPursuitSignals, {
-      age: parseAgeFromUserContext(userContext),
-      location: parseLocationFromUserContext(userContext),
-    });
 
   const readingPacketJson = readingPacketToJson(readingPacket);
   const mapContextForPrompt =
@@ -858,7 +834,6 @@ async function generateReflectResponse(
     enrichOptions,
     scope,
     amountImpactEligible,
-    holisticBenchmarkEligible,
   );
   const userPrompt = buildReflectUserMessage({
     userContext,
@@ -872,7 +847,6 @@ async function generateReflectResponse(
     enrichOptions,
     scope,
     pursuitToneGuidance,
-    holisticBenchmarkEligible,
   });
 
   if (metrics) {

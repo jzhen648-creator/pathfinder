@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  PURSUIT_INSIGHT_BODY_MAX,
+  PURSUIT_INSIGHT_COMPARISON_MAX,
+  PURSUIT_INSIGHT_HEADLINE_MAX,
+} from "@/lib/insights/insight-field-limits";
 
 export const insightToneSchema = z.enum(["encouraging", "nudge", "celebratory"]);
 
@@ -23,10 +28,9 @@ export const insightLevelSchema = z.object({
 
 export const pursuitInsightSchema = z.object({
   tone: pursuitInsightToneSchema.default("in_focus"),
-  headline: z.string().max(100),
-  body: z.string().max(500),
-  fromMap: z.string().max(200).optional(),
-  comparison: z.string().max(200).optional(),
+  headline: z.string().max(PURSUIT_INSIGHT_HEADLINE_MAX),
+  body: z.string().max(PURSUIT_INSIGHT_BODY_MAX),
+  comparison: z.string().max(PURSUIT_INSIGHT_COMPARISON_MAX).optional(),
 });
 
 export const globalNowInsightSchema = z.object({

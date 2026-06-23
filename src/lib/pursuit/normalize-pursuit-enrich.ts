@@ -4,10 +4,11 @@
  */
 
 import {
-  normalizePursuitInsightTone,
   PURSUIT_INSIGHT_BODY_MAX,
+  PURSUIT_INSIGHT_COMPARISON_MAX,
   PURSUIT_INSIGHT_HEADLINE_MAX,
-} from "@/lib/insights/clamp-insight-json";
+} from "@/lib/insights/insight-field-limits";
+import { normalizePursuitInsightTone } from "@/lib/insights/clamp-insight-json";
 
 const CLARIFIER_PROMPT_MAX = 200;
 const CLARIFIER_OPTION_MAX = 80;
@@ -127,14 +128,12 @@ function normalizeInsightObject(raw: unknown): Record<string, unknown> | null {
   const body = truncate(row.body ?? row.summary ?? row.text, PURSUIT_INSIGHT_BODY_MAX);
   if (!headline && !body) return null;
 
-  const fromMap = truncate(row.fromMap ?? row.from_map, 200);
-  const comparison = truncate(row.comparison, 200);
+  const comparison = truncate(row.comparison, PURSUIT_INSIGHT_COMPARISON_MAX);
 
   return {
     tone: row.tone != null && row.tone !== "" ? normalizePursuitInsightTone(row.tone) : "in_focus",
     headline: headline || "Insight",
     body: body || "",
-    ...(fromMap ? { fromMap } : {}),
     ...(comparison ? { comparison } : {}),
   };
 }

@@ -1,13 +1,7 @@
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
-import {
-  benchmarkFactsApplicable,
-  flattenBenchmarkPursuitsFromMapContext,
-} from "@/lib/insights/benchmark-facts";
-import { formatMapContext } from "@/lib/ai/format-map-context";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
-import { themeHasConfirmedLinks } from "@/lib/insights/theme-relationship-eligibility";
-import { parseInsightLevelRecord, parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
+import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import { resolvePursuitInsightTone } from "@/lib/insights/resolve-pursuit-insight-tone";
 import {
@@ -16,15 +10,10 @@ import {
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
 import {
   gateEnrichResult,
-  gateThemeCombined,
-  gateThemeContextual,
   resolveQuickQuestionsQuietUntilAfterGeneration,
   shouldSuggestMilestones,
   pursuitSignalFromGoal,
-  type PursuitSignal,
-  type ThemeContextualGateInput,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
-import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
 import {
   applyQuestionSlotToResult,
   loadRelationshipPeerIdsForGoal,
@@ -36,8 +25,6 @@ import {
   clarifierPreserveAllowed,
   mergePreservedClarifiers,
   resolvePreservedComparison,
-  resolvePreservedInsightText,
-  resolvePreservedThemeText,
   resolveReflectSuggestedMilestones,
 } from "@/lib/pursuit/pursuit-cache-patch";
 import {
@@ -82,13 +69,6 @@ function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | nul
   };
 }
 
-async function loadThemePursuitSignals(
-  userId: string,
-  themeIds: string[],
-): Promise<Map<string, PursuitSignal[]>> {
-  return loadPursuitSignalsByTheme(userId, themeIds);
-}
-
 /** Write reflect output to InsightCache pursuit + theme entries. */
 export async function applyReflectOutput(
   userId: string,
@@ -103,10 +83,9 @@ export async function applyReflectOutput(
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
   const existingCache = await prisma.insightCache.findUnique({
     where: { userId },
-    select: { pursuitInsights: true, themeInsights: true },
+    select: { pursuitInsights: true },
   });
   const cachedPursuits = parsePursuitInsightRecord(existingCache?.pursuitInsights, "pursuit");
-  const cachedThemes = parseInsightLevelRecord(existingCache?.themeInsights, "theme");
   const siblingTitlesByTheme = new Map<string, Array<{ id: string; title: string }>>();
   for (const goal of toneGoals.values()) {
     const themeId = goal.themeId ?? "becoming";
@@ -114,9 +93,6 @@ export async function applyReflectOutput(
     list.push({ id: goal.id, title: goal.title });
     siblingTitlesByTheme.set(themeId, list);
   }
-  const themeIds = Object.keys(reflect.themes ?? {});
-  const themeSignals = await loadThemePursuitSignals(userId, themeIds);
-
   const profile = await prisma.userManualProfile.findUnique({
     where: { userId },
     select: { dateOfBirth: true, location: true },
@@ -133,55 +109,18 @@ export async function applyReflectOutput(
   }
   const profileLocation = profile?.location?.trim() || null;
 
-  const [relationships, pursuitThemeRows, mapContext] = await Promise.all([
-    prisma.pursuitRelationship.findMany({
-      where: { userId },
-      select: { goalAId: true, goalBId: true },
-    }),
-    prisma.goal.findMany({
-      where: { userId, archived: false },
-      select: { id: true, themeId: true },
-    }),
-    formatMapContext(userId),
-  ]);
-  const pursuitThemeMap = new Map(
-    pursuitThemeRows.map((row) => [row.id, row.themeId ?? "becoming"]),
-  );
-  const allBenchmarkPursuits = flattenBenchmarkPursuitsFromMapContext(mapContext);
-
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
   const now = Date.now();
 
   for (const [themeId, entry] of Object.entries(reflect.themes ?? {})) {
     if (!entry.oneLiner?.trim() && !entry.reflective?.trim()) continue;
-    const themeSignalList = themeSignals.get(themeId) ?? [];
-    const gateInput: ThemeContextualGateInput = {
-      themeId,
-      age: profileAge,
-      location: profileLocation,
-      benchmarkApplicable: benchmarkFactsApplicable(
-        themeId,
-        allBenchmarkPursuits,
-        profileAge,
-        profileLocation,
-      ),
-    };
-    const hasLinks = themeHasConfirmedLinks(themeId, relationships, pursuitThemeMap);
     themes[themeId] = {
       tone: entry.tone,
       oneLiner: entry.oneLiner.trim(),
       reflective: entry.reflective.trim(),
-      contextual: resolvePreservedThemeText(
-        entry.contextual,
-        cachedThemes[themeId]?.contextual,
-        (text) => gateThemeContextual(text, themeSignalList, gateInput),
-      ),
-      combined: resolvePreservedThemeText(
-        entry.combined,
-        cachedThemes[themeId]?.combined,
-        (text) => gateThemeCombined(text, hasLinks),
-      ),
+      contextual: "",
+      combined: "",
     };
   }
 
@@ -198,7 +137,6 @@ export async function applyReflectOutput(
       signal,
       { age: profileAge, location: profileLocation },
     );
-    const fromMap = resolvePreservedInsightText(entry.fromMap, cachedEntry?.fromMap);
 
     const enrichAnswersParsed = enrichAnswersSchema.safeParse(goal.enrichAnswers);
     const enrichAnswers = enrichAnswersParsed.success ? enrichAnswersParsed.data : [];
@@ -237,7 +175,6 @@ export async function applyReflectOutput(
         tone: resolvePursuitInsightTone(goal, now),
         headline: entry.headline,
         body: entry.body,
-        ...(fromMap ? { fromMap } : {}),
         ...(comparison ? { comparison } : {}),
       },
       suggestedMilestones,

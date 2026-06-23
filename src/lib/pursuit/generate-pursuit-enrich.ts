@@ -22,6 +22,7 @@ import {
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
+import { PURSUIT_BODY_DOMAIN_CONTEXT_RULE, PURSUIT_COMPARISON_FIELD_JOBS, PURSUIT_CONTEXT_TAB_NON_DUPLICATION, PURSUIT_INSIGHT_FIELD_LANES } from "@/lib/insights/theme-insight-prompt-blocks";
 import {
   formatPursuitToneGuidanceEntry,
   pursuitToneVoiceLines,
@@ -65,7 +66,6 @@ import {
   mergePreservedClarifiers,
   type ClarifierMergeMode,
   resolvePreservedComparison,
-  resolvePreservedInsightText,
   resolveReflectSuggestedMilestones,
 } from "@/lib/pursuit/pursuit-cache-patch";
 import {
@@ -112,9 +112,11 @@ function buildEnrichSystemPrompt(
     "",
     pursuitStatusPromptBlock(),
     HEADLINE_MUST_ADD_MEANING,
-    "  Body: single prose paragraph — no section labels, no \"From your map:\" or \"Comparison:\" prefixes (the UI renders labels).",
-    "  When sibling pursuits support a cross-link, weave one sentence into the body naturally.",
-    "  When age AND location are known, weave one benchmark sentence into the body; omit if either is unknown.",
+    PURSUIT_INSIGHT_FIELD_LANES,
+    "  Body: single prose paragraph — no section labels; use structured comparison when needed (the UI renders labels).",
+    PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
+    PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
+    PURSUIT_COMPARISON_FIELD_JOBS,
     "  Never restate the title alone; never open with the user's name; never say \"your map shows\".",
     ...(peopleThemeBody ? ["", PEOPLE_THEME_BODY_CLAUSE] : []),
     ...amountImpactBodyPromptLines(amountImpactEligible),
@@ -124,7 +126,7 @@ function buildEnrichSystemPrompt(
     '{ "pursuits": { "<pursuitId>": { "clarifiers": [], "insight": { "headline": "...", "body": "..." }, "suggestedMilestones": null } } }',
     "",
     "RULES:",
-    "- Ground every field in provided scoped context JSON only.",
+    "- Ground map-fact sentences in provided scoped context JSON; the optional cross-pursuit domain-context sentence is exempt per domain-context rule.",
     "- Null/empty arrays are correct when unsure.",
     "",
     TENSION_NOT_FORECAST_RULE,
@@ -281,7 +283,6 @@ async function generateOnePursuitEnrich(
     mapMilestones: goal.milestones,
     allowed: milestonesAllowed,
   });
-  const fromMap = resolvePreservedInsightText(result.insight?.fromMap, cachedEntry?.fromMap);
   const comparison = resolvePreservedComparison(
     result.insight?.comparison,
     cachedEntry?.comparison,
@@ -289,10 +290,9 @@ async function generateOnePursuitEnrich(
   );
   const insight = result.insight
     ? (() => {
-        const { fromMap: _fromMap, comparison: _comparison, ...rest } = result.insight!;
+        const { comparison: _comparison, ...rest } = result.insight!;
         return {
           ...rest,
-          ...(fromMap ? { fromMap } : {}),
           ...(comparison ? { comparison } : {}),
         };
       })()

@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { clarifierSchema, suggestedMilestoneSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import { THEME_ONE_LINER_MAX } from "@/lib/ai/normalize-reflect-response";
+import {
+  PURSUIT_INSIGHT_BODY_MAX,
+  PURSUIT_INSIGHT_COMPARISON_MAX,
+  PURSUIT_INSIGHT_HEADLINE_MAX,
+} from "@/lib/insights/insight-field-limits";
 import { insightToneSchema } from "@/lib/insights/insight-types";
 import { normalizeLegacyPursuitTone } from "@/lib/insights/resolve-pursuit-insight-tone";
 
@@ -10,17 +16,16 @@ export const reflectPursuitEntrySchema = z.object({
     .transform((val) =>
       val == null || val === "" ? undefined : normalizeLegacyPursuitTone(val),
     ),
-  headline: z.string().max(100),
-  body: z.string().max(500),
-  fromMap: z.string().max(200).optional(),
-  comparison: z.string().max(200).optional(),
+  headline: z.string().max(PURSUIT_INSIGHT_HEADLINE_MAX),
+  body: z.string().max(PURSUIT_INSIGHT_BODY_MAX),
+  comparison: z.string().max(PURSUIT_INSIGHT_COMPARISON_MAX).optional(),
   clarifiers: z.array(clarifierSchema).max(3).optional(),
   suggestedMilestones: z.array(suggestedMilestoneSchema).max(6).nullable().optional(),
 });
 
 export const reflectThemeEntrySchema = z.object({
   tone: insightToneSchema,
-  oneLiner: z.string().max(100),
+  oneLiner: z.string().max(THEME_ONE_LINER_MAX),
   reflective: z.string().max(800),
   contextual: z.string().max(500).optional().default(""),
   combined: z.string().max(500).optional().default(""),

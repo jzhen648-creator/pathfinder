@@ -40,6 +40,21 @@ export async function listDirtyThemeIds(userId: string): Promise<string[]> {
     .map((theme) => theme.id);
 }
 
+/** Themes touched by dirty pursuits — used when the ledger has pursuit rows but no theme rows. */
+export async function themeIdsForPursuits(
+  userId: string,
+  pursuitIds: string[],
+): Promise<string[]> {
+  const ids = [...new Set(pursuitIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  const goals = await prisma.goal.findMany({
+    where: { userId, id: { in: ids }, archived: false },
+    select: { themeId: true },
+  });
+  return [...new Set(goals.map((goal) => goal.themeId ?? "becoming"))];
+}
+
 /**
  * Decide which pursuits/themes need reflect work.
  * Manual force refresh regenerates theme readings + all pursuit panels.
@@ -52,19 +67,23 @@ export async function planReflectWork(
     insightsStale: boolean;
   },
 ): Promise<ReflectWorkPlan> {
-  if (dirty.activeDirtyPursuitIds.length > 0) {
-    return {
-      mode: "dirty",
-      pursuitIds: dirty.activeDirtyPursuitIds,
-      themeIds: dirty.themeIds,
-    };
-  }
-
   if (options.insightsStale || options.force) {
     return {
       mode: "full",
       pursuitIds: await listEligiblePursuitIds(userId),
       themeIds: await listDirtyThemeIds(userId),
+    };
+  }
+
+  if (dirty.activeDirtyPursuitIds.length > 0) {
+    const themeIds =
+      dirty.themeIds.length > 0
+        ? dirty.themeIds
+        : await themeIdsForPursuits(userId, dirty.activeDirtyPursuitIds);
+    return {
+      mode: "dirty",
+      pursuitIds: dirty.activeDirtyPursuitIds,
+      themeIds,
     };
   }
 

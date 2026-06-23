@@ -1,8 +1,9 @@
 import { normalizePursuitEnrichEntry } from "@/lib/pursuit/normalize-pursuit-enrich";
+import { PURSUIT_INSIGHT_COMPARISON_MAX } from "@/lib/insights/insight-field-limits";
 
 const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
-const THEME_ONE_LINER_MAX = 100;
+export const THEME_ONE_LINER_MAX = 140;
 const THEME_REFLECTIVE_MAX = 800;
 
 /** Trim text to max length on a word boundary; append … when shortened. */
@@ -49,11 +50,8 @@ export function normalizeReflectResponse(json: unknown): unknown {
         tone: insight.tone,
         headline: insight.headline,
         body: insight.body,
-        ...(typeof insight.fromMap === "string" && insight.fromMap.trim()
-          ? { fromMap: insight.fromMap.trim().slice(0, 200) }
-          : {}),
         ...(typeof insight.comparison === "string" && insight.comparison.trim()
-          ? { comparison: insight.comparison.trim().slice(0, 200) }
+          ? { comparison: insight.comparison.trim().slice(0, PURSUIT_INSIGHT_COMPARISON_MAX) }
           : {}),
         clarifiers: row.clarifiers ?? [],
         suggestedMilestones: row.suggestedMilestones ?? null,
@@ -75,8 +73,8 @@ export function normalizeReflectResponse(json: unknown): unknown {
         tone: normalizeThemeTone(row.tone),
         oneLiner: truncateThemeOneLiner(oneLiner),
         reflective: truncateAtWordBoundary(reflective, THEME_REFLECTIVE_MAX),
-        contextual: typeof row.contextual === "string" ? row.contextual.slice(0, 500) : "",
-        combined: typeof row.combined === "string" ? row.combined.slice(0, 500) : "",
+        contextual: "",
+        combined: "",
       };
     }
     root.themes = normalizedThemes;

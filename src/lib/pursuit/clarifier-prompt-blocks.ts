@@ -76,18 +76,18 @@ export const CLARIFIER_STOP_AND_CADENCE_RULES = [
 ].join("\n");
 
 export const PURSUIT_PANEL_CONTEXT_PRECEDENCE = [
-  "PURSUIT CONTEXT PRECEDENCE (headline/body/fromMap/comparison):",
+  "PURSUIT CONTEXT PRECEDENCE (headline/body/comparison):",
   "Milestones, status, and structured fields (deadline, amount) are the source of truth for current progress and stage.",
   "enrichAnswers are durable interpretation context — target type, route, constraint, preference, funding approach, support model.",
   'If an enrichAnswer describes a progress stage (e.g. "just started", "not yet applied") and milestones or status show later movement, milestones/status supersede the answer.',
-  "Never repeat a stale progress-stage enrichAnswer as current truth in headline, body, fromMap, or comparison.",
+  "Never repeat a stale progress-stage enrichAnswer as current truth in headline, body, or comparison.",
 ].join("\n");
 
 /** Clarifies that milestone visibility rules apply to prose only, not the suggestedMilestones field. */
 export const PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD = [
   "PURSUIT PANEL — suggestedMilestones FIELD (separate from headline/body):",
   "When <milestone_options> says Milestones allowed, you MUST return 1-6 items in suggestedMilestones — do not omit the array.",
-  "The milestone-list visibility rules above apply to headline/body/fromMap/comparison only — not to suggestedMilestones.",
+  "The milestone-list visibility rules above apply to headline/body/comparison only — not to suggestedMilestones.",
   "Outcome waypoints the user taps to accept (e.g. \"CeMAP Module 1 passed\", \"First application submitted\") — NOT tasks (\"Update CV\", \"Research firms\").",
 ];
 

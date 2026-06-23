@@ -78,6 +78,26 @@ describe("pursuit-enrich-readiness gates", () => {
     ).toBe(comparison);
   });
 
+  it("gatePursuitComparison keeps qualitative worth-knowing without benchmark signal", () => {
+    const brokerRole =
+      "Mortgage broker roles involve sourcing cases across lenders; CeMAP is the standard qualification to advise.";
+    expect(gatePursuitComparison(brokerRole, thinSignal)).toBe(brokerRole);
+    expect(gatePursuitComparison(brokerRole, thinSignal, { age: null, location: null })).toBe(
+      brokerRole,
+    );
+  });
+
+  it("gatePursuitComparison strips prescriptive worth-knowing copy", () => {
+    expect(
+      gatePursuitComparison("You should complete CeMAP before applying for broker roles.", thinSignal),
+    ).toBe("");
+  });
+
+  it("gatePursuitComparison strips quantified benchmarks when benchmark signal is absent", () => {
+    const quantified = "CeMAP typically takes 6-18 months; you finished in about three.";
+    expect(gatePursuitComparison(quantified, thinSignal)).toBe("");
+  });
+
   it("isHolisticBenchmarkEligible when age and location are both known", () => {
     expect(isHolisticBenchmarkEligible([], { age: 29, location: "London" })).toBe(true);
   });
