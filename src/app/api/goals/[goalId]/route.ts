@@ -76,7 +76,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   const data: {
     title?: string;
     description?: string;
-    significance?: number;
+    significance?: number | null;
     timelineStart?: Date | null;
     deadline?: Date | null;
     year?: number;
@@ -104,7 +104,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     }
   }
   if (input.significance !== undefined) {
-    data.significance = Math.min(5, Math.max(1, Math.round(input.significance)));
+    data.significance =
+      input.significance == null
+        ? null
+        : Math.min(5, Math.max(1, Math.round(input.significance)));
   }
   if (input.timelineStart !== undefined) {
     data.timelineStart =

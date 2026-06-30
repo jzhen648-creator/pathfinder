@@ -22,7 +22,7 @@ export type QuestionSlotContext = {
   signal: PursuitSignal;
   status: string;
   completedAt: Date | null;
-  significance: number;
+  significance: number | null;
   enrichAnswers: EnrichAnswer[];
   quickQuestionsQuietUntil?: string | null;
   siblingGoalIds: string[];
@@ -127,7 +127,7 @@ export function questionSlotUserMessageLines(
   const lines = [
     `Requested quick-question slot: ${slot}`,
     `Pursuit status: ${ctx.status}`,
-    `Significance: ${ctx.significance}`,
+    `Significance: ${ctx.significance ?? "unset"}`,
   ];
 
   if (ctx.skippedClarifierPrompts?.length) {

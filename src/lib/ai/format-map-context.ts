@@ -42,8 +42,8 @@ export type FormattedMapPursuit = {
     selectedOption: string;
   }>;
   status: string;
-  /** 1–5; higher = more weight on the map. */
-  significance: number;
+  /** 1–5 when user set; omitted from AI context when unset. */
+  significance?: number;
   milestones: Array<{
     id: string;
     title: string;
@@ -149,7 +149,6 @@ export function buildPursuitRow(
     title: goal.title,
     description: goal.description?.trim() ?? "",
     status: goal.status,
-    significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
     milestones: goal.milestones.map((milestone) => {
       const row: FormattedMapPursuit["milestones"][number] = {
         id: milestone.id,
@@ -164,6 +163,10 @@ export function buildPursuitRow(
       return row;
     }),
   };
+
+  if (goal.significance != null) {
+    pursuit.significance = Math.min(5, Math.max(1, Math.round(goal.significance)));
+  }
 
   if (goal.parentGoalId) {
     const parentTitle = pursuitTitleById.get(goal.parentGoalId);

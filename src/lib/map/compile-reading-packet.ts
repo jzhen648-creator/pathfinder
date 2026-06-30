@@ -18,7 +18,7 @@ export type ReadingPacketPursuit = {
   title: string;
   status: string;
   deadline?: string;
-  significance: number;
+  significance?: number;
   currentAmount?: number;
   targetAmount?: number;
   unit?: string;
@@ -125,7 +125,7 @@ export function computePursuitSignal(
   }
 
   if (pursuit.status !== "ACTIVE" && pursuit.status !== "MAINTAINING") return null;
-  if (pursuit.significance < GAP_MIN_SIGNIFICANCE) return null;
+  if (pursuit.significance == null || pursuit.significance < GAP_MIN_SIGNIFICANCE) return null;
   if (!pursuit.deadline) return null;
 
   const until = daysUntil(pursuit.deadline, now);
@@ -148,7 +148,9 @@ export function formatGapFactLine(pursuit: FormattedMapPursuit, now = Date.now()
     milestones.length === 0
       ? "no milestones defined"
       : `0 of ${milestones.length} milestones completed`;
-  return `${pursuit.title} (sig ${pursuit.significance}, ${deadlinePart}, ${milestonePart})`;
+  const sigPart =
+    pursuit.significance != null ? `sig ${pursuit.significance}, ` : "";
+  return `${pursuit.title} (${sigPart}${deadlinePart}, ${milestonePart})`;
 }
 
 export function sortPursuitsTemporal<T extends FormattedMapPursuit>(
@@ -338,9 +340,9 @@ export function buildCategorySignals(
         const row: ReadingPacketPursuit = {
           title: p.title,
           status: p.status,
-          deadline: p.deadline,
-          significance: p.significance,
         };
+        if (p.deadline) row.deadline = p.deadline;
+        if (p.significance != null) row.significance = p.significance;
         if (p.currentAmount != null) row.currentAmount = p.currentAmount;
         if (p.targetAmount != null) row.targetAmount = p.targetAmount;
         if (p.unit?.trim()) row.unit = p.unit.trim();
@@ -364,12 +366,15 @@ type FlatPursuit = ReturnType<typeof flattenPursuits>[number];
 function isHighSignificanceEligible(pursuit: FlatPursuit): boolean {
   return (
     (pursuit.status === "ACTIVE" || pursuit.status === "MAINTAINING") &&
+    pursuit.significance != null &&
     pursuit.significance >= GAP_MIN_SIGNIFICANCE
   );
 }
 
 function comparePursuitsBySignificanceDesc(a: FlatPursuit, b: FlatPursuit): number {
-  if (b.significance !== a.significance) return b.significance - a.significance;
+  const sigA = a.significance ?? 0;
+  const sigB = b.significance ?? 0;
+  if (sigB !== sigA) return sigB - sigA;
   return a.title.localeCompare(b.title);
 }
 

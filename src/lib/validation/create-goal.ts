@@ -38,7 +38,8 @@ export const createGoalPayloadSchema = z
     /** @deprecated Use `status`. */
     bloomStatus: z.enum(["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE"]).optional(),
     deadline: z.string(),
-    significance: z.coerce.number().int(),
+    /** Omitted or null on create = unset; validated 1–5 when present. */
+    significance: z.coerce.number().int().nullable().optional(),
     hasMeasurableTarget: z.boolean(),
     targetAmount: z.string(),
     currentAmount: z.string(),
@@ -104,7 +105,10 @@ export const createGoalPayloadSchema = z
       }
     }
 
-    if (data.significance < 1 || data.significance > 5) {
+    if (
+      data.significance != null &&
+      (data.significance < 1 || data.significance > 5)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Significance must be between 1 and 5",

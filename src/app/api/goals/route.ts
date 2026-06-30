@@ -147,10 +147,13 @@ export async function POST(request: Request) {
       : null;
   const lifeArea = getLifeArea(branchRecord.themeId)?.label ?? "Other";
 
-  const sigRaw = Number(input.significance);
-  const significance = Number.isFinite(sigRaw)
-    ? Math.min(5, Math.max(1, Math.round(sigRaw)))
-    : 3;
+  let significance: number | null = null;
+  if (input.significance != null) {
+    const sigRaw = Number(input.significance);
+    if (Number.isFinite(sigRaw)) {
+      significance = Math.min(5, Math.max(1, Math.round(sigRaw)));
+    }
+  }
 
   try {
     const anchor = input.anchor ?? { kind: "append" as const };

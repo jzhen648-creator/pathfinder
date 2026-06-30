@@ -14,7 +14,8 @@ export const updateGoalPayloadSchema = z
   .object({
     title: z.string().optional(),
     description: z.string().optional(),
-    significance: z.coerce.number().int().optional(),
+    /** 1–5 when set; null clears user significance. */
+    significance: z.coerce.number().int().nullable().optional(),
     /** Explicit swimlane start; `null` clears override (falls back to createdAt). */
     timelineStart: calendarDaySchema.nullable().optional(),
     /** Target end date; `null` clears deadline. */
@@ -86,7 +87,11 @@ export const updateGoalPayloadSchema = z
         path: ["description"],
       });
     }
-    if (data.significance !== undefined && (data.significance < 1 || data.significance > 5)) {
+    if (
+      data.significance != null &&
+      data.significance !== undefined &&
+      (data.significance < 1 || data.significance > 5)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Significance must be between 1 and 5",

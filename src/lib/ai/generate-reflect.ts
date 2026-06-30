@@ -310,7 +310,10 @@ async function loadReflectPursuitSlotContexts(
       signal,
       status: goal.status ?? "ACTIVE",
       completedAt: goal.completedAt ?? null,
-      significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+      significance:
+        goal.significance != null
+          ? Math.min(5, Math.max(1, Math.round(goal.significance)))
+          : null,
       enrichAnswers,
       quickQuestionsQuietUntil: cachedQuietUntilByPursuit[goal.id],
       siblingGoalIds: [],
