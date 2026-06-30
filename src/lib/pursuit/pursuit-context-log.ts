@@ -1,3 +1,4 @@
+/** Append-only pursuit context log — retired pending post-TestFlight cleanup; reserved for future discrete-notes model. */
 import { Prisma, type PursuitContextEntryKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";

@@ -9,7 +9,7 @@ import {
   isQuickQuestionsQuiet,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
-import type { Clarifier, PursuitEnrichCachePayload, PursuitEnrichResult, SuggestedContinuation } from "@/lib/pursuit/pursuit-enrich-types";
+import type { Clarifier, PursuitEnrichCachePayload, PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
 
 export type ClarifierMergeMode = "routine" | "initial" | "replenish";
 
@@ -53,30 +53,6 @@ export function dedupeSuggestedMilestones<T extends { title: string }>(
   if (!suggestions?.length) return suggestions ?? null;
   const unique = dedupeMilestoneTitles(suggestions);
   return unique.length > 0 ? unique : null;
-}
-
-function normalizePursuitTitle(title: string): string {
-  return title.trim().toLowerCase();
-}
-
-function stripContinuationsAlreadyOnMap(
-  suggestions: SuggestedContinuation[] | null | undefined,
-  mapTitles: string[],
-): SuggestedContinuation[] {
-  if (!suggestions?.length) return [];
-  const onMap = new Set(mapTitles.map(normalizePursuitTitle));
-  return suggestions.filter((suggestion) => !onMap.has(normalizePursuitTitle(suggestion.title)));
-}
-
-/** Fresh reflect continuations for COMPLETE pursuits only; dedupe against live map titles. */
-export function resolveReflectSuggestedContinuations(input: {
-  fresh: SuggestedContinuation[] | null | undefined;
-  goalStatus: string;
-  allMapTitles: string[];
-}): SuggestedContinuation[] {
-  if (input.goalStatus !== "COMPLETE") return [];
-  const deduped = dedupeSuggestedMilestones(input.fresh ?? []) ?? [];
-  return stripContinuationsAlreadyOnMap(deduped, input.allMapTitles).slice(0, 2);
 }
 
 function normalizeMilestoneTitle(title: string): string {
@@ -229,16 +205,12 @@ export function buildPursuitCachePayload(
 ): PursuitEnrichCachePayload | null {
   const hasClarifiers = result.clarifiers.length > 0;
   const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
-  const hasContinuations = (result.suggestedContinuations?.length ?? 0) > 0;
   const hasInsight = Boolean(result.insight?.headline?.trim());
 
-  if (!hasClarifiers && !hasMilestones && !hasContinuations && !hasInsight) return null;
+  if (!hasClarifiers && !hasMilestones && !hasInsight) return null;
 
   const clarifiers = hasClarifiers ? result.clarifiers : undefined;
   const suggestedMilestones = hasMilestones ? result.suggestedMilestones ?? undefined : undefined;
-  const suggestedContinuations = hasContinuations
-    ? result.suggestedContinuations ?? undefined
-    : undefined;
   const quietField = options?.quickQuestionsQuietUntil
     ? { quickQuestionsQuietUntil: options.quickQuestionsQuietUntil }
     : {};
@@ -251,7 +223,6 @@ export function buildPursuitCachePayload(
       ...result.insight,
       clarifiers,
       suggestedMilestones,
-      suggestedContinuations,
       ...quietField,
       ...skippedField,
     };
@@ -263,7 +234,6 @@ export function buildPursuitCachePayload(
     body: "Answer a quick question below — then update your AI reading on Insights.",
     clarifiers,
     suggestedMilestones,
-    suggestedContinuations,
     ...quietField,
     ...skippedField,
   };

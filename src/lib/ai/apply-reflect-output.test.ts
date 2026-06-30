@@ -8,7 +8,7 @@ describe("apply-reflect-output", () => {
     const tone = resolvePursuitInsightTone(
       {
         title: "CeMAP qualification",
-        description: "",
+        background: null,
         enrichAnswers: null,
         status: "ACTIVE",
         significance: 5,

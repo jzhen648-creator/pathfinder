@@ -5,7 +5,6 @@ describe("buildPursuitRow timelineStart", () => {
   const baseGoal = {
     id: "g1",
     title: "Learn guitar",
-    description: "",
     status: "ACTIVE",
     significance: 3,
     parentGoalId: null,
@@ -38,11 +37,10 @@ describe("buildPursuitRow timelineStart", () => {
   });
 });
 
-describe("buildPursuitRow rationale", () => {
+describe("buildPursuitRow background", () => {
   const baseGoal = {
     id: "g1",
     title: "Learn guitar",
-    description: "",
     status: "ACTIVE",
     significance: 3,
     parentGoalId: null,
@@ -57,26 +55,26 @@ describe("buildPursuitRow rationale", () => {
     milestones: [],
   };
 
-  it("emits rationale when non-empty", () => {
+  it("emits background when non-empty", () => {
     const row = buildPursuitRow(
-      { ...baseGoal, rationale: "I want to play at family gatherings." },
+      { ...baseGoal, background: "I want to play at family gatherings." },
       new Map(),
     );
-    expect(row.rationale).toBe("I want to play at family gatherings.");
+    expect(row.background).toBe("I want to play at family gatherings.");
   });
 
-  it("omits rationale when null", () => {
-    const row = buildPursuitRow({ ...baseGoal, rationale: null }, new Map());
-    expect(row.rationale).toBeUndefined();
+  it("omits background when null", () => {
+    const row = buildPursuitRow({ ...baseGoal, background: null }, new Map());
+    expect(row.background).toBeUndefined();
   });
 
-  it("omits rationale when empty string", () => {
-    const row = buildPursuitRow({ ...baseGoal, rationale: "" }, new Map());
-    expect(row.rationale).toBeUndefined();
+  it("omits background when empty string", () => {
+    const row = buildPursuitRow({ ...baseGoal, background: "" }, new Map());
+    expect(row.background).toBeUndefined();
   });
 
-  it("omits rationale when whitespace-only", () => {
-    const row = buildPursuitRow({ ...baseGoal, rationale: "   " }, new Map());
-    expect(row.rationale).toBeUndefined();
+  it("omits background when whitespace-only", () => {
+    const row = buildPursuitRow({ ...baseGoal, background: "   " }, new Map());
+    expect(row.background).toBeUndefined();
   });
 });

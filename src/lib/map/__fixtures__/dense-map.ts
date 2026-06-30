@@ -14,7 +14,6 @@ function pursuit(
   return {
     id,
     title,
-    description: "",
     status,
     significance,
     milestones: [],

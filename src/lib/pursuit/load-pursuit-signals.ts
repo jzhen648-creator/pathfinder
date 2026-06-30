@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 const pursuitSignalSelect = {
   id: true,
   title: true,
-  description: true,
+  background: true,
   enrichAnswers: true,
   deadline: true,
   status: true,

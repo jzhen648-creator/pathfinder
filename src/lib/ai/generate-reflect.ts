@@ -26,7 +26,9 @@ import {
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import {
   DATE_DEADLINE_ARITHMETIC_RULE,
+  MAP_SPECIFICITY_BAR,
   ORIENTATION_AS_LENS_RULE,
+  PURSUIT_TITLE_REFERENCE_RULE,
   USER_RATIONALE_RULE,
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
@@ -42,6 +44,7 @@ import {
   PURSUIT_COMPARISON_FIELD_JOBS,
   PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
   PURSUIT_INSIGHT_FIELD_LANES,
+  PURSUIT_PANEL_UI_CONTEXT,
   THEME_INSIGHT_FIELD_JOBS,
   THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
@@ -142,18 +145,8 @@ const REFLECT_BENCHMARK_INSIGHT_RUBRIC = [
   "honesty (Move 4), not through fabricated numbers.",
   "Exception — pursuit body only: one qualitative cross-pursuit domain sentence is allowed per PURSUIT body",
   "domain-context rule; standalone pursuit-type domain context belongs in comparison (Worth knowing), not body.",
-  "Exception — pursuit comparison (Worth knowing): qualitative domain context for THIS pursuit belongs there;",
+  "Exception — pursuit comparison (Worth knowing): consequential domain context anchored to this map belongs there;",
   "quantified norms require <benchmark_facts> or other real grounds — do not invent numbers.",
-];
-
-/** Pursuit panel insight only — not whole-map Reading (seasonRead). */
-const PURSUIT_PANEL_MILESTONE_VISIBILITY = [
-  "PURSUIT PANEL — MILESTONE LIST IS ON SCREEN:",
-  "The mobile pursuit sheet shows the milestone list directly below this insight.",
-  "Do NOT restate, enumerate, or quote milestone titles in headline, body, or comparison.",
-  'Do NOT write "next step is X" or "your next milestone is X" when X is already a visible milestone row.',
-  "Read milestones as grounding for trajectory (Move 3): pace, gaps, and what completion implies — without naming row labels.",
-  "Speak to overall progress, what it means, or what is notably missing beyond the checklist the user already sees.",
 ];
 
 function stripMarkdownFence(raw: string): string {
@@ -197,6 +190,10 @@ function buildReflectPursuitsOnlySystemPrompt(
   "",
   USER_RATIONALE_RULE,
   "",
+  PURSUIT_TITLE_REFERENCE_RULE,
+  "",
+  MAP_SPECIFICITY_BAR,
+  "",
   DATE_DEADLINE_ARITHMETIC_RULE,
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
@@ -208,13 +205,13 @@ function buildReflectPursuitsOnlySystemPrompt(
     VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     "OUTPUT:",
-    '- "pursuits": map of pursuitId -> { headline, body, comparison?, clarifiers?, suggestedMilestones?, suggestedContinuations? }',
+    '- "pursuits": map of pursuitId -> { headline, body, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     PURSUIT_INSIGHT_FIELD_LANES,
     PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
     PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
     PURSUIT_COMPARISON_FIELD_JOBS,
-    ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
+    PURSUIT_PANEL_UI_CONTEXT,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
     ...SUGGESTED_MILESTONES_OUTPUT_LINES,
     ...SUGGESTED_CONTINUATIONS_OUTPUT_LINES,
@@ -259,6 +256,10 @@ function buildReflectSystemPrompt(
   "",
   USER_RATIONALE_RULE,
   "",
+  PURSUIT_TITLE_REFERENCE_RULE,
+  "",
+  MAP_SPECIFICITY_BAR,
+  "",
   DATE_DEADLINE_ARITHMETIC_RULE,
     "VOICE ANTI-PATTERNS (pursuit headline/body/comparison):",
     "- Do not open any text with the user's name (\"Alex, ...\").",
@@ -268,7 +269,7 @@ function buildReflectSystemPrompt(
     VOICE_EVALUATIVE_ANTI_PATTERNS,
     "",
     "OUTPUT:",
-    '- "pursuits": map of pursuitId -> { headline, body, comparison?, clarifiers?, suggestedMilestones?, suggestedContinuations? }',
+    '- "pursuits": map of pursuitId -> { headline, body, comparison?, clarifiers?, suggestedMilestones? }',
     "  Pursuit tone is assigned server-side from map signals — do not set tone.",
     "  headline <= 100 chars; body 2-4 sentences, <= 500 chars — direct declarative prose, not chatbot narration.",
     "  Do NOT embed section labels inside body — use the structured comparison field (Worth knowing); the mobile UI adds labels.",
@@ -276,7 +277,7 @@ function buildReflectSystemPrompt(
     PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
     PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
     PURSUIT_COMPARISON_FIELD_JOBS,
-    ...PURSUIT_PANEL_MILESTONE_VISIBILITY,
+    PURSUIT_PANEL_UI_CONTEXT,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
     ...SUGGESTED_MILESTONES_OUTPUT_LINES,
     ...SUGGESTED_CONTINUATIONS_OUTPUT_LINES,
@@ -307,6 +308,7 @@ async function loadReflectPursuitSlotContexts(
       status: true,
       completedAt: true,
       significance: true,
+      background: true,
       enrichAnswers: true,
       themeId: true,
     },
@@ -328,6 +330,7 @@ async function loadReflectPursuitSlotContexts(
           ? Math.min(5, Math.max(1, Math.round(goal.significance)))
           : null,
       enrichAnswers,
+      background: goal.background,
       quickQuestionsQuietUntil: cachedQuietUntilByPursuit[goal.id],
       siblingGoalIds: [],
       existingRelationshipPeerIds,
@@ -344,7 +347,7 @@ async function loadPursuitSignals(userId: string, pursuitIds: string[]): Promise
     select: {
       id: true,
       title: true,
-      description: true,
+      background: true,
       enrichAnswers: true,
       deadline: true,
       status: true,

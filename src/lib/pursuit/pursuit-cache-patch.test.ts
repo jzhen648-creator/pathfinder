@@ -1,36 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPursuitCachePayload,
-  resolveReflectSuggestedContinuations,
+  resolveReflectSuggestedMilestones,
 } from "@/lib/pursuit/pursuit-cache-patch";
 
-describe("resolveReflectSuggestedContinuations", () => {
-  it("returns empty for non-complete pursuits", () => {
+describe("resolveReflectSuggestedMilestones", () => {
+  it("returns null when milestones are not allowed", () => {
     expect(
-      resolveReflectSuggestedContinuations({
-        fresh: [{ title: "Next thing", rationale: "Because." }],
-        goalStatus: "ACTIVE",
-        allMapTitles: [],
+      resolveReflectSuggestedMilestones({
+        fresh: [{ title: "Step one", order: 0 }],
+        cached: undefined,
+        mapMilestones: [],
+        allowed: false,
       }),
-    ).toEqual([]);
-  });
-
-  it("strips suggestions that already exist on the map", () => {
-    expect(
-      resolveReflectSuggestedContinuations({
-        fresh: [
-          { title: "CeMAP practice", rationale: "Follow-on." },
-          { title: "New advisory firm", rationale: "Different." },
-        ],
-        goalStatus: "COMPLETE",
-        allMapTitles: ["CeMAP Practice"],
-      }),
-    ).toEqual([{ title: "New advisory firm", rationale: "Different." }]);
+    ).toBeNull();
   });
 });
 
 describe("buildPursuitCachePayload", () => {
-  it("includes suggestedContinuations as cache-worthy content", () => {
+  it("does not write suggestedContinuations to cache", () => {
     const payload = buildPursuitCachePayload({
       clarifiers: [],
       insight: {
@@ -42,8 +30,7 @@ describe("buildPursuitCachePayload", () => {
       suggestedContinuations: [{ title: "Advisory practice", rationale: "Natural next." }],
     });
 
-    expect(payload?.suggestedContinuations).toEqual([
-      { title: "Advisory practice", rationale: "Natural next." },
-    ]);
+    expect(payload?.suggestedContinuations).toBeUndefined();
+    expect(payload?.headline).toBe("Done");
   });
 });

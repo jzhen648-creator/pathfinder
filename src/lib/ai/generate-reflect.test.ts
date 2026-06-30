@@ -152,7 +152,8 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
       "When age AND location are in user context, include fromMap and/or comparison fields",
     );
 
-    expect(full).toContain("PURSUIT PANEL — MILESTONE LIST IS ON SCREEN");
+    expect(full).toContain("PURSUIT PANEL — WHAT THE READER ALREADY SEES");
+    expect(scoped).toContain("PURSUIT PANEL — WHAT THE READER ALREADY SEES");
     expect(scoped).toContain("Do NOT restate, enumerate, or quote milestone titles");
     expect(scoped).toContain("MUST return 1-6 chronological outcome waypoints");
     expect(scoped).toContain("PURSUIT CONTEXT PRECEDENCE");
@@ -162,7 +163,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
   it("full-scope prompt steers theme synthesis as reflective-only", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
     expect(full).toContain('{ tone, oneLiner, reflective }');
-    expect(full).toContain("FROM YOUR MAP — endogenous map facts only");
+    expect(full).toContain("FROM YOUR MAP — within-theme relationships the oneLiner did not state");
     expect(full).toContain("map_context and a fact the user entered there");
     expect(full).toContain("Relate pursuits to each other within the theme");
     expect(full).toContain("THEME OUTPUT (reflect path — map-only)");
@@ -198,10 +199,12 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     for (const prompt of [full, scoped]) {
       expect(prompt).toContain("PURSUIT INSIGHT FIELD LANES");
       expect(prompt).toContain("PURSUIT body — optional cross-pursuit domain context (qualitative only)");
-      expect(prompt).toContain("what this pursuit type is");
+      expect(prompt).toContain("standalone \"what this pursuit type is\"");
       expect(prompt).toContain("AT MOST ONE sentence");
       expect(prompt).toContain("Exception — pursuit body only");
-      expect(prompt).toContain("standalone pursuit-type domain context belongs in comparison");
+      expect(prompt).toContain("consequential domain context anchored to this map");
+      expect(prompt).toContain("MAP SPECIFICITY:");
+      expect(prompt).toContain("PURSUIT TITLE ON SCREEN:");
       expect(prompt).toContain("Never invent pursuits or connections not in the data");
       expect(prompt).toContain("Name pursuits VERBATIM from map context");
     }
@@ -214,7 +217,8 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     for (const prompt of [full, scoped]) {
       expect(prompt).toContain('{ headline, body, comparison?, clarifiers?, suggestedMilestones? }');
       expect(prompt).toContain("Worth knowing ·");
-      expect(prompt).toContain("Do NOT borrow another pursuit's progress story");
+      expect(prompt).toContain("consequential domain context");
+      expect(prompt).toContain("bare definitional gloss");
       expect(prompt).not.toContain("fromMap");
     }
   });
@@ -244,7 +248,7 @@ describe("buildReflectMilestoneOptions", () => {
         "p-rich",
         {
           title: "CeMAP qualification",
-          description: "x".repeat(80),
+          backgroundChars: 80,
           enrichAnswerCount: 0,
           milestoneCount: 0,
           completedMilestoneCount: 0,
@@ -257,7 +261,7 @@ describe("buildReflectMilestoneOptions", () => {
         "p-full",
         {
           title: "Already has three milestones",
-          description: "Plenty of context",
+          backgroundChars: 0,
           enrichAnswerCount: 2,
           milestoneCount: 3,
           completedMilestoneCount: 0,
@@ -270,7 +274,7 @@ describe("buildReflectMilestoneOptions", () => {
         "p-sparse",
         {
           title: "Hi",
-          description: "",
+          backgroundChars: 0,
           enrichAnswerCount: 0,
           milestoneCount: 0,
           completedMilestoneCount: 0,

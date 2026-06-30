@@ -34,7 +34,6 @@ export type FormattedMapMark = {
 export type FormattedMapPursuit = {
   id: string;
   title: string;
-  description: string;
   /** Structured quick-question answers — authoritative QQ store for AI context. */
   enrichAnswers?: Array<{
     clarifierId: string;
@@ -66,8 +65,8 @@ export type FormattedMapPursuit = {
   completedAt?: string;
   /** ISO calendar date when pursuit span begins (always set from formatMapContext; optional on hand-built fixtures). */
   timelineStart?: string;
-  /** User-authored reasoning — omitted when unset or empty. */
-  rationale?: string;
+  /** User-authored background — omitted when unset or empty. */
+  background?: string;
 };
 
 export type FormattedMapContext = {
@@ -129,8 +128,7 @@ export function buildPursuitRow(
   goal: {
     id: string;
     title: string;
-    description: string | null;
-    rationale?: string | null;
+    background?: string | null;
     enrichAnswers?: unknown;
     status: string;
     significance: number | null;
@@ -151,7 +149,6 @@ export function buildPursuitRow(
   const pursuit: FormattedMapPursuit = {
     id: goal.id,
     title: goal.title,
-    description: goal.description?.trim() ?? "",
     status: goal.status,
     milestones: goal.milestones.map((milestone) => {
       const row: FormattedMapPursuit["milestones"][number] = {
@@ -191,8 +188,8 @@ export function buildPursuitRow(
   const enrichAnswers = serializeEnrichAnswersForMapContext(goal.enrichAnswers);
   if (enrichAnswers) pursuit.enrichAnswers = enrichAnswers;
 
-  if (goal.rationale && goal.rationale.trim().length > 0) {
-    pursuit.rationale = goal.rationale;
+  if (goal.background && goal.background.trim().length > 0) {
+    pursuit.background = goal.background;
   }
 
   return pursuit;
@@ -207,8 +204,7 @@ function pursuitStatusWhere(filter: MapContextFilter) {
 const goalSelect = {
   id: true,
   title: true,
-  description: true,
-  rationale: true,
+  background: true,
   enrichAnswers: true,
   status: true,
   significance: true,

@@ -13,7 +13,6 @@ import { prisma } from "@/lib/prisma";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 import {
   appendPursuitContextEntryAndSync,
-  syncGoalDescriptionFromLog,
 } from "@/lib/pursuit/pursuit-context-log";
 
 type RouteProps = {
@@ -94,9 +93,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     targetAmount?: number | null;
     unit?: string | null;
     amountBasis?: string | null;
-    rationale?: string | null;
+    background?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
+  // Retired pending post-TestFlight cleanup — no live readers/writers.
   const descriptionPatch =
     input.description !== undefined ? input.description.trim() : undefined;
   if (descriptionPatch !== undefined && descriptionPatch !== existing.description.trim()) {
@@ -138,7 +138,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (input.targetAmount !== undefined) data.targetAmount = input.targetAmount;
   if (input.unit !== undefined) data.unit = input.unit?.trim() || null;
   if (input.amountBasis !== undefined) data.amountBasis = input.amountBasis;
-  if (input.rationale !== undefined) data.rationale = input.rationale;
+  if (input.background !== undefined) data.background = input.background;
   if (input.completedAt !== undefined) {
     data.completedAt = new Date(`${input.completedAt}T00:00:00.000Z`);
   }
@@ -177,6 +177,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     },
   });
 
+  // Retired pending post-TestFlight cleanup — no live readers/writers.
   if (
     descriptionPatch !== undefined &&
     descriptionPatch !== existing.description.trim()

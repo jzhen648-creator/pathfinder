@@ -8,7 +8,7 @@ import {
 
 export type PursuitToneGoalInput = {
   title: string;
-  description: string | null;
+  background?: string | null;
   enrichAnswers: unknown;
   status: string;
   significance: number | null;
@@ -36,7 +36,6 @@ function toFormattedMapPursuitSlice(goal: PursuitToneGoalInput): FormattedMapPur
   const pursuit: FormattedMapPursuit = {
     id: "tone-resolve",
     title: goal.title,
-    description: goal.description?.trim() ?? "",
     status: goal.status,
     significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
     milestones: goal.milestones.map((milestone, index) => {

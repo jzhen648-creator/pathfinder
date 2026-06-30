@@ -188,9 +188,7 @@ export async function pruneMootPendingClarifiersOnStatusChange(
   if (newStatus === "PAUSED") {
     clarifiers = [];
   } else if (newStatus === "COMPLETE") {
-    clarifiers = pending.filter(
-      (c) => isRetrospectiveClarifier(c) || clarifierKind(c) === "suggest_add",
-    );
+    clarifiers = pending.filter((c) => isRetrospectiveClarifier(c));
   } else {
     clarifiers = pending.filter((c) => isForwardClarifier(c));
   }

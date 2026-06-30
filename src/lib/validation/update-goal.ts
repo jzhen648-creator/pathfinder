@@ -14,8 +14,8 @@ export const updateGoalPayloadSchema = z
   .object({
     title: z.string().optional(),
     description: z.string().optional(),
-    /** User-authored reasoning; `null` clears. Stored exactly as typed — max 1000 chars. */
-    rationale: z.string().max(1000).nullable().optional(),
+    /** User-authored background; `null` clears. Stored exactly as typed — max 1000 chars. */
+    background: z.string().max(1000).nullable().optional(),
     /** 1–5 when set; null clears user significance. */
     significance: z.coerce.number().int().nullable().optional(),
     /** Explicit swimlane start; `null` clears override (falls back to createdAt). */
@@ -45,7 +45,7 @@ export const updateGoalPayloadSchema = z
     const hasField =
       data.title !== undefined ||
       data.description !== undefined ||
-      data.rationale !== undefined ||
+      data.background !== undefined ||
       data.significance !== undefined ||
       data.timelineStart !== undefined ||
       data.deadline !== undefined ||
@@ -90,11 +90,11 @@ export const updateGoalPayloadSchema = z
         path: ["description"],
       });
     }
-    if (data.rationale != null && data.rationale !== undefined && data.rationale.length > 1000) {
+    if (data.background != null && data.background !== undefined && data.background.length > 1000) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Rationale must be at most 1000 characters",
-        path: ["rationale"],
+        message: "Background must be at most 1000 characters",
+        path: ["background"],
       });
     }
     if (

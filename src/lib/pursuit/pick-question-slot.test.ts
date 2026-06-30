@@ -6,10 +6,11 @@ import {
   RETROSPECTIVE_CLARIFIER_ID_PREFIX,
 } from "@/lib/pursuit/pick-question-slot";
 import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
+import type { Clarifier } from "@/lib/pursuit/pursuit-enrich-types";
 
 const thinSignal: PursuitSignal = {
   title: "Project",
-  description: "Short",
+  backgroundChars: 0,
   enrichAnswerCount: 0,
   milestoneCount: 0,
   completedMilestoneCount: 0,
@@ -45,6 +46,17 @@ describe("pickQuestionSlotForPursuit", () => {
     ).toBe("none");
   });
 
+  it("returns none for COMPLETE when user freeform is set", () => {
+    expect(
+      pickQuestionSlotForPursuit({
+        ...baseCtx,
+        status: "COMPLETE",
+        completedAt: new Date(),
+        background: "Finished because the goal was met.",
+      }),
+    ).toBe("none");
+  });
+
   it("returns retrospective for COMPLETE before a retro answer exists", () => {
     expect(
       pickQuestionSlotForPursuit({
@@ -55,7 +67,7 @@ describe("pickQuestionSlotForPursuit", () => {
     ).toBe("retrospective");
   });
 
-  it("returns suggest_add after retrospective is answered on recently complete pursuit", () => {
+  it("returns none after retrospective is answered on recently complete pursuit", () => {
     expect(
       pickQuestionSlotForPursuit({
         ...baseCtx,
@@ -69,7 +81,7 @@ describe("pickQuestionSlotForPursuit", () => {
           },
         ],
       }),
-    ).toBe("suggest_add");
+    ).toBe("none");
   });
 
   it("returns clarify for ACTIVE and MAINTAINING", () => {
@@ -84,7 +96,7 @@ describe("pickQuestionSlotForPursuit", () => {
         status: "ACTIVE",
         signal: {
           title: "Save for house deposit",
-          description: "",
+          backgroundChars: 0,
           enrichAnswerCount: 0,
           milestoneCount: 0,
           completedMilestoneCount: 0,
@@ -115,16 +127,16 @@ describe("filterClarifiersForQuestionSlot", () => {
     expect(filtered.map((c) => c.id)).toEqual(["a", "b", "c", "d", "e", "f"]);
   });
 
-  it("keeps one suggest_add only", () => {
+  it("drops retired suggest_add clarifiers from clarify slot", () => {
     const filtered = filterClarifiersForQuestionSlot(
       [
-        { id: "a", prompt: "Add?", options: ["Yes", "No thanks"], kind: "suggest_add", suggestedTitle: "Next" },
-        { id: "b", prompt: "Other?", options: ["A", "B"], kind: "suggest_add", suggestedTitle: "Other" },
+        { id: "a", prompt: "Add?", options: ["Yes", "No thanks"], kind: "suggest_add" } as unknown as Clarifier,
+        { id: "b", prompt: "Q?", options: ["A", "B"], kind: "clarify" },
       ],
-      "suggest_add",
+      "clarify",
     );
     expect(filtered).toHaveLength(1);
-    expect(filtered[0]?.id).toBe("a");
+    expect(filtered[0]?.id).toBe("b");
   });
 
   it("returns empty for none slot", () => {

@@ -178,13 +178,11 @@ export function normalizePursuitEnrichEntry(entry: unknown): Record<string, unkn
 
   const clarifiers = normalizeClarifiers(row.clarifiers);
   const suggestedMilestones = normalizeSuggestedMilestones(row.suggestedMilestones);
-  const suggestedContinuations = normalizeSuggestedContinuations(row.suggestedContinuations);
 
   return {
     clarifiers,
     insight,
     suggestedMilestones,
-    suggestedContinuations,
   };
 }
 

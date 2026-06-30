@@ -24,6 +24,7 @@ import { activateCategoryForUser } from "@/lib/system-categories";
 import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 import { appendPursuitContextEntryAndSync } from "@/lib/pursuit/pursuit-context-log";
+import { createPursuitRelationshipForUser } from "@/lib/pursuit/apply-pursuit-relationship";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -200,6 +201,7 @@ export async function POST(request: Request) {
     });
 
     if (description) {
+      // Retired pending post-TestFlight cleanup — no live readers/writers.
       await appendPursuitContextEntryAndSync(userId, goal.id, {
         kind: "create",
         text: description,

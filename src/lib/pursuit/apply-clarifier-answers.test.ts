@@ -47,7 +47,7 @@ const GOAL_ID = "p-cemap";
 
 const activeSignal: PursuitSignal = {
   title: "CeMAP qualification",
-  description: "Broker route",
+  backgroundChars: 0,
   enrichAnswerCount: 1,
   milestoneCount: 2,
   completedMilestoneCount: 1,

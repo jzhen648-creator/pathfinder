@@ -31,12 +31,12 @@ export const CLARIFIER_MILESTONE_GROUNDING = [
   '- Wrong: "Where are you in the job search?" when milestones can track application and interview steps.',
   "- Prefer durable interpretation context (see DURABLE CONTEXT) over progress-stage snapshots.",
   "- Prefer questions about what is NOT yet captured — the next unknown, not what the map already proves.",
-  "- If every plausible question is already answered by milestones, structured fields, or enrichAnswers, return an empty clarifiers array.",
+  "- If every plausible question is already answered by milestones, structured fields, background, or enrichAnswers, return an empty clarifiers array.",
 ].join("\n");
 
 export const CLARIFIER_GENERATION_PRINCIPLE = [
   "GENERATION PRINCIPLE (works for ANY pursuit — rental property, relationship goal, car, qualification, anything):",
-  "Reason from world knowledge about THIS pursuit's title, theme, status, milestones, description, and enrichAnswers.",
+  "Reason from world knowledge about THIS pursuit's title, theme, status, milestones, background, and enrichAnswers.",
   "Ask the single highest-value missing fact that would most change how this pursuit should be read.",
   "Do NOT pattern-match a fixed catalog of example domains — the examples below illustrate the MOVE only.",
   "",
@@ -99,23 +99,8 @@ export const SUGGESTED_MILESTONES_OUTPUT_LINES = [
   "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline.",
 ];
 
-/** Suggested successor pursuits for COMPLETE pursuits only — reflect output. */
-export const SUGGESTED_CONTINUATIONS_OUTPUT_LINES = [
-  "## Suggested continuations (Complete pursuits only)",
-  "",
-  "For any pursuit with status COMPLETE, you may suggest up to 2 natural successor pursuits in suggestedContinuations. Each has:",
-  "- title: a specific, concrete pursuit name (not generic advice), max 80 chars",
-  "- rationale: one sentence explaining why this follows naturally from what was completed, max 200 chars",
-  "",
-  "Rules:",
-  "- Only for COMPLETE pursuits. Never for ACTIVE, PAUSED, or MAINTAINING — return [] for those.",
-  "- Check the full map before suggesting — do NOT suggest a pursuit that already exists under any title in any theme. If the natural successor is already on the map, skip it.",
-  "- Suggestions must be grounded in what the user actually completed, not generic life advice.",
-  "- Not every Complete pursuit needs a continuation. Some things are simply done. Return an empty array when nothing naturally follows.",
-  "- Never suggest re-doing the same pursuit. Completion is completion.",
-  "- Suggest at the same granularity as the completed pursuit (multi-week to life-chapter scale, not tasks or habits).",
-  "- suggestedContinuations: optional array, max 2 items; default [] when not applicable.",
-];
+/** Suggested successor pursuits — retired; map placement + status carry succession. */
+export const SUGGESTED_CONTINUATIONS_OUTPUT_LINES: string[] = [];
 
 export const CONTEXTUAL_QUICK_QUESTIONS = [
   "CONTEXTUAL QUICK QUESTIONS:",
@@ -135,7 +120,7 @@ export function buildClarifierSystemOutputLines(): string[] {
   return [
     `- clarifiers: 0-${CLARIFIER_INITIAL_BATCH} multiple-choice questions per pursuit when the user message requests a quick-question slot.`,
     "  Each clarifier: id (short slug), prompt, options (3-4 specific labels), optional kind.",
-    "  Kinds: clarify (default forward-looking), retrospective (COMPLETE pursuits — what finishing unlocked), suggest_add (follow-on pursuit — only when user message requests that slot).",
+    "  Kinds: clarify (default forward-looking), retrospective (COMPLETE pursuits — what finishing unlocked).",
     "  Return [] when no high-value gap remains — significance scales count; never barrel-scrape.",
     CONTEXTUAL_QUICK_QUESTIONS,
   ];

@@ -2,8 +2,8 @@
 
 export const THEME_INSIGHT_NON_DUPLICATION = [
   "THEME NON-DUPLICATION:",
-  "- oneLiner = one complete theme headline sentence; reflective = supporting map facts the headline did not state.",
-  "- Each line adds new information: oneLiner names the theme bottleneck or what is carrying it; reflective holds map facts the headline did not state.",
+  "- oneLiner = one complete theme headline sentence; reflective = cross-pursuit relationships and tensions the headline did not state.",
+  "- Each line adds new information: oneLiner names the theme bottleneck or what is carrying it; reflective holds within-theme links the headline did not state.",
   "- Ban meta UI copy: never \"confirmed relationships on your map\", \"your map shows\", or \"the app sees\".",
 ].join("\n");
 
@@ -15,10 +15,12 @@ export const THEME_INSIGHT_FIELD_JOBS = [
   "  must never trail off mid-phrase. Name what is carrying this theme or where the bottleneck sits",
   "  (not a pursuit-by-pursuit summary).",
   "",
-  "  reflective (UI: FROM YOUR MAP — endogenous map facts only):",
-  "  - Statuses, deadlines, completions, and within-theme tensions between pursuits (<= 800 chars).",
+  "  reflective (UI: FROM YOUR MAP — within-theme relationships the oneLiner did not state):",
+  "  - How pursuits in this theme support, compete, or sequence — tensions and links, not a status/date inventory",
+  "    the reader can read off pursuit rows or the meta strip (<= 800 chars).",
   "  - Name specific pursuits when data supports it; do not inventory every row.",
-  "  - Each sentence anchors to a pursuit title from map_context and a fact the user entered there — status, deadline, milestone completion, target amount, current amount, or enrichAnswer.",
+  "  - Each sentence anchors to a pursuit title from map_context and a fact the user entered there —",
+  "    deadline, milestone completion, target amount, current amount, enrichAnswer, or how two pursuits relate.",
   "  - Relate pursuits to each other within the theme using only those entered facts; if a sentence would read the same on another user's map, rewrite it from their pursuit titles and entries.",
   THEME_INSIGHT_NON_DUPLICATION,
   "  Do not repeat pursuit-panel execution copy in theme insights — pursuit sheets own per-pursuit velocity.",
@@ -30,22 +32,34 @@ export const THEME_REFLECT_OUTPUT_CONTRACT = [
   '- "themes": map of themeId -> { tone, oneLiner, reflective } only.',
   '- contextual and combined MUST be empty strings "" — do not generate theme benchmarks,',
   "  cross-pursuit world-knowledge, or population norms on reflect.",
-  "- Pursuit comparison (Worth knowing) owns per-pursuit domain gloss; theme Reading is synthesis from map facts only.",
+  "- Pursuit comparison (Worth knowing) owns per-pursuit consequential domain context; theme Reading is synthesis from map facts only.",
+].join("\n");
+
+export const PURSUIT_PANEL_UI_CONTEXT = [
+  "PURSUIT PANEL — WHAT THE READER ALREADY SEES:",
+  "- Full pursuit title in the header directly above the insight.",
+  "- Status label (Complete, Active, Paused, …) in the meta strip between the insight and the tabs.",
+  "- Status, deadline, and significance in the About details row.",
+  "- Milestone row titles on the Milestones tab (below the insight when browsing).",
+  "Write for someone who has just read those — headline and body add what those surfaces do not.",
+  "Do NOT restate, enumerate, or quote milestone titles in headline, body, or comparison.",
+  'Do NOT write "next step is X" or "your next milestone is X" when X is already a visible milestone row.',
+  "Read milestones as grounding for trajectory: pace, gaps, and what completion implies — without naming row labels.",
 ].join("\n");
 
 export const PURSUIT_CONTEXT_TAB_NON_DUPLICATION = [
   "PURSUIT CONTEXT TAB NON-DUPLICATION:",
   "- enrichAnswers (Quick Question answers) appear on the pursuit Context tab — the user already sees prompt + selectedOption there.",
   "- Do NOT restate enrichAnswers in headline, body, or comparison (no listing supplements, routes, or options the user already confirmed).",
-  "- comparison (Worth knowing) may add domain gloss FOR those facts (what protein/creatine/ashwagandha are generally for)",
+  "- comparison (Worth knowing) may add consequential domain gloss FOR those facts (what that stack opens for their training pursuit)",
   "  without repeating that the user takes them.",
   "- body uses enrichAnswers only for cross-pursuit tension on the map — never as a glossary of the answers themselves.",
 ].join("\n");
 
 export const PURSUIT_INSIGHT_FIELD_LANES = [
   "PURSUIT INSIGHT FIELD LANES:",
-  "- headline: the single sharpest STATE fact right now — what is most salient about this pursuit's present position",
-  "  (not the Status / Deadline / Significance labels; the Details row owns those).",
+  "- headline: the sharpest fact the reader does not already have from the title, meta strip, or Details row —",
+  "  what is most salient about this pursuit's present position right now.",
   "- body: MAP-RELATIONSHIPS — how this pursuit sits against OTHER pursuits on the map, what led to it,",
   "  within-theme tension, cross-pursuit competition or support.",
   "  Do NOT restate the headline's fact in the body.",
@@ -71,14 +85,17 @@ export const PURSUIT_BODY_DOMAIN_CONTEXT_RULE = [
 /** JSON key `comparison` is historical; UI label is Worth knowing per INSIGHT-CARD-REDESIGN-SPEC.md. */
 export const PURSUIT_COMPARISON_FIELD_JOBS = [
   "PURSUIT comparison field (JSON key historical; UI label: Worth knowing ·):",
-  "- Worth knowing = domain insight the map does NOT contain — what this pursuit type is, what the role or goal",
-  "  involves, qualifications in the field, market demand, what it opens up. Qualitative parametric knowledge",
-  "  is encouraged when substantive and defensible.",
-  "- Body owns map-relationships and cross-pursuit angles; worth-knowing owns standalone domain context for THIS pursuit.",
+  "- Worth knowing = consequential domain context the map does NOT contain — what this pursuit opens, positions",
+  "  the user for, or makes notable given their category, background, enrichAnswers, trajectory, or sibling pursuits.",
+  "- On-spec: ties domain knowledge to THIS user's map (\"CeMAP unlocks lender-panel advising between your",
+  "  qualification pursuit and any broker move on the map\").",
+  "- Off-spec: bare definitional gloss with no link to their situation (\"mortgage broker roles involve sourcing",
+  "  cases across lenders\"). If the only available domain note would be generic/definitional, omit comparison.",
+  "- Body owns map-relationships and cross-pursuit angles; worth-knowing owns consequential domain context for THIS pursuit.",
   "- Do NOT restate enrichAnswers (Context tab) — interpret them with domain gloss only; never list what the user already confirmed.",
   "- Do NOT restate Status, Deadline, Significance, or milestone progress (Details row + body own those).",
   "- Do NOT borrow another pursuit's progress story — e.g. on a broker-role card, do NOT restate a sibling",
-  "  qualification's completion timeline; describe the broker role/market and what CeMAP opens across lenders.",
+  "  qualification's completion timeline; say what the broker role opens given their map.",
   "- DESCRIPTIVE only — never prescriptive: no \"you should\", \"consider\", \"I recommend\", imperative openings.",
   "- Quantified population norms: use <benchmark_facts>, age, location, and pursuit quantified fields when present;",
   "  do NOT invent statistics, percentiles, or timelines not in <benchmark_facts>.",

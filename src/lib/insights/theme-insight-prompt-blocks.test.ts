@@ -29,7 +29,7 @@ describe("theme-insight-prompt-blocks", () => {
 
   it("defines worth-knowing remit on the historical comparison field", () => {
     expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("Worth knowing ·");
-    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("domain insight the map does NOT contain");
+    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("consequential domain context the map does NOT contain");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("Do NOT borrow another pursuit's progress story");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("<benchmark_facts>");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).not.toContain("Population / typical-norm benchmark");

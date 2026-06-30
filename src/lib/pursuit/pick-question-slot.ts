@@ -7,13 +7,14 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import {
   clarifierKind,
+  filterActiveClarifiers,
   type Clarifier,
   type EnrichAnswer,
   type PursuitEnrichResult,
 } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
-export type QuestionSlot = "none" | "clarify" | "retrospective" | "suggest_add";
+export type QuestionSlot = "none" | "clarify" | "retrospective";
 
 /** Retrospective clarifier ids use this prefix so sequencing survives without new DB fields. */
 export const RETROSPECTIVE_CLARIFIER_ID_PREFIX = "retro-";
@@ -24,6 +25,8 @@ export type QuestionSlotContext = {
   completedAt: Date | null;
   significance: number | null;
   enrichAnswers: EnrichAnswer[];
+  /** User freeform prose (`Goal.background`) — suppresses retrospective when set. */
+  background?: string | null;
   quickQuestionsQuietUntil?: string | null;
   siblingGoalIds: string[];
   existingRelationshipPeerIds: string[];
@@ -52,9 +55,13 @@ export function pickQuestionSlotForPursuit(ctx: QuestionSlotContext): QuestionSl
   }
 
   if (status === "COMPLETE") {
+    if (ctx.background?.trim()) {
+      return "none";
+    }
     const recentlyComplete = isRecentlyCompletedPursuit(status, ctx.completedAt);
     if (recentlyComplete && hasRetrospectiveEnrichAnswer(ctx.enrichAnswers)) {
-      return "suggest_add";
+      // Successor ideas are implicit in map placement + status.
+      return "none";
     }
     return "retrospective";
   }
@@ -72,13 +79,10 @@ export function filterClarifiersForQuestionSlot(
     return [];
   }
 
-  if (slot === "suggest_add") {
-    const tagged = clarifiers.filter((c) => clarifierKind(c) === "suggest_add");
-    return tagged.length > 0 ? [tagged[0]!] : [];
-  }
-
   if (slot === "retrospective") {
-    const tagged = clarifiers.filter((c) => clarifierKind(c) === "retrospective");
+    const tagged = filterActiveClarifiers(clarifiers).filter(
+      (c) => clarifierKind(c) === "retrospective",
+    );
     if (tagged.length > 0) return tagged.slice(0, maxOutput);
     const legacyRetro = clarifiers.filter((c) =>
       c.id.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX),
@@ -87,8 +91,8 @@ export function filterClarifiersForQuestionSlot(
     return [];
   }
 
-  // clarify slot — forward-looking only; exclude retrospective and suggest_add.
-  const forward = clarifiers.filter((c) => {
+  // clarify slot — forward-looking only; exclude retrospective and retired kinds.
+  const forward = filterActiveClarifiers(clarifiers).filter((c) => {
     const kind = clarifierKind(c);
     return (
       (kind === "clarify" || !c.kind) &&
@@ -152,16 +156,6 @@ export function questionSlotUserMessageLines(
     if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
       lines.push("Cooldown active — return clarifiers: [].");
     }
-    return lines;
-  }
-
-  if (slot === "suggest_add") {
-    lines.push(
-      'Generate exactly one suggest_add clarifier (kind: "suggest_add") proposing a natural follow-on pursuit.',
-      "Retrospective questions should already be answered — do not generate retrospective or forward clarify questions.",
-      "Include suggestedTitle and suggestedCategoryId from scoped context taxonomy.",
-      'Options must include "No thanks".',
-    );
     return lines;
   }
 

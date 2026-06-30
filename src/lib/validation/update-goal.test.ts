@@ -23,22 +23,22 @@ describe("updateGoalPayloadSchema timelineStart", () => {
   });
 });
 
-describe("updateGoalPayloadSchema rationale", () => {
-  it("accepts null to clear rationale", () => {
-    const parsed = updateGoalPayloadSchema.safeParse({ rationale: null });
+describe("updateGoalPayloadSchema background", () => {
+  it("accepts null to clear background", () => {
+    const parsed = updateGoalPayloadSchema.safeParse({ background: null });
     expect(parsed.success).toBe(true);
   });
 
   it("accepts a string up to 1000 characters", () => {
-    const parsed = updateGoalPayloadSchema.safeParse({ rationale: "a".repeat(1000) });
+    const parsed = updateGoalPayloadSchema.safeParse({ background: "a".repeat(1000) });
     expect(parsed.success).toBe(true);
   });
 
   it("rejects a string over 1000 characters", () => {
-    const parsed = updateGoalPayloadSchema.safeParse({ rationale: "a".repeat(1001) });
+    const parsed = updateGoalPayloadSchema.safeParse({ background: "a".repeat(1001) });
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
-      expect(parsed.error.issues.some((issue) => issue.path.includes("rationale"))).toBe(true);
+      expect(parsed.error.issues.some((issue) => issue.path.includes("background"))).toBe(true);
     }
   });
 });

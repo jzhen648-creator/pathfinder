@@ -15,7 +15,7 @@ function row(
 ): DirtyPursuitPriorityRow {
   const signal: PursuitSignal = {
     title: "Pursuit",
-    description: "",
+    backgroundChars: 0,
     enrichAnswerCount: 0,
     milestoneCount: 0,
     completedMilestoneCount: 0,
@@ -67,12 +67,12 @@ describe("compareDirtyPursuitPriority", () => {
 
   it("ranks thin pursuits before rich ones at equal significance", () => {
     const thin = row("thin", {
-      signal: { title: "Hi", description: "", enrichAnswerCount: 0, milestoneCount: 0, completedMilestoneCount: 0, hasDeadline: false, hasQuantifiedTarget: false, status: "ACTIVE" },
+      signal: { title: "Hi", backgroundChars: 0, enrichAnswerCount: 0, milestoneCount: 0, completedMilestoneCount: 0, hasDeadline: false, hasQuantifiedTarget: false, status: "ACTIVE" },
     });
     const rich = row("rich", {
       signal: {
         title: "CeMAP exam",
-        description: "Halfway through units with a June exam date.",
+        backgroundChars: 80,
         enrichAnswerCount: 0,
         milestoneCount: 0,
         completedMilestoneCount: 0,
@@ -114,7 +114,7 @@ describe("sortDirtyPursuitPriorityRows", () => {
           significance: 5,
           signal: {
             title: "Wedding",
-            description: "",
+            backgroundChars: 0,
             enrichAnswerCount: 0,
             milestoneCount: 0,
             completedMilestoneCount: 0,
@@ -130,7 +130,7 @@ describe("sortDirtyPursuitPriorityRows", () => {
           completedAt: new Date("2026-06-01"),
           signal: {
             title: "CeMAP",
-            description: "All three modules passed.",
+            backgroundChars: 80,
             enrichAnswerCount: 0,
             milestoneCount: 0,
             completedMilestoneCount: 0,
@@ -143,7 +143,7 @@ describe("sortDirtyPursuitPriorityRows", () => {
           significance: 4,
           signal: {
             title: "Marathon",
-            description: "Training three times a week for a spring half marathon.",
+            backgroundChars: 80,
             enrichAnswerCount: 0,
             milestoneCount: 0,
             completedMilestoneCount: 0,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { clarifierSchema, suggestedContinuationSchema, suggestedMilestoneSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import { clarifierSchema, suggestedMilestoneSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import { THEME_ONE_LINER_MAX } from "@/lib/ai/normalize-reflect-response";
 import {
   PURSUIT_INSIGHT_BODY_MAX,
@@ -21,7 +21,6 @@ export const reflectPursuitEntrySchema = z.object({
   comparison: z.string().max(PURSUIT_INSIGHT_COMPARISON_MAX).optional(),
   clarifiers: z.array(clarifierSchema).max(3).optional(),
   suggestedMilestones: z.array(suggestedMilestoneSchema).max(6).nullable().optional(),
-  suggestedContinuations: z.array(suggestedContinuationSchema).max(2).optional(),
 });
 
 export const reflectThemeEntrySchema = z.object({

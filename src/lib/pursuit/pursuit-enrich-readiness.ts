@@ -1,4 +1,5 @@
 import type { PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
+import { filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
@@ -39,7 +40,7 @@ export function resolveQuickQuestionsQuietUntilAfterGeneration(input: {
 
 export type PursuitSignal = {
   title: string;
-  description: string;
+  backgroundChars: number;
   enrichAnswerCount: number;
   milestoneCount: number;
   completedMilestoneCount: number;
@@ -55,7 +56,7 @@ function parseEnrichAnswerCount(raw: unknown): number {
 
 export function pursuitSignalFromGoal(goal: {
   title: string;
-  description: string | null;
+  background?: string | null;
   enrichAnswers: unknown;
   deadline: Date | null;
   status: string;
@@ -65,7 +66,7 @@ export function pursuitSignalFromGoal(goal: {
   const milestones = goal.milestones ?? [];
   return {
     title: goal.title,
-    description: goal.description ?? "",
+    backgroundChars: (goal.background ?? "").trim().length,
     enrichAnswerCount: parseEnrichAnswerCount(goal.enrichAnswers),
     milestoneCount: milestones.length,
     completedMilestoneCount: milestones.filter((m) => m.completedAt != null).length,
@@ -81,8 +82,7 @@ export function pursuitSignalFromGoal(goal: {
  * Milestone suggestions use shouldSuggestMilestones — decoupled from this gate.
  */
 export function hasMinimumContextSignal(signal: PursuitSignal): boolean {
-  const contextChars =
-    signal.description.trim().length + signal.enrichAnswerCount * 40;
+  const contextChars = signal.backgroundChars + signal.enrichAnswerCount * 40;
   if (contextChars >= 80) return true;
   if (signal.enrichAnswerCount >= 2) return true;
   if (signal.hasDeadline && signal.title.trim().length >= 8) return true;
@@ -217,6 +217,55 @@ export function gateThemeReflective(
 const PRESCRIPTIVE_WORTH_KNOWING =
   /\b(you should|consider|I recommend|try|add a pursuit)\b/i;
 
+const DEFINITIONAL_WORTH_KNOWING =
+  /\b(typically involves?|roles? involve|what a .+ is|is the standard qualification|are generally|matching clients with|in an estate agency)\b/i;
+
+const CONSEQUENTIAL_WORTH_KNOWING =
+  /\b(opens|unlocks|positions|enables|makes possible|on (?:your|the) map|your .+ pursuit|between your|given your)\b/i;
+
+const TITLE_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "at",
+  "as",
+  "in",
+  "on",
+  "for",
+  "to",
+  "of",
+  "and",
+  "or",
+]);
+
+function significantTitleTokens(title: string): string[] {
+  return title
+    .toLowerCase()
+    .split(/[^a-z0-9£]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !TITLE_STOP_WORDS.has(token));
+}
+
+/** @internal Exported for vitest — encyclopedia-style worth-knowing without map anchor. */
+export function looksLikeDefinitionalWorthKnowing(text: string): boolean {
+  return DEFINITIONAL_WORTH_KNOWING.test(text.trim());
+}
+
+/** @internal Exported for vitest — pursuit/map anchor in worth-knowing copy. */
+export function hasWorthKnowingAnchor(text: string, signal: PursuitSignal): boolean {
+  const lower = text.toLowerCase();
+  if (CONSEQUENTIAL_WORTH_KNOWING.test(lower)) return true;
+  if (/\bon the map\b/.test(lower)) return true;
+
+  // Title-word overlap in definitional gloss still repeats the header — not a map anchor.
+  if (looksLikeDefinitionalWorthKnowing(text)) return false;
+
+  const titleTokens = significantTitleTokens(signal.title);
+  if (titleTokens.length === 0) return false;
+  const matched = titleTokens.filter((token) => lower.includes(token));
+  return matched.length >= Math.min(2, titleTokens.length);
+}
+
 /** Quantified population benchmarks still need benchmark signal; qualitative domain may pass without it. */
 export function looksLikeQuantifiedWorthKnowing(text: string): boolean {
   return /\b(\d+\s*%|\d[\d,]*\s*(?:months?|weeks?|years?|days?)|percentile|median|typical\s+(?:time|prep|is)\s+(?:is\s+)?\d|\d+\s*-\s*\d+\s*(?:months?|weeks?|years?))/i.test(
@@ -236,6 +285,10 @@ export function gatePursuitComparison(
 
   const cleaned = gateThemeContextualContent(text);
   if (!cleaned) return "";
+
+  if (looksLikeDefinitionalWorthKnowing(cleaned) && !hasWorthKnowingAnchor(cleaned, signal)) {
+    return "";
+  }
 
   if (hasPursuitBenchmarkSignal(signal, profile)) return cleaned;
   if (looksLikeQuantifiedWorthKnowing(cleaned)) return "";
@@ -273,7 +326,7 @@ export function gateEnrichResult(
     status === "PAUSED" ||
     isQuickQuestionsQuiet(qqContext?.quickQuestionsQuietUntil)
       ? []
-      : result.clarifiers;
+      : filterActiveClarifiers(result.clarifiers);
 
   const suggestedMilestones = shouldSuggestMilestones(signal)
     ? result.suggestedMilestones
@@ -283,6 +336,5 @@ export function gateEnrichResult(
     clarifiers,
     insight: result.insight,
     suggestedMilestones,
-    suggestedContinuations: result.suggestedContinuations,
   };
 }

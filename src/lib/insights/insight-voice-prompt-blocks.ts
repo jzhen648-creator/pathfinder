@@ -26,15 +26,30 @@ export const ORIENTATION_AS_LENS_RULE = [
   "Treat it like age or location — context that colours framing, never a claimed cause.",
 ].join("\n");
 
-export const USER_RATIONALE_RULE = [
-  "## User rationale",
+export const USER_WORDS_RULE = [
+  "## User-provided context (your words)",
   "",
-  "Some pursuits include a `rationale` field — the user's own words about why this pursuit matters to them. Rules:",
-  "- You may reference it as grounded context: \"you've said this is about...\" or weave the reasoning into your observation naturally.",
-  "- NEVER rewrite, paraphrase into the app's voice, or editorialize on it. The user's words are their words.",
-  "- NEVER use rationale to infer unstated motivation. If the user says \"I'm doing this for financial security,\" do not extrapolate to \"you seem driven by anxiety about money.\"",
-  "- NEVER contradict the user's stated rationale. If they say why they're doing something, that's the truth of their map.",
-  "- If rationale is absent, say nothing about motivation — do not fill the gap.",
+  "Pursuits may include a `background` field (freeform prose) and/or `enrichAnswers` (quick-question selections). Both are the user's own words. Rules:",
+  "- You may reference them as grounded context: \"you've said this is about…\" or weave facts in naturally.",
+  "- NEVER rewrite, paraphrase into the app's voice, or editorialize. The user's words are their words.",
+  "- NEVER use them to infer unstated motivation beyond what they literally said.",
+  "- NEVER contradict stated user context. If they said why or what they're aiming for, that's the truth of their map.",
+  "- If both are absent, say nothing about motivation or unstated goals — do not fill the gap.",
+  "- Quick questions capture factual gaps; background captures broader meaning. Do not ask the model to duplicate either in insight copy.",
+].join("\n");
+
+/** @deprecated Use USER_WORDS_RULE */
+export const USER_RATIONALE_RULE = USER_WORDS_RULE;
+
+export const PURSUIT_TITLE_REFERENCE_RULE = [
+  "PURSUIT TITLE ON SCREEN:",
+  "Refer to pursuits with a short map-native handle (\"the ISA\", \"this role\") — the reader already sees the full title in the header directly above the insight.",
+].join("\n");
+
+export const MAP_SPECIFICITY_BAR = [
+  "MAP SPECIFICITY:",
+  "Every sentence should be specific to this person's map — real pursuit names, numbers, gaps.",
+  "If a sentence could appear in someone else's app, rewrite it from their pursuit titles and entered facts.",
 ].join("\n");
 
 export const DATE_DEADLINE_ARITHMETIC_RULE = [

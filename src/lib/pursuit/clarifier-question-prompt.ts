@@ -15,25 +15,9 @@ const RETROSPECTIVE_CLARIFIER_RULES = [
   "- Read enrichAnswers — do not repeat answered facts.",
 ].join("\n");
 
-const SUGGEST_ADD_CLARIFIER_RULES = [
-  "SUGGEST-ADD CLARIFIERS (only when user message requests slot: suggest_add):",
-  '- At most ONE suggest_add clarifier with kind "suggest_add".',
-  "- Only after retrospective questions are answered on a recently COMPLETE pursuit — propose a natural follow-on pursuit.",
-  "- Required: suggestedTitle (<=100 chars), suggestedCategoryId (valid taxonomy category id from context).",
-  "- Optional: suggestedThemeId when cross-theme.",
-  '- Options must include "No thanks" as an escape hatch.',
-  "- Never auto-create — user picks a map hex after confirming.",
-].join("\n");
-
-/** System-prompt block — relationships are user-authored only; suggest_add rules stay for enrich slot. */
+/** System-prompt block — relationships are user-authored only. */
 export function buildClarifierKindPromptSection(
   _enrichOptions?: PursuitEnrichOptions | null,
 ): string {
-  return [
-    RELATIONSHIP_QUESTIONS_FORBIDDEN,
-    "",
-    RETROSPECTIVE_CLARIFIER_RULES,
-    "",
-    SUGGEST_ADD_CLARIFIER_RULES,
-  ].join("\n");
+  return [RELATIONSHIP_QUESTIONS_FORBIDDEN, "", RETROSPECTIVE_CLARIFIER_RULES].join("\n");
 }

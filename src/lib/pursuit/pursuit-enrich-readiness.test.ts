@@ -14,7 +14,7 @@ import {
 
 const richSignal: PursuitSignal = {
   title: "Build £500k ISA",
-  description: "Monthly contributions from salary",
+  backgroundChars: 0,
   enrichAnswerCount: 2,
   milestoneCount: 2,
   completedMilestoneCount: 1,
@@ -25,7 +25,7 @@ const richSignal: PursuitSignal = {
 
 const thinSignal: PursuitSignal = {
   title: "Learn Spanish",
-  description: "",
+  backgroundChars: 0,
   enrichAnswerCount: 0,
   milestoneCount: 0,
   completedMilestoneCount: 0,
@@ -64,7 +64,7 @@ describe("pursuit-enrich-readiness gates", () => {
     const comparison = "Typical half-marathon prep is 12-16 weeks from a 5k base.";
     const marathonSignal: PursuitSignal = {
       title: "Half marathon",
-      description: "",
+      backgroundChars: 0,
       enrichAnswerCount: 0,
       milestoneCount: 3,
       completedMilestoneCount: 1,
@@ -78,13 +78,17 @@ describe("pursuit-enrich-readiness gates", () => {
     ).toBe(comparison);
   });
 
-  it("gatePursuitComparison keeps qualitative worth-knowing without benchmark signal", () => {
+  it("gatePursuitComparison strips unanchored definitional worth-knowing", () => {
     const brokerRole =
       "Mortgage broker roles involve sourcing cases across lenders; CeMAP is the standard qualification to advise.";
-    expect(gatePursuitComparison(brokerRole, thinSignal)).toBe(brokerRole);
-    expect(gatePursuitComparison(brokerRole, thinSignal, { age: null, location: null })).toBe(
-      brokerRole,
-    );
+    expect(gatePursuitComparison(brokerRole, thinSignal)).toBe("");
+    expect(gatePursuitComparison(brokerRole, thinSignal, { age: null, location: null })).toBe("");
+  });
+
+  it("gatePursuitComparison keeps consequential anchored worth-knowing without benchmark signal", () => {
+    const consequential =
+      "CeMAP unlocks lender-panel advising — it bridges your qualification pursuit and any broker move on the map.";
+    expect(gatePursuitComparison(consequential, thinSignal)).toBe(consequential);
   });
 
   it("gatePursuitComparison strips prescriptive worth-knowing copy", () => {
@@ -102,6 +106,15 @@ describe("pursuit-enrich-readiness gates", () => {
     expect(isHolisticBenchmarkEligible([], { age: 29, location: "London" })).toBe(true);
   });
 
+  it("hasMinimumContextSignal counts background freeform", () => {
+    expect(
+      hasMinimumContextSignal({
+        ...thinSignal,
+        backgroundChars: 80,
+      }),
+    ).toBe(true);
+  });
+
   it("hasMinimumContextSignal counts enrich answers", () => {
     expect(hasMinimumContextSignal(thinSignal)).toBe(false);
     expect(hasMinimumContextSignal(richSignal)).toBe(true);
@@ -110,7 +123,7 @@ describe("pursuit-enrich-readiness gates", () => {
   it("gateEnrichResult keeps clarifiers for deadline+title pursuits (QQ decoupled from richness)", () => {
     const deadlineTitleSignal: PursuitSignal = {
       title: "Save for house deposit",
-      description: "",
+      backgroundChars: 0,
       enrichAnswerCount: 0,
       milestoneCount: 0,
       completedMilestoneCount: 0,

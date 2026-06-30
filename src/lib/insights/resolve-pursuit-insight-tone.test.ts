@@ -6,7 +6,7 @@ import { resolvePursuitInsightTone, type PursuitToneGoalInput } from "@/lib/insi
 function goal(overrides: Partial<PursuitToneGoalInput> = {}): PursuitToneGoalInput {
   return {
     title: "CeMAP qualification",
-    description: null,
+    background: null,
     enrichAnswers: [],
     status: "ACTIVE",
     significance: 4,
@@ -48,7 +48,7 @@ describe("resolvePursuitInsightTone", () => {
         goal({
           significance: 3,
           deadline: new Date("2027-01-01T00:00:00.000Z"),
-          description: "x".repeat(90),
+          background: "x".repeat(90),
           milestones: [{ title: "Step one", completedAt: new Date("2026-06-01T00:00:00.000Z") }],
         }),
         now,

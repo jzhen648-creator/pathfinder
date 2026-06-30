@@ -63,7 +63,6 @@ const twoJobPursuits = [
   {
     id: "a",
     title: "Senior Engineer at Acme",
-    description: "",
     status: "COMPLETE",
     significance: 4,
     completedAt: "2026-08-01",
@@ -76,7 +75,6 @@ const twoJobPursuits = [
   {
     id: "b",
     title: "Product Lead search",
-    description: "",
     status: "ACTIVE",
     significance: 5,
     deadline: "2026-09-01",
@@ -134,7 +132,6 @@ describe("compile-reading-packet", () => {
       {
         id: "w1",
         title: "CeMAP qualification",
-        description: "",
         status: "ACTIVE",
         significance: 5,
         deadline: "2026-06-20",
@@ -147,7 +144,6 @@ describe("compile-reading-packet", () => {
       {
         id: "w2",
         title: "Product Lead search",
-        description: "",
         status: "ACTIVE",
         significance: 5,
         deadline: "2026-06-25",
@@ -160,7 +156,6 @@ describe("compile-reading-packet", () => {
       {
         id: "f1",
         title: "£500,000 ISA",
-        description: "",
         status: "ACTIVE",
         significance: 4,
         deadline: "2028-12-31",
@@ -307,7 +302,6 @@ describe("compile-reading-packet", () => {
         {
           id: "c",
           title: "CeMAP qualification",
-          description: "",
           status: "ACTIVE",
           significance: 5,
           milestones: [
@@ -361,7 +355,6 @@ describe("compile-reading-packet", () => {
         {
           id: "c",
           title: "CeMAP qualification",
-          description: "",
           status: "ACTIVE",
           significance: 5,
           deadline: "2026-07-02",
@@ -402,7 +395,6 @@ describe("compile-reading-packet", () => {
                 {
                   id: "p-cemap",
                   title: "CeMAP qualification",
-                  description: "",
                   status: "ACTIVE",
                   significance: 5,
                   deadline: "2026-06-20",
@@ -431,7 +423,6 @@ describe("compile-reading-packet", () => {
     const cemap: FormattedMapPursuit = {
       id: "cemap",
       title: "CeMAP Qualification",
-      description: "",
       status: "COMPLETE",
       significance: 4,
       completedAt: "2025-07-01",
@@ -460,7 +451,6 @@ describe("compile-reading-packet", () => {
                 {
                   id: "nhse",
                   title: "New Homes Sales Executive",
-                  description: "",
                   status: "COMPLETE",
                   significance: 4,
                   completedAt: "2024-06-20",
@@ -542,7 +532,6 @@ describe("compile-reading-packet", () => {
       {
         id: "p-debt",
         title: "Clear £10,000 credit card debt",
-        description: "",
         status: "ACTIVE",
         significance: 4,
         deadline: "2026-07-01",

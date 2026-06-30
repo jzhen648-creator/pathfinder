@@ -13,7 +13,7 @@ export async function loadPursuitToneGoals(
     select: {
       id: true,
       title: true,
-      description: true,
+      background: true,
       enrichAnswers: true,
       deadline: true,
       status: true,

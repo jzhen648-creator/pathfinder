@@ -26,10 +26,10 @@ import {
   mergePreservedClarifiers,
   resolvePreservedComparison,
   resolveReflectSuggestedMilestones,
-  resolveReflectSuggestedContinuations,
 } from "@/lib/pursuit/pursuit-cache-patch";
 import {
   enrichAnswersSchema,
+  isRetiredClarifierKind,
   type Clarifier,
   type PursuitEnrichCachePayload,
   type PursuitEnrichResult,
@@ -41,7 +41,6 @@ import { prisma } from "@/lib/prisma";
 export {
   dedupeSuggestedMilestones,
   resolveReflectSuggestedMilestones,
-  resolveReflectSuggestedContinuations,
 } from "@/lib/pursuit/pursuit-cache-patch";
 
 function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | null {
@@ -57,17 +56,15 @@ function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | nul
     ? c.options.filter((o): o is string => typeof o === "string")
     : [];
   if (!prompt.trim() || options.length < 2) return null;
+  if (typeof c.kind === "string" && isRetiredClarifierKind(c.kind)) return null;
   return {
     id: typeof c.id === "string" && c.id.trim() ? c.id : `q-${index + 1}`,
     prompt: prompt.trim(),
     options,
-    ...(typeof c.kind === "string" ? { kind: c.kind as Clarifier["kind"] } : {}),
-    ...(typeof c.peerGoalId === "string" ? { peerGoalId: c.peerGoalId } : {}),
-    ...(typeof c.suggestedTitle === "string" ? { suggestedTitle: c.suggestedTitle } : {}),
-    ...(typeof c.suggestedCategoryId === "string"
-      ? { suggestedCategoryId: c.suggestedCategoryId }
+    ...(typeof c.kind === "string" &&
+    (c.kind === "clarify" || c.kind === "retrospective")
+      ? { kind: c.kind }
       : {}),
-    ...(typeof c.suggestedThemeId === "string" ? { suggestedThemeId: c.suggestedThemeId } : {}),
   };
 }
 
@@ -111,12 +108,6 @@ export async function applyReflectOutput(
   }
   const profileLocation = profile?.location?.trim() || null;
 
-  const allMapGoals = await prisma.goal.findMany({
-    where: { userId, archived: false },
-    select: { title: true },
-  });
-  const allMapTitles = allMapGoals.map((goal) => goal.title);
-
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
   const now = Date.now();
@@ -156,11 +147,6 @@ export async function applyReflectOutput(
       mapMilestones: goal.milestones,
       allowed: milestonesAllowed,
     });
-    const suggestedContinuations = resolveReflectSuggestedContinuations({
-      fresh: entry.suggestedContinuations ?? [],
-      goalStatus: goal.status ?? "ACTIVE",
-      allMapTitles,
-    });
 
     const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
     const freshClarifiers = filterClarifiersAgainstMilestones(
@@ -191,7 +177,6 @@ export async function applyReflectOutput(
         ...(comparison ? { comparison } : {}),
       },
       suggestedMilestones,
-      suggestedContinuations,
     };
 
     const gated = gateEnrichResult(rawResult, signal, options, {
@@ -209,6 +194,7 @@ export async function applyReflectOutput(
       completedAt: goal.completedAt ?? null,
       significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
       enrichAnswers,
+      background: goal.background,
       quickQuestionsQuietUntil: previousQuietUntil,
       siblingGoalIds: siblingPursuits.map((s) => s.id),
       existingRelationshipPeerIds,
@@ -230,8 +216,7 @@ export async function applyReflectOutput(
     if (
       payload?.headline?.trim() ||
       payload?.clarifiers?.length ||
-      payload?.suggestedMilestones?.length ||
-      payload?.suggestedContinuations?.length
+      payload?.suggestedMilestones?.length
     ) {
       pursuits[pursuitId] = payload;
     }

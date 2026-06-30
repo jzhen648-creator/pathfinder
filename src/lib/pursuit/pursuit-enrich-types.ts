@@ -2,36 +2,14 @@ import { z } from "zod";
 import { pursuitInsightSchema } from "@/lib/insights/insight-types";
 import { CLARIFIER_INITIAL_BATCH, CLARIFIER_SKIPPED_PROMPTS_MAX } from "@/lib/pursuit/clarifier-prompt-blocks";
 
-export const clarifierKindSchema = z.enum(["clarify", "connect", "suggest_add", "retrospective"]);
+export const clarifierKindSchema = z.enum(["clarify", "retrospective"]);
 
-export const clarifierSchema = z
-  .object({
-    id: z.string().min(1),
-    prompt: z.string().min(1).max(200),
-    options: z.array(z.string().min(1).max(80)).min(2).max(4),
-    kind: clarifierKindSchema.optional(),
-    peerGoalId: z.string().optional(),
-    suggestedTitle: z.string().max(100).optional(),
-    suggestedCategoryId: z.string().optional(),
-    suggestedThemeId: z.string().optional(),
-  })
-  .superRefine((value, ctx) => {
-    const kind = value.kind ?? "clarify";
-    if (kind === "connect" && !value.peerGoalId?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Connect clarifiers require peerGoalId",
-        path: ["peerGoalId"],
-      });
-    }
-    if (kind === "suggest_add" && !value.suggestedTitle?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Suggest-add clarifiers require suggestedTitle",
-        path: ["suggestedTitle"],
-      });
-    }
-  });
+export const clarifierSchema = z.object({
+  id: z.string().min(1),
+  prompt: z.string().min(1).max(200),
+  options: z.array(z.string().min(1).max(80)).min(2).max(4),
+  kind: clarifierKindSchema.optional(),
+});
 
 export const suggestedMilestoneSchema = z.object({
   title: z.string().min(1).max(120),
@@ -86,4 +64,13 @@ export type PursuitEnrichCachePayload = z.infer<typeof pursuitEnrichCacheSchema>
 
 export function clarifierKind(clarifier: Clarifier): ClarifierKind {
   return clarifier.kind ?? "clarify";
+}
+
+/** Retired QQ kinds — strip from cache and generation paths. */
+export function isRetiredClarifierKind(kind: unknown): boolean {
+  return kind === "connect" || kind === "suggest_add";
+}
+
+export function filterActiveClarifiers(clarifiers: Clarifier[]): Clarifier[] {
+  return clarifiers.filter((clarifier) => !isRetiredClarifierKind(clarifier.kind));
 }

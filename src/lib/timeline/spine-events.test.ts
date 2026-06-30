@@ -31,7 +31,6 @@ const mapContext: FormattedMapContext = {
             {
               id: "g1",
               title: "Senior role",
-              description: "",
               status: "COMPLETE",
               significance: 4,
               completedAt: "2026-08-01",
@@ -47,7 +46,6 @@ const mapContext: FormattedMapContext = {
             {
               id: "g2",
               title: "Next search",
-              description: "",
               status: "ACTIVE",
               significance: 5,
               deadline: "2026-09-15",
