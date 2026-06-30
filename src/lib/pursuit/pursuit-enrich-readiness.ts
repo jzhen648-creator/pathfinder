@@ -283,5 +283,6 @@ export function gateEnrichResult(
     clarifiers,
     insight: result.insight,
     suggestedMilestones,
+    suggestedContinuations: result.suggestedContinuations,
   };
 }

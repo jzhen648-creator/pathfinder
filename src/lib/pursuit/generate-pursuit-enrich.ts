@@ -19,6 +19,7 @@ import {
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import {
   DATE_DEADLINE_ARITHMETIC_RULE,
+  ORIENTATION_AS_LENS_RULE,
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
@@ -129,9 +130,11 @@ function buildEnrichSystemPrompt(
     "- Ground map-fact sentences in provided scoped context JSON; the optional cross-pursuit domain-context sentence is exempt per domain-context rule.",
     "- Null/empty arrays are correct when unsure.",
     "",
-    TENSION_NOT_FORECAST_RULE,
-    "",
-    DATE_DEADLINE_ARITHMETIC_RULE,
+  TENSION_NOT_FORECAST_RULE,
+  "",
+  ORIENTATION_AS_LENS_RULE,
+  "",
+  DATE_DEADLINE_ARITHMETIC_RULE,
     "",
     "VOICE ANTI-PATTERNS:",
     "- Do not open headline or body with the user's name.",

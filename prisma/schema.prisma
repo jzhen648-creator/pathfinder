@@ -252,6 +252,8 @@ model Goal {
   /// Lucide kebab-case slug for pursuit hex icon (e.g. "dumbbell"). Null → theme icon at render.
   iconName          String?
   description       String
+  /// User-authored reasoning — AI reads, never writes.
+  rationale         String?
   /// Structured clarifier answers from pursuit enrich ({ clarifierId, prompt, selectedOption }[]).
   enrichAnswers     Json?
   lifeArea          String        @default("Other")

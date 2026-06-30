@@ -94,6 +94,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     targetAmount?: number | null;
     unit?: string | null;
     amountBasis?: string | null;
+    rationale?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
   const descriptionPatch =
@@ -137,6 +138,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (input.targetAmount !== undefined) data.targetAmount = input.targetAmount;
   if (input.unit !== undefined) data.unit = input.unit?.trim() || null;
   if (input.amountBasis !== undefined) data.amountBasis = input.amountBasis;
+  if (input.rationale !== undefined) data.rationale = input.rationale;
   if (input.completedAt !== undefined) {
     data.completedAt = new Date(`${input.completedAt}T00:00:00.000Z`);
   }

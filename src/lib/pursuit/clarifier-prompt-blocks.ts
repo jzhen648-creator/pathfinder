@@ -99,6 +99,24 @@ export const SUGGESTED_MILESTONES_OUTPUT_LINES = [
   "  When milestones already exist on the map, suggest only missing steps from the current frontier to the deadline.",
 ];
 
+/** Suggested successor pursuits for COMPLETE pursuits only — reflect output. */
+export const SUGGESTED_CONTINUATIONS_OUTPUT_LINES = [
+  "## Suggested continuations (Complete pursuits only)",
+  "",
+  "For any pursuit with status COMPLETE, you may suggest up to 2 natural successor pursuits in suggestedContinuations. Each has:",
+  "- title: a specific, concrete pursuit name (not generic advice), max 80 chars",
+  "- rationale: one sentence explaining why this follows naturally from what was completed, max 200 chars",
+  "",
+  "Rules:",
+  "- Only for COMPLETE pursuits. Never for ACTIVE, PAUSED, or MAINTAINING — return [] for those.",
+  "- Check the full map before suggesting — do NOT suggest a pursuit that already exists under any title in any theme. If the natural successor is already on the map, skip it.",
+  "- Suggestions must be grounded in what the user actually completed, not generic life advice.",
+  "- Not every Complete pursuit needs a continuation. Some things are simply done. Return an empty array when nothing naturally follows.",
+  "- Never suggest re-doing the same pursuit. Completion is completion.",
+  "- Suggest at the same granularity as the completed pursuit (multi-week to life-chapter scale, not tasks or habits).",
+  "- suggestedContinuations: optional array, max 2 items; default [] when not applicable.",
+];
+
 export const CONTEXTUAL_QUICK_QUESTIONS = [
   "CONTEXTUAL QUICK QUESTIONS:",
   CLARIFIER_GENERATION_PRINCIPLE,

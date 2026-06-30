@@ -14,6 +14,8 @@ export const updateGoalPayloadSchema = z
   .object({
     title: z.string().optional(),
     description: z.string().optional(),
+    /** User-authored reasoning; `null` clears. Stored exactly as typed — max 1000 chars. */
+    rationale: z.string().max(1000).nullable().optional(),
     /** 1–5 when set; null clears user significance. */
     significance: z.coerce.number().int().nullable().optional(),
     /** Explicit swimlane start; `null` clears override (falls back to createdAt). */
@@ -43,6 +45,7 @@ export const updateGoalPayloadSchema = z
     const hasField =
       data.title !== undefined ||
       data.description !== undefined ||
+      data.rationale !== undefined ||
       data.significance !== undefined ||
       data.timelineStart !== undefined ||
       data.deadline !== undefined ||
@@ -85,6 +88,13 @@ export const updateGoalPayloadSchema = z
         code: z.ZodIssueCode.custom,
         message: "Description must be at most 500 characters",
         path: ["description"],
+      });
+    }
+    if (data.rationale != null && data.rationale !== undefined && data.rationale.length > 1000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Rationale must be at most 1000 characters",
+        path: ["rationale"],
       });
     }
     if (
@@ -141,6 +151,18 @@ export const updateGoalPayloadSchema = z
         message: "Current amount cannot be negative",
         path: ["currentAmount"],
       });
+    }
+    if (data.timelineStart != null && data.timelineStart !== undefined) {
+      const start = new Date(`${data.timelineStart}T00:00:00.000Z`);
+      const today = new Date();
+      today.setUTCHours(23, 59, 59, 999);
+      if (start.getTime() > today.getTime()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Start date cannot be in the future",
+          path: ["timelineStart"],
+        });
+      }
     }
   });
 

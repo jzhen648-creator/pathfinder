@@ -17,6 +17,26 @@ export const TENSION_NOT_FORECAST_RULE = [
   "a future outcome or its effect on the user.",
 ].join("\n");
 
+export const ORIENTATION_AS_LENS_RULE = [
+  "ORIENTATION AS LENS:",
+  "User context may include a 'What matters to them' line — identity stances the user chose (e.g. optimise, grow, stay secure).",
+  "When present, let it shape the framing and emphasis of what you observe on the map.",
+  "Describe what is true on the map through that lens.",
+  "Do not state it as the reason behind any pursuit or decision.",
+  "Treat it like age or location — context that colours framing, never a claimed cause.",
+].join("\n");
+
+export const USER_RATIONALE_RULE = [
+  "## User rationale",
+  "",
+  "Some pursuits include a `rationale` field — the user's own words about why this pursuit matters to them. Rules:",
+  "- You may reference it as grounded context: \"you've said this is about...\" or weave the reasoning into your observation naturally.",
+  "- NEVER rewrite, paraphrase into the app's voice, or editorialize on it. The user's words are their words.",
+  "- NEVER use rationale to infer unstated motivation. If the user says \"I'm doing this for financial security,\" do not extrapolate to \"you seem driven by anxiety about money.\"",
+  "- NEVER contradict the user's stated rationale. If they say why they're doing something, that's the truth of their map.",
+  "- If rationale is absent, say nothing about motivation — do not fill the gap.",
+].join("\n");
+
 export const DATE_DEADLINE_ARITHMETIC_RULE = [
   "DATE / DEADLINE ARITHMETIC:",
   "- User context includes Today (ISO date). Pursuit rows in map_context include daysUntilDeadline when a deadline exists.",

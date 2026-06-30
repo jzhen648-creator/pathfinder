@@ -64,8 +64,10 @@ export type FormattedMapPursuit = {
   daysUntilDeadline?: number;
   /** ISO calendar date when pursuit was marked complete. */
   completedAt?: string;
-  /** ISO calendar date when pursuit span begins (optional). */
+  /** ISO calendar date when pursuit span begins (always set from formatMapContext; optional on hand-built fixtures). */
   timelineStart?: string;
+  /** User-authored reasoning — omitted when unset or empty. */
+  rationale?: string;
 };
 
 export type FormattedMapContext = {
@@ -128,6 +130,7 @@ export function buildPursuitRow(
     id: string;
     title: string;
     description: string | null;
+    rationale?: string | null;
     enrichAnswers?: unknown;
     status: string;
     significance: number | null;
@@ -139,6 +142,7 @@ export function buildPursuitRow(
     deadline: Date | null;
     completedAt?: Date | null;
     timelineStart?: Date | null;
+    createdAt: Date;
     milestones: Array<{ id: string; title: string; completedAt: Date | null; description?: string | null }>;
   },
   pursuitTitleById: Map<string, string>,
@@ -182,10 +186,14 @@ export function buildPursuitRow(
     if (daysUntilDeadline != null) pursuit.daysUntilDeadline = daysUntilDeadline;
   }
   if (goal.completedAt) pursuit.completedAt = goal.completedAt.toISOString().slice(0, 10);
-  if (goal.timelineStart) pursuit.timelineStart = goal.timelineStart.toISOString().slice(0, 10);
+  pursuit.timelineStart = (goal.timelineStart ?? goal.createdAt).toISOString().slice(0, 10);
 
   const enrichAnswers = serializeEnrichAnswersForMapContext(goal.enrichAnswers);
   if (enrichAnswers) pursuit.enrichAnswers = enrichAnswers;
+
+  if (goal.rationale && goal.rationale.trim().length > 0) {
+    pursuit.rationale = goal.rationale;
+  }
 
   return pursuit;
 }
@@ -200,6 +208,7 @@ const goalSelect = {
   id: true,
   title: true,
   description: true,
+  rationale: true,
   enrichAnswers: true,
   status: true,
   significance: true,
@@ -211,6 +220,7 @@ const goalSelect = {
   deadline: true,
   completedAt: true,
   timelineStart: true,
+  createdAt: true,
   milestones: {
     select: {
       id: true,

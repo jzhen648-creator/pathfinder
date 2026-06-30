@@ -7,6 +7,26 @@ import { prisma } from "@/lib/prisma";
 export const MAX_PROFILE_FACTS_IN_CONTEXT = 20;
 export const MAX_PROFILE_FACTS_PER_CATEGORY = 3;
 
+export const ORIENTATION_FACT_CATEGORY = "preferences" as const;
+export const ORIENTATION_FACT_KEY = "orientation";
+
+type ProfileFactRow = { category: ProfileFactCategory; key: string; value: string };
+
+export function isOrientationProfileFact(fact: ProfileFactRow): boolean {
+  return fact.category === ORIENTATION_FACT_CATEGORY && fact.key === ORIENTATION_FACT_KEY;
+}
+
+export function orientationValueFromProfileFacts(
+  facts: ProfileFactRow[],
+): string | null {
+  const value = facts.find(isOrientationProfileFact)?.value.trim();
+  return value || null;
+}
+
+export function profileFactsExcludingOrientation(facts: ProfileFactRow[]): ProfileFactRow[] {
+  return facts.filter((fact) => !isOrientationProfileFact(fact));
+}
+
 const PROFILE_FACT_CATEGORY_LABELS: Record<ProfileFactCategory, string> = {
   personal: "Personal",
   career: "Career",
@@ -138,7 +158,12 @@ export async function formatUserContext(userId: string): Promise<string> {
     lines.push(industry ? `Occupation: ${jobTitle} (${industry})` : `Occupation: ${jobTitle}`);
   }
 
-  const factLines = formatProfileFactsForContext(profileFacts);
+  const orientationValue = orientationValueFromProfileFacts(profileFacts);
+  if (orientationValue) {
+    lines.push(`What matters to them: ${orientationValue}`);
+  }
+
+  const factLines = formatProfileFactsForContext(profileFactsExcludingOrientation(profileFacts));
   const blocks: string[] = [`Today: ${isoCalendarDate()}`];
   if (lines.length > 0) {
     blocks.push(["User context:", ...lines].join("\n"));

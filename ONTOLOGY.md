@@ -6,7 +6,7 @@ Canonical relationships between persisted entities and derived UI concepts. Nami
 
 | Surface | Holds truth? | Authoritative for | User can edit? |
 |---------|--------------|-------------------|----------------|
-| **Map** | Yes | Pursuits + placement + progress | Yes (FAB, long-press, sheet) |
+| **Map** | Yes | Pursuits + placement + progress | Yes (utility bar **+**, long-press **Build here**, sheet) |
 | **Settings** | Yes | Profile, account, archived pursuits | Yes |
 | **Insights** (tab) | No (regenerated) | Theme insight cards, cross-theme links | No — pull to refresh syncs |
 | **Insight** (inline) | No (regenerated) | Theme/pursuit prose in map sheet | No |
@@ -15,7 +15,7 @@ Canonical relationships between persisted entities and derived UI concepts. Nami
 
 - **One store.** Map = structured truth: **pursuits** on the hex canvas. Settings holds profile fields used by Insights sync.
 - **Views at three scopes.** Insights tab = collated **theme insight cards**. **Insight** = inline AI block in theme/pursuit map sheet. Timeline = pursuit-grouped spine (upcoming + completed). Map **Filter** = status highlight on hexes.
-- **One input verb.** Map FAB + **Build here** creates pursuits. No marks UI on mobile.
+- **One input verb.** Map utility bar **+** or long-press **Build here** creates pursuits. No marks UI on mobile.
 
 **Decision test (check every new feature):**
 

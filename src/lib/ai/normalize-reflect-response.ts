@@ -55,6 +55,7 @@ export function normalizeReflectResponse(json: unknown): unknown {
           : {}),
         clarifiers: row.clarifiers ?? [],
         suggestedMilestones: row.suggestedMilestones ?? null,
+        suggestedContinuations: row.suggestedContinuations ?? [],
       };
     }
     root.pursuits = normalized;

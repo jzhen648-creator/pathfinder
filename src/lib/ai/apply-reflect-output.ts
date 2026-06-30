@@ -26,6 +26,7 @@ import {
   mergePreservedClarifiers,
   resolvePreservedComparison,
   resolveReflectSuggestedMilestones,
+  resolveReflectSuggestedContinuations,
 } from "@/lib/pursuit/pursuit-cache-patch";
 import {
   enrichAnswersSchema,
@@ -40,6 +41,7 @@ import { prisma } from "@/lib/prisma";
 export {
   dedupeSuggestedMilestones,
   resolveReflectSuggestedMilestones,
+  resolveReflectSuggestedContinuations,
 } from "@/lib/pursuit/pursuit-cache-patch";
 
 function normalizeReflectClarifier(raw: unknown, index: number): Clarifier | null {
@@ -109,6 +111,12 @@ export async function applyReflectOutput(
   }
   const profileLocation = profile?.location?.trim() || null;
 
+  const allMapGoals = await prisma.goal.findMany({
+    where: { userId, archived: false },
+    select: { title: true },
+  });
+  const allMapTitles = allMapGoals.map((goal) => goal.title);
+
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
   const now = Date.now();
@@ -148,6 +156,11 @@ export async function applyReflectOutput(
       mapMilestones: goal.milestones,
       allowed: milestonesAllowed,
     });
+    const suggestedContinuations = resolveReflectSuggestedContinuations({
+      fresh: entry.suggestedContinuations ?? [],
+      goalStatus: goal.status ?? "ACTIVE",
+      allMapTitles,
+    });
 
     const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
     const freshClarifiers = filterClarifiersAgainstMilestones(
@@ -178,6 +191,7 @@ export async function applyReflectOutput(
         ...(comparison ? { comparison } : {}),
       },
       suggestedMilestones,
+      suggestedContinuations,
     };
 
     const gated = gateEnrichResult(rawResult, signal, options, {
@@ -213,7 +227,12 @@ export async function applyReflectOutput(
       quickQuestionsQuietUntil,
       skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
     });
-    if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
+    if (
+      payload?.headline?.trim() ||
+      payload?.clarifiers?.length ||
+      payload?.suggestedMilestones?.length ||
+      payload?.suggestedContinuations?.length
+    ) {
       pursuits[pursuitId] = payload;
     }
   }

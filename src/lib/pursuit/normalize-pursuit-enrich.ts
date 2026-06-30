@@ -13,8 +13,11 @@ import { normalizePursuitInsightTone } from "@/lib/insights/clamp-insight-json";
 const CLARIFIER_PROMPT_MAX = 200;
 const CLARIFIER_OPTION_MAX = 80;
 const MILESTONE_TITLE_MAX = 120;
+const CONTINUATION_TITLE_MAX = 80;
+const CONTINUATION_RATIONALE_MAX = 200;
 const MAX_CLARIFIERS = 3;
 const MAX_MILESTONE_SUGGESTIONS = 6;
+const MAX_CONTINUATION_SUGGESTIONS = 2;
 
 function truncate(value: unknown, max: number): string {
   if (typeof value !== "string") return "";
@@ -119,6 +122,27 @@ function normalizeSuggestedMilestones(
   return out.length > 0 ? out : null;
 }
 
+/** Coerce reflect continuation suggestions before Zod. */
+export function normalizeSuggestedContinuations(
+  raw: unknown,
+): Array<{ title: string; rationale: string }> {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) return [];
+
+  const out: Array<{ title: string; rationale: string }> = [];
+  for (let i = 0; i < raw.length && out.length < MAX_CONTINUATION_SUGGESTIONS; i++) {
+    const entry = raw[i];
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const row = entry as Record<string, unknown>;
+    const title = truncate(row.title ?? row.name ?? row.label, CONTINUATION_TITLE_MAX);
+    if (!title) continue;
+    const rationale = truncate(row.rationale ?? row.reason ?? row.body, CONTINUATION_RATIONALE_MAX);
+    out.push({ title, rationale });
+  }
+
+  return out;
+}
+
 function normalizeInsightObject(raw: unknown): Record<string, unknown> | null {
   if (raw == null) return null;
   if (typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -154,11 +178,13 @@ export function normalizePursuitEnrichEntry(entry: unknown): Record<string, unkn
 
   const clarifiers = normalizeClarifiers(row.clarifiers);
   const suggestedMilestones = normalizeSuggestedMilestones(row.suggestedMilestones);
+  const suggestedContinuations = normalizeSuggestedContinuations(row.suggestedContinuations);
 
   return {
     clarifiers,
     insight,
     suggestedMilestones,
+    suggestedContinuations,
   };
 }
 

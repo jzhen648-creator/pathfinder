@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-06-21T08:44:24.631Z",
+  "reports": [
+    {
+      "id": "tension-finance-pursuit",
+      "flags": [],
+      "pass": true,
+      "source": "static"
+    },
+    {
+      "id": "forecast-finance-pursuit",
+      "flags": [
+        "banned-forecast:might mean",
+        "banned-forecast:potentially pushing",
+        "banned-forecast:potentially "
+      ],
+      "pass": true,
+      "source": "static"
+    },
+    {
+      "id": "status-narration-headline",
+      "flags": [
+        "status-narration-headline:active pursuit"
+      ],
+      "pass": true,
+      "source": "static"
+    },
+    {
+      "id": "theme-tension-pass",
+      "flags": [],
+      "pass": true,
+      "source": "static"
+    },
+    {
+      "id": "theme-filler-fail",
+      "flags": [
+        "banned-filler:connective tissue",
+        "banned-filler:threads together"
+      ],
+      "pass": true,
+      "source": "static"
+    },
+    {
+      "id": "sparse-panels",
+      "flags": [],
+      "pass": true,
+      "source": "fake-provider"
+    },
+    {
+      "id": "dense-panels",
+      "flags": [],
+      "pass": true,
+      "source": "fake-provider"
+    },
+    {
+      "id": "full-reflect-themes",
+      "flags": [],
+      "pass": true,
+      "source": "fake-provider"
+    }
+  ]
+}

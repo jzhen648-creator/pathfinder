@@ -1,34 +1,42 @@
 import { describe, expect, it } from "vitest";
+import {
+  formatProfileFactsForContext,
+  isOrientationProfileFact,
+  orientationValueFromProfileFacts,
+  profileFactsExcludingOrientation,
+} from "@/lib/ai/format-user-context";
 
-import { formatProfileFactsForContext } from "@/lib/ai/format-user-context";
+describe("orientation profile fact helpers", () => {
+  const orientationFact = {
+    category: "preferences" as const,
+    key: "orientation",
+    value: "Optimise everything, Stay independent",
+  };
 
-describe("formatProfileFactsForContext", () => {
-  it("groups facts by category with readable labels", () => {
+  it("detects orientation facts", () => {
+    expect(isOrientationProfileFact(orientationFact)).toBe(true);
     expect(
-      formatProfileFactsForContext([
-        { category: "relationships", key: "life_stage", value: "Early career" },
-        { category: "career", key: "target_role", value: "Financial adviser" },
-      ]),
-    ).toEqual([
-      "Career: target role — Financial adviser",
-      "Relationships: life stage — Early career",
-    ]);
+      isOrientationProfileFact({ category: "preferences", key: "theme", value: "x" }),
+    ).toBe(false);
   });
 
-  it("caps facts per category and total", () => {
-    const facts = Array.from({ length: 5 }, (_, index) => ({
-      category: "personal" as const,
-      key: `fact_${index}`,
-      value: `Value ${index}`,
-    }));
-
-    const lines = formatProfileFactsForContext(facts);
-    expect(lines).toHaveLength(3);
+  it("extracts orientation value", () => {
+    expect(orientationValueFromProfileFacts([orientationFact])).toBe(
+      "Optimise everything, Stay independent",
+    );
+    expect(orientationValueFromProfileFacts([])).toBeNull();
   });
 
-  it("skips empty values", () => {
-    expect(
-      formatProfileFactsForContext([{ category: "health", key: "sleep", value: "   " }]),
-    ).toEqual([]);
+  it("excludes orientation from generic profile fact formatting", () => {
+    const facts = [
+      orientationFact,
+      { category: "relationships" as const, key: "life_stage", value: "Married" },
+    ];
+    const genericFacts = profileFactsExcludingOrientation(facts);
+    const lines = formatProfileFactsForContext(genericFacts);
+
+    expect(genericFacts).toHaveLength(1);
+    expect(lines).toEqual(["Relationships: life stage — Married"]);
+    expect(lines.some((line) => line.includes("orientation"))).toBe(false);
   });
 });
