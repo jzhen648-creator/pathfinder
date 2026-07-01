@@ -488,7 +488,7 @@ export function orderReadingPacketKeys(packet: ReadingPacket): ReadingPacket {
 }
 
 export function buildMilestonePaceFacts(
-  pursuits: ReturnType<typeof flattenPursuits>,
+  pursuits: FormattedMapPursuit[],
   now = Date.now(),
 ): string[] {
   const facts: string[] = [];
