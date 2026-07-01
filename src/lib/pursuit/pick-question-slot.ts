@@ -111,7 +111,7 @@ export function questionSlotUserMessageLines(
 ): string[] {
   const lines = [
     `Requested quick-question slot: ${slot}`,
-    `Pursuit status: ${ctx.status}`,
+    `Chapter status: ${ctx.status}`,
     `Significance: ${ctx.significance ?? "unset"}`,
   ];
 
@@ -130,12 +130,12 @@ export function questionSlotUserMessageLines(
   }
 
   if (slot === "none") {
-    lines.push("Do NOT generate quick questions for this pursuit on this sync.");
+    lines.push("Do NOT generate quick questions for this chapter on this sync.");
     if (ctx.status === "PAUSED") {
-      lines.push("PAUSED pursuits stay silent — return clarifiers: [].");
+      lines.push("PAUSED chapters stay silent — return clarifiers: [].");
     }
     if (ctx.status === "COMPLETE") {
-      lines.push("COMPLETE pursuits stay silent — return clarifiers: [].");
+      lines.push("COMPLETE chapters stay silent — return clarifiers: [].");
     }
     if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
       lines.push("Cooldown active — return clarifiers: [].");

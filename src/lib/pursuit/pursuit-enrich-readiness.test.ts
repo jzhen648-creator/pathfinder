@@ -91,7 +91,7 @@ describe("pursuit-enrich-readiness gates", () => {
 
   it("gatePursuitComparison keeps consequential anchored worth-knowing without benchmark signal", () => {
     const consequential =
-      "CeMAP unlocks lender-panel advising — it bridges your qualification pursuit and any broker move on the map.";
+      "CeMAP unlocks lender-panel advising — it bridges your qualification chapter and any broker move on the map.";
     expect(gatePursuitComparison(consequential, thinSignal)).toBe(consequential);
   });
 

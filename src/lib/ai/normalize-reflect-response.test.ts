@@ -71,7 +71,7 @@ describe("normalizeReflectResponse", () => {
           oneLiner: "Work carries the season.",
           reflective: "CeMAP and broker search both press June.",
           contextual: "Mortgage advisers typically earn commission.",
-          combined: "Across pursuits, work dominates.",
+          combined: "Across chapters, work dominates.",
         },
       },
       pursuits: {},

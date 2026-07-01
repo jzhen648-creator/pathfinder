@@ -220,7 +220,7 @@ async function generateOnePursuitEnrich(
   const milestonesAllowed = shouldSuggestMilestones(signal);
   const pursuitContext = await formatPursuitContext(userId, pursuitId);
   if (!pursuitContext) {
-    throw new InsightGenerationResponseError("Pursuit enrich missing pursuit context.");
+    throw new InsightGenerationResponseError("Chapter enrich missing chapter context.");
   }
   const enrichAnswers = parseEnrichAnswers(goal.enrichAnswers);
   const existingRelationshipPeerIds = await loadRelationshipPeerIdsForGoal(userId, pursuitId);
@@ -271,7 +271,7 @@ async function generateOnePursuitEnrich(
   try {
     json = clampInsightGenerationJson(JSON.parse(stripMarkdownFence(raw)) as unknown);
   } catch (err) {
-    throw new InsightGenerationResponseError("Pursuit enrich returned invalid JSON.", { cause: err });
+    throw new InsightGenerationResponseError("Chapter enrich returned invalid JSON.", { cause: err });
   }
 
   const wrapped =
@@ -283,7 +283,7 @@ async function generateOnePursuitEnrich(
   const parsed = pursuitEnrichBatchSchema.safeParse(normalized);
   if (!parsed.success) {
     throw new InsightGenerationResponseError(
-      parsed.error.issues[0]?.message ?? "Invalid pursuit enrich shape.",
+      parsed.error.issues[0]?.message ?? "Invalid chapter enrich shape.",
     );
   }
 
@@ -295,7 +295,7 @@ async function generateOnePursuitEnrich(
     }
   }
   if (!result) {
-    throw new InsightGenerationResponseError("Pursuit enrich missing target pursuit entry.");
+    throw new InsightGenerationResponseError("Chapter enrich missing target chapter entry.");
   }
 
   const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
@@ -459,7 +459,7 @@ export async function syncPursuitPanel(
   ]);
   const goal = toneGoals.get(pursuitId);
   if (!goal) {
-    throw new InsightGenerationResponseError("Pursuit not found for panel sync.");
+    throw new InsightGenerationResponseError("Chapter not found for panel sync.");
   }
 
   const cachedPursuits = parsePursuitInsightRecord(

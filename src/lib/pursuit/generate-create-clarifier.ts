@@ -66,7 +66,7 @@ export async function suggestCreateClarifier(
   const user = [
     input.userContext ? `User profile:\n${input.userContext}` : "(No profile context yet.)",
     "",
-    "New pursuit (not on map yet):",
+    "New chapter (not on map yet):",
     JSON.stringify(
       {
         title,
@@ -90,7 +90,7 @@ export async function suggestCreateClarifier(
     ...(completedMilestones.length > 0
       ? [
           "",
-          "Completed milestones already on this pursuit — do not ask what they prove or offer contradicting options.",
+          "Completed milestones already on this chapter — do not ask what they prove or offer contradicting options.",
         ]
       : []),
     "",

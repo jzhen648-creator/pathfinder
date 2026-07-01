@@ -234,14 +234,14 @@ export function buildChangeEventsFromDirtyRows(rows: ReadingDirtyRow[]): string[
     const label = details.title?.trim() || row.entityId;
 
     if (details.event === "created") {
-      events.push(`Pursuit added: "${label}"`);
+      events.push(`Chapter added: "${label}"`);
       continue;
     }
     if (details.event === "archived") {
       continue;
     }
     if (details.event === "restored") {
-      events.push(`Pursuit restored: "${label}"`);
+      events.push(`Chapter restored: "${label}"`);
       continue;
     }
     if (row.entityType === "mark") {

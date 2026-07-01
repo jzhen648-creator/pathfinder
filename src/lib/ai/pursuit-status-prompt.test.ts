@@ -8,7 +8,7 @@ import {
 describe("pursuitStatusPromptBlock", () => {
   it("enumerates all four pursuit statuses on one shared block", () => {
     const block = pursuitStatusPromptBlock();
-    expect(block).toContain("Pursuit status (status field in map context):");
+    expect(block).toContain("Chapter status (status field in map context):");
     expect(block).toContain("- COMPLETE —");
     expect(block).toContain("- ACTIVE —");
     expect(block).toContain("- MAINTAINING —");

@@ -143,7 +143,7 @@ const REFLECT_BENCHMARK_INSIGHT_RUBRIC = [
   "number, or another chapter on the map to weigh against. If a chapter is qualitative and you have",
   "nothing concrete to compare it to, reflect on it plainly and specifically; do NOT invent a",
   "statistic, percentile, or comparison. Never assert a population ranking you cannot derive from",
-  "the context. A relationship or personal-growth pursuit is read through the map (Move 2) and",
+  "the context. A relationship or personal-growth chapter is read through the map (Move 2) and",
   "honesty (Move 4), not through fabricated numbers.",
   "Exception — chapter body only: one qualitative cross-chapter domain sentence is allowed per CHAPTER body",
   "domain-context rule; standalone chapter-type domain context belongs in comparison (Worth knowing), not body.",
@@ -521,7 +521,7 @@ function buildReflectUserMessage(input: {
     `clarifyTitles: ${input.enrichOptions.clarifyTitles}`,
     "</options>",
     "",
-    "Only include pursuit entries for the dirty pursuit IDs listed above.",
+    "Only include chapter entries for the dirty chapter IDs listed above.",
   );
 
   if (scope === "full") {
@@ -531,7 +531,7 @@ function buildReflectUserMessage(input: {
     );
   } else {
     lines.push(
-      'Return ONLY: { "pursuits": { ... } } — one entry per dirty pursuit ID.',
+      'Return ONLY: { "pursuits": { ... } } — one entry per dirty chapter ID.',
     );
   }
 
@@ -631,7 +631,7 @@ function validateReflectBatch(batchPursuitIds: string[], reflect: ReflectRespons
   for (const pursuitId of batchPursuitIds) {
     if (!reflect.pursuits[pursuitId]) {
       throw new ReflectGenerationResponseError(
-        `Reflect call missing pursuit panel for ${pursuitId}. Please try again.`,
+        `Reflect call missing chapter panel for ${pursuitId}. Please try again.`,
       );
     }
   }
@@ -997,7 +997,7 @@ async function generateReflectResponseBatched(
   for (const pursuitId of pursuitIds) {
     if (!merged.pursuits[pursuitId]) {
       throw new ReflectGenerationResponseError(
-        `Reflect call missing pursuit panel for ${pursuitId}. Please try again.`,
+        `Reflect call missing chapter panel for ${pursuitId}. Please try again.`,
       );
     }
   }

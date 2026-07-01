@@ -10,14 +10,14 @@ describe("buildEnrichSystemPrompt", () => {
   it("includes field lanes and cross-pursuit domain-context body rule", () => {
     const prompt = buildEnrichSystemPrompt(ENRICH_OPTIONS, false, false);
 
-    expect(prompt).toContain("PURSUIT INSIGHT FIELD LANES");
-    expect(prompt).toContain("PURSUIT body — optional cross-pursuit domain context (qualitative only)");
-    expect(prompt).toContain("what this pursuit type is");
+    expect(prompt).toContain("CHAPTER READING FIELD LANES");
+    expect(prompt).toContain("CHAPTER body — optional cross-chapter domain context (qualitative only)");
+    expect(prompt).toContain("what this chapter type is");
     expect(prompt).toContain("AT MOST ONE sentence");
     expect(prompt).not.toContain("weave one benchmark sentence into the body");
     expect(prompt).not.toContain("From your map:");
     expect(prompt).toContain(
-      "Ground map-fact sentences in provided scoped context JSON; the optional cross-pursuit domain-context sentence is exempt",
+      "Ground map-fact sentences in provided scoped context JSON; the optional cross-chapter domain-context sentence is exempt",
     );
   });
 
@@ -26,6 +26,6 @@ describe("buildEnrichSystemPrompt", () => {
     for (const phrase of ["you should", "consider", "I recommend", "try"]) {
       expect(prompt).toContain(phrase);
     }
-    expect(prompt).toContain("no suggesting new pursuits");
+    expect(prompt).toContain("no suggesting new chapters");
   });
 });

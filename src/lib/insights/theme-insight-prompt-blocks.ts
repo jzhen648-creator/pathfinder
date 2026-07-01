@@ -57,7 +57,7 @@ export const PURSUIT_CONTEXT_TAB_NON_DUPLICATION = [
 ].join("\n");
 
 export const PURSUIT_READING_AUTHORSHIP_ORDER = [
-  "CHAPTER READING AUTHORSHIP (pursuit headline/body/comparison ONLY — does NOT apply to theme oneLiner or reflective):",
+  "CHAPTER READING AUTHORSHIP (chapter headline/body/comparison ONLY — does NOT apply to theme oneLiner or reflective):",
   "- Lead headline and body from status, deadline, milestone pace, amount progress, and timeline arc in <focal_chapter_facts> or <reading_packet>.",
   "- enrichAnswers in <confirmed_on_context_tab> are supporting interpretation — never the primary subject of headline or body.",
   "- Wrong: restating three confirmed Quick Question picks as the entire chapter reading.",
