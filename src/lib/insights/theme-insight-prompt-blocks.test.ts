@@ -7,6 +7,7 @@ import {
   PURSUIT_INSIGHT_FIELD_LANES,
   PURSUIT_READING_AUTHORSHIP_ORDER,
   THEME_INSIGHT_FIELD_JOBS,
+  THEME_INSIGHT_FIELD_LANES,
   THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 
@@ -18,6 +19,15 @@ describe("theme-insight-prompt-blocks", () => {
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("self-contained thought");
     expect(THEME_INSIGHT_FIELD_JOBS).not.toContain("ACROSS PURSUITS");
     expect(THEME_INSIGHT_FIELD_JOBS).not.toContain("COMPARISON");
+  });
+
+  it("defines theme field lanes with headline/body non-duplication", () => {
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("THEME READING FIELD LANES");
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("Do NOT restate the oneLiner");
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("Long-term investing is the through-line");
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("£12,400 of £500,000");
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("THEME READING FIELD LANES");
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("Ban near-duplicate phrasing");
   });
 
   it("defines pursuit field lanes with non-duplication bans", () => {

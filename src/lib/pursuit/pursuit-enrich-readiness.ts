@@ -321,6 +321,41 @@ export function gatePursuitInsightProse(input: {
   };
 }
 
+/** @internal Exported for vitest — reflective sentence paraphrases theme oneLiner. */
+export function sentenceParaphrasesHeadline(sentence: string, oneLiner: string): boolean {
+  const headlineTokens = significantProseTokens(oneLiner);
+  if (headlineTokens.length === 0) return false;
+
+  const sentenceTokens = significantProseTokens(sentence);
+  if (sentenceTokens.length === 0) return false;
+
+  const matched = headlineTokens.filter((token) => sentenceTokens.includes(token));
+  if (matched.length >= Math.min(2, headlineTokens.length)) return true;
+  return matched.length / headlineTokens.length >= 0.6;
+}
+
+/** Strip reflective sentences that paraphrase the theme oneLiner after generation. */
+export function gateThemeInsightProse(input: {
+  oneLiner?: string;
+  reflective?: string;
+}): { oneLiner?: string; reflective?: string } {
+  const oneLiner = input.oneLiner?.trim() ?? "";
+  let reflective = input.reflective?.trim() ?? "";
+
+  if (oneLiner && reflective) {
+    const sentences = reflective.split(/(?<=[.!?])\s+/).filter(Boolean);
+    reflective = sentences
+      .filter((sentence) => !sentenceParaphrasesHeadline(sentence, oneLiner))
+      .join(" ")
+      .trim();
+  }
+
+  return {
+    oneLiner: oneLiner || undefined,
+    reflective: reflective || undefined,
+  };
+}
+
 function significantTitleTokens(title: string): string[] {
   return title
     .toLowerCase()

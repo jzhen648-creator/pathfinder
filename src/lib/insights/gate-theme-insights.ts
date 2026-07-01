@@ -10,6 +10,7 @@ import {
   gateThemeCombined,
   gateThemeContextual,
   gateThemeContextualContent,
+  gateThemeInsightProse,
   gateThemeReflective,
   type ThemeLinkGateRow,
   type ThemeContextualGateInput,
@@ -114,12 +115,16 @@ export async function gateThemeInsightsPatch(
     const contextual = gateThemeContextualContent(
       gateThemeContextual(entry.contextual?.trim() ?? "", themeSignals, gateInput),
     );
-    const reflective = gateThemeReflective(
+    const reflectiveAfterLinks = gateThemeReflective(
       entry.reflective?.trim() ?? "",
       themeId,
       relationships,
       pursuitThemeMap,
     );
+    const { reflective } = gateThemeInsightProse({
+      oneLiner: entry.oneLiner?.trim() ?? "",
+      reflective: reflectiveAfterLinks,
+    });
 
     gated[themeId] = {
       ...entry,

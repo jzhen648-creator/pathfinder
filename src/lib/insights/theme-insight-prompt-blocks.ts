@@ -1,10 +1,24 @@
 /** Shared theme-level insight field jobs for reflect + generate-insights prompts. */
 
+export const THEME_INSIGHT_FIELD_LANES = [
+  "THEME READING FIELD LANES:",
+  "- oneLiner: the read — one sentence on where this theme's weight sits or what tension defines it.",
+  "- reflective (From your map): map-grounding the read did not already say —",
+  "  name chapters verbatim and cite entered facts (amounts, deadlines, milestone completion, status contrasts).",
+  "- Do NOT restate the oneLiner's conclusion in reflective — if a sentence could replace the headline, delete it.",
+  "- Wrong: oneLiner \"Long-term investing is the through-line\"; reflective \"The theme centers on building wealth through steady contributions toward a significant target.\"",
+  '- Right: oneLiner "The ISA target and current balance are miles apart — contributions are set but the gap is the story.";',
+  '  reflective "ISA chapter: £12,400 of £500,000; £200/month contribution; Emergency fund chapter: complete with £8k saved."',
+].join("\n");
+
 export const THEME_INSIGHT_NON_DUPLICATION = [
   "THEME NON-DUPLICATION:",
-  "- oneLiner = one complete theme headline sentence; reflective = cross-chapter relationships and tensions the headline did not state.",
-  "- Each line adds new information: oneLiner names the theme bottleneck or what is carrying it; reflective holds within-theme links the headline did not state.",
+  "- oneLiner = the read (interpretation); reflective = specific map facts that ground it — never a paraphrase.",
+  "- Each line adds new information: oneLiner names the theme bottleneck or what is carrying it;",
+  "  reflective names chapters and cites entered data the headline did not already state.",
+  "- Ban near-duplicate phrasing: if reflective reuses the headline's core nouns or swaps synonyms for the same claim, rewrite it with chapter titles and numbers.",
   "- Ban meta UI copy: never \"confirmed relationships on your map\", \"your map shows\", or \"the app sees\".",
+  "- Ban theme filler without map numbers: \"long-term growth\", \"steady contributions\", \"significant target\" when no entered amount/deadline backs them.",
 ].join("\n");
 
 export const THEME_INSIGHT_FIELD_JOBS = [
@@ -15,13 +29,14 @@ export const THEME_INSIGHT_FIELD_JOBS = [
   "  must never trail off mid-phrase. Name what is carrying this theme or where the bottleneck sits",
   "  (not a chapter-by-chapter summary).",
   "",
-  "  reflective (UI: FROM YOUR MAP — within-theme relationships the oneLiner did not state):",
-  "  - How chapters in this theme support, compete, or sequence — tensions and links, not a status/date inventory",
-  "    the reader can read off chapter rows or the meta strip (<= 800 chars).",
-  "  - Name specific chapters when data supports it; do not inventory every row.",
-  "  - Each sentence anchors to a chapter title from map_context and a fact the user entered there —",
-  "    deadline, milestone completion, target amount, current amount, enrichAnswer, or how two chapters relate.",
-  "  - Relate chapters to each other within the theme using only those entered facts; if a sentence would read the same on another user's map, rewrite it from their chapter titles and entries.",
+  THEME_INSIGHT_FIELD_LANES,
+  "",
+  "  reflective (UI: FROM YOUR MAP — map facts the oneLiner did not already state):",
+  "  - Name specific chapters verbatim and cite entered facts: amounts, deadlines, milestone completion, status contrasts (<= 800 chars).",
+  "  - Cross-chapter contrasts belong here only as factual juxtapositions between named chapters — not a second synthesis pass.",
+  "  - Do not inventory every row; pick the facts that ground the headline.",
+  "  - Each sentence anchors to a chapter title from map_context and a fact the user entered there.",
+  "  - If a sentence would read the same on another user's map, rewrite it from their chapter titles and entries.",
   THEME_INSIGHT_NON_DUPLICATION,
   "  Do not repeat chapter-panel execution copy in theme insights — chapter sheets own per-chapter velocity.",
   "  Only include themes listed in <dirty_themes>. Skip themes with no chapters.",

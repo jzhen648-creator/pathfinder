@@ -1,6 +1,7 @@
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
+import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
@@ -126,6 +127,13 @@ export async function applyReflectOutput(
       contextual: "",
       combined: "",
     };
+  }
+
+  if (Object.keys(themes).length > 0) {
+    const gatedThemes = await gateThemeInsightsPatch(userId, themes);
+    for (const themeId of Object.keys(themes)) {
+      themes[themeId] = gatedThemes[themeId] ?? themes[themeId];
+    }
   }
 
   for (const pursuitId of pursuitIds) {

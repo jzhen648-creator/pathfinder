@@ -48,6 +48,7 @@ import {
   PURSUIT_PANEL_UI_CONTEXT,
   PURSUIT_READING_AUTHORSHIP_ORDER,
   THEME_INSIGHT_FIELD_JOBS,
+  THEME_INSIGHT_FIELD_LANES,
   THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 import { buildPursuitToneGuidanceBlock } from "@/lib/insights/pursuit-tone-prompt";
@@ -290,6 +291,8 @@ function buildReflectSystemPrompt(
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
     buildClarifierKindPromptSection(options),
+    "",
+    THEME_INSIGHT_FIELD_LANES,
     "",
     THEME_INSIGHT_FIELD_JOBS,
     "",

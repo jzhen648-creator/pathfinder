@@ -6,10 +6,12 @@ import {
   gateThemeCombined,
   gateThemeContextual,
   gateThemeContextualContent,
+  gateThemeInsightProse,
   gateThemeReflective,
   gatePursuitComparison,
   hasMinimumContextSignal,
   isHolisticBenchmarkEligible,
+  sentenceParaphrasesHeadline,
   sentenceRestatesEnrichAnswer,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
@@ -202,6 +204,32 @@ describe("pursuit-enrich-readiness gates", () => {
     ], themeMap);
     expect(stripped).toBe("CeMAP and Sales role are active.");
     expect(stripped.toLowerCase()).not.toContain("feeds into");
+  });
+
+  it("sentenceParaphrasesHeadline flags synonym swap of headline claim", () => {
+    const oneLiner = "Long-term investing is the through-line in Money & Finance.";
+    expect(
+      sentenceParaphrasesHeadline(
+        "The theme centers on building wealth through steady long-term investing contributions.",
+        oneLiner,
+      ),
+    ).toBe(true);
+    expect(
+      sentenceParaphrasesHeadline(
+        "ISA chapter: £12,400 of £500,000 with £200/month set.",
+        oneLiner,
+      ),
+    ).toBe(false);
+  });
+
+  it("gateThemeInsightProse strips paraphrase but keeps grounding facts", () => {
+    const gated = gateThemeInsightProse({
+      oneLiner: "The ISA target and current balance are miles apart — contributions are set but the gap is the story.",
+      reflective:
+        "Wealth building here is about steady contributions toward a significant target. Build £500k ISA: £12,400 of £500,000; £200/month contribution.",
+    });
+    expect(gated.reflective).toBe("Build £500k ISA: £12,400 of £500,000; £200/month contribution.");
+    expect(gated.reflective?.toLowerCase()).not.toContain("steady contributions");
   });
 
   it("gatePursuitInsightProse strips enrichAnswer glossary from body", () => {

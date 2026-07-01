@@ -18,9 +18,10 @@ function promptFingerprint(prompt: string): string {
 describe("reflect prompt snapshots", () => {
   it("full-scope prompt fingerprint is stable", () => {
     const prompt = buildReflectSystemPrompt(ENRICH_OPTIONS, "full", false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"3d5dca57bfa8aeb2888d9c314167900fbfcae0f23e999d6aa628fb8b50102fb3"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"e3a7096af9890f5388204a9bedfab713e6fa2fcc297da0494c939a2d0fb8cbb7"`);
     expect(prompt).toContain("TENSION, NOT FORECAST:");
-    expect(prompt).toContain("FROM YOUR MAP — within-theme relationships");
+    expect(prompt).toContain("FROM YOUR MAP — map facts the oneLiner did not already state");
+    expect(prompt).toContain("THEME READING FIELD LANES");
     expect(prompt).toContain('{ tone, oneLiner, reflective }');
     expect(prompt).toContain("CHAPTER READING FIELD LANES");
     expect(prompt).toContain("CHAPTER READING AUTHORSHIP");
