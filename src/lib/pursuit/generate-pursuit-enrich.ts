@@ -32,6 +32,7 @@ import {
   PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
   PURSUIT_INSIGHT_FIELD_LANES,
   PURSUIT_PANEL_UI_CONTEXT,
+  PURSUIT_READING_AUTHORSHIP_ORDER,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 import {
   formatPursuitToneGuidanceEntry,
@@ -78,6 +79,7 @@ import {
   resolvePreservedComparison,
   resolveReflectSuggestedMilestones,
 } from "@/lib/pursuit/pursuit-cache-patch";
+import { buildPursuitEnrichInsightContext } from "@/lib/pursuit/pursuit-insight-prompt-context";
 import {
   CLARIFIER_INITIAL_BATCH,
   CLARIFIER_REPLENISH_BATCH,
@@ -127,6 +129,7 @@ function buildEnrichSystemPrompt(
     "  Body: single prose paragraph — no section labels; use structured comparison when needed (the UI renders labels).",
     PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
     PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
+    PURSUIT_READING_AUTHORSHIP_ORDER,
     PURSUIT_COMPARISON_FIELD_JOBS,
     ...(peopleThemeBody ? ["", PEOPLE_THEME_BODY_CLAUSE] : []),
     ...amountImpactBodyPromptLines(amountImpactEligible),
@@ -167,7 +170,7 @@ function parseEnrichAnswers(raw: unknown): { clarifierId: string; prompt: string
 
 function buildPursuitEnrichUserMessage(
   pursuitId: string,
-  contextJson: string,
+  insightContext: ReturnType<typeof buildPursuitEnrichInsightContext>,
   userContext: string,
   milestonesAllowed: boolean,
   slotLines: string[],
@@ -187,8 +190,17 @@ function buildPursuitEnrichUserMessage(
       ? "Milestones: allowed — suggest 1-6 chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers."
       : "Milestones: NOT allowed — set suggestedMilestones to null.",
     "",
-    "Scoped chapter context JSON (focal chapter + sibling chapters):",
-    contextJson,
+    "<focal_chapter_facts>",
+    insightContext.focalFactsJson,
+    "</focal_chapter_facts>",
+    "",
+    "Scoped chapter context JSON (focal chapter + sibling chapters — enrichAnswers omitted; see confirmed_on_context_tab):",
+    insightContext.scopedChapterJson,
+    "",
+    "<confirmed_on_context_tab>",
+    "Already visible on the chapter Context tab — supporting interpretation only; do not restate in headline/body.",
+    insightContext.confirmedOnContextTabJson,
+    "</confirmed_on_context_tab>",
   ].join("\n");
 }
 
@@ -235,7 +247,7 @@ async function generateOnePursuitEnrich(
   };
   const slot = pickQuestionSlotForPursuit(slotContext);
   const slotLines = questionSlotUserMessageLines(slot, slotContext);
-  const contextJson = JSON.stringify(pursuitContext, null, 2);
+  const insightContext = buildPursuitEnrichInsightContext(pursuitContext);
 
   const raw = await generateJsonCompletion({
     system: buildEnrichSystemPrompt(
@@ -245,7 +257,7 @@ async function generateOnePursuitEnrich(
     ),
     user: buildPursuitEnrichUserMessage(
       pursuitId,
-      contextJson,
+      insightContext,
       userContext,
       milestonesAllowed,
       slotLines,
@@ -329,6 +341,8 @@ async function generateOnePursuitEnrich(
   const gated = gateEnrichResult(result, signal, enrichOptions, {
     status: goal.status ?? "ACTIVE",
     quickQuestionsQuietUntil: previousQuietUntil,
+    enrichAnswers,
+    focalFacts: insightContext.focalFacts,
   });
   const slotted = applyQuestionSlotToResult(gated, slotContext);
   if (slotted.insight) {

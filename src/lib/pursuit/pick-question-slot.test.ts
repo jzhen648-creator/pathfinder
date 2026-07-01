@@ -46,7 +46,14 @@ describe("pickQuestionSlotForPursuit", () => {
     ).toBe("none");
   });
 
-  it("returns none for COMPLETE when user freeform is set", () => {
+  it("returns none for COMPLETE pursuits", () => {
+    expect(
+      pickQuestionSlotForPursuit({
+        ...baseCtx,
+        status: "COMPLETE",
+        completedAt: new Date(),
+      }),
+    ).toBe("none");
     expect(
       pickQuestionSlotForPursuit({
         ...baseCtx,
@@ -55,19 +62,6 @@ describe("pickQuestionSlotForPursuit", () => {
         background: "Finished because the goal was met.",
       }),
     ).toBe("none");
-  });
-
-  it("returns retrospective for COMPLETE before a retro answer exists", () => {
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "COMPLETE",
-        completedAt: new Date(),
-      }),
-    ).toBe("retrospective");
-  });
-
-  it("returns none after retrospective is answered on recently complete pursuit", () => {
     expect(
       pickQuestionSlotForPursuit({
         ...baseCtx,

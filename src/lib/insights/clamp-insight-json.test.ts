@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizePursuitInsightTone,
   clampInsightGenerationJson,
+  PURSUIT_INSIGHT_HEADLINE_MAX,
 } from "@/lib/insights/clamp-insight-json";
 
 describe("clamp-insight-json", () => {
@@ -14,16 +15,42 @@ describe("clamp-insight-json", () => {
     expect(normalizePursuitInsightTone("worth_a_look")).toBe("worth_a_look");
   });
 
-  it("clamps headline length on pursuit insight", () => {
+  it("clamps headline on a word boundary with ellipsis when over budget", () => {
+    const longHeadline =
+      "Your qualifications are running ahead of the job search and that leverage shifts once you start negotiating offers with multiple employers";
+
+    expect(longHeadline.length).toBeGreaterThan(PURSUIT_INSIGHT_HEADLINE_MAX);
+
     const clamped = clampInsightGenerationJson({
       pursuits: {
         g1: {
-          insight: { tone: "Reality Check", headline: "x".repeat(120), body: "ok" },
+          insight: { tone: "Reality Check", headline: longHeadline, body: "ok" },
         },
       },
     }) as { pursuits: { g1: { insight: { tone: string; headline: string } } } };
 
+    const headline = clamped.pursuits.g1.insight.headline;
     expect(clamped.pursuits.g1.insight.tone).toBe("context");
-    expect(clamped.pursuits.g1.insight.headline.length).toBe(100);
+    expect(headline).toMatch(/…$/);
+    expect(headline.length).toBeLessThanOrEqual(PURSUIT_INSIGHT_HEADLINE_MAX);
+
+    const body = headline.slice(0, -1);
+    expect(longHeadline.startsWith(body)).toBe(true);
+    expect(longHeadline[body.length] === " " || longHeadline[body.length] === undefined).toBe(true);
+  });
+
+  it("does not cut mid-word like the sales-negotiator regression", () => {
+    const longHeadline =
+      "Commission structure matters more than base once you are negotiating and shifted into senior sales roles";
+
+    const clamped = clampInsightGenerationJson({
+      pursuits: {
+        g1: { insight: { headline: longHeadline, body: "ok" } },
+      },
+    }) as { pursuits: { g1: { insight: { headline: string } } } };
+
+    const headline = clamped.pursuits.g1.insight.headline;
+    expect(headline).not.toMatch(/shifte$/);
+    expect(headline).toMatch(/…$/);
   });
 });

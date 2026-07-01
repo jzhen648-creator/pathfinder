@@ -8,7 +8,10 @@ import {
   PURSUIT_INSIGHT_COMPARISON_MAX,
   PURSUIT_INSIGHT_HEADLINE_MAX,
 } from "@/lib/insights/insight-field-limits";
-import { normalizePursuitInsightTone } from "@/lib/insights/clamp-insight-json";
+import {
+  normalizePursuitInsightTone,
+  truncatePursuitInsightHeadline,
+} from "@/lib/insights/clamp-insight-json";
 
 const CLARIFIER_PROMPT_MAX = 200;
 const CLARIFIER_OPTION_MAX = 80;
@@ -148,7 +151,11 @@ function normalizeInsightObject(raw: unknown): Record<string, unknown> | null {
   if (typeof raw !== "object" || Array.isArray(raw)) return null;
 
   const row = { ...(raw as Record<string, unknown>) };
-  const headline = truncate(row.headline ?? row.oneLiner ?? row.title, PURSUIT_INSIGHT_HEADLINE_MAX);
+  const headlineRaw = row.headline ?? row.oneLiner ?? row.title;
+  const headline =
+    typeof headlineRaw === "string" && headlineRaw.trim()
+      ? truncatePursuitInsightHeadline(headlineRaw)
+      : "";
   const body = truncate(row.body ?? row.summary ?? row.text, PURSUIT_INSIGHT_BODY_MAX);
   if (!headline && !body) return null;
 

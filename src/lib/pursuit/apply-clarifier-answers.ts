@@ -161,11 +161,6 @@ function isForwardClarifier(clarifier: Clarifier): boolean {
   );
 }
 
-function isRetrospectiveClarifier(clarifier: Clarifier): boolean {
-  const kind = clarifierKind(clarifier);
-  return kind === "retrospective" || clarifier.id.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX);
-}
-
 /** Drop pending clarifiers that are moot after a status change; clear cooldown. Answered enrichAnswers untouched. */
 export async function pruneMootPendingClarifiersOnStatusChange(
   userId: string,
@@ -185,10 +180,8 @@ export async function pruneMootPendingClarifiersOnStatusChange(
   const pending = entry.clarifiers ?? [];
   let clarifiers: Clarifier[] = pending;
 
-  if (newStatus === "PAUSED") {
+  if (newStatus === "PAUSED" || newStatus === "COMPLETE") {
     clarifiers = [];
-  } else if (newStatus === "COMPLETE") {
-    clarifiers = pending.filter((c) => isRetrospectiveClarifier(c));
   } else {
     clarifiers = pending.filter((c) => isForwardClarifier(c));
   }

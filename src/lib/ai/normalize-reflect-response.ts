@@ -1,24 +1,13 @@
-import { normalizePursuitEnrichEntry } from "@/lib/pursuit/normalize-pursuit-enrich";
+import { truncateAtWordBoundary } from "@/lib/insights/clamp-insight-json";
 import { PURSUIT_INSIGHT_COMPARISON_MAX } from "@/lib/insights/insight-field-limits";
+import { normalizePursuitEnrichEntry } from "@/lib/pursuit/normalize-pursuit-enrich";
+
+export { truncateAtWordBoundary } from "@/lib/insights/clamp-insight-json";
 
 const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
 export const THEME_ONE_LINER_MAX = 140;
 const THEME_REFLECTIVE_MAX = 800;
-
-/** Trim text to max length on a word boundary; append … when shortened. */
-export function truncateAtWordBoundary(text: string, max: number): string {
-  const trimmed = text.trim();
-  if (trimmed.length <= max) return trimmed;
-
-  const budget = max - 1;
-  let slice = trimmed.slice(0, budget);
-  const lastSpace = slice.lastIndexOf(" ");
-  if (lastSpace > 0) {
-    slice = slice.slice(0, lastSpace);
-  }
-  return `${slice.trimEnd()}…`;
-}
 
 /** Trim theme oneLiner to max length on a word boundary; append … when shortened. */
 export function truncateThemeOneLiner(text: string, max = THEME_ONE_LINER_MAX): string {

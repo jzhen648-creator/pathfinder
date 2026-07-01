@@ -12,6 +12,7 @@ import { reflectResponseSchema, type ReflectResponse } from "@/lib/ai/reflect-ty
 import { applyReflectOutput } from "@/lib/ai/apply-reflect-output";
 import {
   compileReadingPacket,
+  buildFocalPursuitFactsBlock,
   mapContextForReadingPacketPrompt,
   readingPacketToJson,
 } from "@/lib/map/compile-reading-packet";
@@ -45,6 +46,7 @@ import {
   PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
   PURSUIT_INSIGHT_FIELD_LANES,
   PURSUIT_PANEL_UI_CONTEXT,
+  PURSUIT_READING_AUTHORSHIP_ORDER,
   THEME_INSIGHT_FIELD_JOBS,
   THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
@@ -210,6 +212,7 @@ function buildReflectPursuitsOnlySystemPrompt(
     PURSUIT_INSIGHT_FIELD_LANES,
     PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
     PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
+    PURSUIT_READING_AUTHORSHIP_ORDER,
     PURSUIT_COMPARISON_FIELD_JOBS,
     PURSUIT_PANEL_UI_CONTEXT,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
@@ -276,6 +279,7 @@ function buildReflectSystemPrompt(
     PURSUIT_INSIGHT_FIELD_LANES,
     PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
     PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
+    PURSUIT_READING_AUTHORSHIP_ORDER,
     PURSUIT_COMPARISON_FIELD_JOBS,
     PURSUIT_PANEL_UI_CONTEXT,
     ...PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD,
@@ -464,11 +468,26 @@ function buildReflectUserMessage(input: {
     "<reading_packet>",
     input.readingPacketJson,
     "</reading_packet>",
+  ];
+
+  if (input.mapContext && input.dirtyPursuitIds.length > 0) {
+    const focalBlock = buildFocalPursuitFactsBlock(input.mapContext, input.dirtyPursuitIds);
+    if (Object.keys(focalBlock).length > 0) {
+      lines.push(
+        "",
+        "<focal_chapter_facts>",
+        JSON.stringify(focalBlock, null, 2),
+        "</focal_chapter_facts>",
+      );
+    }
+  }
+
+  lines.push(
     "",
     "<map_context>",
     input.mapContextJson,
     "</map_context>",
-  ];
+  );
 
   if (benchmarkFactsBlock) {
     lines.push("", "<benchmark_facts>", benchmarkFactsBlock, "</benchmark_facts>");

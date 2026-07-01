@@ -179,6 +179,7 @@ export function clarifierPreserveAllowed(input: {
   return (
     input.clarifyTitles &&
     input.status !== "PAUSED" &&
+    input.status !== "COMPLETE" &&
     !isQuickQuestionsQuiet(input.quickQuestionsQuietUntil, input.now)
   );
 }

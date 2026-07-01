@@ -5,6 +5,7 @@ import {
   THEME_ONE_LINER_MAX,
   truncateThemeOneLiner,
 } from "@/lib/ai/normalize-reflect-response";
+import { PURSUIT_INSIGHT_HEADLINE_MAX } from "@/lib/insights/clamp-insight-json";
 
 describe("truncateThemeOneLiner", () => {
   it("returns short text unchanged", () => {
@@ -78,5 +79,31 @@ describe("normalizeReflectResponse", () => {
 
     expect(normalized.themes.work.contextual).toBe("");
     expect(normalized.themes.work.combined).toBe("");
+  });
+
+  it("applies word-boundary headline truncation on pursuit entries", () => {
+    const longHeadline =
+      "Your qualifications are running ahead of the job search and that leverage shifts once you start negotiating offers with multiple employers";
+
+    expect(longHeadline.length).toBeGreaterThan(PURSUIT_INSIGHT_HEADLINE_MAX);
+
+    const normalized = normalizeReflectResponse({
+      themes: {},
+      pursuits: {
+        g1: {
+          insight: { headline: longHeadline, body: "Body text." },
+        },
+      },
+    }) as { pursuits: Record<string, { headline: string }> };
+
+    const headline = normalized.pursuits.g1.headline;
+    expect(headline).toMatch(/…$/);
+    expect(headline.length).toBeLessThanOrEqual(PURSUIT_INSIGHT_HEADLINE_MAX);
+
+    const body = headline.slice(0, -1);
+    expect(longHeadline.startsWith(body)).toBe(true);
+    expect(longHeadline[body.length] === " " || longHeadline[body.length] === undefined).toBe(
+      true,
+    );
   });
 });

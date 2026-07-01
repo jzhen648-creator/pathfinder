@@ -1,4 +1,5 @@
-import type { PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
+import type { PursuitEnrichResult, EnrichAnswer } from "@/lib/pursuit/pursuit-enrich-types";
+import { truncatePursuitInsightHeadline } from "@/lib/insights/clamp-insight-json";
 import { filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
@@ -238,6 +239,88 @@ const TITLE_STOP_WORDS = new Set([
   "or",
 ]);
 
+const PROSE_STOP_WORDS = new Set([
+  ...TITLE_STOP_WORDS,
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "have",
+  "had",
+  "your",
+  "you",
+  "this",
+  "that",
+  "with",
+  "from",
+  "into",
+]);
+
+function significantProseTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9£]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !PROSE_STOP_WORDS.has(token));
+}
+
+/** @internal Exported for vitest — sentence overlaps enrichAnswer selectedOption tokens. */
+export function sentenceRestatesEnrichAnswer(sentence: string, enrichAnswers: EnrichAnswer[]): boolean {
+  const sentenceTokens = significantProseTokens(sentence);
+  if (sentenceTokens.length === 0) return false;
+
+  for (const answer of enrichAnswers) {
+    const optionTokens = significantProseTokens(answer.selectedOption);
+    if (optionTokens.length === 0) continue;
+    const matched = optionTokens.filter((token) => sentenceTokens.includes(token));
+    if (matched.length >= Math.min(2, optionTokens.length)) return true;
+    if (matched.length / optionTokens.length >= 0.6) return true;
+  }
+  return false;
+}
+
+function fallbackHeadlineFromFocalFacts(focalFacts: string[] | undefined): string | undefined {
+  if (!focalFacts?.length) return undefined;
+  const candidate = focalFacts.find((fact) => !fact.startsWith("Status:")) ?? focalFacts[0];
+  return truncatePursuitInsightHeadline(candidate);
+}
+
+/** Strip enrichAnswer restatements from pursuit headline/body after generation. */
+export function gatePursuitInsightProse(input: {
+  headline?: string;
+  body?: string;
+  enrichAnswers: EnrichAnswer[];
+  focalFacts?: string[];
+}): { headline?: string; body?: string } {
+  if (input.enrichAnswers.length === 0) {
+    return {
+      headline: input.headline?.trim() || undefined,
+      body: input.body?.trim() || undefined,
+    };
+  }
+
+  let headline = input.headline?.trim() ?? "";
+  let body = input.body?.trim() ?? "";
+
+  if (headline && sentenceRestatesEnrichAnswer(headline, input.enrichAnswers)) {
+    headline = fallbackHeadlineFromFocalFacts(input.focalFacts) ?? "";
+  }
+
+  if (body) {
+    const sentences = body.split(/(?<=[.!?])\s+/).filter(Boolean);
+    body = sentences
+      .filter((sentence) => !sentenceRestatesEnrichAnswer(sentence, input.enrichAnswers))
+      .join(" ")
+      .trim();
+  }
+
+  return {
+    headline: headline || undefined,
+    body: body || undefined,
+  };
+}
+
 function significantTitleTokens(title: string): string[] {
   return title
     .toLowerCase()
@@ -310,6 +393,8 @@ export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
 export type QuickQuestionGateContext = {
   status?: string;
   quickQuestionsQuietUntil?: string | null;
+  enrichAnswers?: EnrichAnswer[];
+  focalFacts?: string[];
 };
 
 export function gateEnrichResult(
@@ -324,6 +409,7 @@ export function gateEnrichResult(
   const clarifiers =
     !options.clarifyTitles ||
     status === "PAUSED" ||
+    status === "COMPLETE" ||
     isQuickQuestionsQuiet(qqContext?.quickQuestionsQuietUntil)
       ? []
       : filterActiveClarifiers(result.clarifiers);
@@ -332,9 +418,24 @@ export function gateEnrichResult(
     ? result.suggestedMilestones
     : null;
 
+  let insight = result.insight;
+  if (insight && qqContext?.enrichAnswers?.length) {
+    const prose = gatePursuitInsightProse({
+      headline: insight.headline,
+      body: insight.body,
+      enrichAnswers: qqContext.enrichAnswers,
+      focalFacts: qqContext.focalFacts,
+    });
+    insight = {
+      ...insight,
+      headline: prose.headline ?? insight.headline,
+      body: prose.body ?? insight.body,
+    };
+  }
+
   return {
     clarifiers,
-    insight: result.insight,
+    insight,
     suggestedMilestones,
   };
 }

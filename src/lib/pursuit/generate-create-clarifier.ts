@@ -58,6 +58,7 @@ export async function suggestCreateClarifier(
 ): Promise<Clarifier | null> {
   const title = input.title.trim();
   if (title.length < 3) return null;
+  if (input.status === "COMPLETE") return null;
 
   const milestones = input.milestones ?? [];
   const completedMilestones = milestones.filter((m) => m.completed && m.title.trim());

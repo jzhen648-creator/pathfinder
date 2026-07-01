@@ -678,3 +678,77 @@ export function readingPacketToJson(packet: ReadingPacket): string {
 export function themeLabelForId(themeId: string): string {
   return getLifeArea(themeId)?.label ?? themeId;
 }
+
+/** Deterministic chapter arc facts for pursuit panel prompts — no enrichAnswers. */
+export function buildFocalPursuitReadingFacts(
+  pursuit: FormattedMapPursuit,
+  now = Date.now(),
+): string[] {
+  const facts: string[] = [`Status: ${pursuit.status}`];
+
+  if (pursuit.significance != null) {
+    facts.push(`Significance: ${pursuit.significance}/5`);
+  }
+  if (pursuit.timelineStart) {
+    facts.push(`Timeline started: ${pursuit.timelineStart}`);
+  }
+  if (pursuit.completedAt) {
+    facts.push(`Completed: ${pursuit.completedAt}`);
+  }
+  if (pursuit.deadline) {
+    const label = formatDeadlineLabel(pursuit.deadline);
+    const until = pursuit.daysUntilDeadline ?? daysUntil(pursuit.deadline, now);
+    if (until != null) {
+      facts.push(`Deadline: ${label ?? pursuit.deadline} (${until}d)`);
+    } else {
+      facts.push(`Deadline: ${label ?? pursuit.deadline}`);
+    }
+  }
+  if (pursuit.targetAmount != null) {
+    const current = pursuit.currentAmount ?? 0;
+    const unit = pursuit.unit?.trim() ? ` ${pursuit.unit.trim()}` : "";
+    facts.push(`Amount: ${current}/${pursuit.targetAmount}${unit}`);
+  }
+
+  const signal = computePursuitSignal(pursuit, now);
+  if (signal === "gap") {
+    facts.push(`Reading signal: gap — ${formatGapFactLine(pursuit, now)}`);
+  } else if (signal === "arrival") {
+    facts.push("Reading signal: arrival — recently completed");
+  }
+
+  facts.push(...buildMilestonePaceFacts([pursuit], now));
+  return facts;
+}
+
+function findPursuitsInMapContext(
+  mapContext: FormattedMapContext,
+  pursuitIds: string[],
+): FormattedMapPursuit[] {
+  const ids = new Set(pursuitIds);
+  const found: FormattedMapPursuit[] = [];
+  for (const theme of mapContext.themes) {
+    for (const category of theme.categories) {
+      for (const pursuit of category.pursuits) {
+        if (ids.has(pursuit.id)) found.push(pursuit);
+      }
+    }
+  }
+  return found;
+}
+
+/** Per-pursuit focal facts block for dirty pursuit IDs in reflect/enrich user messages. */
+export function buildFocalPursuitFactsBlock(
+  mapContext: FormattedMapContext,
+  pursuitIds: string[],
+  now = Date.now(),
+): Record<string, { title: string; facts: string[] }> {
+  const block: Record<string, { title: string; facts: string[] }> = {};
+  for (const pursuit of findPursuitsInMapContext(mapContext, pursuitIds)) {
+    block[pursuit.id] = {
+      title: pursuit.title,
+      facts: buildFocalPursuitReadingFacts(pursuit, now),
+    };
+  }
+  return block;
+}

@@ -5,6 +5,7 @@ import {
   PURSUIT_COMPARISON_FIELD_JOBS,
   PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
   PURSUIT_INSIGHT_FIELD_LANES,
+  PURSUIT_READING_AUTHORSHIP_ORDER,
   THEME_INSIGHT_FIELD_JOBS,
   THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
@@ -49,6 +50,12 @@ describe("theme-insight-prompt-blocks", () => {
     expect(PURSUIT_CONTEXT_TAB_NON_DUPLICATION).toContain("enrichAnswers");
     expect(PURSUIT_CONTEXT_TAB_NON_DUPLICATION).toContain("Do NOT restate enrichAnswers");
     expect(PURSUIT_CONTEXT_TAB_NON_DUPLICATION).toContain("domain gloss");
+  });
+
+  it("scopes chapter reading authorship to pursuit panels only", () => {
+    expect(PURSUIT_READING_AUTHORSHIP_ORDER).toContain("does NOT apply to theme oneLiner or reflective");
+    expect(PURSUIT_READING_AUTHORSHIP_ORDER).toContain("<focal_chapter_facts>");
+    expect(PURSUIT_READING_AUTHORSHIP_ORDER).toContain("Wrong: restating three confirmed Quick Question picks");
   });
 
   it("requires empty theme contextual and combined on reflect", () => {

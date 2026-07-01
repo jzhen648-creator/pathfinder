@@ -1,4 +1,5 @@
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
+import { formatMapContext } from "@/lib/ai/format-map-context";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
 import type { InsightLevelPayload } from "@/lib/insights/insight-types";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
+import { buildFocalPursuitFactsBlock } from "@/lib/map/compile-reading-packet";
 import { prisma } from "@/lib/prisma";
 
 export {
@@ -80,6 +82,9 @@ export async function applyReflectOutput(
   const options = resolvePursuitEnrichOptions(enrichOptions);
 
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
+  const mapContext = pursuitIds.length > 0 ? await formatMapContext(userId) : null;
+  const focalFactsByPursuit =
+    mapContext != null ? buildFocalPursuitFactsBlock(mapContext, pursuitIds) : {};
   const existingCache = await prisma.insightCache.findUnique({
     where: { userId },
     select: { pursuitInsights: true },
@@ -182,6 +187,8 @@ export async function applyReflectOutput(
     const gated = gateEnrichResult(rawResult, signal, options, {
       status: goal.status ?? "ACTIVE",
       quickQuestionsQuietUntil: previousQuietUntil,
+      enrichAnswers,
+      focalFacts: focalFactsByPursuit[pursuitId]?.facts,
     });
     const themeId = goal.themeId ?? "becoming";
     const siblingPursuits = (siblingTitlesByTheme.get(themeId) ?? []).filter(

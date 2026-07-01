@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   gateEnrichResult,
+  gatePursuitInsightProse,
   gateThemeCombined,
   gateThemeContextual,
   gateThemeContextualContent,
@@ -9,8 +10,11 @@ import {
   gatePursuitComparison,
   hasMinimumContextSignal,
   isHolisticBenchmarkEligible,
+  sentenceRestatesEnrichAnswer,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { buildFocalPursuitReadingFacts } from "@/lib/map/compile-reading-packet";
+import type { EnrichAnswer } from "@/lib/pursuit/pursuit-enrich-types";
 
 const richSignal: PursuitSignal = {
   title: "Build £500k ISA",
@@ -120,6 +124,31 @@ describe("pursuit-enrich-readiness gates", () => {
     expect(hasMinimumContextSignal(richSignal)).toBe(true);
   });
 
+  it("gateEnrichResult strips clarifiers for COMPLETE pursuits", () => {
+    const completeSignal: PursuitSignal = {
+      ...thinSignal,
+      status: "COMPLETE",
+    };
+    const gated = gateEnrichResult(
+      {
+        clarifiers: [
+          {
+            id: "retro-skill",
+            prompt: "Which skill did you develop most?",
+            options: ["A", "B"],
+            kind: "retrospective",
+          },
+        ],
+        insight: { tone: "arrival", headline: "Headline", body: "Body" },
+        suggestedMilestones: null,
+      },
+      completeSignal,
+      { clarifyTitles: true },
+      { status: "COMPLETE" },
+    );
+    expect(gated.clarifiers).toHaveLength(0);
+  });
+
   it("gateEnrichResult keeps clarifiers for deadline+title pursuits (QQ decoupled from richness)", () => {
     const deadlineTitleSignal: PursuitSignal = {
       title: "Save for house deposit",
@@ -173,5 +202,78 @@ describe("pursuit-enrich-readiness gates", () => {
     ], themeMap);
     expect(stripped).toBe("CeMAP and Sales role are active.");
     expect(stripped.toLowerCase()).not.toContain("feeds into");
+  });
+
+  it("gatePursuitInsightProse strips enrichAnswer glossary from body", () => {
+    const enrichAnswers: EnrichAnswer[] = [
+      {
+        clarifierId: "q1",
+        prompt: "What matters most in interviews?",
+        selectedOption: "Interview performance",
+      },
+      {
+        clarifierId: "q2",
+        prompt: "What client skill?",
+        selectedOption: "Client relationship management",
+      },
+      {
+        clarifierId: "q3",
+        prompt: "Focus area?",
+        selectedOption: "Shifted focus to a different area of property",
+      },
+    ];
+    const gated = gatePursuitInsightProse({
+      headline: "Interview performance and client relationship management define this chapter",
+      body:
+        "Interview performance and client relationship management shaped the role. Shifted focus to a different area of property pulled you away from pure sales.",
+      enrichAnswers,
+      focalFacts: ["Status: ACTIVE", "Sales negotiator: 1/3 milestones complete"],
+    });
+    expect(gated.headline).not.toMatch(/Interview performance/i);
+    expect(gated.headline).toMatch(/milestones complete/i);
+    expect(gated.body?.toLowerCase() ?? "").not.toContain("interview performance");
+  });
+
+  it("gatePursuitInsightProse keeps cross-chapter body that only lightly touches one enrichAnswer", () => {
+    const enrichAnswers: EnrichAnswer[] = [
+      {
+        clarifierId: "q1",
+        prompt: "Route?",
+        selectedOption: "Independent broker",
+      },
+    ];
+    const body =
+      "CeMAP qualification is complete while this chapter stays active — the broker route you confirmed sits ahead of any employed desk move.";
+    expect(sentenceRestatesEnrichAnswer(body, enrichAnswers)).toBe(false);
+    const gated = gatePursuitInsightProse({
+      headline: "CeMAP is done — broker licensing is the frontier now",
+      body,
+      enrichAnswers,
+    });
+    expect(gated.body).toBe(body);
+  });
+
+  it("buildFocalPursuitReadingFacts leads with structured chapter facts not enrichAnswers", () => {
+    const facts = buildFocalPursuitReadingFacts({
+      id: "g1",
+      title: "Sales negotiator",
+      status: "ACTIVE",
+      significance: 4,
+      timelineStart: "2024-01-15",
+      milestones: [
+        { id: "m1", title: "First listing", completed: true, completedAt: "2024-06-01" },
+        { id: "m2", title: "Quarter target", completed: false },
+      ],
+      enrichAnswers: [
+        {
+          clarifierId: "q1",
+          prompt: "Focus?",
+          selectedOption: "Interview performance",
+        },
+      ],
+    });
+    expect(facts.some((fact) => fact.startsWith("Status:"))).toBe(true);
+    expect(facts.some((fact) => fact.includes("milestones complete"))).toBe(true);
+    expect(facts.join(" ").toLowerCase()).not.toContain("interview performance");
   });
 });

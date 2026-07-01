@@ -1,5 +1,4 @@
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
-import { isRecentlyCompletedPursuit } from "@/lib/map/reading-dirty-ledger";
 import { CLARIFIER_INITIAL_BATCH, CLARIFIER_REPLENISH_BATCH } from "@/lib/pursuit/clarifier-prompt-blocks";
 import {
   isQuickQuestionsQuiet,
@@ -25,7 +24,7 @@ export type QuestionSlotContext = {
   completedAt: Date | null;
   significance: number | null;
   enrichAnswers: EnrichAnswer[];
-  /** User freeform prose (`Goal.background`) — suppresses retrospective when set. */
+  /** User freeform prose (`Goal.background`). */
   background?: string | null;
   quickQuestionsQuietUntil?: string | null;
   siblingGoalIds: string[];
@@ -36,34 +35,16 @@ export type QuestionSlotContext = {
   skippedClarifierPrompts?: string[];
 };
 
-export function hasRetrospectiveEnrichAnswer(enrichAnswers: EnrichAnswer[]): boolean {
-  return enrichAnswers.some((answer) =>
-    answer.clarifierId.startsWith(RETROSPECTIVE_CLARIFIER_ID_PREFIX),
-  );
-}
-
 /** Deterministic slot before model drafts MC copy. */
 export function pickQuestionSlotForPursuit(ctx: QuestionSlotContext): QuestionSlot {
   const status = ctx.status ?? "ACTIVE";
 
-  if (status === "PAUSED") {
+  if (status === "PAUSED" || status === "COMPLETE") {
     return "none";
   }
 
   if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
     return "none";
-  }
-
-  if (status === "COMPLETE") {
-    if (ctx.background?.trim()) {
-      return "none";
-    }
-    const recentlyComplete = isRecentlyCompletedPursuit(status, ctx.completedAt);
-    if (recentlyComplete && hasRetrospectiveEnrichAnswer(ctx.enrichAnswers)) {
-      // Successor ideas are implicit in map placement + status.
-      return "none";
-    }
-    return "retrospective";
   }
 
   // ACTIVE and MAINTAINING — ask forward-looking contextual questions.
@@ -152,6 +133,9 @@ export function questionSlotUserMessageLines(
     lines.push("Do NOT generate quick questions for this pursuit on this sync.");
     if (ctx.status === "PAUSED") {
       lines.push("PAUSED pursuits stay silent — return clarifiers: [].");
+    }
+    if (ctx.status === "COMPLETE") {
+      lines.push("COMPLETE pursuits stay silent — return clarifiers: [].");
     }
     if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
       lines.push("Cooldown active — return clarifiers: [].");

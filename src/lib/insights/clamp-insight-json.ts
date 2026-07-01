@@ -20,10 +20,37 @@ export function normalizePursuitInsightTone(raw: unknown): PursuitInsightTone {
   return normalizeLegacyPursuitTone(raw);
 }
 
+/** Trim text to max length on a word boundary; append … when shortened. */
+export function truncateAtWordBoundary(text: string, max: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+
+  const budget = max - 1;
+  let slice = trimmed.slice(0, budget);
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace > 0) {
+    slice = slice.slice(0, lastSpace);
+  }
+  return `${slice.trimEnd()}…`;
+}
+
+/** Trim pursuit insight headline to max length on a word boundary; append … when shortened. */
+export function truncatePursuitInsightHeadline(
+  text: string,
+  max = PURSUIT_INSIGHT_HEADLINE_MAX,
+): string {
+  return truncateAtWordBoundary(text, max);
+}
+
 function truncateString(value: unknown, max: number): unknown {
   if (typeof value !== "string") return value;
   if (value.length <= max) return value;
   return value.slice(0, max).trimEnd();
+}
+
+function truncateHeadline(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  return truncatePursuitInsightHeadline(value);
 }
 
 function clampPursuitInsightFields(row: Record<string, unknown>): void {
@@ -31,7 +58,7 @@ function clampPursuitInsightFields(row: Record<string, unknown>): void {
     row.tone = normalizePursuitInsightTone(row.tone);
   }
   if ("headline" in row) {
-    row.headline = truncateString(row.headline, PURSUIT_INSIGHT_HEADLINE_MAX);
+    row.headline = truncateHeadline(row.headline);
   }
   if ("body" in row) {
     row.body = truncateString(row.body, PURSUIT_INSIGHT_BODY_MAX);

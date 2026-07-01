@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearQuickQuestionsQuietUntilInCache,
   deleteClarifierAnswerForUser,
+  pruneMootPendingClarifiersOnStatusChange,
 } from "@/lib/pursuit/apply-clarifier-answers";
 import { clarifierPreserveAllowed } from "@/lib/pursuit/pursuit-cache-patch";
 import {
@@ -211,5 +212,54 @@ describe("deleteClarifierAnswerForUser", () => {
         { status: "ACTIVE", quickQuestionsQuietUntil: undefined },
       ).clarifiers,
     ).toHaveLength(1);
+  });
+});
+
+describe("pruneMootPendingClarifiersOnStatusChange", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("clears all pending clarifiers when status becomes COMPLETE", async () => {
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        [GOAL_ID]: {
+          tone: "arrival",
+          headline: "Headline",
+          body: "Body",
+          clarifiers: [
+            {
+              id: "retro-skill",
+              prompt: "Which skill did you develop most?",
+              options: ["A", "B"],
+              kind: "retrospective",
+            },
+            {
+              id: "route",
+              prompt: "What route?",
+              options: ["A", "B"],
+              kind: "clarify",
+            },
+          ],
+          quickQuestionsQuietUntil: computeQuickQuestionsQuietUntil(),
+        },
+      },
+    });
+
+    await pruneMootPendingClarifiersOnStatusChange(USER_ID, GOAL_ID, "COMPLETE");
+
+    expect(mocks.insightCacheUpdate).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+      data: {
+        pursuitInsights: {
+          [GOAL_ID]: {
+            tone: "arrival",
+            headline: "Headline",
+            body: "Body",
+            quickQuestionsQuietUntil: undefined,
+          },
+        },
+      },
+    });
   });
 });
