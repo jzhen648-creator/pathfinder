@@ -18,11 +18,11 @@ function promptFingerprint(prompt: string): string {
 describe("reflect prompt snapshots", () => {
   it("full-scope prompt fingerprint is stable", () => {
     const prompt = buildReflectSystemPrompt(ENRICH_OPTIONS, "full", false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"a62f5346dd7a66f866e7016e2485b0431c10e8e3b68731a70321d8dc4d5f5b60"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"b1eb03eb50a1bbfb390fb10ad2218530d456d7bcc393cc60e769d5ff4acec026"`);
     expect(prompt).toContain("TENSION, NOT FORECAST:");
     expect(prompt).toContain("FROM YOUR MAP — within-theme relationships");
     expect(prompt).toContain('{ tone, oneLiner, reflective }');
-    expect(prompt).toContain("PURSUIT INSIGHT FIELD LANES");
+    expect(prompt).toContain("CHAPTER READING FIELD LANES");
     expect(prompt).toContain("Worth knowing ·");
     expect(prompt).toContain("THEME OUTPUT (reflect path — map-only)");
     expect(prompt).not.toContain("fromMap");
@@ -32,10 +32,10 @@ describe("reflect prompt snapshots", () => {
 
   it("pursuits-only prompt fingerprint is stable", () => {
     const prompt = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"fca092370a4f1c808af99d155dc49766fe4e074ea7e122f38f5cd65f9c95e84d"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"3ba1d8bc20519e4b223a413f0ce0ddec0fc9b9e4705f4deaf80f5d5752463028"`);
     expect(prompt).not.toContain("THEME INSIGHTS");
     expect(prompt).toContain("TENSION, NOT FORECAST:");
-    expect(prompt).toContain("PURSUIT INSIGHT FIELD LANES");
+    expect(prompt).toContain("CHAPTER READING FIELD LANES");
     expect(prompt).toContain("Worth knowing ·");
     expect(prompt).not.toContain("fromMap");
   });

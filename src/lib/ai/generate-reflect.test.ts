@@ -125,7 +125,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
 
     for (const prompt of [full, scoped]) {
-      expect(prompt).toContain("Pursuit status (status field in map context):");
+      expect(prompt).toContain("Chapter status (status field in map context):");
       expect(prompt).toContain("- MAINTAINING —");
       expect(prompt).toContain("MUST NOT treat absent milestone movement");
       expect(prompt).toContain("- PAUSED —");
@@ -135,7 +135,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
   it("replaces generic age/location benchmark lines with BENCHMARK & INSIGHT MOVES", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
     expect(full).toContain("BENCHMARK & INSIGHT MOVES");
-    expect(full).toContain("At most one observation per pursuit.");
+    expect(full).toContain("At most one observation per chapter.");
     expect(full).toContain("GROUNDING RULE (mandatory)");
     expect(full).toContain("TENSION, NOT FORECAST:");
     expect(full).toContain("Those two facts sit in tension.");
@@ -152,11 +152,11 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
       "When age AND location are in user context, include fromMap and/or comparison fields",
     );
 
-    expect(full).toContain("PURSUIT PANEL — WHAT THE READER ALREADY SEES");
-    expect(scoped).toContain("PURSUIT PANEL — WHAT THE READER ALREADY SEES");
+    expect(full).toContain("CHAPTER PANEL — WHAT THE READER ALREADY SEES");
+    expect(scoped).toContain("CHAPTER PANEL — WHAT THE READER ALREADY SEES");
     expect(scoped).toContain("Do NOT restate, enumerate, or quote milestone titles");
     expect(scoped).toContain("MUST return 1-6 chronological outcome waypoints");
-    expect(scoped).toContain("PURSUIT CONTEXT PRECEDENCE");
+    expect(scoped).toContain("CHAPTER CONTEXT PRECEDENCE");
     expect(scoped).toContain("durable interpretation context");
   });
 
@@ -165,7 +165,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(full).toContain('{ tone, oneLiner, reflective }');
     expect(full).toContain("FROM YOUR MAP — within-theme relationships the oneLiner did not state");
     expect(full).toContain("map_context and a fact the user entered there");
-    expect(full).toContain("Relate pursuits to each other within the theme");
+    expect(full).toContain("Relate chapters to each other within the theme");
     expect(full).toContain("THEME OUTPUT (reflect path — map-only)");
     expect(full).toContain('contextual and combined MUST be empty strings ""');
     expect(full).not.toContain("combined (UI: ACROSS PURSUITS");
@@ -178,7 +178,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
 
     for (const prompt of [full, scoped]) {
-      expect(prompt).toContain("PURSUIT CONTEXT TAB NON-DUPLICATION");
+      expect(prompt).toContain("CHAPTER CONTEXT TAB NON-DUPLICATION");
       expect(prompt).toContain("enrichAnswers (Quick Question answers)");
       expect(prompt).toContain("Do NOT restate enrichAnswers");
     }
@@ -188,7 +188,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
 
     expect(full).not.toContain("One concrete suggestion per pursuit, max");
-    expect(full).toContain("PURSUIT PANEL — suggestedMilestones FIELD");
+    expect(full).toContain("CHAPTER PANEL — suggestedMilestones FIELD");
     expect(full).toContain("MUST return 1-6 items in suggestedMilestones");
   });
 
@@ -197,16 +197,16 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     const scoped = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
 
     for (const prompt of [full, scoped]) {
-      expect(prompt).toContain("PURSUIT INSIGHT FIELD LANES");
-      expect(prompt).toContain("PURSUIT body — optional cross-pursuit domain context (qualitative only)");
-      expect(prompt).toContain("standalone \"what this pursuit type is\"");
+      expect(prompt).toContain("CHAPTER READING FIELD LANES");
+      expect(prompt).toContain("CHAPTER body — optional cross-chapter domain context (qualitative only)");
+      expect(prompt).toContain("standalone \"what this chapter type is\"");
       expect(prompt).toContain("AT MOST ONE sentence");
-      expect(prompt).toContain("Exception — pursuit body only");
+      expect(prompt).toContain("Exception — chapter body only");
       expect(prompt).toContain("consequential domain context anchored to this map");
       expect(prompt).toContain("MAP SPECIFICITY:");
-      expect(prompt).toContain("PURSUIT TITLE ON SCREEN:");
-      expect(prompt).toContain("Never invent pursuits or connections not in the data");
-      expect(prompt).toContain("Name pursuits VERBATIM from map context");
+      expect(prompt).toContain("CHAPTER TITLE ON SCREEN:");
+      expect(prompt).toContain("Never invent chapters or connections not in the data");
+      expect(prompt).toContain("Name chapters VERBATIM from map context");
     }
   });
 
@@ -237,7 +237,7 @@ describe("pursuit body prescriptive guardrail", () => {
     for (const phrase of ["you should", "consider", "I recommend", "try"]) {
       expect(full).toContain(phrase);
     }
-    expect(full).toContain("no suggesting new pursuits");
+    expect(full).toContain("no suggesting new chapters");
   });
 });
 

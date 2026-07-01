@@ -230,8 +230,8 @@ export function buildPursuitCachePayload(
 
   return {
     tone: "context",
-    headline: "Help Pathfinder read this pursuit",
-    body: "Answer a quick question below — then update your AI reading on Insights.",
+    headline: "Help Almanac read this chapter",
+    body: "Answer a quick question below — then update your Reading when you're ready.",
     clarifiers,
     suggestedMilestones,
     ...quietField,

@@ -89,7 +89,7 @@ const HEADLINE_MUST_ADD_MEANING = [
   "HEADLINE MUST ADD MEANING:",
   '- Never restate the status line ("X is paused with a deadline of Y") or the milestone count ("X has N milestones complete")',
   "- The user already sees those. The headline tells them what it MEANS.",
-  '- Wrong: "Half-marathon pursuit has one milestone complete, 5k achieved 79 days ago"',
+  '- Wrong: "Half-marathon chapter has one milestone complete, 5k achieved 79 days ago"',
   '- Right: "5k is done — the jump to 10k is where the training plan actually starts"',
   "- If there's nothing meaningful to add beyond the status, write a shorter, honest headline rather than padding with facts the user already has.",
 ].join("\n");
@@ -110,9 +110,9 @@ function buildEnrichSystemPrompt(
     : ["- clarifiers: always return an empty array — do not generate quick questions."];
 
   return [
-    "You enrich a single pursuit on a personal life map.",
+    "You enrich a single chapter on a personal life map.",
     "Return ONLY valid JSON matching the schema.",
-    "Quick questions must improve accuracy — never invent facts or pursuits not in context.",
+    "Quick questions must improve accuracy — never invent facts or chapters not in context.",
     PURSUIT_PANEL_CONTEXT_PRECEDENCE,
     "",
     "OUTPUT:",
@@ -132,11 +132,11 @@ function buildEnrichSystemPrompt(
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...SUGGESTED_MILESTONES_OUTPUT_LINES,
     "",
-    "JSON shape (single pursuit under pursuits map):",
+    "JSON shape (single chapter under pursuits map):",
     '{ "pursuits": { "<pursuitId>": { "clarifiers": [], "insight": { "headline": "...", "body": "...", "comparison": "..." }, "suggestedMilestones": null } } }',
     "",
     "RULES:",
-    "- Ground map-fact sentences in provided scoped context JSON; the optional cross-pursuit domain-context sentence is exempt per domain-context rule.",
+    "- Ground map-fact sentences in provided scoped context JSON; the optional cross-chapter domain-context sentence is exempt per domain-context rule.",
     "- Null/empty arrays are correct when unsure.",
     "",
   TENSION_NOT_FORECAST_RULE,
@@ -176,7 +176,7 @@ function buildPursuitEnrichUserMessage(
   return [
     userContext || "(No profile context yet.)",
     "",
-    `Generate enrich output for pursuit id: ${pursuitId}`,
+    `Generate enrich output for chapter id: ${pursuitId}`,
     "",
     formatPursuitToneGuidanceEntry(pursuitId, tone),
     "",
@@ -187,7 +187,7 @@ function buildPursuitEnrichUserMessage(
       ? "Milestones: allowed — suggest 1-6 chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers."
       : "Milestones: NOT allowed — set suggestedMilestones to null.",
     "",
-    "Scoped pursuit context JSON (focal pursuit + sibling pursuits):",
+    "Scoped chapter context JSON (focal chapter + sibling chapters):",
     contextJson,
   ].join("\n");
 }

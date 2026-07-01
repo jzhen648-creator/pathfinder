@@ -20,7 +20,7 @@ describe("theme-insight-prompt-blocks", () => {
   });
 
   it("defines pursuit field lanes with non-duplication bans", () => {
-    expect(PURSUIT_INSIGHT_FIELD_LANES).toContain("PURSUIT INSIGHT FIELD LANES");
+    expect(PURSUIT_INSIGHT_FIELD_LANES).toContain("CHAPTER READING FIELD LANES");
     expect(PURSUIT_INSIGHT_FIELD_LANES).toContain("MAP-RELATIONSHIPS");
     expect(PURSUIT_INSIGHT_FIELD_LANES).toContain("Do NOT restate the headline");
     expect(PURSUIT_INSIGHT_FIELD_LANES).toContain("Do NOT restate Status, Deadline, or Significance");
@@ -30,17 +30,17 @@ describe("theme-insight-prompt-blocks", () => {
   it("defines worth-knowing remit on the historical comparison field", () => {
     expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("Worth knowing ·");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("consequential domain context the map does NOT contain");
-    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("Do NOT borrow another pursuit's progress story");
+    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("Do NOT borrow another chapter's progress story");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("<benchmark_facts>");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).not.toContain("Population / typical-norm benchmark");
     expect(PURSUIT_COMPARISON_FIELD_JOBS).not.toContain("fromMap");
   });
 
   it("limits body domain context to cross-pursuit relationships only", () => {
-    expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("cross-pursuit");
+    expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("cross-chapter");
     expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("AT MOST ONE sentence");
     expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("QUALITATIVE only");
-    expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("what this pursuit type is");
+    expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("what this chapter type is");
     expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("INSIGHT-CARD-REDESIGN-SPEC.md");
     expect(PURSUIT_BODY_DOMAIN_CONTEXT_RULE).toContain("you should");
   });

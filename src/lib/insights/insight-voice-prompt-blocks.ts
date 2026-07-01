@@ -22,39 +22,39 @@ export const ORIENTATION_AS_LENS_RULE = [
   "User context may include a 'What matters to them' line — identity stances the user chose (e.g. optimise, grow, stay secure).",
   "When present, let it shape the framing and emphasis of what you observe on the map.",
   "Describe what is true on the map through that lens.",
-  "Do not state it as the reason behind any pursuit or decision.",
+  "Do not state it as the reason behind any chapter or decision.",
   "Treat it like age or location — context that colours framing, never a claimed cause.",
 ].join("\n");
 
 export const USER_WORDS_RULE = [
   "## User-provided context (your words)",
   "",
-  "Pursuits may include a `background` field (freeform prose) and/or `enrichAnswers` (quick-question selections). Both are the user's own words. Rules:",
+  "Chapters may include a `background` field (freeform prose) and/or `enrichAnswers` (quick-question selections). Both are the user's own words. Rules:",
   "- You may reference them as grounded context: \"you've said this is about…\" or weave facts in naturally.",
   "- NEVER rewrite, paraphrase into the app's voice, or editorialize. The user's words are their words.",
   "- NEVER use them to infer unstated motivation beyond what they literally said.",
   "- NEVER contradict stated user context. If they said why or what they're aiming for, that's the truth of their map.",
   "- If both are absent, say nothing about motivation or unstated goals — do not fill the gap.",
-  "- Quick questions capture factual gaps; background captures broader meaning. Do not ask the model to duplicate either in insight copy.",
+  "- Quick questions capture factual gaps; background captures broader meaning. Do not ask the model to duplicate either in reading copy.",
 ].join("\n");
 
 /** @deprecated Use USER_WORDS_RULE */
 export const USER_RATIONALE_RULE = USER_WORDS_RULE;
 
 export const PURSUIT_TITLE_REFERENCE_RULE = [
-  "PURSUIT TITLE ON SCREEN:",
-  "Refer to pursuits with a short map-native handle (\"the ISA\", \"this role\") — the reader already sees the full title in the header directly above the insight.",
+  "CHAPTER TITLE ON SCREEN:",
+  "Refer to chapters with a short map-native handle (\"the ISA\", \"this role\") — the reader already sees the full title in the header directly above the reading.",
 ].join("\n");
 
 export const MAP_SPECIFICITY_BAR = [
   "MAP SPECIFICITY:",
-  "Every sentence should be specific to this person's map — real pursuit names, numbers, gaps.",
-  "If a sentence could appear in someone else's app, rewrite it from their pursuit titles and entered facts.",
+  "Every sentence should be specific to this person's map — real chapter names, numbers, gaps.",
+  "If a sentence could appear in someone else's app, rewrite it from their chapter titles and entered facts.",
 ].join("\n");
 
 export const DATE_DEADLINE_ARITHMETIC_RULE = [
   "DATE / DEADLINE ARITHMETIC:",
-  "- User context includes Today (ISO date). Pursuit rows in map_context include daysUntilDeadline when a deadline exists.",
+  "- User context includes Today (ISO date). Chapter rows in map_context include daysUntilDeadline when a deadline exists.",
   "- reading_packet may also include precomputed lines like \"deadline in Nd\" — treat these as authoritative.",
   "- Never infer \"N years away\" from the deadline year alone (e.g. deadline 2027 does NOT mean \"two years away\" when Today is 2026).",
   "- Use daysUntilDeadline or \"deadline in Nd\" for proximity: under ~45 days → days; under ~18 months → months; beyond that → years, rounded down (14 months is not \"two years\").",

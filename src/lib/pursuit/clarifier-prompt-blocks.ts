@@ -12,7 +12,7 @@ export const CLARIFIER_REPLENISH_BATCH = 3;
 /** @deprecated Use CLARIFIER_INITIAL_BATCH or CLARIFIER_REPLENISH_BATCH. */
 export const CLARIFIER_BATCH_MAX = CLARIFIER_INITIAL_BATCH;
 
-/** Max skipped prompt strings remembered per pursuit (anti-repeat wording only). */
+/** Max skipped prompt strings remembered per chapter (anti-repeat wording only). */
 export const CLARIFIER_SKIPPED_PROMPTS_MAX = 10;
 
 export const CLARIFIER_DURABLE_CONTEXT = [
@@ -24,7 +24,7 @@ export const CLARIFIER_DURABLE_CONTEXT = [
 ].join("\n");
 
 export const CLARIFIER_MILESTONE_GROUNDING = [
-  "MILESTONE GROUNDING (mandatory — read pursuit milestones in map context first):",
+  "MILESTONE GROUNDING (mandatory — read chapter milestones in map context first):",
   "- Never ask a question whose answer is already established by a completed milestone (`completed: true`) or a structured field (`currentAmount`, `targetAmount`).",
   "- Never offer an answer option that contradicts a completed milestone.",
   '- Wrong: milestone "5k without stopping" is complete, but options include "Under 5k" for a running-distance question.',
@@ -35,9 +35,9 @@ export const CLARIFIER_MILESTONE_GROUNDING = [
 ].join("\n");
 
 export const CLARIFIER_GENERATION_PRINCIPLE = [
-  "GENERATION PRINCIPLE (works for ANY pursuit — rental property, relationship goal, car, qualification, anything):",
-  "Reason from world knowledge about THIS pursuit's title, theme, status, milestones, background, and enrichAnswers.",
-  "Ask the single highest-value missing fact that would most change how this pursuit should be read.",
+  "GENERATION PRINCIPLE (works for ANY chapter — rental property, relationship goal, car, qualification, anything):",
+  "Reason from world knowledge about THIS chapter's title, theme, status, milestones, background, and enrichAnswers.",
+  "Ask the single highest-value missing fact that would most change how this chapter should be read.",
   "Do NOT pattern-match a fixed catalog of example domains — the examples below illustrate the MOVE only.",
   "",
   "Move — find the decisive unknown:",
@@ -58,13 +58,13 @@ export const CLARIFIER_BENCHMARK_STEER = [
 
 export const CLARIFIER_STOP_AND_CADENCE_RULES = [
   "STOP / CADENCE:",
-  `- Initial batch: up to ${CLARIFIER_INITIAL_BATCH} clarifiers per pursuit, ordered highest-value first — all shown in Context.`,
+    `- Initial batch: up to ${CLARIFIER_INITIAL_BATCH} clarifiers per chapter, ordered highest-value first — all shown in Context.`,
   `- Replenishment batch (after user skipped pending cards): up to ${CLARIFIER_REPLENISH_BATCH} new clarifiers.`,
   "- Return an empty array when no high-value gap remains — do not barrel-scrape.",
   "- When enrichAnswers or milestones already cover the decisive facts, return [].",
   `- Scale initial batch by significance (1–5): 4–5 → up to ${CLARIFIER_INITIAL_BATCH}; 3 → up to 4; 1–2 → up to 2 then prefer [].`,
   "- Read enrichAnswers in map context — never repeat what is already answered; build on prior answers.",
-  "- Never ask about relationships between pursuits (see RELATIONSHIP QUESTIONS rule).",
+  "- Never ask about relationships between chapters (see RELATIONSHIP QUESTIONS rule).",
   '- Never ask the user to evaluate motivation or commitment ("How important is this?") — significance already covers that.',
   "",
   "CONCRETE ANSWERS ONLY:",
@@ -76,7 +76,7 @@ export const CLARIFIER_STOP_AND_CADENCE_RULES = [
 ].join("\n");
 
 export const PURSUIT_PANEL_CONTEXT_PRECEDENCE = [
-  "PURSUIT CONTEXT PRECEDENCE (headline/body/comparison):",
+  "CHAPTER CONTEXT PRECEDENCE (headline/body/comparison):",
   "Milestones, status, and structured fields (deadline, amount) are the source of truth for current progress and stage.",
   "enrichAnswers are durable interpretation context — target type, route, constraint, preference, funding approach, support model.",
   'If an enrichAnswer describes a progress stage (e.g. "just started", "not yet applied") and milestones or status show later movement, milestones/status supersede the answer.',
@@ -85,7 +85,7 @@ export const PURSUIT_PANEL_CONTEXT_PRECEDENCE = [
 
 /** Clarifies that milestone visibility rules apply to prose only, not the suggestedMilestones field. */
 export const PURSUIT_PANEL_SUGGESTED_MILESTONES_FIELD = [
-  "PURSUIT PANEL — suggestedMilestones FIELD (separate from headline/body):",
+  "CHAPTER PANEL — suggestedMilestones FIELD (separate from headline/body):",
   "When <milestone_options> says Milestones allowed, you MUST return 1-6 items in suggestedMilestones — do not omit the array.",
   "The milestone-list visibility rules above apply to headline/body/comparison only — not to suggestedMilestones.",
   "Outcome waypoints the user taps to accept (e.g. \"CeMAP Module 1 passed\", \"First application submitted\") — NOT tasks (\"Update CV\", \"Research firms\").",
@@ -118,9 +118,9 @@ export const CONTEXTUAL_QUICK_QUESTIONS = [
 /** System-prompt OUTPUT lines shared by reflect + enrich (single source — do not duplicate). */
 export function buildClarifierSystemOutputLines(): string[] {
   return [
-    `- clarifiers: 0-${CLARIFIER_INITIAL_BATCH} multiple-choice questions per pursuit when the user message requests a quick-question slot.`,
+    `- clarifiers: 0-${CLARIFIER_INITIAL_BATCH} multiple-choice questions per chapter when the user message requests a quick-question slot.`,
     "  Each clarifier: id (short slug), prompt, options (3-4 specific labels), optional kind.",
-    "  Kinds: clarify (default forward-looking), retrospective (COMPLETE pursuits — what finishing unlocked).",
+    "  Kinds: clarify (default forward-looking), retrospective (COMPLETE chapters — what finishing unlocked).",
     "  Return [] when no high-value gap remains — significance scales count; never barrel-scrape.",
     CONTEXTUAL_QUICK_QUESTIONS,
   ];
@@ -137,7 +137,7 @@ export const CREATE_CLARIFIER_MILESTONE_GROUNDING = [
 /** Create-time suggest (Build here) — one optional question; shares generation principle. */
 export function buildCreateClarifierSystemPrompt(): string {
   return [
-    "You suggest ONE optional quick question for someone creating a new pursuit on their life map.",
+    "You suggest ONE optional quick question for someone creating a new chapter on their life map.",
     'Return ONLY valid JSON: { "clarifier": { "id": string, "prompt": string, "options": string[], "kind"?: "clarify"|"retrospective" } | null }.',
     "",
     CREATE_CLARIFIER_MILESTONE_GROUNDING,
@@ -146,11 +146,11 @@ export function buildCreateClarifierSystemPrompt(): string {
     "",
     "When to return null:",
     "- Title is already fully specific (amount, deadline, and outcome all clear)",
-    "- No high-value fact would meaningfully change how this pursuit should be read",
+    "- No high-value fact would meaningfully change how this chapter should be read",
     "- Milestones or enrichAnswers already answer every plausible question",
     "",
     "When to return a clarifier:",
-    "- Ask the single highest-value missing fact for THIS pursuit",
+    "- Ask the single highest-value missing fact for THIS chapter",
     "- Title-disambiguation is allowed when the title alone is ambiguous",
     '- When status is COMPLETE: kind "retrospective" — what finishing meant, what it unlocked, or what made it work — NOT what stage the user is on',
     "",
@@ -158,11 +158,11 @@ export function buildCreateClarifierSystemPrompt(): string {
     "- Exactly 0 or 1 clarifier",
     "- 3–4 specific, plausible answer options",
     "- Concrete answers only — not open reflection",
-    "- NEVER ask how one pursuit relates to another",
+    "- NEVER ask how one chapter relates to another",
     "- NEVER ask the user to evaluate their motivation or commitment",
     "",
     "RELATIONSHIP QUESTIONS — DO NOT GENERATE:",
-    '- Never ask how one pursuit relates to another ("How does X relate to Y?")',
-    "- Never ask whether pursuits support, compete, or overlap",
+    '- Never ask how one chapter relates to another ("How does X relate to Y?")',
+    "- Never ask whether chapters support, compete, or overlap",
   ].join("\n");
 }

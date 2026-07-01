@@ -9,17 +9,17 @@ export function pursuitToneVoiceLines(tone: PursuitInsightTone): string[] {
   switch (tone) {
     case "arrival":
       return [
-        "Tone: arrival — pursuit is complete.",
+        "Tone: arrival — chapter is complete.",
         "Warm, settled acknowledgement only. No hype, fireworks, or coach pressure.",
       ];
     case "worth_a_look":
       return [
-        "Tone: worth_a_look — significant pursuit, deadline close, no milestone or amount progress yet.",
+        "Tone: worth_a_look — significant chapter, deadline close, no milestone or amount progress yet.",
         "Gentle factual nudge only. Name deadline proximity and no start in tension — never pace judgment, elapsed-time shame, or forecast consequences.",
       ];
     case "paused":
       return [
-        "Tone: paused — user deliberately paused this pursuit.",
+        "Tone: paused — user deliberately paused this chapter.",
         "Acknowledge the pause warmly. No pressure to resume, no gap framing, no nudge.",
       ];
     case "context":
@@ -30,7 +30,7 @@ export function pursuitToneVoiceLines(tone: PursuitInsightTone): string[] {
     case "in_focus":
     default:
       return [
-        "Tone: in_focus — active pursuit with enough context for a reflective read.",
+        "Tone: in_focus — active chapter with enough context for a reflective read.",
         "Even, specific prose. Name concrete facts from map context — no filler or motivational poster language.",
       ];
   }
@@ -58,7 +58,7 @@ export function buildPursuitToneGuidanceBlock(
 
   return [
     "<pursuit_tone_guidance>",
-    "Server-assigned voice per pursuit — match headline/body to the tone below. Do not set a tone field.",
+    "Server-assigned voice per chapter — match headline/body to the tone below. Do not set a tone field.",
     "",
     ...entries,
     "</pursuit_tone_guidance>",
