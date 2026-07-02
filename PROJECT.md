@@ -1,6 +1,6 @@
-# Pathfinder Product Philosophy
+# Almanac Product Philosophy
 
-## What Pathfinder Is
+## What Almanac Is
 A life map. A save point for your story.
 The tool that lets you understand yourself
 before the algorithm does.
@@ -12,7 +12,7 @@ Three connected problems:
    When you focus on one area of life others
    quietly fall behind. Most tools are single
    purpose — they can't see the whole picture.
-   Pathfinder sees all branches simultaneously.
+   Almanac sees all branches simultaneously.
 
 2. THE AVOIDANCE PROBLEM
    People park difficult things at the back of
@@ -26,7 +26,7 @@ Three connected problems:
 3. THE ALGORITHM PROBLEM
    Every major platform knows more about you
    than you know about yourself — and uses that
-   knowledge to manipulate you. Pathfinder
+   knowledge to manipulate you. Almanac
    inverts this. The same depth of self knowledge
    but it flows inward to the person it belongs
    to, not outward to a corporation.
@@ -59,7 +59,7 @@ but as a way of being that emerges from
 self knowledge and intentional living.
 
 ## The Video Game Analogy
-Pathfinder is a save point for real life.
+Almanac is a save point for real life.
 
 In a game a save point captures:
 - Where you are in the world
@@ -71,7 +71,7 @@ If something goes wrong you look back at that
 save and understand exactly where you were
 and what mattered.
 
-Pathfinder does this for real life across
+Almanac does this for real life across
 all five branches simultaneously. The difference
 from a game save is that building the record
 is itself valuable — the reflection required
@@ -138,7 +138,7 @@ Someone who:
 ## The Moat
 Not legal. Not technical. Emotional.
 
-The longer someone uses Pathfinder the more
+The longer someone uses Almanac the more
 irreplaceable it becomes. After a year of
 honest nodes, reflection notes and diary
 entries their life story is here. The map

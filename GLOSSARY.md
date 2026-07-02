@@ -1,10 +1,10 @@
-# Pathfinder glossary (persistence & API)
+# Almanac glossary (persistence & API)
 
 **Mobile UI copy:** [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) is the source of truth.
 
 **Mental model:** theme → category → pursuit (+ status). Prisma: `ThemeCategory`, `Goal`, `categoryId`, `themeId`.
 
-Desktop tree vocabulary: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md) and [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md) — do not copy into mobile.
+Desktop tree vocabulary: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md) — do not copy into mobile.
 
 ---
 

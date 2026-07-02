@@ -1,4 +1,4 @@
-# Pathfinder — V2 design concept: The Question Mechanism
+# Almanac — V2 design concept: The Question Mechanism
 
 **Status:** Design concept, not built. Post-TestFlight. This doc consolidates scattered V2 ideas. After the feasibility audit (2026-06-19), the scope is corrected: the mechanism unifies **three interpretive asks**, not six features. Milestone suggestions, connection lines, significance-weighting, and the richness indicator are **adjacent** to it, not absorbed by it.
 
@@ -24,7 +24,7 @@ That shared gesture is the real, defensible simplification. It is **not** "every
 
 The product already has the verb the user understands: a small question appears, you tap an answer, your map gets smarter. Today that verb only does title clarification. The concept here is to make that *same gesture* carry more of the app's intelligence — without adding new features the user has to learn separately.
 
-Why this fits Pathfinder specifically:
+Why this fits Almanac specifically:
 
 - It keeps the user as the author. The AI never inserts a pursuit, a connection, or a fact — it *asks*, and only a confirmation makes anything real. This protects "the map is your truth."
 - It is one quiet recurring gesture, not a dashboard of capabilities. That is consistent with "focus on what matters, ignore the noise."
@@ -32,7 +32,7 @@ Why this fits Pathfinder specifically:
 
 ### Cursor opinion
 
-This improves Pathfinder **if it stays this narrow**. The product gain is coherence: the user learns one small gesture for "Pathfinder wants to understand something," while the app preserves the authorship rule that makes the map feel truthful.
+This improves Almanac **if it stays this narrow**. The product gain is coherence: the user learns one small gesture for "Almanac wants to understand something," while the app preserves the authorship rule that makes the map feel truthful.
 
 Recommended default, unless TestFlight says otherwise: finish question predictability first; make the Pursuit Context Log the prerequisite; use a typed peer relationship for Connect; let Suggest-add open create with optional provenance; do **not** ship connection lines by default. Lines can wait until the data proves useful without them.
 

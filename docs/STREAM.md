@@ -7,7 +7,7 @@
 
 ## What Stream is
 
-Stream is the primary input surface for Pathfinder.
+Stream is the primary input surface for Almanac.
 
 The user has a natural conversation — they talk about what they've been doing, what they're working on,
 what they're thinking about. The AI listens, reasons about what already exists in their map, and
@@ -144,7 +144,7 @@ Do not resurrect Evolve or fork UX. `Goal.parentGoalId` remains for **legacy lay
 
 ## Related docs
 
-- [`../docs/archive/VISION.md`](../docs/archive/VISION.md) — historical product north star
+- Historical product north star — removed with `pathfinder/docs/archive/` (Jul 2026)
 - [`../BRIEF.md`](../BRIEF.md) — short Stream + tree summary
 - [`../DECISIONS.md`](../DECISIONS.md) — ambiguous-on-tree, edit map, Evolve removal
 - [`architecture.md`](./architecture.md) — system mental model

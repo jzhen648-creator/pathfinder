@@ -4,18 +4,50 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-## Pathfinder domain language
+## Almanac API (`pathfinder/` repo)
 
-**Active client:** `pathfinder-mobile/` — see workspace [`START-HERE.md`](../START-HERE.md). **Bugs / audits:** [`../PATHFINDER-QA-PLAN.md`](../PATHFINDER-QA-PLAN.md). **Stream behaviour:** [`docs/STREAM.md`](./docs/STREAM.md). **Doc index:** [`docs/README.md`](./docs/README.md). **What shipped:** [`CHANGELOG.md`](./CHANGELOG.md) + [`DECISIONS.md`](./DECISIONS.md). Historical vision: [`docs/archive/VISION.md`](./docs/archive/VISION.md). Desktop UI frozen: [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
+**Product name:** **Almanac** (mobile display name). This repo deploys **Next.js `/api/*`** on Vercel for the Expo client in `pathfinder-mobile/`.
 
-Canonical product words: **theme** · **category** · **pursuit** · **status** (UI) — `themeId` · `categoryId` · `Goal` · `status` (persistence). **Mark** is schema-only on mobile (no UI). Mobile UI copy: [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md). Persistence: [`GLOSSARY.md`](./GLOSSARY.md), [`ONTOLOGY.md`](./ONTOLOGY.md).
+**Workspace map:** [`../START-HERE.md`](../START-HERE.md) · **Git:** [`../GIT-WORKFLOW.md`](../GIT-WORKFLOW.md)
 
-Before changing tree, goals, branches, bloom, or continuation behavior, read [`ONTOLOGY.md`](./ONTOLOGY.md) and [`GLOSSARY.md`](./GLOSSARY.md). Do not extend desktop tree UI unless asked — [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
+**Read first:** [`../PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) · [`../PATHFINDER-CORRECTED-FACTS.md`](../PATHFINDER-CORRECTED-FACTS.md) · [`../PATHFINDER-QA-PLAN.md`](../PATHFINDER-QA-PLAN.md)
 
-**Stabilization / QA phase:** [`docs/STABILIZATION.md`](./docs/STABILIZATION.md) — dogfood phase after milestone convergence (relational milestones only; freeze guidance; QA checklist). Prefer categorizing fixes there before broad refactors.
+**Mobile UI copy:** [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) — user-facing **chapter**, not pursuit.
 
-**Milestone truth (implementation):** relational `Milestone` / `Subtask` rows are the **only** milestone store (`Goal.treeMilestones` JSON column removed). Hex dots: `src/components/tree/milestone-tree-projection.ts`; panel predicates: `src/components/tree/goal-milestone-predicates.ts`. Bloom: `src/lib/goal-bloom-lifecycle.ts` + `recomputeGoalBloomStatus`.
+**Persistence vocabulary:** [`GLOSSARY.md`](./GLOSSARY.md) · [`ONTOLOGY.md`](./ONTOLOGY.md)
 
-**Do not** introduce new `thread*` domain identifiers or use **thread** in new user-facing copy for goal continuation (legacy code may still say “thread” for older hub/geometry identifiers).
+**Desktop web UI:** **Removed** — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). Do not extend `src/components/tree/` or other desktop map UI unless explicitly asked.
 
-**Tree UX (May 2026):** Product summary in [`BRIEF.md`](./BRIEF.md). Stream from theme/hub panels only. Marks = hub-level + `MarkHoverCard`. Edit map: `tree-edit-map-overlay.tsx`, `POST /api/goals/[goalId]/reorganize`, `lib/goal-reorganize.ts`. Do not re-add wide limb polygon/stem click targets without an explicit product decision.
+## Active surfaces
+
+| Area | Path |
+|------|------|
+| API routes | `src/app/api/` |
+| Domain + AI | `src/lib/` |
+| Database | `prisma/` |
+| Auth pages | `src/app/login/`, `src/app/reset-password/` |
+| Web landing | `src/components/MobileWebLanding.tsx` |
+
+## Domain words (API / persistence)
+
+| UI (Almanac mobile) | Persistence |
+|---------------------|-------------|
+| theme | `themeId` / `LifeAreaId` |
+| category | `categoryId` (`TaxonomyCategory`) |
+| chapter | `Goal` (JSON may still say `pursuits`) |
+| status | `Goal.status` (SQL column legacy name `bloomStatus`) |
+
+**Retired on mobile:** Stream UI, marks UI, hub/track user copy, desktop tree map.
+
+## Dev commands
+
+```powershell
+npm install
+npm run dev
+npx prisma migrate dev
+npm test
+```
+
+**After taxonomy changes:** `npm run backfill:taxonomy` (see workspace `START-HERE.md`).
+
+**Deploy:** [`DEPLOY.md`](./DEPLOY.md)

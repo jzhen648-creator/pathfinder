@@ -3,7 +3,7 @@
 
 # Architecture (compressed) — desktop tree era
 
-Pathfinder is a **tree-first personal life map**: messy human input → durable structure on an SVG canvas. The architecture optimizes for **symbolic coherence** (milestones, bloom, spatial grammar) over CRUD completeness, and accepts **parallel layout grammars** behind flags rather than big-bang rewrites.
+Almanac is a **tree-first personal life map**: messy human input → durable structure on an SVG canvas. The architecture optimizes for **symbolic coherence** (milestones, bloom, spatial grammar) over CRUD completeness, and accepts **parallel layout grammars** behind flags rather than big-bang rewrites.
 
 ## Core philosophy
 

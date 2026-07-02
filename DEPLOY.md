@@ -1,4 +1,4 @@
-# Pathfinder API — deploy checklist
+# Almanac API — deploy checklist
 
 ## Before each production deploy
 

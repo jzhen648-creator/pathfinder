@@ -107,7 +107,7 @@ interface ReflectInput {
 
 ```
 System prompt:
-You are Pathfinder's reflection engine. You receive a 
+You are Almanac's reflection engine. You receive a 
 structured map of someone's life pursuits and return a 
 single JSON response containing a whole-map reading and 
 per-pursuit/per-theme insights.

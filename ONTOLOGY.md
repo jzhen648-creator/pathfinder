@@ -1,4 +1,4 @@
-# Pathfinder ontology
+# Almanac ontology
 
 Canonical relationships between persisted entities and derived UI concepts. Naming: [`GLOSSARY.md`](./GLOSSARY.md) (persistence) · [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) (UI copy).
 
@@ -78,7 +78,7 @@ Persisted: `Goal.status` (SQL `bloomStatus`). Legacy bloom values (`BUD`, `GROWI
 
 ## References
 
-- Historical UX audit: [`docs/archive/UX-TERMINOLOGY-AUDIT.md`](./docs/archive/UX-TERMINOLOGY-AUDIT.md)
+- Historical UX audit: removed Jul 2026 (git history)
 - Stabilization phase: [`docs/STABILIZATION.md`](./docs/STABILIZATION.md)
 - Milestone projection (desktop hex): `src/components/tree/milestone-tree-projection.ts`
 - Status lifecycle: `src/lib/goal-status-lifecycle.ts`

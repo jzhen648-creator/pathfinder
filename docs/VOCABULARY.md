@@ -1,4 +1,4 @@
-# Pathfinder Vocabulary
+# Almanac Vocabulary
 
 **Purpose:** Name pursuit-related concepts, mark duplicates, show where data lives.  
 **Scope:** Mobile product + `pathfinder/` backend.  

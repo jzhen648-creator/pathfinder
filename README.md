@@ -1,4 +1,4 @@
-> **API backend for Pathfinder.** Active app: `pathfinder-mobile/`. Desktop tree UI on hold — [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md). Workspace map: [../START-HERE.md](../START-HERE.md).
+> **API backend for Almanac.** Active app: `pathfinder-mobile/`. Desktop tree UI on hold — [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md). Workspace map: [../START-HERE.md](../START-HERE.md).
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
@@ -47,7 +47,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 | [DECISIONS.md](./DECISIONS.md) | Why we built it this way |
 | [docs/STABILIZATION.md](./docs/STABILIZATION.md) | Dogfood QA checklist |
 | [docs/current-focus.md](./docs/current-focus.md) | What to work on now (mobile-first) |
-| [docs/archive/](./docs/archive/) | Historical desktop/tree notes |
+| *(removed)* | Historical desktop/tree notes — deleted Jul 2026 |
 
 ## Product philosophy
 See [PROJECT.md](./PROJECT.md) for the full vision,

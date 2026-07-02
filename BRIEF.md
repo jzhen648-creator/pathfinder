@@ -1,19 +1,19 @@
 > **SUPERSEDED — desktop tree product (pre–mobile-first).** Do not use for product or architecture decisions.  
 > **Use instead:** [`../START-HERE.md`](../START-HERE.md), [`../PATHFINDER-CONTEXT.md`](../PATHFINDER-CONTEXT.md), [`ONTOLOGY.md`](./ONTOLOGY.md), [`GLOSSARY.md`](./GLOSSARY.md), [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md), [`.cursor/rules/pathfinder-current-state.mdc`](../.cursor/rules/pathfinder-current-state.mdc).
 
-# Pathfinder — project brief
+# Almanac — project brief
 
-**Pathfinder** is a personal **life-map** web app: one place to see how the main areas of your life connect, log meaningful **pursuits** over time, place **timeline notes** on hubs, and plan structured roadmaps without losing the wider picture.
+**Almanac** is a personal **life-map** web app: one place to see how the main areas of your life connect, log meaningful **pursuits** over time, place **timeline notes** on hubs, and plan structured roadmaps without losing the wider picture.
 
 ## Core product vision
 
 Most people already use AI to dump thoughts — fears, plans, goals, anxieties — but nothing durable comes out the other side. The conversation ends and nothing changes.
 
-Pathfinder gives that dump somewhere to land.
+Almanac gives that dump somewhere to land.
 
 A user speaks or types freely — messy, non-linear, emotional. AI extracts structure and intent. The output does not sit in chat history. It becomes **pursuits** (with milestones on the hex), **timeline notes** on hubs, and sometimes items that need a quick human decision on the map itself.
 
-**In one sentence:** Pathfinder turns how people already think into a structured, visual map of their life.
+**In one sentence:** Almanac turns how people already think into a structured, visual map of their life.
 
 ## Stream (brain dump)
 
@@ -82,9 +82,7 @@ Individuals who want a **private, holistic** view of their story and priorities 
 
 | Doc | Use for |
 |-----|---------|
-| [`docs/archive/VISION.md`](./docs/archive/VISION.md) | Historical product north star (desktop era). |
-| [`docs/STREAM.md`](./docs/STREAM.md) | Stream feature spec. |
-| [`docs/archive/MOBILE-VISION.md`](./docs/archive/MOBILE-VISION.md) | Pre-ship mobile notes (archived). |
+| [`docs/STREAM.md`](./docs/STREAM.md) | Stream feature spec (API; mobile UI retired). |
 | [`docs/README.md`](./docs/README.md) | Full docs index. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Dated **what shipped** (start with 2026-05-19). |
 | [`DECISIONS.md`](./DECISIONS.md) | **Why** — sequence grammar, Stream, taxonomy, focus/edit-map behaviour. |

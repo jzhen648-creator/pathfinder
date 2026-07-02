@@ -1,6 +1,6 @@
-# Pathfinder prompt philosophy
+# Almanac prompt philosophy
 
-This document governs every AI-generated string shown to users in Pathfinder. When writing or revising a system prompt, start here. If output could appear in someone else's app, it fails.
+This document governs every AI-generated string shown to users in Almanac. When writing or revising a system prompt, start here. If output could appear in someone else's app, it fails.
 
 **Implementation map** (where prompts live today):
 
@@ -20,7 +20,7 @@ Structured extraction prompts (Stream JSON schema, deduplication, taxonomy categ
 
 ## Core principle
 
-Every AI output in Pathfinder must pass this test:
+Every AI output in Almanac must pass this test:
 
 > **Could this sentence appear in someone else's app?**
 
@@ -76,7 +76,7 @@ Tone labels like `encouraging`, `nudge`, and `celebratory` describe delivery war
 
 ## Comparison and benchmark rules
 
-External benchmarks are a core Pathfinder differentiator when profile context allows it (`contextual` field on sparkle insights).
+External benchmarks are a core Almanac differentiator when profile context allows it (`contextual` field on sparkle insights).
 
 - **Fill `contextual` when age and location are known** (from `formatUserContext`). Use name, age, and location **inside** the benchmark logic — not as a prefix decoration.
 - **Deliver real benchmark information** — typical salary ranges, qualification timelines, milestone prevalence at that age/location. Concrete approximate numbers when defensible.

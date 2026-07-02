@@ -1,4 +1,4 @@
-# Pathfinder — Pursuit Icon System
+# Almanac — Pursuit Icon System
 
 Centred semantic icon for each pursuit hexagon (a tooth for Invisalign, a runner for a marathon). Coverage is **not** driven by the length of this list — it's driven by letting the AI pick from the full installed Lucide set. This list is the **quality anchor**, not the vocabulary.
 

@@ -2,7 +2,7 @@
 
 > **Product decisions (read-first):** [`PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) at workspace root — **wins** over rows in this file when they conflict.
 >
-> **Active client:** `pathfinder-mobile/`. Desktop tree UI is on hold — see [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md). Historical vision docs: [docs/archive/](./docs/archive/).
+> **Active client:** `pathfinder-mobile/`. Desktop tree UI removed — see [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md).
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
@@ -66,7 +66,7 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 2. **Exploration zone** — metaphor, materials, motion, typography, restraint, map chrome — **all open**
 3. **Retired patterns** — Profile tab, hub zoom, marks on canvas, etc. — don’t resurrect without deliberate choice
 
-Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-project/PATHFINDER-PLAN.md) §13. [`pathfinder-mobile/DESIGN-BRIEF.md`](../pathfinder-mobile/DESIGN-BRIEF.md) and [`docs/archive/CURSOR-BRIEF-FEEL-PASS.md`](../docs/archive/CURSOR-BRIEF-FEEL-PASS.md) reframed to match.
+Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-project/PATHFINDER-PLAN.md) §13. [`pathfinder-mobile/DESIGN-BRIEF.md`](../pathfinder-mobile/DESIGN-BRIEF.md) reframed to match.
 
 ## 2026-06-15 — Dirty reflect uses scoped map context; pace facts deferred
 
@@ -80,7 +80,7 @@ Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-pr
 
 ## 2026-06-15 — RULING: iOS 26 liquid glass tab morph (private API)
 
-**TECHNICAL (not aesthetic):** The iOS 26 Liquid Glass tab-bar **morph transition** (Instagram-style glass blob between tabs) uses a **private Apple API** unavailable to third-party / Expo apps. Do not hand-roll that morph. *(Historical Jun 2026: tab bar used `BlurView`; current mobile build uses a solid floating pill — `TabBarBackground.tsx`.)* Surface inventory: [`docs/archive/CURSOR-BRIEF-FEEL-PASS.md`](../docs/archive/CURSOR-BRIEF-FEEL-PASS.md) §iOS feel inventory.
+**TECHNICAL (not aesthetic):** The iOS 26 Liquid Glass tab-bar **morph transition** (Instagram-style glass blob between tabs) uses a **private Apple API** unavailable to third-party / Expo apps. Do not hand-roll that morph. *(Historical Jun 2026: tab bar used `BlurView`; current mobile build uses a solid floating pill — `TabBarBackground.tsx`.)*
 
 ## 2026-06-15 — AI sync reliability (no-op guard + resumable panels)
 
@@ -318,15 +318,15 @@ Reordered trunk/theme rendering arrays to bias denser themes toward the middle o
 
 ## Product Positioning
 
-Pathfinder + AI companion positioning:
+Almanac + AI companion positioning:
 
-- Pathfinder is the end-to-end checkpoint tracker — start to finish of any pursuit
+- Almanac is the end-to-end checkpoint tracker — start to finish of any pursuit
 - Claude/ChatGPT is the thinking and planning layer
 - Stream is the bridge between AI conversation and the life map
 - This positioning should be visible in the app:
 
   Onboarding: one sentence explaining AI companion role
-  "Pathfinder works best alongside Claude or ChatGPT.
+  "Almanac works best alongside Claude or ChatGPT.
   Use AI to think and plan — bring what matters here to track your journey."
 
   Stream empty state copy:
@@ -339,7 +339,7 @@ Pathfinder + AI companion positioning:
 
   App Store description must include:
   "Works alongside Claude, ChatGPT, and other AI.
-  Use AI to plan. Use Pathfinder to remember."
+  Use AI to plan. Use Almanac to remember."
 
   Tagline candidate:
   "AI conversations end. Your map doesn't."
@@ -354,7 +354,7 @@ Do not build any of this copy into the app yet. Document only. Implementation ha
 
 **Purpose:** Emotional priming before the user touches the product. Not a feature walkthrough — a feeling. The problem (insights disappearing, life unrecorded) → the turn (a path appears) → the map comes alive → "Start talking."
 
-**Visual language:** Dark background, thin strokes, warm cream nodes. Pathfinder aesthetic translated into cinematic style.
+**Visual language:** Dark background, thin strokes, warm cream nodes. Almanac aesthetic translated into cinematic style.
 
 **Tools to explore:** Sora, Kling, Runway.
 
@@ -553,7 +553,7 @@ Simplified significantly by Stream V3 — Stream V3 IS the onboarding mechanism.
 
 **Flow:**
 
-- **Screen 1:** "Welcome to Pathfinder".
+- **Screen 1:** "Welcome to Almanac".
 - **Screen 2:** single voice/text prompt — "Tell me a little about yourself and what you're working on right now." User speaks naturally for 30–60 seconds. Stream V3 extracts profile facts → `UserManualProfile`, pursuits → map, milestones → pursuits.
 - **Screen 3:** "Your map is ready" → land on map with real data already populated.
 
@@ -638,7 +638,7 @@ Stream dumps contain three layers: map actions (pursuits, marks), which are capt
 
 _Superseded by the 2026-05-25 revised session roadmap above: onboarding is now **Session 14**, and is further simplified because Stream V3 (Session 12) becomes the extraction mechanism._
 
-Session 10 onboarding is **one single Stream-style voice moment**, not a multi-screen interview or goal-setting flow. Screen 1: "Welcome to Pathfinder" with subtitle "One quick question before we build your map." and a single "Let's go" action. Screen 2: one calm prompt only — "How old are you, where are you based, and what do you do?" — with the microphone as the primary centered action, live transcription below, a secondary keyboard fallback, and Continue available after speaking. Screen 3: brief "Setting up your map..." processing. AI extracts only Profile Memory facts from the answer: age and location as `personal`, current role/work as `career`. It creates **no pursuits, marks, milestones, branches, or map nodes**. Screen 4: map ready state: "Your map is ready. Tap + to start." with the Stream FAB gently pulsing.
+Session 10 onboarding is **one single Stream-style voice moment**, not a multi-screen interview or goal-setting flow. Screen 1: "Welcome to Almanac" with subtitle "One quick question before we build your map." and a single "Let's go" action. Screen 2: one calm prompt only — "How old are you, where are you based, and what do you do?" — with the microphone as the primary centered action, live transcription below, a secondary keyboard fallback, and Continue available after speaking. Screen 3: brief "Setting up your map..." processing. AI extracts only Profile Memory facts from the answer: age and location as `personal`, current role/work as `career`. It creates **no pursuits, marks, milestones, branches, or map nodes**. Screen 4: map ready state: "Your map is ready. Tap + to start." with the Stream FAB gently pulsing.
 
 Onboarding must not ask about goals, pursuits, health, relationships, personal growth, future self, or anything that needs more than roughly ten seconds of thought. Those emerge naturally through Stream over time. Voice is primary; skipping is allowed and still stores onboarding as completed. The answer feeds the same Session 9 `ProfileFact` system and extraction pipeline — no separate onboarding profile store.
 
@@ -973,7 +973,7 @@ Phases 1–4 leave **two icon languages on the map canvas**:
 
 | Asset | Location | Reason |
 |-------|----------|--------|
-| 5 theme limb icons | `limb-icons.tsx`, map theme hex | Distinct Pathfinder visual language |
+| 5 theme limb icons | `limb-icons.tsx`, map theme hex | Distinct Almanac visual language |
 | 18 track branch icons | `branch-icons.tsx`, map hub hex | Taxonomy-specific artwork; no 1:1 Lucide set |
 | `MapBrandMark` | map utility bar | Product mark |
 | `PursuitStatusGlyph` | detail panels | Status shape language tied to hex bloom states |
@@ -1056,7 +1056,7 @@ Separated **intake entry points** so centre FAB and Self node never share a door
 
 **Rule:** If the user can edit it → Profile. If it regenerates from their data → Story. Story tab untouched; blob generation prompts (`profile-memory.ts`, `UPDATE_SYSTEM`, `SEED_SYSTEM`) unchanged.
 
-**Editable blob:** `ProfileMemorySection` inline edit/save via existing **`PATCH /api/memory`** (`patchUserMemory`). Dossier styling (sans note card, visible Edit/Write, utilitarian section labels). Framing: *"What Pathfinder knows about you — edit anything here."* Footer meta: last updated · N facts · used by Story & Insights (`updatedAt`-driven, not `lastUserEditedAt`).
+**Editable blob:** `ProfileMemorySection` inline edit/save via existing **`PATCH /api/memory`** (`patchUserMemory`). Dossier styling (sans note card, visible Edit/Write, utilitarian section labels). Framing: *"What Almanac knows about you — edit anything here."* Footer meta: last updated · N facts · used by Story & Insights (`updatedAt`-driven, not `lastUserEditedAt`).
 
 **Option B — pause auto-overwrite (confirmed):** One manual save sets **`lastUserEditedAt`** and **permanently pauses** auto `updateUserMemory` until the user explicitly incorporates. Guard at top of `updateUserMemory`: when `lastUserEditedAt` is set and not `forceIncorporate`, **`markUserMemoryDirty` + return null** (no silent overwrite). Paused POST returns **`200 { ok: false, paused: true, isDirty, pendingIncorporateCount }`** — expected, not an error toast. **TODO:** future "Resume automatic summary updates" affordance.
 

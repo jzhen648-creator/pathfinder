@@ -1,4 +1,4 @@
-# Pathfinder docs index
+# Almanac docs index
 
 > **Desktop/web UI is paused.** The active client is **`pathfinder-mobile/`**.  
 > Workspace map: [../../START-HERE.md](../../START-HERE.md)
