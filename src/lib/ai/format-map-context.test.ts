@@ -7,7 +7,6 @@ describe("buildPursuitRow timelineStart", () => {
     title: "Learn guitar",
     status: "ACTIVE",
     significance: 3,
-    parentGoalId: null,
     targetAmount: null,
     currentAmount: null,
     unit: null,
@@ -20,19 +19,16 @@ describe("buildPursuitRow timelineStart", () => {
   };
 
   it("falls back to createdAt when timelineStart is null", () => {
-    const row = buildPursuitRow(baseGoal, new Map());
+    const row = buildPursuitRow(baseGoal);
     expect(row.timelineStart).toBe("2026-01-15");
   });
 
   it("prefers explicit timelineStart over createdAt", () => {
-    const row = buildPursuitRow(
-      {
-        ...baseGoal,
-        timelineStart: new Date("2025-10-01T00:00:00.000Z"),
-        createdAt: new Date("2026-01-15T10:00:00.000Z"),
-      },
-      new Map(),
-    );
+    const row = buildPursuitRow({
+      ...baseGoal,
+      timelineStart: new Date("2025-10-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-15T10:00:00.000Z"),
+    });
     expect(row.timelineStart).toBe("2025-10-01");
   });
 });
@@ -43,7 +39,6 @@ describe("buildPursuitRow background", () => {
     title: "Learn guitar",
     status: "ACTIVE",
     significance: 3,
-    parentGoalId: null,
     targetAmount: null,
     currentAmount: null,
     unit: null,
@@ -56,25 +51,25 @@ describe("buildPursuitRow background", () => {
   };
 
   it("emits background when non-empty", () => {
-    const row = buildPursuitRow(
-      { ...baseGoal, background: "I want to play at family gatherings." },
-      new Map(),
-    );
+    const row = buildPursuitRow({
+      ...baseGoal,
+      background: "I want to play at family gatherings.",
+    });
     expect(row.background).toBe("I want to play at family gatherings.");
   });
 
   it("omits background when null", () => {
-    const row = buildPursuitRow({ ...baseGoal, background: null }, new Map());
+    const row = buildPursuitRow({ ...baseGoal, background: null });
     expect(row.background).toBeUndefined();
   });
 
   it("omits background when empty string", () => {
-    const row = buildPursuitRow({ ...baseGoal, background: "" }, new Map());
+    const row = buildPursuitRow({ ...baseGoal, background: "" });
     expect(row.background).toBeUndefined();
   });
 
   it("omits background when whitespace-only", () => {
-    const row = buildPursuitRow({ ...baseGoal, background: "   " }, new Map());
+    const row = buildPursuitRow({ ...baseGoal, background: "   " });
     expect(row.background).toBeUndefined();
   });
 });

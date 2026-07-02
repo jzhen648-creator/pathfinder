@@ -25,7 +25,7 @@ export type BenchmarkFactsInput = {
 
 function locationLooksUk(location: string | null | undefined): boolean {
   const text = location?.trim().toLowerCase() ?? "";
-  if (!text) return true;
+  if (!text) return false;
   return (
     text.includes("uk") ||
     text.includes("united kingdom") ||
@@ -74,6 +74,7 @@ function themeHasBenchmarkAnchor(pursuits: BenchmarkPursuitRow[]): boolean {
 function financeFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): string[] {
   const lines: string[] = [
     `finance: UK ISA annual subscription limit approx £20,000 (${BENCHMARK_FACTS_AS_OF}).`,
+    "finance: relatively few UK ISA holders max the £20k annual subscription; most contribute a fraction — qualitative only, no percentile.",
     "finance: UK median household savings buffer often quoted around 1-3 months essential spend — use approx only.",
   ];
   const band = ageBandLabel(age);
@@ -196,7 +197,7 @@ export function buildBenchmarkFactsBlock(input: BenchmarkFactsInput): string | n
 
   if (!addedThemeFacts) return null;
   lines.push(
-    "RULE: contextual (theme) and pursuit comparison fields may cite ONLY these facts plus map quantified fields and enrichAnswers — never invent other statistics.",
+    "RULE: contextual (theme Worth knowing) and pursuit comparison fields may cite ONLY these facts plus map quantified fields and enrichAnswers — never invent other statistics.",
   );
   return lines.join("\n");
 }

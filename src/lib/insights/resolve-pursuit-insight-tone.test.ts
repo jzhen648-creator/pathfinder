@@ -59,11 +59,12 @@ describe("resolvePursuitInsightTone", () => {
 
 describe("buildPursuitToneGuidanceBlock", () => {
   it("includes tone voice lines per pursuit id", () => {
+    const now = new Date("2026-06-21T12:00:00.000Z").getTime();
     const toneGoals = new Map([
       ["p-gap", goal()],
       ["p-done", goal({ status: "COMPLETE" })],
     ]);
-    const block = buildPursuitToneGuidanceBlock(["p-gap", "p-done"], toneGoals)!;
+    const block = buildPursuitToneGuidanceBlock(["p-gap", "p-done"], toneGoals, now)!;
     expect(block).toContain("<pursuit_tone_guidance>");
     expect(block).toContain("p-gap:");
     expect(block).toContain("Tone: worth_a_look");

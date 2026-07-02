@@ -1,6 +1,5 @@
 import type { ProfileFactCategory } from "@prisma/client";
 import { isoCalendarDate } from "@/lib/map/deadline-calendar";
-import { loadUserMemoryBlobForContext } from "@/lib/memory/memory-read";
 import { PROFILE_FACT_CATEGORIES } from "@/lib/profile-memory";
 import { prisma } from "@/lib/prisma";
 
@@ -119,11 +118,11 @@ async function loadProfileFactsForContext(userId: string) {
 }
 
 /**
- * WHO context for Story, Insights, and Reflect — manual profile, profile facts, and identity blob.
+ * WHO context for Story, Insights, and Reflect — manual profile and profile facts.
  * Pursuit map JSON carries structured WHAT context.
  */
 export async function formatUserContext(userId: string): Promise<string> {
-  const [profile, profileFacts, identityBlob] = await Promise.all([
+  const [profile, profileFacts] = await Promise.all([
     prisma.userManualProfile.findUnique({
       where: { userId },
       select: {
@@ -138,7 +137,6 @@ export async function formatUserContext(userId: string): Promise<string> {
       },
     }),
     loadProfileFactsForContext(userId),
-    loadUserMemoryBlobForContext(userId),
   ]);
 
   const lines: string[] = [];
@@ -170,9 +168,6 @@ export async function formatUserContext(userId: string): Promise<string> {
   }
   if (factLines.length > 0) {
     blocks.push(["Profile facts:", ...factLines].join("\n"));
-  }
-  if (identityBlob) {
-    blocks.push(["Identity:", identityBlob].join("\n"));
   }
 
   return blocks.join("\n\n");

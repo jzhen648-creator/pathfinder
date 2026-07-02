@@ -18,7 +18,7 @@ function promptFingerprint(prompt: string): string {
 describe("reflect prompt snapshots", () => {
   it("full-scope prompt fingerprint is stable", () => {
     const prompt = buildReflectSystemPrompt(ENRICH_OPTIONS, "full", false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"6cd1cd513cc1cea76666700e9ae4fee94cf989dde702c385201733a6c5a320a5"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"756fddc6c414e868f545c8b0bc889eea9c5e4ee0709100b9d6bd2c45550c1c85"`);
     expect(prompt).toContain("TENSION, NOT FORECAST:");
     expect(prompt).toContain("PLAN IMPLICATION");
     expect(prompt).toContain("Move 5 — Plan frontier");
@@ -31,14 +31,16 @@ describe("reflect prompt snapshots", () => {
     expect(prompt).toContain("Worth knowing ·");
     expect(prompt).toContain("THEME OUTPUT (reflect path):");
     expect(prompt).toContain("ACROSS PURSUITS (combined)");
-    expect(prompt).toContain("COMPARISON (contextual)");
+    expect(prompt).toContain("WORTH KNOWING (contextual)");
+    expect(prompt).toContain("NOTABLE FACTS");
+    expect(prompt).not.toContain("COMPARISON (contextual)");
     expect(prompt).not.toContain("fromMap");
     expect(prompt).not.toContain('contextual and combined MUST be empty strings ""');
   });
 
   it("pursuits-only prompt fingerprint is stable", () => {
     const prompt = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"3b3a98464d3ef339146c4fbe1ea2594ba75a8acb7d090d7fad49568f1dd3b7f8"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"085e66ca1687139de61016ff8bbd3464153dc558ba5483e74a2932046255fa1b"`);
     expect(prompt).not.toContain("THEME INSIGHTS");
     expect(prompt).toContain("TENSION, NOT FORECAST:");
     expect(prompt).toContain("PLAN IMPLICATION");

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  NOTABLE_FACTS_OBSERVATION_RULE,
   PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
   PURSUIT_COMPARISON_FIELD_JOBS,
   PURSUIT_CONTEXT_TAB_NON_DUPLICATION,
@@ -74,13 +75,23 @@ describe("theme-insight-prompt-blocks", () => {
       '{ tone, oneLiner, reflective, combined, contextual }',
     );
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("ACROSS PURSUITS (combined)");
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("COMPARISON (contextual)");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("WORTH KNOWING (contextual)");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("Worth knowing ·");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain("COMPARISON (contextual)");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("user-confirmed PursuitRelationship");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("<benchmark_facts>");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("Do NOT duplicate a pursuit-level Worth knowing");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("NOTABLE FACTS");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain(
       'contextual and combined MUST be empty strings ""',
     );
+  });
+
+  it("defines notable facts observation register", () => {
+    expect(NOTABLE_FACTS_OBSERVATION_RULE).toContain("uncommon");
+    expect(NOTABLE_FACTS_OBSERVATION_RULE).toContain("align with the annual ISA limit");
+    expect(NOTABLE_FACTS_OBSERVATION_RULE).toContain("most people use a fraction");
+    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("NOTABLE FACTS");
   });
 
   it("defines theme plan mirror for forward-looking reads", () => {

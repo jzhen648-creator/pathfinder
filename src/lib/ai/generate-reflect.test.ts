@@ -59,7 +59,7 @@ vi.mock("@/lib/gemini", () => ({
 
 vi.mock("@/lib/insights/load-pursuit-tone-goals", () => ({
   loadPursuitToneGoals: vi.fn(async (_userId: string, pursuitIds: string[]) => {
-    const now = new Date("2026-07-01T00:00:00.000Z");
+    const gapDeadline = new Date(Date.now() + 10 * 86_400_000);
     return new Map(
       pursuitIds.map((id) => [
         id,
@@ -69,11 +69,17 @@ vi.mock("@/lib/insights/load-pursuit-tone-goals", () => ({
           description: null,
           enrichAnswers: [],
           status: id === "p-done" ? "COMPLETE" : "ACTIVE",
-          significance: 4,
-          deadline: now,
+          significance: id === "p-cemap" ? 5 : 4,
+          deadline: id === "p-cemap" ? gapDeadline : null,
           targetAmount: null,
           currentAmount: null,
-          milestones: [],
+          milestones:
+            id === "p-cemap"
+              ? [
+                  { title: "Unit 1", completedAt: null },
+                  { title: "Unit 2", completedAt: null },
+                ]
+              : [],
         },
       ]),
     );
@@ -160,16 +166,16 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(scoped).toContain("durable interpretation context");
   });
 
-  it("full-scope prompt steers theme synthesis as reflective-only", () => {
+  it("full-scope prompt includes theme synthesis lanes and gated reflect output contract", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
     expect(full).toContain('{ tone, oneLiner, reflective }');
-    expect(full).toContain("FROM YOUR MAP — within-theme relationships the oneLiner did not state");
+    expect(full).toContain("FROM YOUR MAP — map facts the oneLiner did not already state");
     expect(full).toContain("map_context and a fact the user entered there");
-    expect(full).toContain("Relate chapters to each other within the theme");
-    expect(full).toContain("THEME OUTPUT (reflect path — map-only)");
-    expect(full).toContain('contextual and combined MUST be empty strings ""');
-    expect(full).not.toContain("combined (UI: ACROSS PURSUITS");
-    expect(full).not.toContain("contextual (UI: COMPARISON");
+    expect(full).toContain("THEME PLAN MIRROR");
+    expect(full).toContain("THEME OUTPUT (reflect path):");
+    expect(full).toContain("ACROSS PURSUITS (combined");
+    expect(full).toContain("WORTH KNOWING (contextual");
+    expect(full).toContain("NOTABLE FACTS");
     expect(full).not.toContain("holisticBenchmarkEligible");
   });
 

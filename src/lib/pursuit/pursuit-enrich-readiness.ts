@@ -134,16 +134,23 @@ export type ThemeContextualGateInput = {
   benchmarkApplicable: boolean;
 };
 
-/** Strip theme contextual when benchmark preconditions are not met. */
+/** Gate theme worth-knowing (JSON key `contextual`): strip prescriptive/editorial/trivial alignment; quantified needs benchmark signal. */
 export function gateThemeContextual(
   contextual: string,
-  _pursuitSignals: PursuitSignal[],
+  pursuitSignals: PursuitSignal[],
   gate?: ThemeContextualGateInput,
 ): string {
-  if (!contextual.trim()) return "";
-  if (gate && !gate.benchmarkApplicable) return "";
-  if (!gate && !_pursuitSignals.some(hasMinimumContextSignal)) return "";
-  return contextual.trim();
+  const text = contextual.trim();
+  if (!text) return "";
+
+  const cleaned = gateThemeContextualContent(text);
+  if (!cleaned) return "";
+
+  if (gate?.benchmarkApplicable) return cleaned;
+  if (looksLikeQuantifiedWorthKnowing(cleaned)) return "";
+  if (gate && !gate.benchmarkApplicable) return cleaned;
+  if (!gate && pursuitSignals.some(hasMinimumContextSignal)) return cleaned;
+  return "";
 }
 
 /** Strip theme combined unless a user-confirmed link touches the theme. */
@@ -156,13 +163,16 @@ export function gateThemeCombined(
   return combined.trim();
 }
 
-/** Strip legacy editorial Comparison copy that is not a concrete benchmark. */
+/** Strip legacy editorial or trivial-alignment copy from theme/chapter worth-knowing fields. */
 export function gateThemeContextualContent(contextual: string): string {
   const text = contextual.trim();
   if (!text) return "";
   const editorial =
     /\b(pivot|deliberate(?:ly)?|shows commitment|competitive market|holistic commitment|valued in a|demonstrates dedication|career narrative)\b/i;
   if (editorial.test(text)) return "";
+  const trivialAlignment =
+    /\baligns?\s+with\b.*\b(limit|allowance|subscription)\b/i;
+  if (trivialAlignment.test(text)) return "";
   return text;
 }
 

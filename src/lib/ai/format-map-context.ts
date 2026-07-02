@@ -52,8 +52,6 @@ export type FormattedMapPursuit = {
     /** Optional detail — what this milestone entails. */
     description?: string;
   }>;
-  /** Present when user nested this pursuit under another via edit map. */
-  parentPursuitTitle?: string;
   targetAmount?: number;
   currentAmount?: number;
   unit?: string;
@@ -132,7 +130,6 @@ export function buildPursuitRow(
     enrichAnswers?: unknown;
     status: string;
     significance: number | null;
-    parentGoalId: string | null;
     targetAmount: number | null;
     currentAmount: number | null;
     unit: string | null;
@@ -143,7 +140,6 @@ export function buildPursuitRow(
     createdAt: Date;
     milestones: Array<{ id: string; title: string; completedAt: Date | null; description?: string | null }>;
   },
-  pursuitTitleById: Map<string, string>,
   now = Date.now(),
 ): FormattedMapPursuit {
   const pursuit: FormattedMapPursuit = {
@@ -169,10 +165,6 @@ export function buildPursuitRow(
     pursuit.significance = Math.min(5, Math.max(1, Math.round(goal.significance)));
   }
 
-  if (goal.parentGoalId) {
-    const parentTitle = pursuitTitleById.get(goal.parentGoalId);
-    if (parentTitle) pursuit.parentPursuitTitle = parentTitle;
-  }
   if (goal.targetAmount != null) pursuit.targetAmount = goal.targetAmount;
   if (goal.currentAmount != null) pursuit.currentAmount = goal.currentAmount;
   if (goal.unit?.trim()) pursuit.unit = goal.unit.trim();
@@ -208,7 +200,6 @@ const goalSelect = {
   enrichAnswers: true,
   status: true,
   significance: true,
-  parentGoalId: true,
   targetAmount: true,
   currentAmount: true,
   unit: true,
@@ -275,14 +266,13 @@ export async function formatMapContext(
 
     const categoryRawLabel = branch.label ?? branch.id;
     const categoryLabel = canonicalCategoryDisplayLabel(branch.themeId, categoryRawLabel);
-    const pursuitTitleById = new Map(branch.goals.map((goal) => [goal.id, goal.title]));
 
     theme.categories.push({
       id: branch.id,
       label: categoryRawLabel,
       categoryLabel,
       marks: [],
-      pursuits: branch.goals.map((goal) => buildPursuitRow(goal, pursuitTitleById)),
+      pursuits: branch.goals.map((goal) => buildPursuitRow(goal)),
     });
 
     themeMap.set(branch.themeId, theme);
@@ -354,11 +344,9 @@ export async function formatPursuitContext(
     take: 12,
   });
 
-  const pursuitTitleById = new Map([[goal.id, goal.title]]);
-
   return {
     pursuit: {
-      ...buildPursuitRow(goal, pursuitTitleById),
+      ...buildPursuitRow(goal),
       themeId,
       themeLabel,
       categoryId: goal.categoryId,

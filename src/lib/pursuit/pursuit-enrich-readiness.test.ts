@@ -46,7 +46,32 @@ describe("pursuit-enrich-readiness gates", () => {
     expect(gateThemeCombined("CeMAP feeds broker role.", true)).toBe("CeMAP feeds broker role.");
   });
 
-  it("gateThemeContextual respects benchmark applicability", () => {
+  it("gateThemeContextual allows qualitative copy without benchmark signal", () => {
+    const qualitative =
+      "Relatively few contributors max out the ISA allowance — most use a fraction.";
+    expect(
+      gateThemeContextual(qualitative, [richSignal], {
+        themeId: "finance",
+        age: 29,
+        location: "London",
+        benchmarkApplicable: false,
+      }),
+    ).toBe(qualitative);
+  });
+
+  it("gateThemeContextual strips quantified copy without benchmark signal", () => {
+    const quantified = "CeMAP typically takes 6-18 months; you finished in about three.";
+    expect(
+      gateThemeContextual(quantified, [richSignal], {
+        themeId: "work",
+        age: 29,
+        location: "London",
+        benchmarkApplicable: false,
+      }),
+    ).toBe("");
+  });
+
+  it("gateThemeContextual keeps quantified copy when benchmark applicable", () => {
     const text = "At 29, ISA contributions often sit below £20k annual limit.";
     expect(
       gateThemeContextual(text, [richSignal], {
@@ -56,14 +81,6 @@ describe("pursuit-enrich-readiness gates", () => {
         benchmarkApplicable: true,
       }),
     ).toBe(text);
-    expect(
-      gateThemeContextual(text, [richSignal], {
-        themeId: "finance",
-        age: 29,
-        location: "London",
-        benchmarkApplicable: false,
-      }),
-    ).toBe("");
   });
 
   it("gatePursuitComparison allows benchmarks with profile + milestones", () => {
@@ -184,6 +201,11 @@ describe("pursuit-enrich-readiness gates", () => {
     expect(gateThemeContextualContent("Median ISA balance near £20k at age 29.")).toBe(
       "Median ISA balance near £20k at age 29.",
     );
+    expect(
+      gateThemeContextualContent(
+        "Monthly contributions align with the annual ISA subscription limit.",
+      ),
+    ).toBe("");
   });
 
   it("gateThemeReflective strips confirmed link sentences", () => {
