@@ -10,6 +10,7 @@ import {
   filterClarifiersAgainstMilestones,
   milestonesToGroundingInput,
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
+import { filterClarifiersAgainstKnownFacts } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
 import {
   gateEnrichResult,
   resolveQuickQuestionsQuietUntilAfterGeneration,
@@ -162,15 +163,22 @@ export async function applyReflectOutput(
     });
 
     const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
-    const freshClarifiers = filterClarifiersAgainstMilestones(
-      (entry.clarifiers ?? [])
-        .map((c, index) => normalizeReflectClarifier(c, index))
-        .filter((c): c is Clarifier => c != null),
-      milestoneGrounding,
+    const knownFacts = { background: goal.background, enrichAnswers };
+    const freshClarifiers = filterClarifiersAgainstKnownFacts(
+      filterClarifiersAgainstMilestones(
+        (entry.clarifiers ?? [])
+          .map((c, index) => normalizeReflectClarifier(c, index))
+          .filter((c): c is Clarifier => c != null),
+        milestoneGrounding,
+      ),
+      knownFacts,
     );
     const clarifiers = mergePreservedClarifiers({
       fresh: freshClarifiers,
-      cached: filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
+      cached: filterClarifiersAgainstKnownFacts(
+        filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
+        knownFacts,
+      ),
       preserveAllowed: clarifierPreserveAllowed({
         clarifyTitles: options.clarifyTitles,
         status: goal.status ?? "ACTIVE",

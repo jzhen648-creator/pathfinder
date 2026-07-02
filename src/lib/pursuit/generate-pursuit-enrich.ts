@@ -72,6 +72,7 @@ import {
   filterClarifiersAgainstMilestones,
   milestonesToGroundingInput,
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
+import { filterClarifiersAgainstKnownFacts } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
 import {
   buildPursuitCachePayload,
   clarifierPreserveAllowed,
@@ -302,10 +303,17 @@ async function generateOnePursuitEnrich(
   }
 
   const milestoneGrounding = milestonesToGroundingInput(goal.milestones);
-  const freshClarifiers = filterClarifiersAgainstMilestones(result.clarifiers, milestoneGrounding);
+  const knownFacts = { background: goal.background, enrichAnswers };
+  const freshClarifiers = filterClarifiersAgainstKnownFacts(
+    filterClarifiersAgainstMilestones(result.clarifiers, milestoneGrounding),
+    knownFacts,
+  );
   const clarifiers = mergePreservedClarifiers({
     fresh: freshClarifiers,
-    cached: filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
+    cached: filterClarifiersAgainstKnownFacts(
+      filterClarifiersAgainstMilestones(cachedEntry?.clarifiers ?? [], milestoneGrounding),
+      knownFacts,
+    ),
     preserveAllowed: clarifierPreserveAllowed({
       clarifyTitles: enrichOptions.clarifyTitles,
       status: goal.status ?? "ACTIVE",
