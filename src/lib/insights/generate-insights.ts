@@ -15,6 +15,7 @@ import { clampInsightGenerationJson } from "./clamp-insight-json";
 import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 import {
   ORIENTATION_AS_LENS_RULE,
+  PLAN_IMPLICATION_RULE,
   TENSION_NOT_FORECAST_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
@@ -85,6 +86,8 @@ const PURSUIT_INSIGHT_RULES = [
   "",
   TENSION_NOT_FORECAST_RULE,
   "",
+  PLAN_IMPLICATION_RULE,
+  "",
   ORIENTATION_AS_LENS_RULE,
   "",
   VOICE_EVALUATIVE_ANTI_PATTERNS,
@@ -124,6 +127,8 @@ const SYSTEM_PROMPT = [
   "Mobile UI maps theme/category fields to: Headline (oneLiner), FROM YOUR MAP (reflective), ACROSS PURSUITS (combined), COMPARISON (contextual).",
   "",
   TENSION_NOT_FORECAST_RULE,
+  "",
+  PLAN_IMPLICATION_RULE,
   "",
   ORIENTATION_AS_LENS_RULE,
   "",

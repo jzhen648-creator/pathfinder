@@ -8,6 +8,7 @@ const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
 export const THEME_ONE_LINER_MAX = 140;
 const THEME_REFLECTIVE_MAX = 800;
+const THEME_SUPPLEMENT_MAX = 500;
 
 /** Trim theme oneLiner to max length on a word boundary; append … when shortened. */
 export function truncateThemeOneLiner(text: string, max = THEME_ONE_LINER_MAX): string {
@@ -57,13 +58,15 @@ export function normalizeReflectResponse(json: unknown): unknown {
       const row = entry as Record<string, unknown>;
       const oneLiner = typeof row.oneLiner === "string" ? row.oneLiner.trim() : "";
       const reflective = typeof row.reflective === "string" ? row.reflective.trim() : "";
+      const contextual = typeof row.contextual === "string" ? row.contextual.trim() : "";
+      const combined = typeof row.combined === "string" ? row.combined.trim() : "";
       if (!oneLiner && !reflective) continue;
       normalizedThemes[themeId] = {
         tone: normalizeThemeTone(row.tone),
         oneLiner: truncateThemeOneLiner(oneLiner),
         reflective: truncateAtWordBoundary(reflective, THEME_REFLECTIVE_MAX),
-        contextual: "",
-        combined: "",
+        contextual: truncateAtWordBoundary(contextual, THEME_SUPPLEMENT_MAX),
+        combined: truncateAtWordBoundary(combined, THEME_SUPPLEMENT_MAX),
       };
     }
     root.themes = normalizedThemes;

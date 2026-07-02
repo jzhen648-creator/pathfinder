@@ -124,8 +124,8 @@ export async function applyReflectOutput(
       tone: entry.tone,
       oneLiner: entry.oneLiner.trim(),
       reflective: entry.reflective.trim(),
-      contextual: "",
-      combined: "",
+      contextual: entry.contextual?.trim() ?? "",
+      combined: entry.combined?.trim() ?? "",
     };
   }
 

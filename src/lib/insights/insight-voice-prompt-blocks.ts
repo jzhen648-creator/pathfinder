@@ -15,6 +15,25 @@ export const TENSION_NOT_FORECAST_RULE = [
   "Allowed: stating both facts and that they are in tension.",
   'Not allowed: "might mean", "could", "potentially", "this puts you at risk of", or any clause describing',
   "a future outcome or its effect on the user.",
+  "",
+  "See PLAN IMPLICATION below for allowed deterministic plan reads from user-entered numbers.",
+].join("\n");
+
+export const PLAN_IMPLICATION_RULE = [
+  "PLAN IMPLICATION (allowed — not forecast):",
+  "Users author future life on the map: Active chapters, deadlines, targets, and milestones are their plan.",
+  "You may read that plan back — coherence, gaps, collisions, and deterministic arithmetic from their numbers.",
+  "",
+  "Allowed:",
+  '- Plan tension from entered amounts: "£100k+ balance against a £500k+ target — maxed contributions close the allowance but not the gap."',
+  '- Plan state: "deadline in 45d with zero milestones started" when reading_packet or map_context shows it.',
+  '- Missing frontier: "Two Complete chapters, nothing Active after 2021 names what comes next."',
+  '- Discontinuity: name when completed chapters do not connect on the map — do not invent "progression".',
+  "",
+  "Not allowed (forecast — still banned):",
+  '- Invented growth rates, "you will hit £X by YEAR", population percentiles, or "might mean / could / potentially".',
+  '- Confirming trivial arithmetic as insight alone (e.g. "monthly contributions align with the £20k annual limit").',
+  '- Generic filler: "clear path", "long-term growth", "steady progress" without a specific plan tension.',
 ].join("\n");
 
 export const ORIENTATION_AS_LENS_RULE = [

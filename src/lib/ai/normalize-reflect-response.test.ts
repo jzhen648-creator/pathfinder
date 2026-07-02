@@ -63,7 +63,7 @@ describe("normalizeReflectResponse", () => {
     );
   });
 
-  it("forces theme contextual and combined to empty strings", () => {
+  it("passes through theme contextual and combined with length clamp", () => {
     const normalized = normalizeReflectResponse({
       themes: {
         work: {
@@ -77,8 +77,10 @@ describe("normalizeReflectResponse", () => {
       pursuits: {},
     }) as { themes: Record<string, { contextual: string; combined: string }> };
 
-    expect(normalized.themes.work.contextual).toBe("");
-    expect(normalized.themes.work.combined).toBe("");
+    expect(normalized.themes.work.contextual).toBe(
+      "Mortgage advisers typically earn commission.",
+    );
+    expect(normalized.themes.work.combined).toBe("Across chapters, work dominates.");
   });
 
   it("applies word-boundary headline truncation on pursuit entries", () => {

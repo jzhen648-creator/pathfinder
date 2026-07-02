@@ -8,6 +8,7 @@ import {
   PURSUIT_READING_AUTHORSHIP_ORDER,
   THEME_INSIGHT_FIELD_JOBS,
   THEME_INSIGHT_FIELD_LANES,
+  THEME_PLAN_MIRROR_RULE,
   THEME_REFLECT_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 
@@ -68,9 +69,25 @@ describe("theme-insight-prompt-blocks", () => {
     expect(PURSUIT_READING_AUTHORSHIP_ORDER).toContain("Wrong: restating three confirmed Quick Question picks");
   });
 
-  it("requires empty theme contextual and combined on reflect", () => {
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain('{ tone, oneLiner, reflective }');
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain('contextual and combined MUST be empty strings ""');
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("Worth knowing");
+  it("allows theme contextual and combined on reflect with gating rules", () => {
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain(
+      '{ tone, oneLiner, reflective, combined, contextual }',
+    );
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("ACROSS PURSUITS (combined)");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("COMPARISON (contextual)");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("user-confirmed PursuitRelationship");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("<benchmark_facts>");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("Do NOT duplicate a pursuit-level Worth knowing");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain(
+      'contextual and combined MUST be empty strings ""',
+    );
+  });
+
+  it("defines theme plan mirror for forward-looking reads", () => {
+    expect(THEME_PLAN_MIRROR_RULE).toContain("THEME PLAN MIRROR");
+    expect(THEME_PLAN_MIRROR_RULE).toContain("empty frontier");
+    expect(THEME_PLAN_MIRROR_RULE).toContain("clear progression");
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("THEME PLAN MIRROR");
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("not per-chapter narrative or history recap");
   });
 });

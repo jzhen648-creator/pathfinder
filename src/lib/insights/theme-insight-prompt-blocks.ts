@@ -19,15 +19,34 @@ export const THEME_INSIGHT_NON_DUPLICATION = [
   "- Ban near-duplicate phrasing: if reflective reuses the headline's core nouns or swaps synonyms for the same claim, rewrite it with chapter titles and numbers.",
   "- Ban meta UI copy: never \"confirmed relationships on your map\", \"your map shows\", or \"the app sees\".",
   "- Ban theme filler without map numbers: \"long-term growth\", \"steady contributions\", \"significant target\" when no entered amount/deadline backs them.",
+  "- Ban timeline recap as theme synthesis: listing Complete chapters in order and calling it \"progression\" or a \"clear path\".",
+  "- Ban invented bridges between chapters the map does not connect (e.g. unrelated degree → unrelated job as \"clear progression\").",
+].join("\n");
+
+export const THEME_PLAN_MIRROR_RULE = [
+  "THEME PLAN MIRROR (read the user's authored future — not a history summary):",
+  "- Active and Maintaining chapters with deadlines, targets, or open milestone frontiers are PLANNED FUTURE on the map.",
+  "- Theme oneLiner: read the theme as a PLAN — what carries it forward, the bottleneck, what competes — not a diary recap.",
+  "- When Active/plan chapters AND Complete chapters coexist, weight the Active plan in oneLiner; Complete chapters ground reflective only.",
+  "- When every chapter in the theme is Complete and nothing Active or Maintaining continues the arc, oneLiner MUST name the empty frontier plainly.",
+  "- Use <reading_packet> lines (Active with deadlines, gapFacts, amount rows) and map_context status/deadline/target fields.",
+  "",
+  "Wrong (recap): \"Formal education and first professional role establish a clear progression from academic study to a professional role.\"",
+  "Wrong (trivial echo): \"Monthly contributions align with the annual ISA limit, setting a clear path for long-term growth.\"",
+  'Right (plan tension): "The ISA target is £500k+ and the balance is over £100k — contributions are set but the gap is still the story."',
+  'Right (missing frontier): "Formal Education and First Job are both complete — nothing Active on the map after 2021 names what comes next."',
+  'Right (discontinuity): "A geology BSc and an estate-agency first role are both complete — the map does not connect them."',
 ].join("\n");
 
 export const THEME_INSIGHT_FIELD_JOBS = [
-  "THEME INSIGHTS (macro synthesis — not per-chapter narrative):",
+  "THEME INSIGHTS (macro synthesis of the user's plan in this theme — not per-chapter narrative or history recap):",
   '- "themes": map of themeId -> { tone, oneLiner, reflective }',
   "  tone MUST be one of: celebratory | encouraging | nudge",
   "  oneLiner <= 140 chars — one complete, self-contained thought (a full sentence, not a fragment);",
   "  must never trail off mid-phrase. Name what is carrying this theme or where the bottleneck sits",
   "  (not a chapter-by-chapter summary).",
+  "",
+  THEME_PLAN_MIRROR_RULE,
   "",
   THEME_INSIGHT_FIELD_LANES,
   "",
@@ -43,11 +62,30 @@ export const THEME_INSIGHT_FIELD_JOBS = [
 ].join("\n");
 
 export const THEME_REFLECT_OUTPUT_CONTRACT = [
-  "THEME OUTPUT (reflect path — map-only):",
-  '- "themes": map of themeId -> { tone, oneLiner, reflective } only.',
-  '- contextual and combined MUST be empty strings "" — do not generate theme benchmarks,',
-  "  cross-chapter world-knowledge, or population norms on reflect.",
-  "- Worth knowing (comparison field) owns per-chapter consequential domain context; theme Reading is synthesis from map facts only.",
+  "THEME OUTPUT (reflect path):",
+  '- "themes": map of themeId -> { tone, oneLiner, reflective, combined, contextual }.',
+  "Mobile UI maps theme fields to: Headline (oneLiner), FROM YOUR MAP (reflective),",
+  "ACROSS PURSUITS (combined), COMPARISON (contextual).",
+  "",
+  "  combined (UI: ACROSS PURSUITS — optional, <= 500 chars):",
+  "  - Write ONLY when <reading_packet> or map_context shows a user-confirmed PursuitRelationship",
+  "    linking chapters in this theme — synthesize what that confirmed link means.",
+  "  - Do NOT invent links the user has not drawn; write \"\" when no confirmed link exists.",
+  "  - Do NOT restate the link label or both chapter titles as the entire field — add synthesis.",
+  "",
+  "  contextual (UI: COMPARISON — optional, <= 500 chars):",
+  "  - Write ONLY when <benchmark_facts> contains a fact for this theme AND you can compare",
+  "    the user's entered amounts/deadlines to that fenced fact.",
+  "  - Cite ONLY facts from <benchmark_facts> plus the user's map numbers — no invented percentiles,",
+  "    growth rates, or timelines.",
+  "  - Do NOT restate trivial arithmetic the oneLiner or reflective already stated",
+  "    (e.g. \"contributions align with the £20k ISA limit\" alone).",
+  "  - Do NOT duplicate a pursuit-level Worth knowing observation for the same benchmark —",
+  "    theme Comparison is theme-level synthesis; chapter Worth knowing owns per-chapter domain context.",
+  "  - Write \"\" when no grounded benchmark comparison exists for this theme.",
+  "",
+  "  When combined or contextual would be empty, write \"\" — do not pad.",
+  "  oneLiner and reflective remain required when the theme has chapters; combined and contextual are optional.",
 ].join("\n");
 
 export const PURSUIT_PANEL_UI_CONTEXT = [

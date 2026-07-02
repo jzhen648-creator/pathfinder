@@ -128,7 +128,7 @@ export async function gateThemeInsightsPatch(
 
     gated[themeId] = {
       ...entry,
-      reflective,
+      reflective: reflective ?? "",
       contextual,
       combined,
     };
