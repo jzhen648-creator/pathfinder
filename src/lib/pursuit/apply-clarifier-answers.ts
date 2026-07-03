@@ -9,10 +9,6 @@ import { appendSkippedClarifierPrompt } from "@/lib/pursuit/pursuit-cache-patch"
 import { syncPursuitPanel } from "@/lib/pursuit/generate-pursuit-enrich";
 import { DEFAULT_PURSUIT_ENRICH_OPTIONS } from "@/lib/pursuit/enrich-options";
 import {
-  removeClarifierAppendLineFromBackground,
-  syncClarifierAnswerInBackground,
-} from "@/lib/pursuit/clarifier-background-line";
-import {
   enrichAnswersSchema,
   enrichAnswerSchema,
   clarifierKind,
@@ -206,7 +202,7 @@ export async function applyClarifierAnswerForUser(
   userId: string,
   goalId: string,
   input: { clarifierId: string; prompt: string; selectedOption: string; options?: string[] },
-): Promise<{ enrichAnswers: EnrichAnswer[]; description: string; background: string | null }> {
+): Promise<{ enrichAnswers: EnrichAnswer[]; description: string }> {
   const parsed = enrichAnswerSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid clarifier answer");
@@ -217,7 +213,6 @@ export async function applyClarifierAnswerForUser(
     select: {
       id: true,
       description: true,
-      background: true,
       enrichAnswers: true,
       milestones: { select: { title: true, completedAt: true } },
     },
@@ -236,15 +231,13 @@ export async function applyClarifierAnswerForUser(
   }
 
   const existing = parseExistingAnswers(goal.enrichAnswers);
-  const previousAnswer = existing.find((a) => a.clarifierId === parsed.data.clarifierId) ?? null;
   const withoutDup = existing.filter((a) => a.clarifierId !== parsed.data.clarifierId);
   const enrichAnswers = [...withoutDup, parsed.data];
-  const background = syncClarifierAnswerInBackground(goal.background, parsed.data, previousAnswer);
 
   const updated = await prisma.goal.update({
     where: { id: goalId },
-    data: { enrichAnswers, background },
-    select: { description: true, enrichAnswers: true, background: true },
+    data: { enrichAnswers },
+    select: { description: true, enrichAnswers: true },
   });
 
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
@@ -254,7 +247,6 @@ export async function applyClarifierAnswerForUser(
   return {
     enrichAnswers: storedAnswers,
     description: updated.description?.trim() ?? "",
-    background: updated.background?.trim() || null,
   };
 }
 
@@ -263,26 +255,22 @@ export async function deleteClarifierAnswerForUser(
   userId: string,
   goalId: string,
   clarifierId: string,
-): Promise<{ enrichAnswers: EnrichAnswer[]; description: string; background: string | null }> {
+): Promise<{ enrichAnswers: EnrichAnswer[]; description: string }> {
   const goal = await prisma.goal.findFirst({
     where: { id: goalId, userId },
-    select: { id: true, description: true, background: true, enrichAnswers: true },
+    select: { id: true, description: true, enrichAnswers: true },
   });
   if (!goal) {
     throw new Error("Not found");
   }
 
   const existing = parseExistingAnswers(goal.enrichAnswers);
-  const removed = existing.find((a) => a.clarifierId === clarifierId) ?? null;
   const enrichAnswers = existing.filter((a) => a.clarifierId !== clarifierId);
-  const background = removed
-    ? removeClarifierAppendLineFromBackground(goal.background, removed.prompt, removed.selectedOption)
-    : goal.background?.trim() || null;
 
   const updated = await prisma.goal.update({
     where: { id: goalId },
-    data: { enrichAnswers, background },
-    select: { description: true, enrichAnswers: true, background: true },
+    data: { enrichAnswers },
+    select: { description: true, enrichAnswers: true },
   });
 
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
@@ -292,6 +280,5 @@ export async function deleteClarifierAnswerForUser(
   return {
     enrichAnswers: storedAnswers,
     description: updated.description?.trim() ?? "",
-    background: updated.background?.trim() || null,
   };
 }
