@@ -81,6 +81,16 @@ export const DATE_DEADLINE_ARITHMETIC_RULE = [
   "- Right: \"London Marathon is about ten months out\" or \"deadline in 300d\".",
 ].join("\n");
 
+export const ATTRIBUTES_AT_A_DATE_RULE = [
+  "ATTRIBUTES AT A DATE (age, location, employment):",
+  "- User context includes Date of birth, Age (today only), and Current context (as of Today) for location, education, employment, and occupation.",
+  "- <chapter_age_facts> lists authoritative age-at-start per chapter when Timeline started is user-set — use these for past starts.",
+  "- Never apply the Age: line to a past or future event — e.g. do NOT say someone started a chapter \"at 19\" when Age: is 19 today but the chapter started years ago.",
+  "- For when a chapter started or finished, use <chapter_age_facts>, focal_chapter_facts Age at start / Age at completion, or compute from Date of birth plus Timeline started / Completed.",
+  "- Added to map is when the chapter was created in the app — not a user-set start date; do not treat it as when life activity began.",
+  "- Location, employment, and occupation describe the user today only — do not attach them to historical chapters unless background explicitly says so.",
+].join("\n");
+
 export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
   "EVALUATIVE LANGUAGE (never use):",
   '- Do not evaluate the user\'s qualities: "demonstrates dedication", "shows discipline", "reflects commitment", "strong financial management", "robust approach"',

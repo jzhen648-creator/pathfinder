@@ -3,6 +3,7 @@ import { pursuitStatusPromptBlock } from "@/lib/ai/pursuit-status-prompt";
 import { isAmountImpactEligible, amountImpactBodyPromptLines } from "@/lib/ai/amount-impact-eligibility";
 import { PEOPLE_THEME_BODY_CLAUSE, shouldApplyPeopleThemeBodyRules } from "@/lib/ai/people-theme-prompt";
 import { formatUserContext } from "@/lib/ai/format-user-context";
+import { parseDobDateFromUserContext } from "@/lib/insights/benchmark-facts";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
@@ -19,6 +20,7 @@ import {
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
 import {
   DATE_DEADLINE_ARITHMETIC_RULE,
+  ATTRIBUTES_AT_A_DATE_RULE,
   MAP_SPECIFICITY_BAR,
   ORIENTATION_AS_LENS_RULE,
   PLAN_IMPLICATION_RULE,
@@ -157,6 +159,8 @@ function buildEnrichSystemPrompt(
   MAP_SPECIFICITY_BAR,
   "",
   DATE_DEADLINE_ARITHMETIC_RULE,
+  "",
+  ATTRIBUTES_AT_A_DATE_RULE,
     "",
     "VOICE ANTI-PATTERNS:",
     "- Do not open headline or body with the user's name.",
@@ -251,7 +255,10 @@ async function generateOnePursuitEnrich(
   };
   const slot = pickQuestionSlotForPursuit(slotContext);
   const slotLines = questionSlotUserMessageLines(slot, slotContext);
-  const insightContext = buildPursuitEnrichInsightContext(pursuitContext);
+  const insightContext = buildPursuitEnrichInsightContext(
+    pursuitContext,
+    parseDobDateFromUserContext(userContext),
+  );
 
   const raw = await generateJsonCompletion({
     system: buildEnrichSystemPrompt(

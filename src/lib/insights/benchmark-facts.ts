@@ -235,6 +235,20 @@ export function parseAgeFromUserContext(userContext: string): number | null {
   return Number.isFinite(age) && age >= 0 ? age : null;
 }
 
+export function parseDobFromUserContext(userContext: string): string | null {
+  const match = /^Date of birth:\s*(\d{4}-\d{2}-\d{2})/m.exec(userContext);
+  const value = match?.[1]?.trim();
+  return value || null;
+}
+
+/** Parse DOB from formatted user context into a Date (UTC calendar midnight). */
+export function parseDobDateFromUserContext(userContext: string): Date | null {
+  const ymd = parseDobFromUserContext(userContext);
+  if (!ymd) return null;
+  const date = new Date(`${ymd}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function parseLocationFromUserContext(userContext: string): string | null {
   const match = /^Location:\s*(.+)$/m.exec(userContext);
   const value = match?.[1]?.trim();

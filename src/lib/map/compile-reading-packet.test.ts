@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ageAtCalendarDate,
   buildCategorySignals,
   buildChangeEventsFromDirtyRows,
+  buildFocalPursuitReadingFacts,
   buildGapFacts,
   buildHighSignificanceActiveTitles,
   buildMapAggregates,
@@ -368,6 +370,64 @@ describe("compile-reading-packet", () => {
     expect(facts[0]).toBe(
       "CeMAP qualification: started 6 months ago; deadline in 18d; 0 of 3 milestones completed",
     );
+  });
+
+  it("uses addedToMap wording when timelineStart is unset", () => {
+    const facts = buildMilestonePaceFacts(
+      [
+        {
+          id: "c",
+          title: "CeMAP qualification",
+          status: "ACTIVE",
+          significance: 5,
+          addedToMap: "2025-12-14",
+          milestones: [{ id: "m1", title: "Unit 1", completed: false }],
+        },
+      ],
+      FIXTURE_NOW,
+    );
+    expect(facts[0]).toMatch(/^CeMAP qualification: added to map 6 months ago;/);
+  });
+
+  it("ageAtCalendarDate computes age at an event date", () => {
+    const dob = new Date("2007-01-01T00:00:00.000Z");
+    expect(ageAtCalendarDate(dob, "2024-06-01")).toBe(17);
+    expect(ageAtCalendarDate(dob, "2026-07-04")).toBe(19);
+  });
+
+  it("buildFocalPursuitReadingFacts emits age at start when DOB and timelineStart are set", () => {
+    const dob = new Date("2007-01-01T00:00:00.000Z");
+    const facts = buildFocalPursuitReadingFacts(
+      {
+        id: "g1",
+        title: "Apprenticeship",
+        status: "ACTIVE",
+        timelineStart: "2024-01-15",
+        milestones: [],
+      },
+      FIXTURE_NOW,
+      dob,
+    );
+    expect(facts).toContain("Timeline started: 2024-01-15");
+    expect(facts).toContain("Age at start: 17");
+    expect(facts.some((fact) => fact.startsWith("Age at completion:"))).toBe(false);
+  });
+
+  it("buildFocalPursuitReadingFacts omits age at start when only addedToMap is present", () => {
+    const dob = new Date("2007-01-01T00:00:00.000Z");
+    const facts = buildFocalPursuitReadingFacts(
+      {
+        id: "g1",
+        title: "Apprenticeship",
+        status: "ACTIVE",
+        addedToMap: "2026-01-15",
+        milestones: [],
+      },
+      FIXTURE_NOW,
+      dob,
+    );
+    expect(facts).toContain("Added to map: 2026-01-15");
+    expect(facts.some((fact) => fact.startsWith("Age at start:"))).toBe(false);
   });
 
   it("buildReadingPacketRecentEvents excludes milestone_complete from reading spine", () => {

@@ -33,14 +33,20 @@ import {
   USER_RATIONALE_RULE,
   TENSION_NOT_FORECAST_RULE,
   PLAN_IMPLICATION_RULE,
+  ATTRIBUTES_AT_A_DATE_RULE,
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 } from "@/lib/insights/insight-voice-prompt-blocks";
 import {
   buildBenchmarkFactsBlock,
   flattenBenchmarkPursuitsFromMapContext,
   parseAgeFromUserContext,
+  parseDobDateFromUserContext,
   parseLocationFromUserContext,
 } from "@/lib/insights/benchmark-facts";
+import {
+  collectChapterAgeFacts,
+  formatChapterAgeFactsBlock,
+} from "@/lib/ai/temporal-age-gate";
 import {
   PURSUIT_BODY_DOMAIN_CONTEXT_RULE,
   PURSUIT_COMPARISON_FIELD_JOBS,
@@ -209,6 +215,8 @@ function buildReflectPursuitsOnlySystemPrompt(
   MAP_SPECIFICITY_BAR,
   "",
   DATE_DEADLINE_ARITHMETIC_RULE,
+  "",
+  ATTRIBUTES_AT_A_DATE_RULE,
     PEOPLE_THEME_BODY_CLAUSE,
     ...amountImpactBodyPromptLines(amountImpactEligible),
     ...clarifierRules,
@@ -278,6 +286,8 @@ function buildReflectSystemPrompt(
   MAP_SPECIFICITY_BAR,
   "",
   DATE_DEADLINE_ARITHMETIC_RULE,
+  "",
+  ATTRIBUTES_AT_A_DATE_RULE,
     "VOICE ANTI-PATTERNS (chapter headline/body/comparison):",
     "- Do not open any text with the user's name (\"Alex, ...\").",
     "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
@@ -481,13 +491,33 @@ function buildReflectUserMessage(input: {
   const lines = [
     input.userContext || "(No profile context yet.)",
     "",
+  ];
+
+  if (input.mapContext) {
+    const chapterAgeBlock = formatChapterAgeFactsBlock(
+      collectChapterAgeFacts(
+        input.mapContext,
+        parseDobDateFromUserContext(input.userContext),
+      ),
+    );
+    if (chapterAgeBlock) {
+      lines.push("<chapter_age_facts>", chapterAgeBlock, "</chapter_age_facts>", "");
+    }
+  }
+
+  lines.push(
     "<reading_packet>",
     input.readingPacketJson,
     "</reading_packet>",
-  ];
+  );
 
   if (input.mapContext && input.dirtyPursuitIds.length > 0) {
-    const focalBlock = buildFocalPursuitFactsBlock(input.mapContext, input.dirtyPursuitIds);
+    const focalBlock = buildFocalPursuitFactsBlock(
+      input.mapContext,
+      input.dirtyPursuitIds,
+      Date.now(),
+      parseDobDateFromUserContext(input.userContext),
+    );
     if (Object.keys(focalBlock).length > 0) {
       lines.push(
         "",

@@ -7,6 +7,10 @@ import {
 import { themeHasConfirmedLinks } from "@/lib/insights/theme-relationship-eligibility";
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import {
+  collectChapterAgeFacts,
+  gateMisappliedCurrentAgeProse,
+} from "@/lib/ai/temporal-age-gate";
+import {
   gateThemeCombined,
   gateThemeContextual,
   gateThemeContextualContent,
@@ -18,12 +22,16 @@ import {
 import { loadPursuitSignalsByTheme } from "@/lib/pursuit/load-pursuit-signals";
 import { prisma } from "@/lib/prisma";
 
-async function loadUserAgeLocation(userId: string): Promise<{ age: number | null; location: string | null }> {
+async function loadUserAgeLocation(userId: string): Promise<{
+  age: number | null;
+  location: string | null;
+  dateOfBirth: Date | null;
+}> {
   const profile = await prisma.userManualProfile.findUnique({
     where: { userId },
     select: { dateOfBirth: true, location: true },
   });
-  if (!profile) return { age: null, location: null };
+  if (!profile) return { age: null, location: null, dateOfBirth: null };
 
   let age: number | null = null;
   if (profile.dateOfBirth) {
@@ -39,6 +47,7 @@ async function loadUserAgeLocation(userId: string): Promise<{ age: number | null
   return {
     age,
     location: profile.location?.trim() || null,
+    dateOfBirth: profile.dateOfBirth,
   };
 }
 
@@ -93,9 +102,11 @@ export async function gateThemeInsightsPatch(
     formatMapContext(userId),
   ]);
   const allBenchmarkPursuits = flattenBenchmarkPursuitsFromMapContext(mapContext);
+  const chapterAgeFacts = collectChapterAgeFacts(mapContext, profile.dateOfBirth);
 
   const gated: Record<string, InsightLevelPayload> = {};
   for (const [themeId, entry] of Object.entries(themes)) {
+    const themeAgeFacts = chapterAgeFacts.filter((fact) => fact.themeId === themeId);
     const themeSignals = signalsByTheme.get(themeId) ?? [];
     const themePursuits = benchmarkPursuitsForTheme(allBenchmarkPursuits, themeId);
     const benchmarkApplicable = benchmarkFactsApplicable(
@@ -111,9 +122,17 @@ export async function gateThemeInsightsPatch(
       benchmarkApplicable,
     };
     const hasLinks = themeHasConfirmedLinks(themeId, relationships, pursuitThemeMap);
-    const combined = gateThemeCombined(entry.combined?.trim() ?? "", hasLinks);
-    const contextual = gateThemeContextualContent(
-      gateThemeContextual(entry.contextual?.trim() ?? "", themeSignals, gateInput),
+    const combined = gateMisappliedCurrentAgeProse(
+      gateThemeCombined(entry.combined?.trim() ?? "", hasLinks),
+      profile.age,
+      themeAgeFacts,
+    );
+    const contextual = gateMisappliedCurrentAgeProse(
+      gateThemeContextualContent(
+        gateThemeContextual(entry.contextual?.trim() ?? "", themeSignals, gateInput),
+      ),
+      profile.age,
+      themeAgeFacts,
     );
     const reflectiveAfterLinks = gateThemeReflective(
       entry.reflective?.trim() ?? "",
@@ -121,13 +140,18 @@ export async function gateThemeInsightsPatch(
       relationships,
       pursuitThemeMap,
     );
-    const { reflective } = gateThemeInsightProse({
-      oneLiner: entry.oneLiner?.trim() ?? "",
-      reflective: reflectiveAfterLinks,
+    const { oneLiner, reflective } = gateThemeInsightProse({
+      oneLiner: gateMisappliedCurrentAgeProse(
+        entry.oneLiner?.trim() ?? "",
+        profile.age,
+        themeAgeFacts,
+      ),
+      reflective: gateMisappliedCurrentAgeProse(reflectiveAfterLinks, profile.age, themeAgeFacts),
     });
 
     gated[themeId] = {
       ...entry,
+      oneLiner: oneLiner ?? "",
       reflective: reflective ?? "",
       contextual,
       combined,

@@ -61,8 +61,10 @@ export type FormattedMapPursuit = {
   daysUntilDeadline?: number;
   /** ISO calendar date when pursuit was marked complete. */
   completedAt?: string;
-  /** ISO calendar date when pursuit span begins (always set from formatMapContext; optional on hand-built fixtures). */
+  /** ISO calendar date when user set chapter start — omitted when unset. */
   timelineStart?: string;
+  /** ISO calendar date when chapter was added to the map — always set from createdAt. */
+  addedToMap?: string;
   /** User-authored background — omitted when unset or empty. */
   background?: string;
 };
@@ -175,7 +177,10 @@ export function buildPursuitRow(
     if (daysUntilDeadline != null) pursuit.daysUntilDeadline = daysUntilDeadline;
   }
   if (goal.completedAt) pursuit.completedAt = goal.completedAt.toISOString().slice(0, 10);
-  pursuit.timelineStart = (goal.timelineStart ?? goal.createdAt).toISOString().slice(0, 10);
+  if (goal.timelineStart) {
+    pursuit.timelineStart = goal.timelineStart.toISOString().slice(0, 10);
+  }
+  pursuit.addedToMap = goal.createdAt.toISOString().slice(0, 10);
 
   const enrichAnswers = serializeEnrichAnswersForMapContext(goal.enrichAnswers);
   if (enrichAnswers) pursuit.enrichAnswers = enrichAnswers;

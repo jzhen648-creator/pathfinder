@@ -493,3 +493,100 @@ describe("generateReflectResponse", () => {
     expect(metrics.reflectResponseChars).toBeGreaterThan(0);
   });
 });
+
+describe("full vs pursuits-only reflect differential", () => {
+  const PURSUIT_PANEL_KEYS = [
+    "tone",
+    "headline",
+    "body",
+    "clarifiers",
+    "suggestedMilestones",
+  ] as const;
+
+  const panelFixture = {
+    tone: "worth_a_look",
+    headline: "CeMAP deadline is close",
+    body: "CeMAP has a near deadline and no completed milestones yet.",
+    clarifiers: [],
+    suggestedMilestones: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.formatMapContext.mockResolvedValue(DENSE_MAP_CONTEXT);
+    mocks.formatUserContext.mockResolvedValue(DENSE_USER_CONTEXT);
+    mocks.compileReadingPacket.mockResolvedValue(DENSE_READING_PACKET);
+  });
+
+  it("prompt contracts expose the same pursuit panel field lanes on full and pursuits-only scopes", () => {
+    const fullPrompt = buildReflectSystemPrompt(ENRICH_OPTIONS, "full", false);
+    const scopedPrompt = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
+
+    for (const prompt of [fullPrompt, scopedPrompt]) {
+      expect(prompt).toContain("CHAPTER READING FIELD LANES");
+      expect(prompt).toContain("headline");
+      expect(prompt).toContain("body");
+      expect(prompt).toContain("clarifiers");
+      expect(prompt).toContain("suggestedMilestones");
+      expect(prompt).not.toContain("fromMap");
+    }
+  });
+
+  it("parsed pursuit panels share structure regardless of reflect scope", async () => {
+    mocks.generateJsonCompletion.mockResolvedValueOnce(
+      JSON.stringify({
+        themes: {
+          work: {
+            tone: "in_focus",
+            oneLiner: "Work chapters carry near deadlines.",
+            reflective: "CeMAP and Product Lead search both have June deadlines.",
+            contextual: "",
+            combined: "",
+          },
+        },
+        pursuits: {
+          "p-cemap": panelFixture,
+        },
+      }),
+    );
+
+    const fullReflect = await generateReflectResponse(
+      USER_ID,
+      baseDirtyAnalysis(),
+      ["p-cemap"],
+      ["work"],
+      ENRICH_OPTIONS,
+      emptyMapAiSyncMetrics(),
+      { scope: "full" },
+    );
+
+    mocks.generateJsonCompletion.mockResolvedValueOnce(
+      JSON.stringify({
+        pursuits: {
+          "p-cemap": panelFixture,
+        },
+      }),
+    );
+
+    const scopedReflect = await generateReflectResponse(
+      USER_ID,
+      baseDirtyAnalysis(),
+      ["p-cemap"],
+      [],
+      ENRICH_OPTIONS,
+      emptyMapAiSyncMetrics(),
+      { scope: "pursuits-only" },
+    );
+
+    expect(Object.keys(fullReflect.pursuits["p-cemap"]!).sort()).toEqual(
+      Object.keys(scopedReflect.pursuits["p-cemap"]!).sort(),
+    );
+
+    for (const key of PURSUIT_PANEL_KEYS) {
+      expect(fullReflect.pursuits["p-cemap"]).toHaveProperty(key);
+      expect(scopedReflect.pursuits["p-cemap"]).toHaveProperty(key);
+    }
+
+    expect(fullReflect.pursuits["p-cemap"]).toEqual(scopedReflect.pursuits["p-cemap"]);
+  });
+});

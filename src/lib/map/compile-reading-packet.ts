@@ -498,9 +498,12 @@ export function buildMilestonePaceFacts(
     const completed = milestones.filter((m) => m.completed && m.completedAt);
 
     if (completed.length === 0) {
-      const startDate = parseCalendarDate(pursuit.timelineStart);
+      const startYmd = pursuit.timelineStart ?? pursuit.addedToMap;
+      const startDate = parseCalendarDate(startYmd);
       if (!startDate) continue;
-      let line = `${pursuit.title}: started ${formatElapsedSince(startDate, now)}`;
+      const elapsed = formatElapsedSince(startDate, now);
+      const spanLabel = pursuit.timelineStart ? `started ${elapsed}` : `added to map ${elapsed}`;
+      let line = `${pursuit.title}: ${spanLabel}`;
       if (pursuit.deadline) {
         const until = daysUntil(pursuit.deadline, now);
         if (until != null) line += `; deadline in ${until}d`;
@@ -557,6 +560,18 @@ function parseCalendarDate(value?: string | null): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** Age in whole years at a calendar date (YYYY-MM-DD), UTC midnight. */
+export function ageAtCalendarDate(dateOfBirth: Date, calendarYmd: string): number | null {
+  const at = parseCalendarDate(calendarYmd);
+  if (!at) return null;
+  let age = at.getUTCFullYear() - dateOfBirth.getUTCFullYear();
+  const monthDiff = at.getUTCMonth() - dateOfBirth.getUTCMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && at.getUTCDate() < dateOfBirth.getUTCDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? age : null;
+}
+
 function daysSinceCalendarDate(calendarDate: string, now: number): number | null {
   const parsed = parseCalendarDate(calendarDate);
   if (!parsed) return null;
@@ -611,11 +626,11 @@ export function buildReadingPacketRecentEvents(
 function formatElapsedSince(startDate: Date, now: number): string {
   const days = Math.max(0, Math.round((now - startDate.getTime()) / MS_PER_DAY));
   if (days >= 365) {
-    const years = Math.round(days / 365);
+    const years = Math.floor(days / 365);
     return `${years} year${years === 1 ? "" : "s"} ago`;
   }
   if (days >= 30) {
-    const months = Math.round(days / 30);
+    const months = Math.floor(days / 30);
     return `${months} month${months === 1 ? "" : "s"} ago`;
   }
   return `${days} day${days === 1 ? "" : "s"} ago`;
@@ -683,6 +698,7 @@ export function themeLabelForId(themeId: string): string {
 export function buildFocalPursuitReadingFacts(
   pursuit: FormattedMapPursuit,
   now = Date.now(),
+  dateOfBirth: Date | null = null,
 ): string[] {
   const facts: string[] = [`Status: ${pursuit.status}`];
 
@@ -691,9 +707,19 @@ export function buildFocalPursuitReadingFacts(
   }
   if (pursuit.timelineStart) {
     facts.push(`Timeline started: ${pursuit.timelineStart}`);
+    if (dateOfBirth) {
+      const ageAtStart = ageAtCalendarDate(dateOfBirth, pursuit.timelineStart);
+      if (ageAtStart != null) facts.push(`Age at start: ${ageAtStart}`);
+    }
+  } else if (pursuit.addedToMap) {
+    facts.push(`Added to map: ${pursuit.addedToMap}`);
   }
   if (pursuit.completedAt) {
     facts.push(`Completed: ${pursuit.completedAt}`);
+    if (dateOfBirth) {
+      const ageAtCompletion = ageAtCalendarDate(dateOfBirth, pursuit.completedAt);
+      if (ageAtCompletion != null) facts.push(`Age at completion: ${ageAtCompletion}`);
+    }
   }
   if (pursuit.deadline) {
     const label = formatDeadlineLabel(pursuit.deadline);
@@ -742,12 +768,13 @@ export function buildFocalPursuitFactsBlock(
   mapContext: FormattedMapContext,
   pursuitIds: string[],
   now = Date.now(),
+  dateOfBirth: Date | null = null,
 ): Record<string, { title: string; facts: string[] }> {
   const block: Record<string, { title: string; facts: string[] }> = {};
   for (const pursuit of findPursuitsInMapContext(mapContext, pursuitIds)) {
     block[pursuit.id] = {
       title: pursuit.title,
-      facts: buildFocalPursuitReadingFacts(pursuit, now),
+      facts: buildFocalPursuitReadingFacts(pursuit, now, dateOfBirth),
     };
   }
   return block;

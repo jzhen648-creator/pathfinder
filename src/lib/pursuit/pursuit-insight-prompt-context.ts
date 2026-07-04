@@ -1,14 +1,17 @@
 import type { FormattedPursuitContext } from "@/lib/ai/format-map-context";
 import { buildFocalPursuitReadingFacts } from "@/lib/map/compile-reading-packet";
 
-export function buildPursuitEnrichInsightContext(context: FormattedPursuitContext): {
+export function buildPursuitEnrichInsightContext(
+  context: FormattedPursuitContext,
+  dateOfBirth: Date | null = null,
+): {
   focalFacts: string[];
   focalFactsJson: string;
   scopedChapterJson: string;
   confirmedOnContextTabJson: string;
 } {
   const { enrichAnswers, ...pursuitWithoutEnrich } = context.pursuit;
-  const focalFacts = buildFocalPursuitReadingFacts(context.pursuit);
+  const focalFacts = buildFocalPursuitReadingFacts(context.pursuit, Date.now(), dateOfBirth);
 
   return {
     focalFacts,

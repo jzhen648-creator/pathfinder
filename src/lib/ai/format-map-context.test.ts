@@ -18,9 +18,10 @@ describe("buildPursuitRow timelineStart", () => {
     milestones: [{ id: "m1", title: "Buy strings", completedAt: null }],
   };
 
-  it("falls back to createdAt when timelineStart is null", () => {
+  it("omits timelineStart when unset and exposes addedToMap from createdAt", () => {
     const row = buildPursuitRow(baseGoal);
-    expect(row.timelineStart).toBe("2026-01-15");
+    expect(row.timelineStart).toBeUndefined();
+    expect(row.addedToMap).toBe("2026-01-15");
   });
 
   it("prefers explicit timelineStart over createdAt", () => {
@@ -30,6 +31,7 @@ describe("buildPursuitRow timelineStart", () => {
       createdAt: new Date("2026-01-15T10:00:00.000Z"),
     });
     expect(row.timelineStart).toBe("2025-10-01");
+    expect(row.addedToMap).toBe("2026-01-15");
   });
 });
 

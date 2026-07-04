@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   benchmarkFactsApplicable,
   buildBenchmarkFactsBlock,
+  parseDobDateFromUserContext,
+  parseDobFromUserContext,
   type BenchmarkPursuitRow,
 } from "@/lib/insights/benchmark-facts";
 
@@ -93,5 +95,24 @@ describe("benchmarkFactsApplicable — health unchanged", () => {
     expect(
       benchmarkFactsApplicable("health", [healthPursuit()], 30, "Tokyo, Japan"),
     ).toBe(true);
+  });
+});
+
+describe("parseDobFromUserContext", () => {
+  it("parses ISO date of birth from user context", () => {
+    const context = [
+      "Today: 2026-07-04",
+      "",
+      "User context:",
+      "Name: Alex",
+      "Date of birth: 2007-03-15",
+      "Age: 19",
+    ].join("\n");
+    expect(parseDobFromUserContext(context)).toBe("2007-03-15");
+    expect(parseDobDateFromUserContext(context)?.toISOString()).toBe("2007-03-15T00:00:00.000Z");
+  });
+
+  it("returns null when date of birth is absent", () => {
+    expect(parseDobFromUserContext("Age: 19\nLocation: London")).toBeNull();
   });
 });

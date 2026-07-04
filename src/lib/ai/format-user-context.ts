@@ -139,32 +139,42 @@ export async function formatUserContext(userId: string): Promise<string> {
     loadProfileFactsForContext(userId),
   ]);
 
-  const lines: string[] = [];
-  if (profile?.displayName?.trim()) lines.push(`Name: ${profile.displayName.trim()}`);
+  const userLines: string[] = [];
+  if (profile?.displayName?.trim()) userLines.push(`Name: ${profile.displayName.trim()}`);
+  if (profile?.dateOfBirth) {
+    userLines.push(`Date of birth: ${profile.dateOfBirth.toISOString().slice(0, 10)}`);
+  }
   const age = calculateAge(profile?.dateOfBirth ?? null);
-  if (age !== null) lines.push(`Age: ${age}`);
-  if (profile?.location?.trim()) lines.push(`Location: ${profile.location.trim()}`);
+  if (age !== null) userLines.push(`Age: ${age}`);
+
+  const orientationValue = orientationValueFromProfileFacts(profileFacts);
+  if (orientationValue) {
+    userLines.push(`What matters to them: ${orientationValue}`);
+  }
+
+  const currentLines: string[] = [];
+  if (profile?.location?.trim()) currentLines.push(`Location: ${profile.location.trim()}`);
   if (profile?.educationLevel?.trim()) {
-    lines.push(`Education: ${educationLevelLabel(profile.educationLevel.trim())}`);
+    currentLines.push(`Education: ${educationLevelLabel(profile.educationLevel.trim())}`);
   }
   if (profile?.employmentStatus?.trim()) {
-    lines.push(`Employment: ${employmentStatusLabel(profile.employmentStatus.trim())}`);
+    currentLines.push(`Employment: ${employmentStatusLabel(profile.employmentStatus.trim())}`);
   }
   const jobTitle = profile?.jobTitle?.trim() || profile?.occupation?.trim();
   if (jobTitle) {
     const industry = profile?.industry?.trim();
-    lines.push(industry ? `Occupation: ${jobTitle} (${industry})` : `Occupation: ${jobTitle}`);
-  }
-
-  const orientationValue = orientationValueFromProfileFacts(profileFacts);
-  if (orientationValue) {
-    lines.push(`What matters to them: ${orientationValue}`);
+    currentLines.push(
+      industry ? `Occupation: ${jobTitle} (${industry})` : `Occupation: ${jobTitle}`,
+    );
   }
 
   const factLines = formatProfileFactsForContext(profileFactsExcludingOrientation(profileFacts));
   const blocks: string[] = [`Today: ${isoCalendarDate()}`];
-  if (lines.length > 0) {
-    blocks.push(["User context:", ...lines].join("\n"));
+  if (userLines.length > 0) {
+    blocks.push(["User context:", ...userLines].join("\n"));
+  }
+  if (currentLines.length > 0) {
+    blocks.push(["Current context (as of Today):", ...currentLines].join("\n"));
   }
   if (factLines.length > 0) {
     blocks.push(["Profile facts:", ...factLines].join("\n"));

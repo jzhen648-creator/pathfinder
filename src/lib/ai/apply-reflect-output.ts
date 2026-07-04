@@ -40,6 +40,10 @@ import {
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { buildFocalPursuitFactsBlock } from "@/lib/map/compile-reading-packet";
+import {
+  collectChapterAgeFacts,
+  gateMisappliedCurrentAgeProse,
+} from "@/lib/ai/temporal-age-gate";
 import { prisma } from "@/lib/prisma";
 
 export {
@@ -84,9 +88,15 @@ export async function applyReflectOutput(
   const options = resolvePursuitEnrichOptions(enrichOptions);
 
   const toneGoals = await loadPursuitToneGoals(userId, pursuitIds);
+  const profile = await prisma.userManualProfile.findUnique({
+    where: { userId },
+    select: { dateOfBirth: true, location: true },
+  });
   const mapContext = pursuitIds.length > 0 ? await formatMapContext(userId) : null;
   const focalFactsByPursuit =
-    mapContext != null ? buildFocalPursuitFactsBlock(mapContext, pursuitIds) : {};
+    mapContext != null
+      ? buildFocalPursuitFactsBlock(mapContext, pursuitIds, Date.now(), profile?.dateOfBirth ?? null)
+      : {};
   const existingCache = await prisma.insightCache.findUnique({
     where: { userId },
     select: { pursuitInsights: true },
@@ -99,10 +109,6 @@ export async function applyReflectOutput(
     list.push({ id: goal.id, title: goal.title });
     siblingTitlesByTheme.set(themeId, list);
   }
-  const profile = await prisma.userManualProfile.findUnique({
-    where: { userId },
-    select: { dateOfBirth: true, location: true },
-  });
   let profileAge: number | null = null;
   if (profile?.dateOfBirth) {
     const nowDate = new Date();
@@ -114,6 +120,8 @@ export async function applyReflectOutput(
     if (profileAge < 0) profileAge = null;
   }
   const profileLocation = profile?.location?.trim() || null;
+  const chapterAgeFacts =
+    mapContext != null ? collectChapterAgeFacts(mapContext, profile?.dateOfBirth ?? null) : [];
 
   const pursuits: Record<string, PursuitEnrichCachePayload> = {};
   const themes: Record<string, InsightLevelPayload> = {};
@@ -207,6 +215,31 @@ export async function applyReflectOutput(
       focalFacts: focalFactsByPursuit[pursuitId]?.facts,
     });
     const themeId = goal.themeId ?? "becoming";
+    const themeAgeFacts = chapterAgeFacts.filter((fact) => fact.themeId === themeId);
+    let ageGatedResult = gated;
+    if (gated.insight && themeAgeFacts.length > 0 && profileAge != null) {
+      ageGatedResult = {
+        ...gated,
+        insight: {
+          ...gated.insight,
+          headline: gateMisappliedCurrentAgeProse(
+            gated.insight.headline,
+            profileAge,
+            themeAgeFacts,
+          ),
+          body: gateMisappliedCurrentAgeProse(gated.insight.body, profileAge, themeAgeFacts),
+          ...(gated.insight.comparison
+            ? {
+                comparison: gateMisappliedCurrentAgeProse(
+                  gated.insight.comparison,
+                  profileAge,
+                  themeAgeFacts,
+                ),
+              }
+            : {}),
+        },
+      };
+    }
     const siblingPursuits = (siblingTitlesByTheme.get(themeId) ?? []).filter(
       (s) => s.id !== pursuitId,
     );
@@ -226,7 +259,7 @@ export async function applyReflectOutput(
       skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
     };
     const slot = pickQuestionSlotForPursuit(slotContext);
-    const slotted = applyQuestionSlotToResult(gated, slotContext);
+    const slotted = applyQuestionSlotToResult(ageGatedResult, slotContext);
     const quickQuestionsQuietUntil = resolveQuickQuestionsQuietUntilAfterGeneration({
       slot,
       clarifiers: slotted.clarifiers,
