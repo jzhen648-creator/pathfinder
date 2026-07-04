@@ -1,4 +1,5 @@
 import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { QUICK_QUESTION_MIN_NOTE_CHARS } from "@/lib/pursuit/clarifier-prompt-blocks";
 
 export type MilestoneReadinessMissing = "note" | "specifics" | "quick_question";
 
@@ -104,7 +105,7 @@ function computeMissing(
   const missing: MilestoneReadinessMissing[] = [];
   const background = (input.background ?? "").trim();
 
-  if (background.length < 20) missing.push("note");
+  if (background.length < QUICK_QUESTION_MIN_NOTE_CHARS) missing.push("note");
   if (input.enrichAnswerCount === 0) missing.push("quick_question");
   if (specificityMarkers === 0 && titleTokenCount < 3 && meaningfulTokenCount < 8) {
     missing.push("specifics");

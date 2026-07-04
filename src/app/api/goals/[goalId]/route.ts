@@ -1,7 +1,10 @@
 import { NextResponse, after } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { excludePursuitFromInterpretation } from "@/lib/insights/invalidate-reading-caches";
-import { pruneMootPendingClarifiersOnStatusChange } from "@/lib/pursuit/apply-clarifier-answers";
+import {
+  clearQuickQuestionsQuietUntilInCache,
+  pruneMootPendingClarifiersOnStatusChange,
+} from "@/lib/pursuit/apply-clarifier-answers";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
 import {
   clearReadingDirtyForPursuits,
@@ -14,6 +17,7 @@ import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 import {
   appendPursuitContextEntryAndSync,
 } from "@/lib/pursuit/pursuit-context-log";
+import { QUICK_QUESTION_MIN_NOTE_CHARS } from "@/lib/pursuit/clarifier-prompt-blocks";
 
 type RouteProps = {
   params: Promise<{ goalId: string }>;
@@ -207,6 +211,13 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   if (pursuitStatus !== undefined) {
     await pruneMootPendingClarifiersOnStatusChange(userId, goalId, pursuitStatus);
+  }
+
+  if (input.background !== undefined) {
+    const noteChars = (input.background ?? "").trim().length;
+    if (noteChars >= QUICK_QUESTION_MIN_NOTE_CHARS) {
+      await clearQuickQuestionsQuietUntilInCache(userId, goalId);
+    }
   }
 
   const dirtyUpdates: Record<string, unknown> = {};

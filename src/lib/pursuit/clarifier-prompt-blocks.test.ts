@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CLARIFIER_BATCH_MAX,
   CLARIFIER_DURABLE_CONTEXT,
   CLARIFIER_GENERATION_PRINCIPLE,
   CLARIFIER_MILESTONE_GROUNDING,
@@ -18,8 +17,9 @@ describe("clarifier prompt blocks", () => {
     expect(CONTEXTUAL_QUICK_QUESTIONS).toContain(CLARIFIER_GENERATION_PRINCIPLE);
     expect(CONTEXTUAL_QUICK_QUESTIONS).toContain(CLARIFIER_DURABLE_CONTEXT);
     expect(CONTEXTUAL_QUICK_QUESTIONS).toContain("completed: true");
-    expect(CONTEXTUAL_QUICK_QUESTIONS).toContain(`up to ${CLARIFIER_BATCH_MAX}`);
-    expect(CONTEXTUAL_QUICK_QUESTIONS).toContain("empty array when no high-value gap remains");
+    expect(CONTEXTUAL_QUICK_QUESTIONS).toContain("one question at a time");
+    expect(CONTEXTUAL_QUICK_QUESTIONS).toContain("NOT ALREADY KNOWN OR INFERABLE");
+    expect(CONTEXTUAL_QUICK_QUESTIONS).toContain("Return [] when no high-value gap remains");
   });
 
   it("prefers durable context over progress-stage questions", () => {

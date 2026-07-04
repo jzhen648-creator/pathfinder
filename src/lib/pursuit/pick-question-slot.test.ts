@@ -78,12 +78,8 @@ describe("pickQuestionSlotForPursuit", () => {
     ).toBe("none");
   });
 
-  it("returns clarify for ACTIVE and MAINTAINING", () => {
-    expect(pickQuestionSlotForPursuit({ ...baseCtx, status: "ACTIVE" })).toBe("clarify");
-    expect(pickQuestionSlotForPursuit({ ...baseCtx, status: "MAINTAINING" })).toBe("clarify");
-  });
-
-  it("returns clarify for deadline+title pursuit with no enrich answers", () => {
+  it("returns none when note is below minimum and no answers yet", () => {
+    expect(pickQuestionSlotForPursuit({ ...baseCtx, status: "ACTIVE" })).toBe("none");
     expect(
       pickQuestionSlotForPursuit({
         ...baseCtx,
@@ -99,26 +95,52 @@ describe("pickQuestionSlotForPursuit", () => {
           status: "ACTIVE",
         },
       }),
+    ).toBe("none");
+  });
+
+  it("returns clarify when note meets minimum", () => {
+    expect(
+      pickQuestionSlotForPursuit({
+        ...baseCtx,
+        status: "ACTIVE",
+        signal: {
+          ...thinSignal,
+          backgroundChars: 24,
+        },
+      }),
+    ).toBe("clarify");
+  });
+
+  it("returns clarify for ACTIVE and MAINTAINING once ladder started", () => {
+    expect(
+      pickQuestionSlotForPursuit({
+        ...baseCtx,
+        status: "ACTIVE",
+        signal: { ...thinSignal, enrichAnswerCount: 1 },
+      }),
+    ).toBe("clarify");
+    expect(
+      pickQuestionSlotForPursuit({
+        ...baseCtx,
+        status: "MAINTAINING",
+        signal: { ...thinSignal, enrichAnswerCount: 1 },
+      }),
     ).toBe("clarify");
   });
 });
 
 describe("filterClarifiersForQuestionSlot", () => {
-  it("keeps up to six forward clarifiers for clarify slot", () => {
+  it("keeps at most one forward clarifier for clarify slot", () => {
     const filtered = filterClarifiersForQuestionSlot(
       [
         { id: "a", prompt: "Q1?", options: ["A", "B"], kind: "clarify" },
         { id: "b", prompt: "Q2?", options: ["A", "B"], kind: "clarify" },
         { id: "c", prompt: "Q3?", options: ["A", "B"], kind: "clarify" },
-        { id: "d", prompt: "Q4?", options: ["A", "B"], kind: "clarify" },
-        { id: "e", prompt: "Q5?", options: ["A", "B"], kind: "clarify" },
-        { id: "f", prompt: "Q6?", options: ["A", "B"], kind: "clarify" },
-        { id: "g", prompt: "Q7?", options: ["A", "B"], kind: "clarify" },
       ],
       "clarify",
     );
-    expect(filtered).toHaveLength(6);
-    expect(filtered.map((c) => c.id)).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(filtered).toHaveLength(1);
+    expect(filtered.map((c) => c.id)).toEqual(["a"]);
   });
 
   it("drops retired suggest_add clarifiers from clarify slot", () => {

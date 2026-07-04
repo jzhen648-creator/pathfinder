@@ -36,14 +36,20 @@ export async function POST(request: Request, { params }: RouteProps) {
     return NextResponse.json({ error: "JSON body required" }, { status: 400 });
   }
 
-  const parsed = enrichAnswerSchema.safeParse(body);
+  const parsed = enrichAnswerSchema
+    .extend({ clarifyTitles: z.boolean().optional() })
+    .safeParse(body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
   }
 
+  const { clarifyTitles, ...answerInput } = parsed.data;
+
   try {
-    const result = await applyClarifierAnswerForUser(auth.userId, goalId, parsed.data);
+    const result = await applyClarifierAnswerForUser(auth.userId, goalId, answerInput, {
+      clarifyTitles,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     return routeError(err);

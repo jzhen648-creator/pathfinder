@@ -1,5 +1,9 @@
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
-import { CLARIFIER_INITIAL_BATCH, CLARIFIER_REPLENISH_BATCH } from "@/lib/pursuit/clarifier-prompt-blocks";
+import {
+  CLARIFIER_INITIAL_BATCH,
+  CLARIFIER_REPLENISH_BATCH,
+  QUICK_QUESTION_MIN_NOTE_CHARS,
+} from "@/lib/pursuit/clarifier-prompt-blocks";
 import {
   isQuickQuestionsQuiet,
   type PursuitSignal,
@@ -44,6 +48,13 @@ export function pickQuestionSlotForPursuit(ctx: QuestionSlotContext): QuestionSl
   }
 
   if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
+    return "none";
+  }
+
+  if (
+    ctx.signal.enrichAnswerCount === 0 &&
+    ctx.signal.backgroundChars < QUICK_QUESTION_MIN_NOTE_CHARS
+  ) {
     return "none";
   }
 
@@ -99,6 +110,8 @@ export type QuestionSlotMessageContext = QuestionSlotContext & {
   siblingPursuits?: Array<{ id: string; title: string }>;
   /** When true, user skipped prior pending cards — ask different framing, not fewer topics. */
   replenishAfterDismiss?: boolean;
+  /** When true, user just answered — regenerate the single next question. */
+  nextAfterAnswer?: boolean;
 };
 
 function maxOutputFromContext(ctx: QuestionSlotMessageContext): number {
@@ -125,7 +138,15 @@ export function questionSlotUserMessageLines(
 
   if (ctx.replenishAfterDismiss) {
     lines.push(
-      `Replenishment batch after user skipped pending cards — return up to ${CLARIFIER_REPLENISH_BATCH} new clarifiers.`,
+      `Replenishment after user skipped pending card — return 0 or 1 new clarifier.`,
+    );
+  }
+
+  if (ctx.nextAfterAnswer) {
+    lines.push(
+      "The user just answered a quick question.",
+      "Ask the single next fact not already stated or inferable from the chapter note and prior enrichAnswers.",
+      "Return [] if no high-value gap remains.",
     );
   }
 
@@ -139,6 +160,14 @@ export function questionSlotUserMessageLines(
     }
     if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
       lines.push("Cooldown active — return clarifiers: [].");
+    }
+    if (
+      ctx.signal.enrichAnswerCount === 0 &&
+      ctx.signal.backgroundChars < QUICK_QUESTION_MIN_NOTE_CHARS
+    ) {
+      lines.push(
+        `Chapter note is below ${QUICK_QUESTION_MIN_NOTE_CHARS} characters — return clarifiers: [].`,
+      );
     }
     return lines;
   }
@@ -155,8 +184,8 @@ export function questionSlotUserMessageLines(
   }
 
   lines.push(
-    `Generate up to ${maxOutputFromContext(ctx)} forward-looking clarify clarifiers (kind: "clarify" or omit kind).`,
-    "Read enrichAnswers — do not repeat answered facts; build on prior answers.",
+    `Generate 0 or 1 forward-looking clarify clarifier (kind: "clarify" or omit kind).`,
+    "Read the chapter note and enrichAnswers — do not repeat answered facts; build on prior answers.",
     "Return [] when no high-value gap remains.",
   );
   return lines;

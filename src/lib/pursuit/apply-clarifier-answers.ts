@@ -202,7 +202,8 @@ export async function applyClarifierAnswerForUser(
   userId: string,
   goalId: string,
   input: { clarifierId: string; prompt: string; selectedOption: string; options?: string[] },
-): Promise<{ enrichAnswers: EnrichAnswer[]; description: string }> {
+  options?: { clarifyTitles?: boolean },
+): Promise<{ enrichAnswers: EnrichAnswer[]; description: string; nextClarifierCount: number }> {
   const parsed = enrichAnswerSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid clarifier answer");
@@ -243,10 +244,25 @@ export async function applyClarifierAnswerForUser(
   await markPursuitReadingDirty(userId, goalId, "clarifier_answered");
   await pruneClarifierFromInsightCache(userId, goalId, parsed.data.clarifierId);
 
+  const clarifyTitles = options?.clarifyTitles !== false;
+  let nextClarifierCount = 0;
+  if (clarifyTitles) {
+    try {
+      const result = await syncPursuitPanel(userId, goalId, "next", {
+        ...DEFAULT_PURSUIT_ENRICH_OPTIONS,
+        clarifyTitles: true,
+      });
+      nextClarifierCount = result.clarifierCount;
+    } catch (err) {
+      console.error("[applyClarifierAnswerForUser] next question failed", err);
+    }
+  }
+
   const storedAnswers = parseExistingAnswers(updated.enrichAnswers);
   return {
     enrichAnswers: storedAnswers,
     description: updated.description?.trim() ?? "",
+    nextClarifierCount,
   };
 }
 

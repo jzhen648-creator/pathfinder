@@ -183,7 +183,19 @@ function buildPursuitEnrichUserMessage(
   milestonesAllowed: boolean,
   slotLines: string[],
   tone: ReturnType<typeof resolvePursuitInsightTone>,
+  chapterNote?: string | null,
 ): string {
+  const noteBlock =
+    chapterNote?.trim()
+      ? [
+          "<chapter_note>",
+          "User freeform note for this chapter — read before drafting quick questions:",
+          chapterNote.trim(),
+          "</chapter_note>",
+          "",
+        ]
+      : [];
+
   return [
     userContext || "(No profile context yet.)",
     "",
@@ -198,6 +210,7 @@ function buildPursuitEnrichUserMessage(
       ? "Milestones: allowed — suggest 1-6 chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers."
       : "Milestones: NOT allowed — set suggestedMilestones to null.",
     "",
+    ...noteBlock,
     "<focal_chapter_facts>",
     insightContext.focalFactsJson,
     "</focal_chapter_facts>",
@@ -243,7 +256,7 @@ async function generateOnePursuitEnrich(
         ? Math.min(5, Math.max(1, Math.round(goal.significance)))
         : null,
     enrichAnswers,
-      background: goal.background,
+    background: goal.background,
     quickQuestionsQuietUntil: previousQuietUntil,
     siblingGoalIds: pursuitContext.siblingPursuits.map((s) => s.id),
     existingRelationshipPeerIds,
@@ -252,6 +265,7 @@ async function generateOnePursuitEnrich(
     clarifierOutputMax,
     skippedClarifierPrompts,
     replenishAfterDismiss: mergeMode === "replenish",
+    nextAfterAnswer: mergeMode === "next",
   };
   const slot = pickQuestionSlotForPursuit(slotContext);
   const slotLines = questionSlotUserMessageLines(slot, slotContext);
@@ -273,6 +287,7 @@ async function generateOnePursuitEnrich(
       milestonesAllowed,
       slotLines,
       resolvePursuitInsightTone(goal),
+      goal.background,
     ),
     maxTokens: 2048,
     queueKey: userId,
@@ -453,22 +468,23 @@ export async function refreshPursuitEnrich(
 
 export { MAX_ENRICH_PER_RUN };
 
-/** Pursuit-only panel + quick questions — after create (initial) or dismiss replenish. */
+/** Pursuit-only panel + quick questions — after create (initial), answer (next), or dismiss replenish. */
 export async function syncPursuitPanel(
   userId: string,
   pursuitId: string,
-  mode: "initial" | "replenish",
+  mode: "initial" | "replenish" | "next",
   options?: PursuitEnrichOptions,
 ): Promise<{ clarifierCount: number; headline?: string }> {
   const enrichOptions = resolvePursuitEnrichOptions(options ?? DEFAULT_PURSUIT_ENRICH_OPTIONS);
-  if (!enrichOptions.clarifyTitles && mode === "replenish") {
+  if (!enrichOptions.clarifyTitles && (mode === "replenish" || mode === "next")) {
     return { clarifierCount: 0 };
   }
   if (!hasGeminiKey()) {
     throw new GeminiNotConfiguredError();
   }
 
-  const mergeMode: ClarifierMergeMode = mode === "replenish" ? "replenish" : "initial";
+  const mergeMode: ClarifierMergeMode =
+    mode === "replenish" ? "replenish" : mode === "next" ? "next" : "initial";
   const [userContext, toneGoals, mapContext, insightCacheRow] = await Promise.all([
     formatUserContext(userId),
     loadPursuitToneGoals(userId, [pursuitId]),

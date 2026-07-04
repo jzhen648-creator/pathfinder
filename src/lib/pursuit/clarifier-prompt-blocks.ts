@@ -1,13 +1,16 @@
 /** Shared quick-question prompt rules for reflect + pursuit enrich + create. */
 
 /** Max pending quick questions visible in Context at once. */
-export const CLARIFIER_PENDING_CAP = 6;
+export const CLARIFIER_PENDING_CAP = 1;
 
 /** First generation batch after create or empty queue. */
-export const CLARIFIER_INITIAL_BATCH = 6;
+export const CLARIFIER_INITIAL_BATCH = 1;
 
 /** Replacement batch after user dismisses all pending cards. */
-export const CLARIFIER_REPLENISH_BATCH = 3;
+export const CLARIFIER_REPLENISH_BATCH = 1;
+
+/** Minimum note length before the first quick question (matches milestone-readiness note bar). */
+export const QUICK_QUESTION_MIN_NOTE_CHARS = 20;
 
 /** @deprecated Use CLARIFIER_INITIAL_BATCH or CLARIFIER_REPLENISH_BATCH. */
 export const CLARIFIER_BATCH_MAX = CLARIFIER_INITIAL_BATCH;
@@ -34,11 +37,21 @@ export const CLARIFIER_MILESTONE_GROUNDING = [
   "- If every plausible question is already answered by milestones, structured fields, background, or enrichAnswers, return an empty clarifiers array.",
 ].join("\n");
 
+export const CLARIFIER_NOT_INFERABLE_RULE = [
+  "NOT ALREADY KNOWN OR INFERABLE:",
+  "- Read the chapter note (background) and every enrichAnswer before drafting.",
+  "- Do not ask what the note or prior answers already state.",
+  "- Do not ask what reasonably follows from them (e.g. college + qualification named → do not ask course length if standard for that qualification).",
+  "- Ask the single next unknown that still changes how this chapter should be read.",
+].join("\n");
+
 export const CLARIFIER_GENERATION_PRINCIPLE = [
   "GENERATION PRINCIPLE (works for ANY chapter — rental property, relationship goal, car, qualification, anything):",
   "Reason from world knowledge about THIS chapter's title, theme, status, milestones, background, and enrichAnswers.",
-  "Ask the single highest-value missing fact that would most change how this chapter should be read.",
+  "Ask exactly ONE clarifier: the single highest-value missing fact that would most change how this chapter should be read.",
   "Do NOT pattern-match a fixed catalog of example domains — the examples below illustrate the MOVE only.",
+  "",
+  CLARIFIER_NOT_INFERABLE_RULE,
   "",
   "Move — find the decisive unknown:",
   "- For a quantified target: ask the fact that grounds pace or feasibility (rate, contribution, baseline, constraint).",
@@ -58,11 +71,11 @@ export const CLARIFIER_BENCHMARK_STEER = [
 
 export const CLARIFIER_STOP_AND_CADENCE_RULES = [
   "STOP / CADENCE:",
-    `- Initial batch: up to ${CLARIFIER_INITIAL_BATCH} clarifiers per chapter, ordered highest-value first — all shown in Context.`,
-  `- Replenishment batch (after user skipped pending cards): up to ${CLARIFIER_REPLENISH_BATCH} new clarifiers.`,
-  "- Return an empty array when no high-value gap remains — do not barrel-scrape.",
-  "- When enrichAnswers or milestones already cover the decisive facts, return [].",
-  `- Scale initial batch by significance (1–5): 4–5 → up to ${CLARIFIER_INITIAL_BATCH}; 3 → up to 4; 1–2 → up to 2 then prefer [].`,
+  `- Ladder: at most ${CLARIFIER_PENDING_CAP} pending clarifier per chapter — one question at a time.`,
+  "- Return exactly 0 or 1 clarifier per generation call — never prefetch a queue.",
+  "- After each answer the user sees the next question regenerated from note + all prior answers.",
+  "- Return [] when no high-value gap remains — do not barrel-scrape.",
+  "- When the note, enrichAnswers, or milestones already cover the decisive facts, return [].",
   "- Read enrichAnswers in map context — never repeat what is already answered; build on prior answers.",
   "- Never ask about relationships between chapters (see RELATIONSHIP QUESTIONS rule).",
   '- Never ask the user to evaluate motivation or commitment ("How important is this?") — significance already covers that.',
@@ -118,10 +131,10 @@ export const CONTEXTUAL_QUICK_QUESTIONS = [
 /** System-prompt OUTPUT lines shared by reflect + enrich (single source — do not duplicate). */
 export function buildClarifierSystemOutputLines(): string[] {
   return [
-    `- clarifiers: 0-${CLARIFIER_INITIAL_BATCH} multiple-choice questions per chapter when the user message requests a quick-question slot.`,
+    `- clarifiers: 0 or 1 multiple-choice question per chapter when the user message requests a quick-question slot.`,
     "  Each clarifier: id (short slug), prompt, options (3-4 specific labels), optional kind.",
     "  Kinds: clarify (default forward-looking), retrospective (COMPLETE chapters — what finishing unlocked).",
-    "  Return [] when no high-value gap remains — significance scales count; never barrel-scrape.",
+    "  Return [] when no high-value gap remains — never barrel-scrape.",
     CONTEXTUAL_QUICK_QUESTIONS,
   ];
 }

@@ -1,36 +1,33 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildPursuitCachePayload,
-  resolveReflectSuggestedMilestones,
-} from "@/lib/pursuit/pursuit-cache-patch";
 
-describe("resolveReflectSuggestedMilestones", () => {
-  it("returns null when milestones are not allowed", () => {
-    expect(
-      resolveReflectSuggestedMilestones({
-        fresh: [{ title: "Step one", order: 0 }],
-        cached: undefined,
-        mapMilestones: [],
-        allowed: false,
-      }),
-    ).toBeNull();
-  });
-});
+import { mergePreservedClarifiers } from "@/lib/pursuit/pursuit-cache-patch";
+import type { Clarifier } from "@/lib/pursuit/pursuit-enrich-types";
 
-describe("buildPursuitCachePayload", () => {
-  it("does not write suggestedContinuations to cache", () => {
-    const payload = buildPursuitCachePayload({
-      clarifiers: [],
-      insight: {
-        tone: "arrival",
-        headline: "Done",
-        body: "Finished the qualification.",
-      },
-      suggestedMilestones: null,
-      suggestedContinuations: [{ title: "Advisory practice", rationale: "Natural next." }],
+const fresh: Clarifier[] = [
+  { id: "next-q", prompt: "Full-time or part-time?", options: ["Full-time", "Part-time"], kind: "clarify" as const },
+  { id: "extra", prompt: "Extra?", options: ["A", "B"], kind: "clarify" as const },
+];
+
+describe("mergePreservedClarifiers", () => {
+  it("next mode returns only fresh clarifiers capped at one", () => {
+    const merged = mergePreservedClarifiers({
+      fresh,
+      cached: [{ id: "old", prompt: "Old?", options: ["A", "B"], kind: "clarify" as const }],
+      preserveAllowed: true,
+      mode: "next",
     });
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.id).toBe("next-q");
+  });
 
-    expect(payload?.suggestedContinuations).toBeUndefined();
-    expect(payload?.headline).toBe("Done");
+  it("initial mode preserves cached pending when present", () => {
+    const cached: Clarifier[] = [{ id: "pending", prompt: "Pending?", options: ["A", "B"], kind: "clarify" }];
+    const merged = mergePreservedClarifiers({
+      fresh,
+      cached,
+      preserveAllowed: true,
+      mode: "initial",
+    });
+    expect(merged).toEqual(cached);
   });
 });

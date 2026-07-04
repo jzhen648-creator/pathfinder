@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyClarifierAnswerForUser,
   clearQuickQuestionsQuietUntilInCache,
   deleteClarifierAnswerForUser,
   pruneMootPendingClarifiersOnStatusChange,
@@ -212,6 +213,61 @@ describe("deleteClarifierAnswerForUser", () => {
         { status: "ACTIVE", quickQuestionsQuietUntil: undefined },
       ).clarifiers,
     ).toHaveLength(1);
+  });
+});
+
+describe("applyClarifierAnswerForUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.goalFindFirst.mockResolvedValue({
+      id: GOAL_ID,
+      description: "",
+      enrichAnswers: [],
+      milestones: [],
+    });
+    mocks.goalUpdate.mockResolvedValue({
+      description: "",
+      enrichAnswers: [
+        {
+          clarifierId: "route",
+          prompt: "Independent or employed?",
+          selectedOption: "Independent",
+          options: ["Independent", "Employed"],
+        },
+      ],
+    });
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        [GOAL_ID]: {
+          tone: "in_focus",
+          headline: "Headline",
+          body: "Body",
+          clarifiers: [
+            {
+              id: "route",
+              prompt: "Independent or employed?",
+              options: ["Independent", "Employed"],
+              kind: "clarify",
+            },
+          ],
+        },
+      },
+    });
+    mocks.syncPursuitPanel.mockResolvedValue({ clarifierCount: 1, headline: "Headline" });
+  });
+
+  it("regenerates the next question after answering", async () => {
+    const result = await applyClarifierAnswerForUser(USER_ID, GOAL_ID, {
+      clarifierId: "route",
+      prompt: "Independent or employed?",
+      selectedOption: "Independent",
+      options: ["Independent", "Employed"],
+    });
+
+    expect(result.nextClarifierCount).toBe(1);
+    expect(mocks.syncPursuitPanel).toHaveBeenCalledWith(USER_ID, GOAL_ID, "next", {
+      clarifyTitles: true,
+    });
   });
 });
 

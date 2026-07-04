@@ -10,7 +10,7 @@ type RouteProps = {
 };
 
 const bodySchema = z.object({
-  mode: z.enum(["initial", "replenish"]),
+  mode: z.enum(["initial", "replenish", "next"]),
   clarifyTitles: z.boolean().optional(),
 });
 
@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: RouteProps) {
     return NextResponse.json({ error: issue?.message ?? "Invalid payload" }, { status: 400 });
   }
 
-  if (parsed.data.clarifyTitles === false && parsed.data.mode === "replenish") {
+  if (parsed.data.clarifyTitles === false && (parsed.data.mode === "replenish" || parsed.data.mode === "next")) {
     return NextResponse.json({ ok: true, clarifierCount: 0, headline: null });
   }
 

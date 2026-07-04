@@ -11,7 +11,7 @@ import {
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import type { Clarifier, PursuitEnrichCachePayload, PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
 
-export type ClarifierMergeMode = "routine" | "initial" | "replenish";
+export type ClarifierMergeMode = "routine" | "initial" | "replenish" | "next";
 
 function normalizeClarifierPrompt(prompt: string): string {
   return prompt.trim().toLowerCase();
@@ -136,6 +136,10 @@ export function mergePreservedClarifiers(input: {
 
   if (input.mode === "initial") {
     if (cached.length > 0) return cached.slice(0, CLARIFIER_PENDING_CAP);
+    return fresh.slice(0, CLARIFIER_INITIAL_BATCH);
+  }
+
+  if (input.mode === "next") {
     return fresh.slice(0, CLARIFIER_INITIAL_BATCH);
   }
 
