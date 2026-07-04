@@ -55,7 +55,7 @@ function countPacketFacts(packet: ReadingPacket): number {
     packet.milestonePaceFacts.length +
     packet.recentEvents.past.length +
     packet.recentEvents.upcoming.length +
-    (packet.confirmedRelationships?.length ?? 0)
+    packet.mapAggregates.themeRollup.length
   );
 }
 
@@ -83,6 +83,14 @@ const readingPacketArb: fc.Arbitrary<ReadingPacket> = fc.record({
     upcomingDeadlines30d: fc.nat({ max: 10 }),
     recentCompletions90d: fc.nat({ max: 10 }),
     highSignificanceActive: fc.array(fc.string({ minLength: 1, maxLength: 30 }), { maxLength: 6 }),
+    themeRollup: fc.array(
+      fc.record({
+        themeLabel: fc.string({ minLength: 1, maxLength: 20 }),
+        inProgressCount: fc.nat({ max: 10 }),
+        headlineChapter: fc.string({ minLength: 1, maxLength: 40 }),
+      }),
+      { maxLength: 6 },
+    ),
   }),
   recentEvents: fc.record({
     past: fc.array(
