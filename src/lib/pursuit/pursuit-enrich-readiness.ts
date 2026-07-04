@@ -4,6 +4,7 @@ import { filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import { isMilestoneReadinessReady } from "@/lib/pursuit/milestone-readiness";
 import type { QuestionSlot } from "@/lib/pursuit/pick-question-slot";
 
 /** Interim cap on milestones stored on the map — audit may raise/adjust. */
@@ -41,6 +42,7 @@ export function resolveQuickQuestionsQuietUntilAfterGeneration(input: {
 
 export type PursuitSignal = {
   title: string;
+  background?: string | null;
   backgroundChars: number;
   enrichAnswerCount: number;
   milestoneCount: number;
@@ -65,9 +67,11 @@ export function pursuitSignalFromGoal(goal: {
   milestones: { completedAt: Date | null }[];
 }): PursuitSignal {
   const milestones = goal.milestones ?? [];
+  const background = (goal.background ?? "").trim();
   return {
     title: goal.title,
-    backgroundChars: (goal.background ?? "").trim().length,
+    background: background || null,
+    backgroundChars: background.length,
     enrichAnswerCount: parseEnrichAnswerCount(goal.enrichAnswers),
     milestoneCount: milestones.length,
     completedMilestoneCount: milestones.filter((m) => m.completedAt != null).length,
@@ -80,7 +84,7 @@ export function pursuitSignalFromGoal(goal: {
 /**
  * Minimum user context before theme benchmarks and pursuit comparison fields fire.
  * Quick-question answers (enrichAnswerCount) count toward this bar.
- * Milestone suggestions use shouldSuggestMilestones — decoupled from this gate.
+ * Milestone suggestions use shouldSuggestMilestones — gated by computeMilestoneReadiness when path is empty.
  */
 export function hasMinimumContextSignal(signal: PursuitSignal): boolean {
   const contextChars = signal.backgroundChars + signal.enrichAnswerCount * 40;
@@ -428,7 +432,9 @@ export function shouldSuggestMilestones(signal: PursuitSignal): boolean {
   if (signal.hasQuantifiedTarget) return false;
   if (signal.milestoneCount >= MILESTONE_MAP_CAP) return false;
 
-  if (signal.milestoneCount === 0) return true;
+  if (signal.milestoneCount === 0) {
+    return isMilestoneReadinessReady(signal);
+  }
 
   // Gap-fill while the path is unfinished, or extend when under cap.
   if (signal.completedMilestoneCount < signal.milestoneCount) return true;

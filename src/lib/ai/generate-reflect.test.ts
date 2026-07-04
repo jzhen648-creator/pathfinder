@@ -253,8 +253,10 @@ describe("buildReflectMilestoneOptions", () => {
       [
         "p-rich",
         {
-          title: "CeMAP qualification",
-          backgroundChars: 80,
+          title: "CeMAP qualification at Kaplan",
+          background:
+            "Level 3 CeMAP at Kaplan college, exam modules in London starting September 2024.",
+          backgroundChars: 70,
           enrichAnswerCount: 0,
           milestoneCount: 0,
           completedMilestoneCount: 0,
@@ -297,7 +299,7 @@ describe("buildReflectMilestoneOptions", () => {
     expect(block).toContain("MUST return 1-6 items in suggestedMilestones");
     expect(block).toContain("p-full: Milestones allowed");
     expect(block).toContain("suggest only missing chronological steps");
-    expect(block).toContain("p-sparse: Milestones allowed");
+    expect(block).toContain("p-sparse: Milestones NOT allowed");
   });
 });
 

@@ -12,7 +12,8 @@ const ALL_PURSUIT_IDS = DENSE_MAP_CONTEXT.themes.flatMap((theme) =>
 function baseSignal(overrides: Partial<PursuitSignal> = {}): PursuitSignal {
   return {
     title: "Test pursuit",
-    backgroundChars: 0,
+    background: "Kaplan college, CeMAP route.",
+    backgroundChars: 28,
     enrichAnswerCount: 2,
     milestoneCount: 2,
     completedMilestoneCount: 0,
