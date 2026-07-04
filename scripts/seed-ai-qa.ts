@@ -1,5 +1,11 @@
 /**
- * Repeatable AI QA seed — Alex Carter (17 pursuits, honest descriptions) + Sam Chen (sparse control).
+ * Repeatable AI QA seed — Alex Carter (rich map) + Sam Chen (sparse control).
+ *
+ * Optimized for the current mobile model:
+ * - Goal.background (not legacy description-only)
+ * - enrichAnswers, cross-theme PursuitRelationship, orientation ProfileFact
+ * - amountBasis on quantified chapters
+ * - Reading dirty ledger primed for first sync
  *
  * Run:
  *   npx tsx scripts/seed-ai-qa.ts
@@ -7,7 +13,7 @@
  *
  * Requires DATABASE_URL (loads pathfinder/.env.local when present).
  * Idempotent: deletes and recreates only @qa-seed.test users.
- * No AI, Stream, or marks.
+ * No AI caches, Stream, or marks.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -19,22 +25,18 @@ import { PrismaClient, type PursuitStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 import {
-  activateCategoryForUser,
-  activateLimbsForUser,
-} from "../src/lib/system-categories";
-import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
-import { unlockThemesForUser } from "../src/lib/unlocked-themes";
-import { ALEX_HONEST_PURSUITS } from "./alex-reseed-pursuits";
-import {
   ALEX_PROFILE,
   SAM_PROFILE,
   SEED_EMAILS,
-  dateOfBirthForAge,
-  findSystemCategory,
-  insertPursuit,
-  themeLabel,
+  seedQaProfile,
   type PursuitSpec,
 } from "./seed-ai-qa-data";
+import {
+  ALEX_ORIENTATION,
+  ALEX_RELATIONSHIPS,
+  ALEX_RICH_PURSUITS,
+  SAM_SPARSE_PURSUITS,
+} from "./seed-ai-qa-manifest";
 
 function loadEnvLocal(): void {
   const path = resolve(process.cwd(), ".env.local");
@@ -70,83 +72,6 @@ function resolveSeedPassword(): string {
   return fromEnv || DEFAULT_QA_SEED_PASSWORD;
 }
 
-type ProfileConfig = {
-  email: string;
-  displayName: string;
-  age: number;
-  location: string;
-  educationLevel?: string | null;
-  employmentStatus?: string | null;
-  industry?: string | null;
-  jobTitle?: string | null;
-  unlockThemes: readonly PursuitSpec["themeId"][];
-  pursuits: readonly PursuitSpec[];
-};
-
-async function seedProfile(
-  prisma: PrismaClient,
-  passwordHash: string,
-  profile: ProfileConfig,
-): Promise<{ userId: string; countsByTheme: Map<string, number> }> {
-  const user = await prisma.user.create({
-    data: {
-      email: profile.email,
-      name: profile.displayName,
-      passwordHash,
-      birthYear: new Date().getUTCFullYear() - profile.age,
-      birthPlace: profile.location,
-      onboardingCompleted: true,
-      firstRunCompleted: true,
-      unlockedLimbIds: [],
-    },
-  });
-
-  await ensureTaxonomyCurrent(prisma, user.id);
-  await unlockThemesForUser(prisma, user.id, profile.unlockThemes);
-  await activateLimbsForUser(prisma, user.id, profile.unlockThemes);
-
-  await prisma.userManualProfile.create({
-    data: {
-      userId: user.id,
-      displayName: profile.displayName,
-      dateOfBirth: dateOfBirthForAge(profile.age),
-      location: profile.location,
-      educationLevel: profile.educationLevel ?? null,
-      employmentStatus: profile.employmentStatus ?? null,
-      industry: profile.industry ?? null,
-      jobTitle: profile.jobTitle ?? null,
-      occupation: profile.jobTitle ?? null,
-    },
-  });
-
-  const countsByTheme = new Map<string, number>();
-  const sequenceByCategory = new Map<string, number>();
-  const activatedCategories = new Set<string>();
-
-  for (const spec of profile.pursuits) {
-    const categoryId = await findSystemCategory(
-      prisma,
-      user.id,
-      spec.themeId,
-      spec.categoryLabel,
-    );
-    if (!activatedCategories.has(categoryId)) {
-      await activateCategoryForUser(prisma, user.id, categoryId);
-      activatedCategories.add(categoryId);
-    }
-
-    const seq = sequenceByCategory.get(categoryId) ?? 0;
-    sequenceByCategory.set(categoryId, seq + 1);
-
-    await insertPursuit(prisma, user.id, spec, categoryId, seq);
-
-    const label = themeLabel(spec.themeId);
-    countsByTheme.set(label, (countsByTheme.get(label) ?? 0) + 1);
-  }
-
-  return { userId: user.id, countsByTheme };
-}
-
 function countByStatus(pursuits: readonly PursuitSpec[]): Record<PursuitStatus, number> {
   const out: Record<string, number> = {};
   for (const p of pursuits) {
@@ -170,6 +95,10 @@ function countMilestones(pursuits: readonly PursuitSpec[]): {
   return { total, completed };
 }
 
+function countWithBackground(pursuits: readonly PursuitSpec[]): number {
+  return pursuits.filter((p) => (p.background?.trim().length ?? 0) > 0).length;
+}
+
 async function main(): Promise<void> {
   loadEnvLocal();
 
@@ -183,7 +112,7 @@ async function main(): Promise<void> {
   const password = resolveSeedPassword();
   const passwordHash = await bcrypt.hash(password, 12);
 
-  console.log("Pathfinder AI QA seed");
+  console.log("Pathfinder AI QA seed (mobile-native v2)");
   console.log(`Database host: ${dbHost()}`);
   console.log(`Wiping seed users: ${SEED_EMAILS.join(", ")}`);
 
@@ -193,43 +122,47 @@ async function main(): Promise<void> {
   console.log(`Deleted ${deleted.count} existing seed user(s).\n`);
 
   try {
-    const alex = await seedProfile(prisma, passwordHash, {
+    const alex = await seedQaProfile(prisma, passwordHash, {
       ...ALEX_PROFILE,
-      pursuits: ALEX_HONEST_PURSUITS,
+      orientation: ALEX_ORIENTATION,
+      pursuits: ALEX_RICH_PURSUITS,
+      relationships: ALEX_RELATIONSHIPS,
     });
-    const sam = await seedProfile(prisma, passwordHash, SAM_PROFILE);
+    const sam = await seedQaProfile(prisma, passwordHash, {
+      ...SAM_PROFILE,
+      pursuits: SAM_SPARSE_PURSUITS,
+    });
 
-    const samMilestones = countMilestones(SAM_PROFILE.pursuits);
+    const alexMilestones = countMilestones(ALEX_RICH_PURSUITS);
 
-    console.log("=== Alex Carter (honest-description QA map) ===");
+    console.log("=== Alex Carter (rich showcase) ===");
     console.log(`Email: ${ALEX_PROFILE.email}`);
-    console.log(`Pursuits: ${ALEX_HONEST_PURSUITS.length}`);
+    console.log(`Chapters: ${ALEX_RICH_PURSUITS.length}`);
     for (const [theme, count] of [...alex.countsByTheme.entries()].sort()) {
       console.log(`  ${theme}: ${count}`);
     }
-    console.log(`  Play & Leisure: 0 (empty by design)`);
-    console.log(`Status mix: ${JSON.stringify(countByStatus(ALEX_HONEST_PURSUITS))}`);
+    console.log(`  Play & Leisure: 0 (theme unlocked, no chapters — distribution skew)`);
+    console.log(`Status mix: ${JSON.stringify(countByStatus(ALEX_RICH_PURSUITS))}`);
     console.log(
-      `Milestones: ${countMilestones(ALEX_HONEST_PURSUITS).completed} completed / ${countMilestones(ALEX_HONEST_PURSUITS).total} total`,
+      `Milestones: ${alexMilestones.completed} completed / ${alexMilestones.total} total`,
     );
-    console.log(`Gap anchor: CeMAP qualification — sig 5, Module 3 exam open`);
+    console.log(`Background notes: ${countWithBackground(ALEX_RICH_PURSUITS)} chapters`);
+    console.log(`Cross-theme links: ${ALEX_RELATIONSHIPS.length}`);
+    console.log(`Orientation: ${ALEX_ORIENTATION}`);
+    console.log(`Gap anchor: CeMAP — sig 5, ~18d deadline, Module 3 open`);
 
     console.log("\n=== Sam Chen (sparse control) ===");
     console.log(`Email: ${SAM_PROFILE.email}`);
-    console.log(`Pursuits: ${SAM_PROFILE.pursuits.length}`);
+    console.log(`Chapters: ${SAM_SPARSE_PURSUITS.length}`);
     for (const [theme, count] of [...sam.countsByTheme.entries()].sort()) {
       console.log(`  ${theme}: ${count}`);
     }
-    console.log(`Milestones: ${samMilestones.total}`);
 
     console.log("\n=== Login (mobile: POST /api/auth/mobile-login) ===");
     console.log(`Password: ${password}`);
     console.log(`  ${ALEX_PROFILE.email}`);
     console.log(`  ${SAM_PROFILE.email}`);
-    console.log("\n§5 gate: login → Insights → Update AI reading (live Gemini).");
-    console.log("  Mobile: EXPO_PUBLIC_USE_REFLECT_CALL=true; npx expo start --clear");
-    console.log("  Alex: expect room for Distribution + Gap + Arrival.");
-    console.log("  Sam: expect short factual reading; no arrival/distribution padding.");
+    console.log("\nNext: Map tab → explore hex map. Reading tab → pull to refresh (live Gemini).");
   } finally {
     await prisma.$disconnect();
   }

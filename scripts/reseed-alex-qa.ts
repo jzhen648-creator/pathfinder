@@ -1,33 +1,43 @@
 /**
- * Reseed Alex QA account — honest descriptions, 17 pursuits, no AI caches.
+ * Reseed Alex QA account — keeps login, wipes map/AI data, re-inserts v2 manifest.
  *
  * Run:
  *   npx tsx scripts/reseed-alex-qa.ts
  *   npm run reseed:alex-qa
- *
- * Keeps User + UserManualProfile; wipes map/AI data and re-inserts pursuits.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { PrismaClient } from "@prisma/client";
 
-import {
-  activateCategoryForUser,
-  activateLimbsForUser,
-} from "../src/lib/system-categories";
 import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
-import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
-import { unlockThemesForUser } from "../src/lib/unlocked-themes";
-import { ALEX_HONEST_PURSUITS } from "./alex-reseed-pursuits";
 import {
   ALEX_PROFILE,
   findSystemCategory,
   insertPursuit,
   themeLabel,
 } from "./seed-ai-qa-data";
+import {
+  ALEX_ORIENTATION,
+  ALEX_RELATIONSHIPS,
+  ALEX_RICH_PURSUITS,
+} from "./seed-ai-qa-manifest";
+import {
+  activateCategoryForUser,
+  activateLimbsForUser,
+} from "../src/lib/system-categories";
+import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
+import { unlockThemesForUser } from "../src/lib/unlocked-themes";
+import { markGlobalReadingDirty, markPursuitReadingDirty } from "../src/lib/map/reading-dirty-ledger";
+import { ORIENTATION_FACT_KEY } from "../src/lib/ai/format-user-context";
+import { normalizeRelationshipPair } from "../src/lib/pursuit/pursuit-context-log";
 
 const ALEX_EMAIL = ALEX_PROFILE.email;
+const EXPECTED_CHAPTER_COUNT = ALEX_RICH_PURSUITS.length;
+const EXPECTED_BACKGROUND_COUNT = ALEX_RICH_PURSUITS.filter(
+  (p) => (p.background?.trim().length ?? 0) > 0,
+).length;
+const EXPECTED_RELATIONSHIP_COUNT = ALEX_RELATIONSHIPS.length;
 
 function loadEnvFiles(): void {
   for (const name of [".env.local", ".env"]) {
@@ -61,6 +71,8 @@ async function wipeAlexMapContent(prisma: PrismaClient, userId: string): Promise
   if (streamSession) {
     await streamSession.deleteMany({ where: { userId } });
   }
+  await prisma.pursuitRelationship.deleteMany({ where: { userId } });
+  await prisma.pursuitContextEntry.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
   await prisma.mark.deleteMany({ where: { userId } });
   await prisma.insightCache.deleteMany({ where: { userId } });
@@ -73,19 +85,30 @@ async function wipeAlexMapContent(prisma: PrismaClient, userId: string): Promise
 
   await prisma.user.update({
     where: { id: userId },
-    data: { lastReadingDeliveredAt: null },
+    data: { lastReadingDeliveredAt: null, lastFullReflectAt: null },
   });
 }
 
-async function seedAlexPursuits(prisma: PrismaClient, userId: string): Promise<void> {
+async function seedAlexContent(prisma: PrismaClient, userId: string): Promise<void> {
   await ensureTaxonomyCurrent(prisma, userId);
   await unlockThemesForUser(prisma, userId, ALEX_PROFILE.unlockThemes);
   await activateLimbsForUser(prisma, userId, ALEX_PROFILE.unlockThemes);
 
+  await prisma.profileFact.create({
+    data: {
+      userId,
+      category: "preferences",
+      key: ORIENTATION_FACT_KEY,
+      value: ALEX_ORIENTATION,
+      source: "user_manual",
+    },
+  });
+
+  const titleToId = new Map<string, string>();
   const sequenceByCategory = new Map<string, number>();
   const activatedCategories = new Set<string>();
 
-  for (const spec of ALEX_HONEST_PURSUITS) {
+  for (const spec of ALEX_RICH_PURSUITS) {
     const categoryId = await findSystemCategory(prisma, userId, spec.themeId, spec.categoryLabel);
     if (!activatedCategories.has(categoryId)) {
       await activateCategoryForUser(prisma, userId, categoryId);
@@ -94,7 +117,31 @@ async function seedAlexPursuits(prisma: PrismaClient, userId: string): Promise<v
 
     const seq = sequenceByCategory.get(categoryId) ?? 0;
     sequenceByCategory.set(categoryId, seq + 1);
-    await insertPursuit(prisma, userId, spec, categoryId, seq);
+    const goalId = await insertPursuit(prisma, userId, spec, categoryId, seq);
+    titleToId.set(spec.title, goalId);
+  }
+
+  for (const rel of ALEX_RELATIONSHIPS) {
+    const idA = titleToId.get(rel.titleA);
+    const idB = titleToId.get(rel.titleB);
+    if (!idA || !idB) {
+      throw new Error(`Relationship titles not found: ${rel.titleA} ↔ ${rel.titleB}`);
+    }
+    const [goalAId, goalBId] = normalizeRelationshipPair(idA, idB);
+    await prisma.pursuitRelationship.create({
+      data: {
+        userId,
+        goalAId,
+        goalBId,
+        kind: "related",
+        label: rel.label ?? null,
+      },
+    });
+  }
+
+  await markGlobalReadingDirty(userId, "qa_reseed");
+  for (const goalId of titleToId.values()) {
+    await markPursuitReadingDirty(userId, goalId, "qa_reseed");
   }
 }
 
@@ -126,21 +173,30 @@ async function main(): Promise<void> {
 
     console.log(`Reseeding ${ALEX_EMAIL} (${user.id})…`);
     await wipeAlexMapContent(prisma, user.id);
-    await seedAlexPursuits(prisma, user.id);
+    await seedAlexContent(prisma, user.id);
 
-    const [goalCount, insightCount, storyCount, nonEmptyDesc] = await Promise.all([
-      prisma.goal.count({ where: { userId: user.id, archived: false } }),
-      prisma.insightCache.count({ where: { userId: user.id } }),
-      prisma.storyCache.count({ where: { userId: user.id } }),
-      prisma.goal.count({
-        where: { userId: user.id, archived: false, NOT: { description: "" } },
-      }),
-    ]);
+    const [goalCount, insightCount, backgroundCount, relationshipCount, enrichCount] =
+      await Promise.all([
+        prisma.goal.count({ where: { userId: user.id, archived: false } }),
+        prisma.insightCache.count({ where: { userId: user.id } }),
+        prisma.goal.count({
+          where: {
+            userId: user.id,
+            archived: false,
+            background: { not: null },
+            NOT: { background: "" },
+          },
+        }),
+        prisma.pursuitRelationship.count({ where: { userId: user.id } }),
+        prisma.goal.count({
+          where: { userId: user.id, archived: false, enrichAnswers: { not: null } },
+        }),
+      ]);
 
     const byTheme = new Map<string, number>();
     const goals = await prisma.goal.findMany({
       where: { userId: user.id, archived: false },
-      select: { themeId: true, title: true, description: true },
+      select: { themeId: true, title: true, background: true },
       orderBy: { createdAt: "asc" },
     });
     for (const g of goals) {
@@ -149,27 +205,32 @@ async function main(): Promise<void> {
     }
 
     console.log("\n=== Verification ===");
-    console.log(`Goals (archived=false): ${goalCount} (expected 17)`);
+    console.log(`Chapters: ${goalCount} (expected ${EXPECTED_CHAPTER_COUNT})`);
+    console.log(`Background notes: ${backgroundCount} (expected ${EXPECTED_BACKGROUND_COUNT})`);
+    console.log(`Cross-theme links: ${relationshipCount} (expected ${EXPECTED_RELATIONSHIP_COUNT})`);
+    console.log(`Chapters with enrichAnswers: ${enrichCount} (expected 2)`);
     console.log(`InsightCache rows: ${insightCount} (expected 0)`);
-    console.log(`StoryCache rows: ${storyCount} (expected 0)`);
-    console.log(`Non-empty descriptions: ${nonEmptyDesc} (expected 3)`);
     console.log("By theme:");
     for (const [theme, count] of [...byTheme.entries()].sort()) {
       console.log(`  ${theme}: ${count}`);
     }
-    console.log("  Play & Leisure: 0 (empty by design)");
-    console.log("\nDescriptions populated:");
-    for (const g of goals.filter((row) => row.description.trim())) {
-      console.log(`  • ${g.title}: "${g.description}"`);
+    console.log("\nBackground populated:");
+    for (const g of goals.filter((row) => row.background?.trim())) {
+      console.log(`  • ${g.title}: "${g.background!.trim()}"`);
     }
 
     const ok =
-      goalCount === 17 && insightCount === 0 && storyCount === 0 && nonEmptyDesc === 3;
+      goalCount === EXPECTED_CHAPTER_COUNT &&
+      backgroundCount === EXPECTED_BACKGROUND_COUNT &&
+      relationshipCount === EXPECTED_RELATIONSHIP_COUNT &&
+      enrichCount === 2 &&
+      insightCount === 0;
+
     if (!ok) {
       console.error("\nVerification FAILED — check counts above.");
       process.exitCode = 1;
     } else {
-      console.log("\nReseed OK. Trigger Update AI reading on device to test voice fix.");
+      console.log("\nReseed OK. Open Map + Reading tab on device.");
     }
   } finally {
     await prisma.$disconnect();
