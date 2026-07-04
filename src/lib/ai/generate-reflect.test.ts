@@ -173,7 +173,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(full).toContain("map_context and a fact the user entered there");
     expect(full).toContain("THEME PLAN MIRROR");
     expect(full).toContain("THEME OUTPUT (reflect path):");
-    expect(full).toContain("ACROSS PURSUITS (combined");
+    expect(full).not.toContain("ACROSS PURSUITS (combined");
     expect(full).toContain("WORTH KNOWING (contextual");
     expect(full).toContain("NOTABLE FACTS");
     expect(full).not.toContain("holisticBenchmarkEligible");
@@ -421,7 +421,7 @@ describe("generateReflectResponse", () => {
     expect(user).toContain('Return ONLY: { "pursuits": { ... } }');
   });
 
-  it("sends confirmedRelationships only in reading_packet on full reflect — not in map_context", async () => {
+  it("sends themeRollup in reading_packet on full reflect — not confirmedRelationships", async () => {
     const complete = buildDenseReflectResponse(DENSE_DIRTY_PURSUIT_IDS);
     mocks.generateJsonCompletion.mockResolvedValue(JSON.stringify(complete));
 
@@ -439,9 +439,10 @@ describe("generateReflectResponse", () => {
     const packetBlock = user.match(/<reading_packet>\n([\s\S]*?)\n<\/reading_packet>/)?.[1] ?? "";
     const mapContextBlock = user.match(/<map_context>\n([\s\S]*?)\n<\/map_context>/)?.[1] ?? "";
 
-    expect(packetBlock).toContain("confirmedRelationships");
-    expect(packetBlock).toContain("Senior Engineer at Acme");
+    expect(packetBlock).toContain("themeRollup");
+    expect(packetBlock).toContain("Work & Career");
     expect(packetBlock).toContain("CeMAP qualification");
+    expect(packetBlock).not.toContain("confirmedRelationships");
     expect(mapContextBlock).not.toContain("confirmedRelationships");
     expect(mapContextBlock).toContain("CeMAP qualification");
   });

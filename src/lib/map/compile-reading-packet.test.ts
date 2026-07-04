@@ -9,6 +9,7 @@ import {
   buildHighSignificanceActiveTitles,
   buildMapAggregates,
   buildMilestonePaceFacts,
+  buildThemeRollup,
   buildReadingPacketRecentEvents,
   computePursuitSignal,
   mapContextForReadingPacketPrompt,
@@ -200,6 +201,7 @@ describe("compile-reading-packet", () => {
         upcomingDeadlines30d: 0,
         recentCompletions90d: 0,
         highSignificanceActive: ["£500,000 ISA"],
+        themeRollup: [],
       },
       gapFacts: [],
       milestonePaceFacts: [],
@@ -235,18 +237,9 @@ describe("compile-reading-packet", () => {
     expect(packConfirmedRelationships({ themes: [], confirmedRelationships: [] })).toBeUndefined();
   });
 
-  it("serializes confirmedRelationships after changeEvents in reading packet JSON", () => {
+  it("serializes reading packet JSON without confirmedRelationships", () => {
     const packet: ReadingPacket = {
       changeEvents: ["relationship created"],
-      confirmedRelationships: [
-        {
-          goalAId: "a",
-          goalBId: "b",
-          goalATitle: "New Homes Sales Executive",
-          goalBTitle: "Mortgage Broker",
-          label: "groundwork for",
-        },
-      ],
       categorySignals: [],
       recentEvents: { past: [], upcoming: [] },
       mapAggregates: {
@@ -255,13 +248,14 @@ describe("compile-reading-packet", () => {
         upcomingDeadlines30d: 0,
         recentCompletions90d: 0,
         highSignificanceActive: ["Mortgage Broker"],
+        themeRollup: [],
       },
       gapFacts: [],
       milestonePaceFacts: [],
     };
-    const keys = Object.keys(JSON.parse(readingPacketToJson(packet)) as ReadingPacket);
-    expect(keys.indexOf("changeEvents")).toBeLessThan(keys.indexOf("confirmedRelationships"));
-    expect(keys.indexOf("confirmedRelationships")).toBeLessThan(keys.indexOf("categorySignals"));
+    const parsed = JSON.parse(readingPacketToJson(packet)) as ReadingPacket;
+    expect(parsed).not.toHaveProperty("confirmedRelationships");
+    expect(Object.keys(parsed)[0]).toBe("changeEvents");
   });
 
   it("strips confirmedRelationships from map_context for packet-accompanied prompts", () => {
@@ -270,19 +264,9 @@ describe("compile-reading-packet", () => {
     expect(stripped.themes).toEqual(DENSE_MAP_CONTEXT.themes);
   });
 
-  it("orderReadingPacketKeys preserves confirmedRelationships", () => {
-    const relationships = [
-      {
-        goalAId: "a",
-        goalBId: "b",
-        goalATitle: "New Homes Sales Executive",
-        goalBTitle: "Mortgage Broker",
-        label: null,
-      },
-    ];
+  it("orderReadingPacketKeys uses stable key order", () => {
     const ordered = orderReadingPacketKeys({
       changeEvents: [],
-      confirmedRelationships: relationships,
       categorySignals: [],
       recentEvents: { past: [], upcoming: [] },
       mapAggregates: {
@@ -291,11 +275,28 @@ describe("compile-reading-packet", () => {
         upcomingDeadlines30d: 0,
         recentCompletions90d: 0,
         highSignificanceActive: [],
+        themeRollup: [],
       },
       gapFacts: [],
       milestonePaceFacts: [],
     });
-    expect(ordered.confirmedRelationships).toEqual(relationships);
+    expect(Object.keys(ordered)).toEqual([
+      "changeEvents",
+      "categorySignals",
+      "mapAggregates",
+      "recentEvents",
+      "gapFacts",
+      "milestonePaceFacts",
+    ]);
+  });
+
+  it("buildThemeRollup includes every theme with a headline chapter", () => {
+    const rollup = buildThemeRollup(flattenDensePursuits());
+    expect(rollup.length).toBe(DENSE_MAP_CONTEXT.themes.length);
+    expect(rollup.some((row) => row.themeLabel === "Work & Career")).toBe(true);
+    expect(rollup.find((row) => row.themeLabel === "Work & Career")?.headlineChapter).toBe(
+      "CeMAP qualification",
+    );
   });
 
   it("emits no pace fact when pursuit has milestones but zero completions", () => {
@@ -336,6 +337,7 @@ describe("compile-reading-packet", () => {
         upcomingDeadlines30d: 1,
         recentCompletions90d: 0,
         highSignificanceActive: ["CeMAP qualification"],
+        themeRollup: [],
       },
       gapFacts: [],
       milestonePaceFacts: [],
@@ -543,6 +545,7 @@ describe("compile-reading-packet", () => {
         upcomingDeadlines30d: 0,
         recentCompletions90d: 0,
         highSignificanceActive: [],
+        themeRollup: [],
       },
       gapFacts: [],
       milestonePaceFacts: [],
@@ -655,6 +658,7 @@ describe("compile-reading-packet", () => {
         upcomingDeadlines30d: 0,
         recentCompletions90d: 0,
         highSignificanceActive: [],
+        themeRollup: [],
       },
       gapFacts: [],
       milestonePaceFacts: [],

@@ -43,10 +43,15 @@ export type ReadingPacketConfirmedRelationship = {
   label?: string | null;
 };
 
+/** Per-theme whole-map rollup for overall reading support synthesis. */
+export type ReadingPacketThemeRollup = {
+  themeLabel: string;
+  inProgressCount: number;
+  headlineChapter: string;
+};
+
 export type ReadingPacket = {
   changeEvents: string[];
-  /** User-authored pursuit connections — omitted when the map has none. */
-  confirmedRelationships?: ReadingPacketConfirmedRelationship[];
   categorySignals: ReadingPacketCategorySignal[];
   /** Chronological spine — filtered for Reading (goal.completedAt arrival gate; no milestone_complete). */
   recentEvents: {
@@ -60,6 +65,8 @@ export type ReadingPacket = {
     /** Completions within the last 90 days (not all-time complete count). */
     recentCompletions90d: number;
     highSignificanceActive: string[];
+    /** One line per theme — whole-map state-of-play for overall reading support. */
+    themeRollup: ReadingPacketThemeRollup[];
   };
   /** Factual lines for pursuits flagged gap — explicit Gap-lens grounding. */
   gapFacts: string[];
@@ -417,6 +424,47 @@ export function buildHighSignificanceActiveTitles(
   return result.slice(0, HIGH_SIGNIFICANCE_ACTIVE_CAP);
 }
 
+function pickHeadlineChapterForTheme(pursuits: FlatPursuit[]): FlatPursuit {
+  const inProgress = pursuits.filter((p) => p.status !== "COMPLETE");
+  const activeOrMaintaining = inProgress.filter(
+    (p) => p.status === "ACTIVE" || p.status === "MAINTAINING",
+  );
+  if (activeOrMaintaining.length > 0) {
+    return [...activeOrMaintaining].sort(comparePursuitsBySignificanceDesc)[0]!;
+  }
+  if (inProgress.length > 0) {
+    return inProgress[0]!;
+  }
+  return [...pursuits].sort(comparePursuitsBySignificanceDesc)[0]!;
+}
+
+/** Compact per-theme summary covering every theme on the map. */
+export function buildThemeRollup(
+  pursuits: ReturnType<typeof flattenPursuits>,
+): ReadingPacketThemeRollup[] {
+  const byTheme = new Map<string, { themeLabel: string; pursuits: FlatPursuit[] }>();
+  for (const pursuit of pursuits) {
+    const bucket = byTheme.get(pursuit.themeId);
+    if (bucket) {
+      bucket.pursuits.push(pursuit);
+    } else {
+      byTheme.set(pursuit.themeId, { themeLabel: pursuit.themeLabel, pursuits: [pursuit] });
+    }
+  }
+
+  return [...byTheme.values()]
+    .map(({ themeLabel, pursuits: themePursuits }) => {
+      const inProgressCount = themePursuits.filter((p) => p.status !== "COMPLETE").length;
+      const headline = pickHeadlineChapterForTheme(themePursuits);
+      return {
+        themeLabel,
+        inProgressCount,
+        headlineChapter: headline.title,
+      };
+    })
+    .sort((a, b) => a.themeLabel.localeCompare(b.themeLabel));
+}
+
 export function buildMapAggregates(
   pursuits: ReturnType<typeof flattenPursuits>,
   now = Date.now(),
@@ -441,10 +489,11 @@ export function buildMapAggregates(
     upcomingDeadlines30d,
     recentCompletions90d: countReadingPacketRecentCompletions(pursuits, now),
     highSignificanceActive: buildHighSignificanceActiveTitles(pursuits),
+    themeRollup: buildThemeRollup(pursuits),
   };
 }
 
-/** Copy confirmedRelationships from map_context — omitted when empty. */
+/** @deprecated Connections are no longer sent to reflect — kept for tests that mirror legacy shape. */
 export function packConfirmedRelationships(
   mapContext: FormattedMapContext,
 ): ReadingPacketConfirmedRelationship[] | undefined {
@@ -466,17 +515,6 @@ export function mapContextForReadingPacketPrompt(
 
 /** Stable key order for Gemini — mapAggregates before recentEvents. */
 export function orderReadingPacketKeys(packet: ReadingPacket): ReadingPacket {
-  if (packet.confirmedRelationships?.length) {
-    return {
-      changeEvents: packet.changeEvents,
-      confirmedRelationships: packet.confirmedRelationships,
-      categorySignals: packet.categorySignals,
-      mapAggregates: packet.mapAggregates,
-      recentEvents: packet.recentEvents,
-      gapFacts: packet.gapFacts,
-      milestonePaceFacts: packet.milestonePaceFacts,
-    };
-  }
   return {
     changeEvents: packet.changeEvents,
     categorySignals: packet.categorySignals,
@@ -676,8 +714,6 @@ export async function compileReadingPacket(
     dirtyRows.filter((row) => row.entityType === "pursuit"),
   );
 
-  const confirmedRelationships = packConfirmedRelationships(mapContext);
-
   const packet: ReadingPacket = {
     changeEvents,
     categorySignals: buildCategorySignals(pursuits, focusCategoryIds, now),
@@ -685,7 +721,6 @@ export async function compileReadingPacket(
     recentEvents: buildReadingPacketRecentEvents(mapContext, now),
     gapFacts: buildGapFacts(pursuits, now),
     milestonePaceFacts: buildMilestonePaceFacts(pursuits, now),
-    ...(confirmedRelationships ? { confirmedRelationships } : {}),
   };
 
   return thinPacketForMapDepth(packet);

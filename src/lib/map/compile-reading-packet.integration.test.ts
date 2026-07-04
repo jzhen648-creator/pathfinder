@@ -54,7 +54,7 @@ describe("compileReadingPacket map context", () => {
     expect(mocks.formatMapContext).toHaveBeenCalledWith("user-1");
   });
 
-  it("includes confirmedRelationships from map_context in the reading packet", async () => {
+  it("omits confirmedRelationships from compiled reading packet", async () => {
     const dirty: ReadingDirtyAnalysis = {
       pursuitIds: ["p-cemap"],
       themeIds: ["work"],
@@ -67,6 +67,7 @@ describe("compileReadingPacket map context", () => {
 
     const packet = await compileReadingPacket("user-1", dirty);
 
-    expect(packet.confirmedRelationships).toEqual(DENSE_MAP_CONTEXT.confirmedRelationships);
+    expect(packet).not.toHaveProperty("confirmedRelationships");
+    expect(packet.mapAggregates.themeRollup.length).toBeGreaterThan(0);
   });
 });

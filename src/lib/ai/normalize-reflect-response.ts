@@ -7,9 +7,19 @@ export { truncateAtWordBoundary } from "@/lib/insights/clamp-insight-json";
 const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
 export const THEME_ONE_LINER_MAX = 140;
-export const OVERALL_SUPPORT_MAX = 300;
+export const OVERALL_SUPPORT_MAX = 480;
 const THEME_REFLECTIVE_MAX = 800;
 const THEME_SUPPLEMENT_MAX = 500;
+
+function oneLinersRoughlyEqual(a: string, b: string): boolean {
+  const norm = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
+  const left = norm(a);
+  const right = norm(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.length < 20 || right.length < 20) return false;
+  return left.includes(right) || right.includes(left);
+}
 
 /** Trim theme oneLiner to max length on a word boundary; append … when shortened. */
 export function truncateThemeOneLiner(text: string, max = THEME_ONE_LINER_MAX): string {
@@ -52,6 +62,7 @@ export function normalizeReflectResponse(json: unknown): unknown {
   }
 
   const themes = root.themes;
+  const normalizedThemeOneLiners: string[] = [];
   if (themes && typeof themes === "object" && !Array.isArray(themes)) {
     const normalizedThemes: Record<string, unknown> = {};
     for (const [themeId, entry] of Object.entries(themes as Record<string, unknown>)) {
@@ -60,14 +71,14 @@ export function normalizeReflectResponse(json: unknown): unknown {
       const oneLiner = typeof row.oneLiner === "string" ? row.oneLiner.trim() : "";
       const reflective = typeof row.reflective === "string" ? row.reflective.trim() : "";
       const contextual = typeof row.contextual === "string" ? row.contextual.trim() : "";
-      const combined = typeof row.combined === "string" ? row.combined.trim() : "";
       if (!oneLiner && !reflective) continue;
+      const trimmedOneLiner = truncateThemeOneLiner(oneLiner);
+      normalizedThemeOneLiners.push(trimmedOneLiner);
       normalizedThemes[themeId] = {
         tone: normalizeThemeTone(row.tone),
-        oneLiner: truncateThemeOneLiner(oneLiner),
+        oneLiner: trimmedOneLiner,
         reflective: truncateAtWordBoundary(reflective, THEME_REFLECTIVE_MAX),
         contextual: truncateAtWordBoundary(contextual, THEME_SUPPLEMENT_MAX),
-        combined: truncateAtWordBoundary(combined, THEME_SUPPLEMENT_MAX),
       };
     }
     root.themes = normalizedThemes;
@@ -78,10 +89,16 @@ export function normalizeReflectResponse(json: unknown): unknown {
     const row = overall as Record<string, unknown>;
     const oneLiner = typeof row.oneLiner === "string" ? row.oneLiner.trim() : "";
     const support = typeof row.support === "string" ? row.support.trim() : "";
-    if (oneLiner) {
+    const trimmedOneLiner = truncateThemeOneLiner(oneLiner);
+    const echoesTheme =
+      normalizedThemeOneLiners.length >= 2 &&
+      normalizedThemeOneLiners.some((themeOneLiner) =>
+        oneLinersRoughlyEqual(trimmedOneLiner, themeOneLiner),
+      );
+    if (oneLiner && !echoesTheme) {
       root.overall = {
         tone: normalizeThemeTone(row.tone),
-        oneLiner: truncateThemeOneLiner(oneLiner),
+        oneLiner: trimmedOneLiner,
         support: truncateAtWordBoundary(support, OVERALL_SUPPORT_MAX),
       };
     } else {

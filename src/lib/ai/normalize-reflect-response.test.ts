@@ -63,7 +63,7 @@ describe("normalizeReflectResponse", () => {
     );
   });
 
-  it("passes through theme contextual and combined with length clamp", () => {
+  it("passes through theme contextual with length clamp", () => {
     const normalized = normalizeReflectResponse({
       themes: {
         work: {
@@ -75,12 +75,37 @@ describe("normalizeReflectResponse", () => {
         },
       },
       pursuits: {},
-    }) as { themes: Record<string, { contextual: string; combined: string }> };
+    }) as { themes: Record<string, { contextual?: string; combined?: string }> };
 
     expect(normalized.themes.work.contextual).toBe(
       "Mortgage advisers typically earn commission.",
     );
-    expect(normalized.themes.work.combined).toBe("Across chapters, work dominates.");
+    expect(normalized.themes.work.combined).toBeUndefined();
+  });
+
+  it("drops overall when hero echoes a theme oneLiner on multi-theme maps", () => {
+    const normalized = normalizeReflectResponse({
+      overall: {
+        tone: "encouraging",
+        oneLiner: "ISA is the lane",
+        support: "Work and finance both active.",
+      },
+      themes: {
+        finance: {
+          tone: "encouraging",
+          oneLiner: "ISA is the lane",
+          reflective: "Quarter mark next.",
+        },
+        work: {
+          tone: "encouraging",
+          oneLiner: "Job carries the theme",
+          reflective: "Launch is ahead.",
+        },
+      },
+      pursuits: {},
+    }) as { overall?: unknown };
+
+    expect(normalized.overall).toBeUndefined();
   });
 
   it("normalizes overall reading with truncated oneLiner and support", () => {

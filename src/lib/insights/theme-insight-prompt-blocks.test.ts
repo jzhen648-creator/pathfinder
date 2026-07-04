@@ -73,21 +73,18 @@ describe("theme-insight-prompt-blocks", () => {
     expect(PURSUIT_READING_AUTHORSHIP_ORDER).toContain("Wrong: restating three confirmed Quick Question picks");
   });
 
-  it("allows theme contextual and combined on reflect with gating rules", () => {
+  it("allows theme contextual on reflect with gating rules", () => {
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain(
-      '{ tone, oneLiner, reflective, combined, contextual }',
+      '{ tone, oneLiner, reflective, contextual }',
     );
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("ACROSS PURSUITS (combined)");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain("ACROSS PURSUITS (combined)");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("WORTH KNOWING (contextual)");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("Worth knowing ·");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain("COMPARISON (contextual)");
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("user-confirmed PursuitRelationship");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain("user-confirmed PursuitRelationship");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("<benchmark_facts>");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("Do NOT duplicate a pursuit-level Worth knowing");
     expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("NOTABLE FACTS");
-    expect(THEME_REFLECT_OUTPUT_CONTRACT).not.toContain(
-      'contextual and combined MUST be empty strings ""',
-    );
   });
 
   it("defines notable facts observation register", () => {
@@ -108,8 +105,9 @@ describe("theme-insight-prompt-blocks", () => {
   it("defines overall reading synthesis for whole-map hero", () => {
     expect(OVERALL_READING_OUTPUT_CONTRACT).toContain("OVERALL OUTPUT");
     expect(OVERALL_READING_OUTPUT_CONTRACT).toContain('{ tone, oneLiner, support }');
-    expect(OVERALL_READING_FIELD_JOB).toContain("2–3 heaviest active threads");
+    expect(OVERALL_READING_FIELD_JOB).toContain("2–3 heaviest active chapters");
     expect(OVERALL_READING_FIELD_JOB).toContain("highSignificanceActive");
+    expect(OVERALL_READING_FIELD_JOB).toContain("themeRollup");
     expect(OVERALL_READING_FIELD_JOB).toContain("do NOT echo a single theme's oneLiner");
   });
 });

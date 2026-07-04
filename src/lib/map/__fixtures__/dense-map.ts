@@ -1,5 +1,5 @@
 import type { FormattedMapContext, FormattedMapPursuit } from "@/lib/ai/format-map-context";
-import type { ReadingPacket } from "@/lib/map/compile-reading-packet";
+import { buildMapAggregates, type ReadingPacket } from "@/lib/map/compile-reading-packet";
 
 /** Fixed "now" for deterministic deadline / completion math in tests. */
 export const DENSE_FIXTURE_NOW = Date.parse("2026-06-14T12:00:00.000Z");
@@ -218,18 +218,41 @@ export const DENSE_ALL_PURSUIT_IDS = DENSE_MAP_CONTEXT.themes.flatMap((theme) =>
  */
 export const DENSE_DIRTY_PURSUIT_IDS = [...DENSE_ALL_PURSUIT_IDS];
 
+function flattenDenseMapPursuits(): Array<
+  FormattedMapPursuit & {
+    themeId: string;
+    themeLabel: string;
+    categoryLabel: string;
+    categoryId: string;
+  }
+> {
+  const rows: Array<
+    FormattedMapPursuit & {
+      themeId: string;
+      themeLabel: string;
+      categoryLabel: string;
+      categoryId: string;
+    }
+  > = [];
+  for (const theme of DENSE_MAP_CONTEXT.themes) {
+    for (const category of theme.categories) {
+      for (const pursuitRow of category.pursuits) {
+        rows.push({
+          ...pursuitRow,
+          themeId: theme.id,
+          themeLabel: theme.label,
+          categoryLabel: category.categoryLabel || category.label,
+          categoryId: category.id,
+        });
+      }
+    }
+  }
+  return rows;
+}
+
 /** Minimal reading packet stub for reflect tests. */
 export const DENSE_READING_PACKET: ReadingPacket = {
   changeEvents: ['"CeMAP qualification": status NOT_STARTED → ACTIVE'],
-  confirmedRelationships: [
-    {
-      goalAId: "p-senior",
-      goalBId: "p-cemap",
-      goalATitle: "Senior Engineer at Acme",
-      goalBTitle: "CeMAP qualification",
-      label: "leads to",
-    },
-  ],
   categorySignals: [
     {
       themeLabel: "Work & Career",
@@ -289,20 +312,7 @@ export const DENSE_READING_PACKET: ReadingPacket = {
       },
     ],
   },
-  mapAggregates: {
-    totalPursuits: DENSE_ALL_PURSUIT_IDS.length,
-    upcomingDeadlines14d: 2,
-    upcomingDeadlines30d: 4,
-    recentCompletions90d: 3,
-    highSignificanceActive: [
-      "£500,000 ISA",
-      "CeMAP qualification",
-      "Plan wedding",
-      "London Marathon 2027",
-      "Product Lead search",
-      "Clear £10,000 credit card debt",
-    ],
-  },
+  mapAggregates: buildMapAggregates(flattenDenseMapPursuits(), DENSE_FIXTURE_NOW),
   gapFacts: [
     "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
   ],
