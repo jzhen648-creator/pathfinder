@@ -4,6 +4,7 @@ import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 import { MapAiSyncRateLimitError, runMapAiSync } from "@/lib/map/ai-sync";
+import { logAiSyncCost } from "@/lib/map/log-ai-sync-cost";
 import { applyThemeInsightGatesToPayload } from "@/lib/insights/apply-theme-insight-gates";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
@@ -42,13 +43,19 @@ export async function POST(request: Request) {
   const userId = auth.userId;
 
   try {
+    const force = parsed.data.force === true;
     const result = await runMapAiSync(userId, {
-      force: parsed.data.force === true,
+      force,
       enrichOptions: {
         clarifyTitles: parsed.data.clarifyTitles,
       },
     });
-    console.info("[POST /api/map/ai-sync] metrics", result.metrics);
+    logAiSyncCost(userId, result.metrics, {
+      skipped: result.skipped,
+      force,
+      deliveryBlocked: result.progress.deliveryBlocked,
+      rateLimited: result.metrics.rateLimited,
+    });
 
     const [mapVersion, memoryVersion] = await Promise.all([
       computeMapVersion(userId),
@@ -90,6 +97,12 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     if (err instanceof MapAiSyncRateLimitError) {
+      logAiSyncCost(userId, err.partialResult.metrics, {
+        skipped: err.partialResult.skipped,
+        force: parsed.data.force === true,
+        deliveryBlocked: err.partialResult.progress.deliveryBlocked,
+        rateLimited: true,
+      });
       return NextResponse.json(
         {
           error: err.message,
