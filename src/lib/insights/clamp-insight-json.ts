@@ -5,6 +5,7 @@ import {
   PURSUIT_INSIGHT_HEADLINE_MAX,
 } from "@/lib/insights/insight-field-limits";
 import { normalizeLegacyPursuitTone } from "@/lib/insights/resolve-pursuit-insight-tone";
+import { stripSignificanceEcho } from "@/lib/insights/strip-significance-echo";
 
 /** Max lengths aligned with Zod schemas in insight-types / pursuit-enrich-types. */
 export {
@@ -57,14 +58,14 @@ function clampPursuitInsightFields(row: Record<string, unknown>): void {
   if ("tone" in row) {
     row.tone = normalizePursuitInsightTone(row.tone);
   }
-  if ("headline" in row) {
-    row.headline = truncateHeadline(row.headline);
+  if ("headline" in row && typeof row.headline === "string") {
+    row.headline = truncateHeadline(stripSignificanceEcho(row.headline));
   }
-  if ("body" in row) {
-    row.body = truncateString(row.body, PURSUIT_INSIGHT_BODY_MAX);
+  if ("body" in row && typeof row.body === "string") {
+    row.body = truncateString(stripSignificanceEcho(row.body), PURSUIT_INSIGHT_BODY_MAX);
   }
-  if ("comparison" in row) {
-    row.comparison = truncateString(row.comparison, PURSUIT_INSIGHT_COMPARISON_MAX);
+  if ("comparison" in row && typeof row.comparison === "string") {
+    row.comparison = truncateString(stripSignificanceEcho(row.comparison), PURSUIT_INSIGHT_COMPARISON_MAX);
   }
 }
 
