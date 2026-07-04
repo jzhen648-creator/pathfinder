@@ -38,6 +38,8 @@ export type MapAiSyncMetrics = {
   enrichErrors: string[];
   /** Unified reflect call replaced reading delta + enrich drain. */
   reflectCall: boolean;
+  /** Periodic full-map refresh triggered (empty ledger, interval elapsed). */
+  periodicFull: boolean;
 };
 
 export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
@@ -71,5 +73,6 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     reflectScopedCalls: 0,
     enrichErrors: [],
     reflectCall: false,
+    periodicFull: false,
   };
 }

@@ -22,6 +22,10 @@ import {
   recordReadingDelivery,
 } from "@/lib/map/reading-delivery-cadence";
 import {
+  isPeriodicFullRefreshDue,
+  recordFullReflectDelivery,
+} from "@/lib/map/reading-periodic-full-refresh";
+import {
   clearReadingDirtyLedger,
   analyzeReadingDirty,
   listReadingDirtySummary,
@@ -119,7 +123,7 @@ async function runMapAiSyncInner(
     throw new GeminiNotConfiguredError();
   }
 
-  const force = options?.force === true;
+  let force = options?.force === true;
   const enrichOptions = resolvePursuitEnrichOptions(options?.enrichOptions);
   const metrics = emptyMapAiSyncMetrics();
   const { mapVersion, memoryVersion } = await resolveVersions(userId);
@@ -137,7 +141,14 @@ async function runMapAiSyncInner(
   metrics.dirtyItems = dirtySummary.totalItems;
   metrics.dirtyPursuits = dirtySummary.pursuitIds.length;
 
-  let insightWorkNeeded = insightsStale || dirtySummary.totalItems > 0;
+  let periodicFull = false;
+  if (!force && dirtySummary.totalItems === 0 && insightRow) {
+    periodicFull = await isPeriodicFullRefreshDue(userId);
+    if (periodicFull) force = true;
+  }
+  metrics.periodicFull = periodicFull;
+
+  let insightWorkNeeded = insightsStale || dirtySummary.totalItems > 0 || periodicFull;
 
   if (reflectEnabled) {
     if (!insightWorkNeeded && force) {
@@ -238,6 +249,10 @@ async function runMapAiSyncInner(
 
   if (metrics.aiCallsCompleted > 0) {
     await recordReadingDelivery(userId);
+  }
+
+  if (insightsRefreshed && metrics.fullRefresh) {
+    await recordFullReflectDelivery(userId);
   }
 
   return {

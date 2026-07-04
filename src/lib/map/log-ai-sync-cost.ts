@@ -96,6 +96,7 @@ export function estimateReflectSyncCost(
 export type LogAiSyncCostOptions = {
   skipped: boolean;
   force?: boolean;
+  periodicFull?: boolean;
   deliveryBlocked?: boolean;
   rateLimited?: boolean;
 };
@@ -111,6 +112,7 @@ export function logAiSyncCost(
   console.info("[map/ai-sync] cost", {
     userId,
     force: options.force === true,
+    periodicFull: options.periodicFull === true || metrics.periodicFull === true,
     skipped: cost.skipped,
     deliveryBlocked: options.deliveryBlocked === true,
     rateLimited: options.rateLimited === true,

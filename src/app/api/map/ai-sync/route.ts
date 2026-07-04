@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     logAiSyncCost(userId, result.metrics, {
       skipped: result.skipped,
       force,
+      periodicFull: result.metrics.periodicFull,
       deliveryBlocked: result.progress.deliveryBlocked,
       rateLimited: result.metrics.rateLimited,
     });

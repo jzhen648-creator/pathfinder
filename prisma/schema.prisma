@@ -26,6 +26,8 @@ model User {
   taxonomySyncedAt        DateTime?
   /// Last successful AI reading delivery (Gemini-bearing ai-sync); free-tier interval gate.
   lastReadingDeliveredAt  DateTime?
+  /// Last successful full-map reflect (theme synthesis + all pursuits); periodic regen gate.
+  lastFullReflectAt       DateTime?
   /// Life-area ids unlocked on the tree (`finance` | `work` | …).
   unlockedLimbIds         Json?
   createdAt               DateTime              @default(now())

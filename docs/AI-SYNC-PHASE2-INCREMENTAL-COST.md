@@ -1,6 +1,6 @@
-# AI sync Phase 2 — incremental cost decoupling (design only)
+# AI sync Phase 2 — incremental cost decoupling
 
-**Status:** Partially shipped 2026-07-04 — dirty-first routing, edit-only theme skip, edit-triggered debounce. Gemini explicit context caching deferred.
+**Status:** Shipped 2026-07-04 — dirty-first routing, edit-only theme skip, edit-triggered debounce (~60s). **Periodic full regen** shipped Phase 2.5 (§36). Gemini explicit context caching deferred.
 
 **Problem:** Today almost every reading refresh is a **full whole-map regeneration**, even when only one chapter changed. Token cost scales with `(sync frequency) × (full map size)` instead of `(sync frequency) × (changed chapters)`.
 
@@ -68,7 +68,7 @@ Per-chapter panel updates do not require re-generating all six theme `oneLiner`s
 | Single chapter note edit | Skip theme regen; update pursuit panel only |
 | Chapter added/archived | Full or theme-scoped regen |
 | Manual pull with force | Full regen |
-| Periodic (e.g. daily) | Optional full regen for cross-theme connections |
+| Periodic (default 7 days) | Full regen for theme oneLiners + overall Reading hero — **shipped Phase 2.5** |
 
 Implementation: pass `themeIds: []` for edit-only dirty batches (`isEditOnlyDirtyBatch` already exists in [`reading-dirty-ledger.ts`](../src/lib/map/reading-dirty-ledger.ts)).
 
@@ -92,13 +92,12 @@ The dominant input cost is re-sending `<map_context>` JSON on every call (~40–
 
 ---
 
-## Mobile implications (Phase 2b — optional)
+## Mobile implications (Phase 2b — shipped)
 
-Phase 1 intentionally does **not** wire edit-triggered debounce. Phase 2b could add it **only after** incremental backend path is live:
+Edit-triggered debounce is **live** after incremental backend routing:
 
-- Call `scheduleDebouncedAiSync()` from `invalidateInsightsAfterMapEdit` (or mutation success handlers)
-- Increase debounce to 60–90s to coalesce editing sessions
-- Safe because each sync would cost proportional to dirty chapters, not full map
+- `scheduleDebouncedAiSync()` from `invalidateInsightsAfterMapEdit` (~60s debounce)
+- Safe because each sync costs proportional to dirty chapters, not full map
 
 ---
 
@@ -129,7 +128,7 @@ Monitor via [`log-ai-sync-cost.ts`](../src/lib/map/log-ai-sync-cost.ts) — comp
 
 | Risk | Mitigation |
 |------|------------|
-| Stale cross-theme connections after incremental sync | Periodic full regen or explicit "refresh all" manual path |
+| Stale cross-theme connections after incremental sync | Cross-theme chips are **map-driven** on mobile — not AI regen. Periodic full regen refreshes theme cards + overall hero only |
 | Theme oneLiner drift | Regenerate themes when `hasGlobal` or on manual force |
 | Cache invalidation bugs | Fallback to full regen when cache miss or hash mismatch |
 | UX confusion (partial update) | Reading tab shows "Updated {N} chapters" or timestamp per section |
