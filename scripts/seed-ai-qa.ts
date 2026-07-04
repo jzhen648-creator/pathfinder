@@ -3,6 +3,7 @@
  *
  * Optimized for the current mobile model:
  * - Goal.background (not legacy description-only)
+ * - UserManualProfile.currencyCode + measurementSystem
  * - enrichAnswers, cross-theme PursuitRelationship, orientation ProfileFact
  * - amountBasis on quantified chapters
  * - Reading dirty ledger primed for first sync
@@ -149,6 +150,7 @@ async function main(): Promise<void> {
     console.log(`Background notes: ${countWithBackground(ALEX_RICH_PURSUITS)} chapters`);
     console.log(`Cross-theme links: ${ALEX_RELATIONSHIPS.length}`);
     console.log(`Orientation: ${ALEX_ORIENTATION}`);
+    console.log(`Currency & units: GBP · metric`);
     console.log(`Gap anchor: CeMAP — sig 5, ~18d deadline, Module 3 open`);
 
     console.log("\n=== Sam Chen (sparse control) ===");

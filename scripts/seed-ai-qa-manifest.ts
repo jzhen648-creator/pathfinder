@@ -1,7 +1,13 @@
 import type { EnrichAnswer } from "../src/lib/pursuit/pursuit-enrich-types";
 import type { PursuitSpec, RelationshipSpec } from "./seed-ai-qa-data";
 
-/** Alex Carter — 16 chapters, current taxonomy labels, mobile-native fields. */
+/**
+ * Alex Carter QA manifest — aligned with current mobile persistence:
+ * - Goal.background (About → Context/Notes + AI map_context)
+ * - enrichAnswers (Confirmed details)
+ * - Finance units: progress → ISO currency code; flow → `{currency}/month`
+ * - UserManualProfile.currencyCode + measurementSystem set in seed-ai-qa-data
+ */
 export const ALEX_RICH_PURSUITS = [
   // Work & Career (5)
   {
@@ -207,7 +213,11 @@ export const ALEX_RICH_PURSUITS = [
     categoryLabel: "Training & sport",
     status: "ACTIVE",
     significance: 4,
+    background: "Building toward race day — three runs a week when travel allows.",
     deadlineDaysFromNow: 100,
+    currentAmount: 2,
+    targetAmount: 3,
+    unit: "count/week",
     mapGridQ: 1,
     mapGridR: 0,
     milestones: [

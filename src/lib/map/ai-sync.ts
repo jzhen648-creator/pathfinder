@@ -6,11 +6,6 @@ import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
-import {
-  discardDeferredMemoryUpdates,
-  flushDeferredMemoryUpdates,
-} from "@/lib/memory/deferred-memory-updates";
-
 import { emptyMapAiSyncMetrics, type MapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 
 import { isReflectCallEnabled, runReflectSync } from "@/lib/ai/generate-reflect";
@@ -49,10 +44,7 @@ export type MapAiSyncResult = {
   ok: true;
   mapVersion: string;
   skipped: boolean;
-  digested: { runs: number; failed: number; errors: string[] };
   insights: { refreshed: boolean; skipped: boolean };
-  /** Kept for mobile backward compat — story/seasonRead generation removed. */
-  story: { refreshed: boolean; skipped: boolean };
   progress: {
     startedWork: boolean;
     morePending: boolean;
@@ -88,16 +80,12 @@ function insightCacheStale(
   return row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion;
 }
 
-const EMPTY_DIGESTED = { runs: 0, failed: 0, errors: [] as string[] };
-
 function buildBaseResult(mapVersion: string, metrics: MapAiSyncMetrics): MapAiSyncResult {
   return {
     ok: true,
     mapVersion,
     skipped: true,
-    digested: EMPTY_DIGESTED,
     insights: { refreshed: false, skipped: true },
-    story: { refreshed: false, skipped: true },
     progress: {
       startedWork: metrics.startedWork,
       morePending: metrics.morePending,
@@ -207,12 +195,7 @@ async function runMapAiSyncInner(
     if (reflect.geminiRateLimited) {
       metrics.rateLimited = true;
     }
-
-    await flushDeferredMemoryUpdates(userId);
-    metrics.memoryUpdatesFlushed = metrics.memoryUpdatesDeferred;
   } catch (err) {
-    discardDeferredMemoryUpdates(userId);
-
     if (err instanceof AiUserRateLimitError) {
       metrics.rateLimited = true;
       const partial = buildBaseResult(mapVersion, metrics);
@@ -224,7 +207,6 @@ async function runMapAiSyncInner(
   }
 
   if (!insightsRefreshed && metrics.rateLimited) {
-    discardDeferredMemoryUpdates(userId);
     const partial = buildBaseResult(mapVersion, metrics);
     partial.skipped = false;
     throw new MapAiSyncRateLimitError(120_000, partial);
@@ -259,9 +241,7 @@ async function runMapAiSyncInner(
     ok: true,
     mapVersion,
     skipped: false,
-    digested: EMPTY_DIGESTED,
     insights: { refreshed: insightsRefreshed, skipped: !insightsRefreshed },
-    story: { refreshed: false, skipped: true },
     progress: {
       startedWork: metrics.startedWork,
       morePending: metrics.morePending,

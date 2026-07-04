@@ -1,4 +1,4 @@
-/** Shared theme-level insight field jobs for reflect + generate-insights prompts. */
+/** Shared theme-level insight field jobs for reflect prompts. */
 
 export const THEME_INSIGHT_FIELD_LANES = [
   "THEME READING FIELD LANES:",

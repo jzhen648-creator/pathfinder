@@ -2,7 +2,6 @@ import type { Prisma, PrismaClient, PursuitStatus } from "@prisma/client";
 import type { EnrichAnswer } from "../src/lib/pursuit/pursuit-enrich-types";
 import type { LifeAreaId } from "../src/lib/types";
 import { getLifeArea } from "../src/lib/life-areas";
-import { markGlobalReadingDirty, markPursuitReadingDirty } from "../src/lib/map/reading-dirty-ledger";
 import {
   activateCategoryForUser,
   activateLimbsForUser,
@@ -61,6 +60,10 @@ export type QaProfileConfig = {
   employmentStatus?: string | null;
   industry?: string | null;
   jobTitle?: string | null;
+  /** ISO 4217 — Settings → Currency & units; drives finance amount display. */
+  currencyCode?: string | null;
+  /** metric | imperial — Settings → Currency & units. */
+  measurementSystem?: "metric" | "imperial" | null;
   orientation?: string | null;
   unlockThemes: readonly LifeAreaId[];
   pursuits: readonly PursuitSpec[];
@@ -78,6 +81,8 @@ export const ALEX_PROFILE: QaProfileConfig = {
   employmentStatus: "EMPLOYED",
   industry: "Finance",
   jobTitle: "Mortgage Advisor",
+  currencyCode: "GBP",
+  measurementSystem: "metric",
   unlockThemes: ["work", "finance", "people", "becoming", "health", "pleasures"],
   pursuits: [],
   markReadingDirty: true,
@@ -90,6 +95,8 @@ export const SAM_PROFILE: QaProfileConfig = {
   location: "United Kingdom",
   educationLevel: "secondary",
   employmentStatus: "STUDENT",
+  currencyCode: "GBP",
+  measurementSystem: "metric",
   unlockThemes: ["work"],
   pursuits: [],
   markReadingDirty: true,
@@ -227,6 +234,25 @@ export async function insertPursuit(
   return goal.id;
 }
 
+export async function markSeedReadingDirty(
+  prisma: PrismaClient,
+  userId: string,
+  pursuitIds: string[],
+  reason: string,
+): Promise<void> {
+  await prisma.aiReadingDirtyItem.createMany({
+    data: [
+      { userId, entityType: "global", entityId: "map", reason },
+      ...pursuitIds.map((entityId) => ({
+        userId,
+        entityType: "pursuit" as const,
+        entityId,
+        reason,
+      })),
+    ],
+  });
+}
+
 async function insertOrientation(
   prisma: PrismaClient,
   userId: string,
@@ -289,18 +315,18 @@ export async function seedQaProfile(
   await unlockThemesForUser(prisma, user.id, profile.unlockThemes);
   await activateLimbsForUser(prisma, user.id, profile.unlockThemes);
 
-  await prisma.userManualProfile.create({
-    data: {
-      userId: user.id,
-      displayName: profile.displayName,
-      dateOfBirth: dateOfBirthForAge(profile.age),
-      location: profile.location,
-      educationLevel: profile.educationLevel ?? null,
-      employmentStatus: profile.employmentStatus ?? null,
-      industry: profile.industry ?? null,
-      jobTitle: profile.jobTitle ?? null,
-      occupation: profile.jobTitle ?? null,
-    },
+  await createManualProfile(prisma, {
+    userId: user.id,
+    displayName: profile.displayName,
+    dateOfBirth: dateOfBirthForAge(profile.age),
+    location: profile.location,
+    educationLevel: profile.educationLevel ?? null,
+    employmentStatus: profile.employmentStatus ?? null,
+    industry: profile.industry ?? null,
+    jobTitle: profile.jobTitle ?? null,
+    occupation: profile.jobTitle ?? null,
+    currencyCode: profile.currencyCode ?? null,
+    measurementSystem: profile.measurementSystem ?? null,
   });
 
   if (profile.orientation?.trim()) {
@@ -339,10 +365,7 @@ export async function seedQaProfile(
   }
 
   if (profile.markReadingDirty) {
-    await markGlobalReadingDirty(user.id, "qa_seed");
-    for (const goalId of titleToId.values()) {
-      await markPursuitReadingDirty(user.id, goalId, "qa_seed");
-    }
+    await markSeedReadingDirty(prisma, user.id, [...titleToId.values()], "qa_seed");
   }
 
   return { userId: user.id, countsByTheme, pursuitCount: profile.pursuits.length };
@@ -351,3 +374,85 @@ export async function seedQaProfile(
 export function themeLabel(themeId: LifeAreaId): string {
   return getLifeArea(themeId)?.label ?? themeId;
 }
+
+function isMissingProfileColumnError(error: unknown, column: string): boolean {
+  return (
+    typeof error === "object" &&
+    error != null &&
+    "code" in error &&
+    error.code === "P2022" &&
+    "meta" in error &&
+    typeof error.meta === "object" &&
+    error.meta != null &&
+    "column" in error.meta &&
+    error.meta.column === column
+  );
+}
+
+type ManualProfileSeedData = {
+  userId: string;
+  displayName: string;
+  dateOfBirth: Date;
+  location: string;
+  educationLevel: string | null;
+  employmentStatus: string | null;
+  industry: string | null;
+  jobTitle: string | null;
+  occupation: string | null;
+  currencyCode: string | null;
+  measurementSystem: "metric" | "imperial" | null;
+};
+
+async function createManualProfile(
+  prisma: PrismaClient,
+  data: ManualProfileSeedData,
+): Promise<void> {
+  const base = {
+    userId: data.userId,
+    displayName: data.displayName,
+    dateOfBirth: data.dateOfBirth,
+    location: data.location,
+    educationLevel: data.educationLevel,
+    employmentStatus: data.employmentStatus,
+    industry: data.industry,
+    jobTitle: data.jobTitle,
+    occupation: data.occupation,
+  };
+
+  try {
+    await prisma.userManualProfile.create({
+      data: {
+        ...base,
+        currencyCode: data.currencyCode,
+        measurementSystem: data.measurementSystem,
+      },
+    });
+  } catch (error) {
+    if (!isMissingProfileColumnError(error, "currencyCode")) throw error;
+    console.warn(
+      "UserManualProfile.currencyCode missing — run `npx prisma migrate deploy` for currency/units prefs.",
+    );
+    await prisma.userManualProfile.create({ data: base });
+  }
+}
+
+async function updateManualProfilePrefs(
+  prisma: PrismaClient,
+  userId: string,
+  currencyCode: string | null,
+  measurementSystem: "metric" | "imperial" | null,
+): Promise<void> {
+  try {
+    await prisma.userManualProfile.update({
+      where: { userId },
+      data: { currencyCode, measurementSystem },
+    });
+  } catch (error) {
+    if (!isMissingProfileColumnError(error, "currencyCode")) throw error;
+    console.warn(
+      "Skipped currency/units profile update — run `npx prisma migrate deploy` first.",
+    );
+  }
+}
+
+export { updateManualProfilePrefs };

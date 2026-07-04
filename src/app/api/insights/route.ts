@@ -1,30 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { z } from "zod";
-
 import { requireApiSessionUserId } from "@/lib/api-auth";
 
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 
-import {
-  generateInsights,
-  InsightGenerationResponseError,
-} from "@/lib/insights/generate-insights";
-
 import { applyThemeInsightGatesToPayload } from "@/lib/insights/apply-theme-insight-gates";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
-import { refreshPursuitInsights } from "@/lib/insights/merge-insight-cache";
-
-import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
 import { prisma } from "@/lib/prisma";
-
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-const refreshBodySchema = z.object({
-  force: z.boolean().optional(),
-  pursuitIds: z.array(z.string().min(1)).optional(),
-});
 
 async function resolveVersions(userId: string) {
   const [mapVersion, memoryVersion] = await Promise.all([
@@ -41,10 +24,6 @@ function isCacheStale(
   memoryVersion: number,
 ): boolean {
   return row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion;
-}
-
-function isOlderThanOneDay(generatedAt: Date): boolean {
-  return Date.now() - generatedAt.getTime() >= ONE_DAY_MS;
 }
 
 export async function GET() {
@@ -82,101 +61,13 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+/** Retired — use POST /api/map/ai-sync for reading refresh. */
+export async function POST() {
   const auth = await requireApiSessionUserId();
   if (!auth.ok) return auth.response;
 
-  if (!hasGeminiKey()) {
-    return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 503 });
-  }
-
-  let body: unknown = {};
-  try {
-    const text = await request.text();
-    if (text) body = JSON.parse(text);
-  } catch {
-    return NextResponse.json({ error: "JSON body required" }, { status: 400 });
-  }
-
-  const parsedBody = refreshBodySchema.safeParse(body);
-  if (!parsedBody.success) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-  }
-
-  const userId = auth.userId;
-  const force = parsedBody.data.force === true;
-  const pursuitIds = parsedBody.data.pursuitIds ?? [];
-
-  try {
-    const { mapVersion, memoryVersion } = await resolveVersions(userId);
-    const existing = await prisma.insightCache.findUnique({ where: { userId } });
-
-    if (pursuitIds.length > 0) {
-      await refreshPursuitInsights(userId, pursuitIds);
-      const row = await prisma.insightCache.findUnique({ where: { userId } });
-      if (!row) {
-        return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
-      }
-      const payload = insightCacheToPayload(
-        row,
-        isCacheStale(row, mapVersion, memoryVersion),
-      );
-      if (!payload) {
-        return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
-      }
-      return NextResponse.json({ cache: payload, refreshed: true });
-    }
-
-    if (existing && !force) {
-      const stale = isCacheStale(existing, mapVersion, memoryVersion);
-      const freshEnough = !isOlderThanOneDay(existing.generatedAt);
-      if (!stale && freshEnough) {
-        const payload = insightCacheToPayload(existing, false);
-        if (payload) {
-          return NextResponse.json({ cache: payload, refreshed: false });
-        }
-      }
-    }
-
-    const generated = await generateInsights(userId);
-    const row = await prisma.insightCache.upsert({
-      where: { userId },
-      create: {
-        userId,
-        globalInsight: JSON.stringify(generated.global),
-        themeInsights: generated.themes,
-        categoryInsights: generated.categories,
-        pursuitInsights: generated.pursuits,
-        mapVersion,
-        memoryVersion,
-      },
-      update: {
-        globalInsight: JSON.stringify(generated.global),
-        themeInsights: generated.themes,
-        categoryInsights: generated.categories,
-        pursuitInsights: generated.pursuits,
-        generatedAt: new Date(),
-        mapVersion,
-        memoryVersion,
-      },
-    });
-
-    const payload = insightCacheToPayload(row, false);
-    if (!payload) {
-      return NextResponse.json({ error: "Failed to store insights" }, { status: 500 });
-    }
-
-    return NextResponse.json({ cache: payload, refreshed: true });
-  } catch (err) {
-    if (err instanceof GeminiNotConfiguredError) {
-      return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 503 });
-    }
-    if (err instanceof InsightGenerationResponseError) {
-      console.error("[insights] generation response rejected", err);
-      return NextResponse.json({ error: err.message }, { status: err.status });
-    }
-    console.error("[insights] refresh failed", err);
-    const message = err instanceof Error ? err.message : "Insight generation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return NextResponse.json(
+    { error: "Insight refresh moved to POST /api/map/ai-sync." },
+    { status: 410 },
+  );
 }

@@ -730,10 +730,17 @@ export function buildFocalPursuitReadingFacts(
       facts.push(`Deadline: ${label ?? pursuit.deadline}`);
     }
   }
-  if (pursuit.targetAmount != null) {
-    const current = pursuit.currentAmount ?? 0;
+  const hasTarget = (pursuit.targetAmount ?? 0) > 0;
+  const hasCurrent = (pursuit.currentAmount ?? 0) > 0;
+  if (hasTarget || hasCurrent) {
     const unit = pursuit.unit?.trim() ? ` ${pursuit.unit.trim()}` : "";
-    facts.push(`Amount: ${current}/${pursuit.targetAmount}${unit}`);
+    if (hasCurrent && hasTarget) {
+      facts.push(`Amount: ${pursuit.currentAmount}/${pursuit.targetAmount}${unit}`);
+    } else if (hasTarget) {
+      facts.push(`Amount target: ${pursuit.targetAmount}${unit}`);
+    } else {
+      facts.push(`Amount: ${pursuit.currentAmount}${unit}`);
+    }
   }
 
   const signal = computePursuitSignal(pursuit, now);

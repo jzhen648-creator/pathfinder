@@ -11,11 +11,14 @@ import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
+import { ORIENTATION_FACT_KEY } from "../src/lib/ai/format-user-context";
 import {
   ALEX_PROFILE,
   findSystemCategory,
   insertPursuit,
+  markSeedReadingDirty,
   themeLabel,
+  updateManualProfilePrefs,
 } from "./seed-ai-qa-data";
 import {
   ALEX_ORIENTATION,
@@ -28,8 +31,6 @@ import {
 } from "../src/lib/system-categories";
 import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
 import { unlockThemesForUser } from "../src/lib/unlocked-themes";
-import { markGlobalReadingDirty, markPursuitReadingDirty } from "../src/lib/map/reading-dirty-ledger";
-import { ORIENTATION_FACT_KEY } from "../src/lib/ai/format-user-context";
 import { normalizeRelationshipPair } from "../src/lib/pursuit/pursuit-context-log";
 
 const ALEX_EMAIL = ALEX_PROFILE.email;
@@ -94,6 +95,13 @@ async function seedAlexContent(prisma: PrismaClient, userId: string): Promise<vo
   await unlockThemesForUser(prisma, userId, ALEX_PROFILE.unlockThemes);
   await activateLimbsForUser(prisma, userId, ALEX_PROFILE.unlockThemes);
 
+  await updateManualProfilePrefs(
+    prisma,
+    userId,
+    ALEX_PROFILE.currencyCode ?? "GBP",
+    ALEX_PROFILE.measurementSystem ?? "metric",
+  );
+
   await prisma.profileFact.create({
     data: {
       userId,
@@ -139,10 +147,7 @@ async function seedAlexContent(prisma: PrismaClient, userId: string): Promise<vo
     });
   }
 
-  await markGlobalReadingDirty(userId, "qa_reseed");
-  for (const goalId of titleToId.values()) {
-    await markPursuitReadingDirty(userId, goalId, "qa_reseed");
-  }
+  await markSeedReadingDirty(prisma, userId, [...titleToId.values()], "qa_reseed");
 }
 
 async function main(): Promise<void> {
@@ -175,7 +180,7 @@ async function main(): Promise<void> {
     await wipeAlexMapContent(prisma, user.id);
     await seedAlexContent(prisma, user.id);
 
-    const [goalCount, insightCount, backgroundCount, relationshipCount, enrichCount] =
+    const [goalCount, insightCount, backgroundCount, relationshipCount, enrichCount, manualProfile] =
       await Promise.all([
         prisma.goal.count({ where: { userId: user.id, archived: false } }),
         prisma.insightCache.count({ where: { userId: user.id } }),
@@ -191,6 +196,10 @@ async function main(): Promise<void> {
         prisma.goal.count({
           where: { userId: user.id, archived: false, enrichAnswers: { not: null } },
         }),
+        prisma.userManualProfile.findUnique({
+          where: { userId: user.id },
+          select: { currencyCode: true, measurementSystem: true },
+        }),
       ]);
 
     const byTheme = new Map<string, number>();
@@ -204,11 +213,18 @@ async function main(): Promise<void> {
       byTheme.set(label, (byTheme.get(label) ?? 0) + 1);
     }
 
+    const prefsOk =
+      manualProfile?.currencyCode === "GBP" && manualProfile?.measurementSystem === "metric";
+    const prefsNote = prefsOk
+      ? "GBP · metric"
+      : `${manualProfile?.currencyCode ?? "—"} · ${manualProfile?.measurementSystem ?? "—"} (migrate deploy for prefs)`;
+
     console.log("\n=== Verification ===");
     console.log(`Chapters: ${goalCount} (expected ${EXPECTED_CHAPTER_COUNT})`);
     console.log(`Background notes: ${backgroundCount} (expected ${EXPECTED_BACKGROUND_COUNT})`);
     console.log(`Cross-theme links: ${relationshipCount} (expected ${EXPECTED_RELATIONSHIP_COUNT})`);
     console.log(`Chapters with enrichAnswers: ${enrichCount} (expected 2)`);
+    console.log(`Profile prefs: ${prefsNote}`);
     console.log(`InsightCache rows: ${insightCount} (expected 0)`);
     console.log("By theme:");
     for (const [theme, count] of [...byTheme.entries()].sort()) {

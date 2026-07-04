@@ -13,6 +13,15 @@ const employmentStatusSchema = z.enum([
 
 const educationLevelSchema = z.enum(["secondary", "further", "higher"]);
 
+const currencyCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Z]{3}$/, "currencyCode must be a 3-letter ISO code")
+  .nullable()
+  .optional();
+
+const measurementSystemSchema = z.enum(["metric", "imperial"]).nullable().optional();
+
 const manualProfileInputSchema = z.object({
   displayName: z.string().trim().max(120).nullable().optional(),
   dateOfBirth: z.string().trim().nullable().optional(),
@@ -23,6 +32,8 @@ const manualProfileInputSchema = z.object({
   employmentStatus: employmentStatusSchema.nullable().optional(),
   industry: z.string().trim().max(120).nullable().optional(),
   jobTitle: z.string().trim().max(160).nullable().optional(),
+  currencyCode: currencyCodeSchema,
+  measurementSystem: measurementSystemSchema,
 });
 
 type ManualProfileRow = {
@@ -37,6 +48,8 @@ type ManualProfileRow = {
   employmentStatus: string | null;
   industry: string | null;
   jobTitle: string | null;
+  currencyCode: string | null;
+  measurementSystem: string | null;
   updatedAt: Date;
   createdAt: Date;
 };
@@ -87,6 +100,8 @@ function serializeManualProfile(profile: ManualProfileRow | null) {
     employmentStatus: profile.employmentStatus,
     industry: profile.industry,
     jobTitle: profile.jobTitle,
+    currencyCode: profile.currencyCode,
+    measurementSystem: profile.measurementSystem,
     updatedAt: profile.updatedAt.toISOString(),
     createdAt: profile.createdAt.toISOString(),
   };
@@ -132,6 +147,17 @@ export async function PUT(request: Request) {
   const occupation =
     nullableText(parsed.data.occupation) ?? (jobTitle === undefined ? undefined : jobTitle);
 
+  const currencyCode =
+    parsed.data.currencyCode === undefined
+      ? undefined
+      : parsed.data.currencyCode === null
+        ? null
+        : parsed.data.currencyCode.trim().toUpperCase() || null;
+  const measurementSystem =
+    parsed.data.measurementSystem === undefined
+      ? undefined
+      : parsed.data.measurementSystem;
+
   const data = {
     displayName: nullableText(parsed.data.displayName),
     dateOfBirth,
@@ -142,6 +168,8 @@ export async function PUT(request: Request) {
     employmentStatus: nullableText(parsed.data.employmentStatus),
     industry: nullableText(parsed.data.industry),
     jobTitle,
+    currencyCode,
+    measurementSystem,
   };
 
   const profile = await prisma.userManualProfile.upsert({
@@ -157,6 +185,8 @@ export async function PUT(request: Request) {
       employmentStatus: data.employmentStatus ?? null,
       industry: data.industry ?? null,
       jobTitle: data.jobTitle ?? null,
+      currencyCode: data.currencyCode ?? null,
+      measurementSystem: data.measurementSystem ?? null,
     },
     update: data,
   });

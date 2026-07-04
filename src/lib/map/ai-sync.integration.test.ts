@@ -15,8 +15,6 @@ const mocks = vi.hoisted(() => ({
   listReadingDirtySummary: vi.fn(),
   checkReadingDeliveryGate: vi.fn(),
   recordReadingDelivery: vi.fn(),
-  flushDeferredMemoryUpdates: vi.fn(),
-  discardDeferredMemoryUpdates: vi.fn(),
   markGlobalReadingDirty: vi.fn(),
   prismaUserFindUnique: vi.fn(),
   prismaInsightFindUnique: vi.fn(),
@@ -46,11 +44,6 @@ vi.mock("@/lib/map/reading-dirty-ledger", async (importOriginal) => {
 vi.mock("@/lib/map/reading-delivery-cadence", () => ({
   checkReadingDeliveryGate: mocks.checkReadingDeliveryGate,
   recordReadingDelivery: mocks.recordReadingDelivery,
-}));
-
-vi.mock("@/lib/memory/deferred-memory-updates", () => ({
-  flushDeferredMemoryUpdates: mocks.flushDeferredMemoryUpdates,
-  discardDeferredMemoryUpdates: mocks.discardDeferredMemoryUpdates,
 }));
 
 vi.mock("@/lib/gemini", () => ({
@@ -105,7 +98,6 @@ function setupFreshCaches() {
     lastDeliveredAt: null,
     intervalMs: 0,
   });
-  mocks.flushDeferredMemoryUpdates.mockResolvedValue(undefined);
   mocks.recordReadingDelivery.mockResolvedValue(undefined);
 }
 
@@ -156,7 +148,6 @@ describe("runMapAiSync integration", () => {
     expect(mocks.runReflectSync).toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(1);
     expect(result.metrics.reflectCall).toBe(true);
-    expect(result.story).toEqual({ refreshed: false, skipped: true });
   });
 
   it("reflect mode runs sync for dirty pursuits", async () => {
@@ -168,7 +159,6 @@ describe("runMapAiSync integration", () => {
     const result = await runMapAiSync(USER_ID, { force: true });
 
     expect(mocks.runReflectSync).toHaveBeenCalled();
-    expect(result.digested).toEqual({ runs: 0, failed: 0, errors: [] });
   });
 
   it("reflect-disabled path with fresh caches and empty dirty ledger skips work", async () => {

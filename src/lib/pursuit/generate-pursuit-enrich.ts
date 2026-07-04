@@ -5,7 +5,7 @@ import { PEOPLE_THEME_BODY_CLAUSE, shouldApplyPeopleThemeBodyRules } from "@/lib
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { parseDobDateFromUserContext } from "@/lib/insights/benchmark-facts";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
-import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
+import { InsightGenerationResponseError } from "@/lib/insights/insight-generation-errors";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
 import { normalizePursuitEnrichBatch } from "@/lib/pursuit/normalize-pursuit-enrich";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";

@@ -10,7 +10,7 @@ import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { prisma } from "@/lib/prisma";
-import { InsightGenerationResponseError } from "@/lib/insights/generate-insights";
+import { InsightGenerationResponseError } from "@/lib/insights/insight-generation-errors";
 
 export const maxDuration = 120;
 
@@ -92,8 +92,6 @@ export async function POST(request: Request) {
       memoryVersion,
       cache: {
         insights: insightPayload,
-        story: null,
-        storyGeneratedAt: null,
       },
     });
   } catch (err) {

@@ -134,6 +134,8 @@ export async function formatUserContext(userId: string): Promise<string> {
         industry: true,
         jobTitle: true,
         occupation: true,
+        currencyCode: true,
+        measurementSystem: true,
       },
     }),
     loadProfileFactsForContext(userId),
@@ -154,6 +156,12 @@ export async function formatUserContext(userId: string): Promise<string> {
 
   const currentLines: string[] = [];
   if (profile?.location?.trim()) currentLines.push(`Location: ${profile.location.trim()}`);
+  if (profile?.currencyCode?.trim()) {
+    currentLines.push(`Currency: ${profile.currencyCode.trim()}`);
+  }
+  if (profile?.measurementSystem?.trim()) {
+    currentLines.push(`Units: ${profile.measurementSystem.trim()}`);
+  }
   if (profile?.educationLevel?.trim()) {
     currentLines.push(`Education: ${educationLevelLabel(profile.educationLevel.trim())}`);
   }

@@ -1,4 +1,4 @@
-/** Shared insight voice rules for reflect, enrich, and generate-insights prompts. */
+/** Shared insight voice rules for reflect and enrich prompts. */
 
 export const TENSION_NOT_FORECAST_RULE = [
   "TENSION, NOT FORECAST:",
