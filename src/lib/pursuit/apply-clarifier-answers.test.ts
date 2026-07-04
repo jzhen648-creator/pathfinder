@@ -4,6 +4,7 @@ import {
   applyClarifierAnswerForUser,
   clearQuickQuestionsQuietUntilInCache,
   deleteClarifierAnswerForUser,
+  invalidateDerivedEnrichmentOnTitleChange,
   pruneMootPendingClarifiersOnStatusChange,
 } from "@/lib/pursuit/apply-clarifier-answers";
 import { clarifierPreserveAllowed } from "@/lib/pursuit/pursuit-cache-patch";
@@ -100,6 +101,42 @@ describe("clearQuickQuestionsQuietUntilInCache", () => {
             headline: "Headline",
             body: "Body",
             quickQuestionsQuietUntil: undefined,
+          },
+        },
+      },
+    });
+  });
+
+  it("clears disposable enrich cache on title change and sets reconcile flag when requested", async () => {
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        [GOAL_ID]: {
+          tone: "in_focus",
+          headline: "Headline",
+          body: "Body",
+          clarifiers: [{ id: "q1", prompt: "Which model?", options: ["A", "B"] }],
+          suggestedMilestones: [{ title: "Research", order: 0 }],
+          quickQuestionsQuietUntil: computeQuickQuestionsQuietUntil(),
+        },
+      },
+    });
+
+    await invalidateDerivedEnrichmentOnTitleChange(USER_ID, GOAL_ID, {
+      reconcileDetails: true,
+    });
+
+    expect(mocks.insightCacheUpdate).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+      data: {
+        pursuitInsights: {
+          [GOAL_ID]: {
+            tone: "in_focus",
+            headline: "Headline",
+            body: "Body",
+            clarifiers: undefined,
+            suggestedMilestones: undefined,
+            quickQuestionsQuietUntil: undefined,
+            titleReconcilePending: true,
           },
         },
       },

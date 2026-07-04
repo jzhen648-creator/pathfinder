@@ -61,6 +61,7 @@ import {
   buildClarifierSystemOutputLines,
   PURSUIT_PANEL_CONTEXT_PRECEDENCE,
   SUGGESTED_MILESTONES_OUTPUT_LINES,
+  TITLE_RECONCILE_PROMPT_LINES,
 } from "@/lib/pursuit/clarifier-prompt-blocks";
 import { buildClarifierKindPromptSection } from "@/lib/pursuit/clarifier-question-prompt";
 import {
@@ -184,6 +185,7 @@ function buildPursuitEnrichUserMessage(
   slotLines: string[],
   tone: ReturnType<typeof resolvePursuitInsightTone>,
   chapterNote?: string | null,
+  titleReconcilePending?: boolean,
 ): string {
   const noteBlock =
     chapterNote?.trim()
@@ -205,6 +207,7 @@ function buildPursuitEnrichUserMessage(
     "",
     ...pursuitToneVoiceLines(tone),
     "",
+    ...(titleReconcilePending ? [TITLE_RECONCILE_PROMPT_LINES, ""] : []),
     ...slotLines,
     milestonesAllowed
       ? "Milestones: allowed — suggest 1-6 chronological outcome waypoints toward the deadline from title, deadline, and durable enrichAnswers."
@@ -288,6 +291,7 @@ async function generateOnePursuitEnrich(
       slotLines,
       resolvePursuitInsightTone(goal),
       goal.background,
+      cachedEntry?.titleReconcilePending,
     ),
     maxTokens: 2048,
     queueKey: userId,
@@ -444,6 +448,7 @@ export async function refreshPursuitEnrich(
     const payload = buildPursuitCachePayload(result, {
       quickQuestionsQuietUntil,
       skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
+      clearTitleReconcilePending: cachedEntry?.titleReconcilePending === true,
     });
     if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
       pursuits[pursuitId] = payload;
@@ -519,6 +524,7 @@ export async function syncPursuitPanel(
   const payload = buildPursuitCachePayload(result, {
     quickQuestionsQuietUntil,
     skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
+    clearTitleReconcilePending: cachedEntry?.titleReconcilePending === true,
   });
   if (!payload) {
     return { clarifierCount: 0 };

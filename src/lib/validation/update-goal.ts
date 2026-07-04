@@ -40,6 +40,8 @@ export const updateGoalPayloadSchema = z
     targetAmount: z.number().nullable().optional(),
     unit: z.string().nullable().optional(),
     amountBasis: z.enum(AMOUNT_BASIS_VALUES).nullable().optional(),
+    /** When true with a title change, mark derived details for AI reconcile (does not delete enrichAnswers). */
+    reconcileDetails: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =

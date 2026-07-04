@@ -97,6 +97,44 @@ export async function pruneClarifierFromInsightCache(
   return { shouldReplenish: pendingClearedByDismiss };
 }
 
+/** Clear disposable enrich cache rows after a chapter title change. enrichAnswers and DB milestones untouched. */
+export async function invalidateDerivedEnrichmentOnTitleChange(
+  userId: string,
+  goalId: string,
+  options?: { reconcileDetails?: boolean },
+): Promise<void> {
+  const cache = await prisma.insightCache.findUnique({
+    where: { userId },
+    select: { pursuitInsights: true },
+  });
+  if (!cache?.pursuitInsights) return;
+
+  const pursuits = parsePursuitInsightRecord(cache.pursuitInsights, "pursuit");
+  const entry = pursuits[goalId];
+  if (!entry) {
+    if (!options?.reconcileDetails) return;
+    pursuits[goalId] = { tone: "context", headline: "", body: "", titleReconcilePending: true };
+    await prisma.insightCache.update({
+      where: { userId },
+      data: { pursuitInsights: pursuits },
+    });
+    return;
+  }
+
+  pursuits[goalId] = {
+    ...entry,
+    clarifiers: undefined,
+    suggestedMilestones: undefined,
+    quickQuestionsQuietUntil: undefined,
+    titleReconcilePending: options?.reconcileDetails ? true : undefined,
+  };
+
+  await prisma.insightCache.update({
+    where: { userId },
+    data: { pursuitInsights: pursuits },
+  });
+}
+
 /** Clear QQ cooldown on an insight-cache pursuit row — used when user deletes stored answers (path b). */
 export async function clearQuickQuestionsQuietUntilInCache(
   userId: string,

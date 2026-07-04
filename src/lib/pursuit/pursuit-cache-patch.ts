@@ -206,6 +206,7 @@ export function buildPursuitCachePayload(
   options?: {
     quickQuestionsQuietUntil?: string;
     skippedClarifierPrompts?: string[];
+    clearTitleReconcilePending?: boolean;
   },
 ): PursuitEnrichCachePayload | null {
   const hasClarifiers = result.clarifiers.length > 0;
@@ -222,6 +223,8 @@ export function buildPursuitCachePayload(
   const skippedField = options?.skippedClarifierPrompts?.length
     ? { skippedClarifierPrompts: options.skippedClarifierPrompts }
     : {};
+  const reconcileField =
+    options?.clearTitleReconcilePending === true ? { titleReconcilePending: undefined } : {};
 
   if (hasInsight && result.insight) {
     return {
@@ -230,6 +233,7 @@ export function buildPursuitCachePayload(
       suggestedMilestones,
       ...quietField,
       ...skippedField,
+      ...reconcileField,
     };
   }
 
@@ -241,5 +245,6 @@ export function buildPursuitCachePayload(
     suggestedMilestones,
     ...quietField,
     ...skippedField,
+    ...reconcileField,
   };
 }

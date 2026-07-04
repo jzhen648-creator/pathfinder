@@ -58,6 +58,8 @@ export const pursuitEnrichCacheSchema = pursuitInsightSchema.extend({
   quickQuestionsQuietUntil: z.string().datetime().optional(),
   /** Skipped prompt wording — do not repeat exact phrasing; not a topic blacklist. */
   skippedClarifierPrompts: z.array(z.string().min(1).max(200)).max(CLARIFIER_SKIPPED_PROMPTS_MAX).optional(),
+  /** Set after a significant title rename when user chose review — cleared after next enrich. */
+  titleReconcilePending: z.boolean().optional(),
 });
 
 export type PursuitEnrichCachePayload = z.infer<typeof pursuitEnrichCacheSchema>;

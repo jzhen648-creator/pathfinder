@@ -3,6 +3,7 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { excludePursuitFromInterpretation } from "@/lib/insights/invalidate-reading-caches";
 import {
   clearQuickQuestionsQuietUntilInCache,
+  invalidateDerivedEnrichmentOnTitleChange,
   pruneMootPendingClarifiersOnStatusChange,
 } from "@/lib/pursuit/apply-clarifier-answers";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
@@ -202,6 +203,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   }
 
   if (titleChanged) {
+    await invalidateDerivedEnrichmentOnTitleChange(userId, goalId, {
+      reconcileDetails: input.reconcileDetails === true,
+    });
     after(() => {
       void persistGoalShortLabel(goalId).catch((err) =>
         console.error("[PATCH /api/goals/[goalId]] persistGoalShortLabel failed", err),

@@ -45,6 +45,15 @@ export const CLARIFIER_NOT_INFERABLE_RULE = [
   "- Ask the single next unknown that still changes how this chapter should be read.",
 ].join("\n");
 
+/** User chose to review derived details after a significant chapter title rename. */
+export const TITLE_RECONCILE_PROMPT_LINES = [
+  "TITLE RECONCILE (significant rename):",
+  "- The chapter title recently changed in a way that may invalidate prior confirmed details or map milestones.",
+  "- Generate quick questions for the NEW title only — do not re-ask facts that clearly still apply.",
+  "- In insight body: if enrichAnswers or milestones may no longer fit, say so briefly and invite the user to review confirmed details on the About tab.",
+  "- Do not delete or rewrite enrichAnswers — the user owns them. Do not duplicate milestones already on the map.",
+].join("\n");
+
 export const CLARIFIER_GENERATION_PRINCIPLE = [
   "GENERATION PRINCIPLE (works for ANY chapter — rental property, relationship goal, car, qualification, anything):",
   "Reason from world knowledge about THIS chapter's title, theme, status, milestones, background, and enrichAnswers.",
