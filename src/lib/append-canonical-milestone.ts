@@ -6,7 +6,17 @@ function maxMilestonePosition(milestones: { position: number }[]): number {
   return milestones.reduce((acc, m) => Math.max(acc, m.position), -1);
 }
 
-type AppendResult = { ok: true } | { ok: false; error: string; status: number };
+/** Wire shape returned to mobile after POST /api/goals/[id]/milestones. */
+export type CreatedMilestoneWire = {
+  id: string;
+  title: string;
+  position: number;
+  completedAt: null;
+};
+
+type AppendResult =
+  | { ok: true; milestone: CreatedMilestoneWire }
+  | { ok: false; error: string; status: number };
 
 /** Append one canonical `Milestone` (POST `/api/goals/[id]/milestones`). */
 export async function appendCanonicalMilestoneForGoal(
@@ -16,6 +26,8 @@ export async function appendCanonicalMilestoneForGoal(
 ): Promise<AppendResult> {
   const trimmed = title.trim();
   if (!trimmed) return { ok: false, error: "Milestone title is required", status: 400 };
+
+  let created: CreatedMilestoneWire | null = null;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -38,18 +50,30 @@ export async function appendCanonicalMilestoneForGoal(
 
       const insertPosition = maxMilestonePosition(rows) + 1;
 
-      await tx.milestone.create({
+      const milestone = await tx.milestone.create({
         data: {
           goalId,
           title: trimmed,
           description: "",
           position: insertPosition,
         },
+        select: { id: true, title: true, position: true },
       });
+
+      created = {
+        id: milestone.id,
+        title: milestone.title,
+        position: milestone.position,
+        completedAt: null,
+      };
     });
 
+    if (!created) {
+      return { ok: false, error: "Could not add milestone", status: 500 };
+    }
+
     await recomputeGoalStatus(goalId);
-    return { ok: true };
+    return { ok: true, milestone: created };
   } catch (e: unknown) {
     const code =
       e && typeof e === "object" && "code" in e && typeof (e as { code: unknown }).code === "string"

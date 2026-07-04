@@ -44,7 +44,7 @@ vi.mock("@/lib/map/compile-reading-packet", async (importOriginal) => {
   return {
     ...actual,
     compileReadingPacket: mocks.compileReadingPacket,
-    readingPacketToJson: (packet: unknown) => JSON.stringify(packet, null, 2),
+    readingPacketToJson: (packet: unknown) => JSON.stringify(packet),
   };
 });
 

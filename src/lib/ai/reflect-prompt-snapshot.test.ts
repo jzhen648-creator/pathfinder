@@ -18,10 +18,13 @@ function promptFingerprint(prompt: string): string {
 describe("reflect prompt snapshots", () => {
   it("full-scope prompt fingerprint is stable", () => {
     const prompt = buildReflectSystemPrompt(ENRICH_OPTIONS, "full", false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"4d2fb5e9dc39245fbe0836a48f4a460e5451c7d32baaf64a980b67a8c1d99693"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"e895e4d800fcf88b6f97f5862ee91e7d6d054365e5aa642185c582db6cf74c2c"`);
     expect(prompt).toContain("TENSION, NOT FORECAST:");
     expect(prompt).toContain("PLAN IMPLICATION");
     expect(prompt).toContain("ATTRIBUTES AT A DATE");
+    expect(prompt).toContain("AGE CHRONOLOGY VOICING");
+    expect(prompt).toContain("CHAPTER HEADLINE JOB");
+    expect(prompt).toContain("CONCRETE NOUNS");
     expect(prompt).toContain("Move 5 — Plan frontier");
     expect(prompt).toContain("FROM YOUR MAP — map facts the oneLiner did not already state");
     expect(prompt).toContain("THEME READING FIELD LANES");
@@ -41,11 +44,13 @@ describe("reflect prompt snapshots", () => {
 
   it("pursuits-only prompt fingerprint is stable", () => {
     const prompt = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"e42925383a1b34ac6d5959668c665d43de00f9f9c1b0b48c26d612c3e07b9641"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"d93d04b872973a833512b30c827c69f877a7451e3b3180c93e1227a971810e01"`);
     expect(prompt).not.toContain("THEME INSIGHTS");
     expect(prompt).toContain("TENSION, NOT FORECAST:");
     expect(prompt).toContain("PLAN IMPLICATION");
     expect(prompt).toContain("ATTRIBUTES AT A DATE");
+    expect(prompt).toContain("AGE CHRONOLOGY VOICING");
+    expect(prompt).toContain("CHAPTER HEADLINE JOB");
     expect(prompt).toContain("CHAPTER READING FIELD LANES");
     expect(prompt).toContain("CHAPTER READING AUTHORSHIP");
     expect(prompt).toContain("Worth knowing ·");

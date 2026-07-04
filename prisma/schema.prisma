@@ -44,6 +44,20 @@ model User {
   userMemoryHistory       UserMemoryHistory[]
   pursuitContextEntries   PursuitContextEntry[]
   pursuitRelationships    PursuitRelationship[]
+  betaUsageEvents         BetaUsageEvent[]
+}
+
+/// Friends-and-family TestFlight usage telemetry (client + server auth events).
+model BetaUsageEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  props     Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([name, createdAt])
 }
 
 /// Pursuit (`Goal`) lifecycle + reused on `ThemeCategory` / timeline derivation.

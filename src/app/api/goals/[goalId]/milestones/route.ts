@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { appendCanonicalMilestoneForGoal } from "@/lib/append-canonical-milestone";
+import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { appendCanonicalTreeMilestoneBodySchema } from "@/lib/validation/append-canonical-milestone";
 
 type RouteProps = { params: Promise<{ goalId: string }> };
 
-/**
- * Phase 1 tree write convergence: append one relational `Milestone` (tree “Add step…” / AI chips).
- * Legacy `PATCH …/goals/[id]` JSON orbitals remain for checkbox edits on JSON-only goals only.
- */
+/** Append one relational Milestone (manual add or accept AI suggestion chip). */
 export async function POST(request: Request, props: RouteProps) {
   const auth = await requireApiSessionUserId();
   if (!auth.ok) return auth.response;
@@ -34,5 +32,7 @@ export async function POST(request: Request, props: RouteProps) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  await markPursuitReadingDirty(userId, goalId, "milestone_added");
+
+  return NextResponse.json({ ok: true, milestone: result.milestone }, { status: 201 });
 }

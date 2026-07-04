@@ -84,11 +84,41 @@ export const DATE_DEADLINE_ARITHMETIC_RULE = [
 export const ATTRIBUTES_AT_A_DATE_RULE = [
   "ATTRIBUTES AT A DATE (age, location, employment):",
   "- User context includes Date of birth, Age (today only), and Current context (as of Today) for location, education, employment, and occupation.",
-  "- <chapter_age_facts> lists authoritative age-at-start per chapter when Timeline started is user-set — use these for past starts.",
+  "- <chapter_age_facts> lists authoritative age-at-start per chapter when Timeline started is user-set — sorted chronologically with voicing hints.",
   "- Never apply the Age: line to a past or future event — e.g. do NOT say someone started a chapter \"at 19\" when Age: is 19 today but the chapter started years ago.",
   "- For when a chapter started or finished, use <chapter_age_facts>, focal_chapter_facts Age at start / Age at completion, or compute from Date of birth plus Timeline started / Completed.",
   "- Added to map is when the chapter was created in the app — not a user-set start date; do not treat it as when life activity began.",
   "- Location, employment, and occupation describe the user today only — do not attach them to historical chapters unless background explicitly says so.",
+  "",
+  "AGE CHRONOLOGY VOICING (theme reflective and chapter body when dates exist):",
+  "- Follow <chapter_age_facts> voicing hints — state the age at the first anchor and whenever it advances.",
+  "- When consecutive chapters share the same age/year, use a relative marker (\"that same year\", \"soon after\") instead of repeating the number.",
+  "- Do not invent sub-year intervals (\"months later\") unless both dates have month/day precision — not year-only Jan 1 defaults.",
+  "- Factual chronology only — not \"progression\" or \"clear path\" synthesis (that ban applies to theme oneLiner).",
+  "",
+  'Right: "At 17 the apprenticeship, and that same year the Level 3 course; the first mortgage role came two years on, at 19."',
+  'Wrong: "The apprenticeship started at 17. The Level 3 course started at 17. The first role started at 19."',
+].join("\n");
+
+export const PURSUIT_HEADLINE_FIELD_JOB = [
+  "CHAPTER HEADLINE JOB:",
+  "- State the single most specific present-tense fact — a number, a gap, a deadline proximity, or a milestone frontier.",
+  "- The reader already sees status in the meta strip — do NOT narrate status (\"in progress\", \"ongoing\", \"active\", \"currently working\", \"progressing well\").",
+  "",
+  'Wrong: "Half-marathon training is in progress."',
+  'Right: "Race in ten weeks; longest logged run still 8k."',
+].join("\n");
+
+export const PROSE_CONCRETE_NOUNS_RULE = [
+  "CONCRETE NOUNS (every sentence):",
+  "- Each sentence must carry at least one concrete noun from this map — a chapter title, a number, a date, or an entered fact.",
+  "- Cut sentences that only link or summarize without new map substance.",
+  "",
+  "Banned connective filler alone:",
+  '- "this reflects", "overall picture", "in terms of", "landscape of", "journey toward", "broader context".',
+  "",
+  'Wrong: "This reflects your broader commitment to long-term growth across several active chapters."',
+  'Right: "ISA chapter: £12,400 of £500,000; Emergency fund chapter: complete with £8k saved."',
 ].join("\n");
 
 export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
@@ -102,4 +132,23 @@ export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
   '- Wrong: "This balanced approach to debt reduction and asset growth demonstrates robust financial management."',
   '- Right: "The debt\'s cleared and the ISA is a quarter of the way there. Two different speeds, both moving."',
   "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
+].join("\n");
+
+export const REFLECT_VOICE_ANTI_PATTERNS = [
+  "VOICE ANTI-PATTERNS (chapter headline/body/comparison):",
+  "- Do not open any text with the user's name (\"Alex, ...\").",
+  "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
+  "- Do not use \"significant\" as filler — name what is actually notable.",
+  "- Do not write \"You have been making progress\" — say what the progress is.",
+  "- No filler words alone: \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
+  VOICE_EVALUATIVE_ANTI_PATTERNS,
+].join("\n");
+
+export const REFLECT_CORE_RULES = [
+  "CORE RULES:",
+  "- Name chapters VERBATIM from map context — never paraphrase titles.",
+  "- Never invent chapters or connections not in the data.",
+  "- Existing milestones on the map are facts — do not duplicate them in prose. Proposing new waypoints in suggestedMilestones is allowed when the user message permits.",
+  "- Do not restate status changes, edits, or metadata updates in headline or body.",
+  "- Be honest about gaps and sparse maps.",
 ].join("\n");

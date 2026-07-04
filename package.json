@@ -42,6 +42,7 @@
     "purge:legacy-desktop-data": "npx tsx scripts/purge-legacy-desktop-data.ts",
     "benchmark:api": "npx tsx scripts/benchmark-api.ts",
     "smoke-test": "npx tsx scripts/smoke-test.ts",
+    "report:beta-usage": "npx tsx scripts/beta-usage-report.ts",
     "qa:live-smoke": "npx tsx scripts/qa-live-smoke.ts",
     "qa:live-smoke:full": "npx tsx scripts/qa-live-smoke-full.ts",
     "qa:quality-eval": "npx tsx scripts/qa-quality-eval.ts",

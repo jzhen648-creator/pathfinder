@@ -1,62 +1,44 @@
 {
-  "generatedAt": "2026-06-21T08:44:24.631Z",
-  "reports": [
+  "generatedAt": "2026-07-04T14:11:54.408Z",
+  "advisory": true,
+  "fixtureCount": 6,
+  "flaggedCount": 0,
+  "fixtures": [
     {
-      "id": "tension-finance-pursuit",
-      "flags": [],
-      "pass": true,
-      "source": "static"
+      "id": "p-cemap",
+      "headline": "CeMAP qualification — next step",
+      "body": "CeMAP qualification is on the map. One concrete move would clarify progress.",
+      "flags": []
     },
     {
-      "id": "forecast-finance-pursuit",
-      "flags": [
-        "banned-forecast:might mean",
-        "banned-forecast:potentially pushing",
-        "banned-forecast:potentially "
-      ],
-      "pass": true,
-      "source": "static"
+      "id": "p-lead",
+      "headline": "Product Lead search — next step",
+      "body": "Product Lead search is on the map. One concrete move would clarify progress.",
+      "flags": []
     },
     {
-      "id": "status-narration-headline",
-      "flags": [
-        "status-narration-headline:active pursuit"
-      ],
-      "pass": true,
-      "source": "static"
+      "id": "p-senior",
+      "headline": "Senior Engineer at Acme — next step",
+      "body": "Senior Engineer at Acme is on the map. One concrete move would clarify progress.",
+      "flags": []
     },
     {
-      "id": "theme-tension-pass",
-      "flags": [],
-      "pass": true,
-      "source": "static"
+      "id": "p-speaking",
+      "headline": "Public speaking — next step",
+      "body": "Public speaking is on the map. One concrete move would clarify progress.",
+      "flags": []
     },
     {
-      "id": "theme-filler-fail",
-      "flags": [
-        "banned-filler:connective tissue",
-        "banned-filler:threads together"
-      ],
-      "pass": true,
-      "source": "static"
+      "id": "p-isa",
+      "headline": "£500,000 ISA — next step",
+      "body": "£500,000 ISA is on the map. One concrete move would clarify progress.",
+      "flags": []
     },
     {
-      "id": "sparse-panels",
-      "flags": [],
-      "pass": true,
-      "source": "fake-provider"
-    },
-    {
-      "id": "dense-panels",
-      "flags": [],
-      "pass": true,
-      "source": "fake-provider"
-    },
-    {
-      "id": "full-reflect-themes",
-      "flags": [],
-      "pass": true,
-      "source": "fake-provider"
+      "id": "p-debt",
+      "headline": "Clear £10,000 credit card debt — next step",
+      "body": "Clear £10,000 credit card debt is on the map. One concrete move would clarify progress.",
+      "flags": []
     }
   ]
 }

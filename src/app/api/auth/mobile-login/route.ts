@@ -7,6 +7,7 @@ import {
   signMobileSessionJwt,
   type MobileAuthResponse,
 } from "@/lib/mobile-auth";
+import { recordBetaUsageEvents } from "@/lib/telemetry/beta-usage";
 import {
   AUTH_RATE_LIMITS,
   clientIpFromRequest,
@@ -90,6 +91,10 @@ export async function POST(request: Request) {
     },
     secret,
   );
+
+  await recordBetaUsageEvents(user.id, [{ name: "auth.login" }]).catch(() => {
+    // Non-blocking
+  });
 
   const response: MobileAuthResponse = {
     token,

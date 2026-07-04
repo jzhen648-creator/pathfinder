@@ -3,12 +3,14 @@
 export const THEME_INSIGHT_FIELD_LANES = [
   "THEME READING FIELD LANES:",
   "- oneLiner: the read — one sentence on where this theme's weight sits or what tension defines it.",
+  "  When Active chapters have deadlines or targets, close with what the user is aiming toward on the map — plan mirror, not praise.",
   "- reflective (From your map): map-grounding the read did not already say —",
   "  name chapters verbatim and cite entered facts (amounts, deadlines, milestone completion, status contrasts).",
+  "  When <chapter_age_facts> exists, you may anchor facts in age-chronology order — follow voicing hints; do not restate an unchanged age.",
   "- Do NOT restate the oneLiner's conclusion in reflective — if a sentence could replace the headline, delete it.",
   "- Wrong: oneLiner \"Long-term investing is the through-line\"; reflective \"The theme centers on building wealth through steady contributions toward a significant target.\"",
   '- Right: oneLiner "The ISA target and current balance are miles apart — contributions are set but the gap is the story.";',
-  '  reflective "ISA chapter: £12,400 of £500,000; £200/month contribution; Emergency fund chapter: complete with £8k saved."',
+  '  reflective "At 17 the apprenticeship, and that same year the Level 3 course; the first mortgage role came two years on, at 19."',
 ].join("\n");
 
 export const THEME_INSIGHT_NON_DUPLICATION = [
@@ -119,7 +121,7 @@ export const PURSUIT_PANEL_UI_CONTEXT = [
 
 export const PURSUIT_CONTEXT_TAB_NON_DUPLICATION = [
   "CHAPTER CONTEXT TAB NON-DUPLICATION:",
-  "- enrichAnswers (Quick Question answers) appear on the chapter Context tab — the user already sees prompt + selectedOption there.",
+  "- enrichAnswers (Quick Question answers) appear on the chapter About tab — the user already sees prompt + selectedOption there.",
   "- Do NOT restate enrichAnswers in headline, body, or comparison (no listing supplements, routes, or options the user already confirmed).",
   "- comparison (Worth knowing) may add consequential domain gloss FOR those facts (what that stack opens for their training chapter)",
   "  without repeating that the user takes them.",
@@ -171,7 +173,7 @@ export const PURSUIT_COMPARISON_FIELD_JOBS = [
   "- Off-spec: bare definitional gloss with no link to their situation (\"mortgage broker roles involve sourcing",
   "  cases across lenders\"). If the only available domain note would be generic/definitional, omit comparison.",
   "- Body owns map-relationships and cross-chapter angles; worth-knowing owns consequential domain context for THIS chapter.",
-  "- Do NOT restate enrichAnswers (Context tab) — interpret them with domain gloss only; never list what the user already confirmed.",
+  "- Do NOT restate enrichAnswers (About tab) — interpret them with domain gloss only; never list what the user already confirmed.",
   "- Do NOT restate Status, Deadline, Significance, or milestone progress (Details row + body own those).",
   "- Do NOT borrow another chapter's progress story — e.g. on a broker-role card, do NOT restate a sibling",
   "  qualification's completion timeline; say what the broker role opens given their map.",

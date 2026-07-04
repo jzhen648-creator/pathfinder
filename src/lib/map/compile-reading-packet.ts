@@ -654,13 +654,19 @@ export async function resolveFocusCategoryIds(
   return ids;
 }
 
+export type CompileReadingPacketOptions = {
+  /** Preloaded map — skips formatMapContext when reflect sync already loaded it. */
+  mapContext?: FormattedMapContext;
+};
+
 export async function compileReadingPacket(
   userId: string,
   dirty: ReadingDirtyAnalysis,
+  opts?: CompileReadingPacketOptions,
 ): Promise<ReadingPacket> {
   const now = Date.now();
   const [mapContext, dirtyRows, focusCategoryIds] = await Promise.all([
-    formatMapContext(userId),
+    opts?.mapContext ? Promise.resolve(opts.mapContext) : formatMapContext(userId),
     listReadingDirtyRows(userId),
     resolveFocusCategoryIds(userId, dirty),
   ]);
@@ -686,7 +692,7 @@ export async function compileReadingPacket(
 }
 
 export function readingPacketToJson(packet: ReadingPacket): string {
-  return JSON.stringify(orderReadingPacketKeys(packet), null, 2);
+  return JSON.stringify(orderReadingPacketKeys(packet));
 }
 
 /** Theme label helper for tests. */

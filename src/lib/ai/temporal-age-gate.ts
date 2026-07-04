@@ -29,6 +29,77 @@ const PAST_TRANSITION_HINT =
 const EXPLICIT_START_AT_AGE =
   /\b((?:starting|started|beginning|began|commenced)\b[^.!?]{0,140}?\bat\s+(?:age\s+)?)(\d+)\b/gi;
 
+function parseYmd(ymd: string): { year: number; month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!match) return null;
+  const year = Number.parseInt(match[1]!, 10);
+  const month = Number.parseInt(match[2]!, 10);
+  const day = Number.parseInt(match[3]!, 10);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  return { year, month, day };
+}
+
+/** Year-only entries often default to Jan 1 — do not invent sub-year intervals from them. */
+export function isYearPrecisionOnly(timelineStart: string): boolean {
+  return /^\d{4}-01-01$/.test(timelineStart.trim());
+}
+
+function calendarYear(ymd: string): number | null {
+  return parseYmd(ymd)?.year ?? null;
+}
+
+function hasSubYearPrecision(ymd: string): boolean {
+  const parts = parseYmd(ymd);
+  if (!parts) return false;
+  return !(parts.month === 1 && parts.day === 1);
+}
+
+function yearDeltaBetween(startA: string, startB: string): number | null {
+  const yearA = calendarYear(startA);
+  const yearB = calendarYear(startB);
+  if (yearA == null || yearB == null) return null;
+  return yearB - yearA;
+}
+
+function voicingHintForStep(
+  fact: ChapterAgeFact,
+  previous: ChapterAgeFact | null,
+): string {
+  if (!previous) {
+    return `${fact.title} — age ${fact.ageAtStart} (anchor)`;
+  }
+
+  const sameAge = fact.ageAtStart === previous.ageAtStart;
+  const prevYear = calendarYear(previous.timelineStart);
+  const currYear = calendarYear(fact.timelineStart);
+  const sameCalendarYear = prevYear != null && currYear != null && prevYear === currYear;
+  const ageDelta = fact.ageAtStart - previous.ageAtStart;
+  const yearDelta = yearDeltaBetween(previous.timelineStart, fact.timelineStart);
+
+  if (sameAge && sameCalendarYear) {
+    const subYearOk =
+      hasSubYearPrecision(previous.timelineStart) && hasSubYearPrecision(fact.timelineStart);
+    if (subYearOk) {
+      return `${fact.title} — same age (${fact.ageAtStart}), same year → use "that same year" / "soon after" (do not restate the age)`;
+    }
+    return `${fact.title} — same age (${fact.ageAtStart}), same year → use "that same year" (do not restate the age)`;
+  }
+
+  if (sameAge && !sameCalendarYear) {
+    return `${fact.title} — still age ${fact.ageAtStart}, later year → relative marker OK; do not repeat the number unless it helps clarity`;
+  }
+
+  if (ageDelta > 0) {
+    const yearsOn =
+      yearDelta != null && yearDelta > 0
+        ? `${yearDelta} year${yearDelta === 1 ? "" : "s"} on`
+        : "later";
+    return `${fact.title} — age ${fact.ageAtStart} (${yearsOn}) → state the new age`;
+  }
+
+  return `${fact.title} — age ${fact.ageAtStart} → state the age if it anchors the sequence`;
+}
+
 function significantTitleTokens(title: string): string[] {
   return title
     .toLowerCase()
@@ -76,18 +147,27 @@ export function collectChapterAgeFacts(
       }
     }
   }
-  return facts;
+  return facts.sort((a, b) => a.timelineStart.localeCompare(b.timelineStart));
 }
 
 export function formatChapterAgeFactsBlock(facts: ChapterAgeFact[]): string | null {
   if (facts.length === 0) return null;
+
+  const sorted = [...facts].sort((a, b) => a.timelineStart.localeCompare(b.timelineStart));
   const lines = [
+    "Chronology (ages are anchors; do not restate an age that has not changed):",
     "Authoritative ages when chapters started — use for past starts; never substitute today's Age: line.",
-    ...facts.map(
-      (fact) =>
-        `${fact.title}: Timeline started ${fact.timelineStart}, age at start ${fact.ageAtStart}`,
-    ),
   ];
+
+  for (let i = 0; i < sorted.length; i += 1) {
+    const fact = sorted[i]!;
+    const previous = i > 0 ? sorted[i - 1]! : null;
+    lines.push(`- ${voicingHintForStep(fact, previous)}`);
+    lines.push(
+      `  ${fact.title}: Timeline started ${fact.timelineStart}, age at start ${fact.ageAtStart}`,
+    );
+  }
+
   return lines.join("\n");
 }
 

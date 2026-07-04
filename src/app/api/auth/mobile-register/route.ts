@@ -8,6 +8,7 @@ import {
   signMobileSessionJwt,
   type MobileAuthResponse,
 } from "@/lib/mobile-auth";
+import { recordBetaUsageEvents } from "@/lib/telemetry/beta-usage";
 import {
   AUTH_RATE_LIMITS,
   clientIpFromRequest,
@@ -74,6 +75,10 @@ export async function POST(request: Request) {
   });
 
   await ensureTaxonomyCurrent(prisma, user.id);
+
+  await recordBetaUsageEvents(user.id, [{ name: "auth.register" }]).catch(() => {
+    // Non-blocking — registration must succeed even if telemetry fails.
+  });
 
   const token = await signMobileSessionJwt(
     {

@@ -1,75 +1,15 @@
-# Pathfinder - Cursor Rules
+# Almanac API (`pathfinder/`)
 
-## Project Stack
-- Next.js 14 App Router
-- TypeScript (strict mode)
-- Prisma ORM with SQLite (dev)
-- NextAuth for authentication
-- Tailwind CSS
-- Groq API for AI (GROQ_API_KEY in .env)
+This repo is **API-only** — Next.js `/api/*`, Prisma, domain + AI libs for the Expo client in `pathfinder-mobile/`.
 
-## After Every Change
-- Always run: npx tsc --noEmit
-- Always list which files were changed
-- Always summarise what was changed and why
-- Always confirm if mock data toggle still works
+**Canonical agent rules:** [`AGENTS.md`](./AGENTS.md)
 
-## Never Touch Without Asking
-- Any file in src/app/api/auth/
-- Any NextAuth configuration
-- prisma/schema.prisma (ask first, then change)
-- Any existing API route (extend, never replace)
-- The BRANCHES array angles (ask first)
-- Authentication session logic
+**Read first:** [`../PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) · [`../PATHFINDER-CORRECTED-FACTS.md`](../PATHFINDER-CORRECTED-FACTS.md)
 
-## Code Style
-- Use DM Sans for all UI text
-- Use Cormorant Garamond for display/heading text
-- Dark background is always #040A14
-- Never hardcode colours - use branch.color
-- Never use !important in CSS
-- Prefer CSS transitions over JS animations
-- Keep components under 300 lines - split if larger
+**Desktop web UI:** removed — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). Do not extend retired tree/map UI.
 
-## Before Any Big Change
-- Check if change affects mock data toggle
-- Check if change affects mobile layout
-- Check feature flags before adding new UI
-- Run git checkpoint before destructive changes
+**After changes:** `npx tsc --noEmit` · `npm test` when touching `src/lib/`
 
-## Architecture Rules
-- Life map nodes always go through transformGoals() before rendering
-- New features must have a feature flag in src/lib/flags.ts before being built
-- Never fetch data inside SVG rendering logic
-- Keep AI API calls in /api routes only - never call AI from client components directly
+**Never touch without asking:** `prisma/schema.prisma`, NextAuth config, `src/app/api/auth/`
 
-## Key File Locations (updated)
-- Branch config: src/data/branches.ts
-- Feature flags: src/config/flags.ts
-- Map geometry: src/utils/geometry.ts
-- Mock data: src/data/mock-data.ts
-- Main map screen: src/screens/LifeMap.tsx
-- Guided flow: src/components/guided-flow/
-- Map components: src/components/map/
-
-## When asked to change branch layout
-Always edit src/utils/geometry.ts and
-src/data/branches.ts — never hardcode
-positions in component files.
-
-## When asked to add a feature
-Always add to src/config/flags.ts first
-set to false, then build it, then set to true.
-
-## Naming Conventions
-- Components: PascalCase
-- API routes: kebab-case
-- Utility functions: camelCase
-- Constants: UPPER_SNAKE_CASE
-- Branch ids: lowercase no spaces
-
-## Testing
-- Mock data lives in src/data/mock-data.ts
-- Toggle with NEXT_PUBLIC_USE_MOCK_DATA=true
-- Test accounts defined in prisma/seed.ts
-- Always test with mock data before real data
+**AI:** Gemini primary (`USE_REFLECT_CALL=true` in prod); keep AI calls in `/api` routes only.

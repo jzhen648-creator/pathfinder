@@ -1,12 +1,16 @@
-# QA quality report (advisory)
+# QA quality eval (advisory)
 
-Generated: 2026-06-21T08:44:24.632Z
+Generated: 2026-07-04T14:11:54.408Z
 
-- **tension-finance-pursuit** (static): pass
-- **forecast-finance-pursuit** (static): pass
-- **status-narration-headline** (static): pass
-- **theme-tension-pass** (static): pass
-- **theme-filler-fail** (static): pass
-- **sparse-panels** (fake-provider): pass
-- **dense-panels** (fake-provider): pass
-- **full-reflect-themes** (fake-provider): pass
+Fixtures: 6 · Flagged: 0
+
+| Fixture | Flags |
+|---------|-------|
+| p-cemap | — |
+| p-lead | — |
+| p-senior | — |
+| p-speaking | — |
+| p-isa | — |
+| p-debt | — |
+
+_Advisory only — does not fail CI._

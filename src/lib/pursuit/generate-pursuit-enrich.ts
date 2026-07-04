@@ -222,7 +222,7 @@ function buildPursuitEnrichUserMessage(
     insightContext.scopedChapterJson,
     "",
     "<confirmed_on_context_tab>",
-    "Already visible on the chapter Context tab — supporting interpretation only; do not restate in headline/body.",
+    "Already visible on the chapter About tab — supporting interpretation only; do not restate in headline/body.",
     insightContext.confirmedOnContextTabJson,
     "</confirmed_on_context_tab>",
   ].join("\n");

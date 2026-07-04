@@ -15,24 +15,16 @@ export function buildPursuitEnrichInsightContext(
 
   return {
     focalFacts,
-    focalFactsJson: JSON.stringify(
-      {
-        pursuitId: context.pursuit.id,
-        title: context.pursuit.title,
-        facts: focalFacts,
-      },
-      null,
-      2,
-    ),
-    scopedChapterJson: JSON.stringify(
-      {
-        pursuit: pursuitWithoutEnrich,
-        siblingPursuits: context.siblingPursuits,
-        siblingMarks: context.siblingMarks,
-      },
-      null,
-      2,
-    ),
-    confirmedOnContextTabJson: JSON.stringify(enrichAnswers ?? [], null, 2),
+    focalFactsJson: JSON.stringify({
+      pursuitId: context.pursuit.id,
+      title: context.pursuit.title,
+      facts: focalFacts,
+    }),
+    scopedChapterJson: JSON.stringify({
+      pursuit: pursuitWithoutEnrich,
+      siblingPursuits: context.siblingPursuits,
+      siblingMarks: context.siblingMarks,
+    }),
+    confirmedOnContextTabJson: JSON.stringify(enrichAnswers ?? []),
   };
 }

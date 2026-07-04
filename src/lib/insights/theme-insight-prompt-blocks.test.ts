@@ -27,7 +27,8 @@ describe("theme-insight-prompt-blocks", () => {
     expect(THEME_INSIGHT_FIELD_LANES).toContain("THEME READING FIELD LANES");
     expect(THEME_INSIGHT_FIELD_LANES).toContain("Do NOT restate the oneLiner");
     expect(THEME_INSIGHT_FIELD_LANES).toContain("Long-term investing is the through-line");
-    expect(THEME_INSIGHT_FIELD_LANES).toContain("£12,400 of £500,000");
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("At 17 the apprenticeship");
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("<chapter_age_facts>");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("THEME READING FIELD LANES");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("Ban near-duplicate phrasing");
   });
