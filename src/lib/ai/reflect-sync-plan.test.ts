@@ -149,6 +149,17 @@ describe("planReflectWork", () => {
 
   it("prefers dirty incremental sync when insightsStale and ledger has active edits", async () => {
     mocks.dirtyFindMany.mockResolvedValue([{ reason: "pursuit_updated" }]);
+    mocks.insightFindUnique.mockResolvedValue({
+      themeInsights: {
+        health: {
+          tone: "encouraging",
+          oneLiner: "Health is active.",
+          reflective: "",
+          contextual: "",
+          combined: "",
+        },
+      },
+    });
 
     const dirty: ReadingDirtyAnalysis = {
       ...emptyDirty(),
@@ -170,9 +181,20 @@ describe("planReflectWork", () => {
     expect(plan.themeIds).toEqual([]);
   });
 
-  it("skips theme synthesis for edit-only dirty batches", async () => {
+  it("skips theme synthesis for edit-only dirty batches when theme insight exists", async () => {
     mocks.dirtyFindMany.mockResolvedValue([{ reason: "pursuit_updated" }]);
     mocks.goalFindMany.mockResolvedValue([{ themeId: "health" }]);
+    mocks.insightFindUnique.mockResolvedValue({
+      themeInsights: {
+        health: {
+          tone: "encouraging",
+          oneLiner: "Health is active.",
+          reflective: "",
+          contextual: "",
+          combined: "",
+        },
+      },
+    });
 
     const dirty: ReadingDirtyAnalysis = {
       ...emptyDirty(),
@@ -190,6 +212,80 @@ describe("planReflectWork", () => {
 
     expect(plan.mode).toBe("dirty");
     expect(plan.themeIds).toEqual([]);
+  });
+
+  it("includes missing theme ids for edit-only dirty batches", async () => {
+    mocks.dirtyFindMany.mockResolvedValue([{ reason: "pursuit_updated" }]);
+    mocks.goalFindMany.mockResolvedValue([{ themeId: "finance" }]);
+    mocks.insightFindUnique.mockResolvedValue({
+      themeInsights: {
+        work: {
+          tone: "encouraging",
+          oneLiner: "Work is active.",
+          reflective: "",
+          contextual: "",
+          combined: "",
+        },
+      },
+    });
+
+    const dirty: ReadingDirtyAnalysis = {
+      ...emptyDirty(),
+      activeDirtyPursuitIds: ["p-finance"],
+      totalItems: 1,
+      pursuitIds: ["p-finance"],
+      hasGlobal: true,
+    };
+
+    const plan = await planReflectWork(USER_ID, dirty, {
+      force: false,
+      insightsStale: false,
+      hasInsightCache: true,
+    });
+
+    expect(plan.mode).toBe("dirty");
+    expect(plan.pursuitIds).toEqual(["p-finance"]);
+    expect(plan.themeIds).toEqual(["finance"]);
+  });
+
+  it("repairs missing theme insights when the ledger is clean", async () => {
+    mocks.goalFindMany.mockImplementation((args: { where?: { themeId?: { in?: string[] } } }) => {
+      if (args?.where?.themeId?.in) {
+        return Promise.resolve([{ id: "p-finance" }]);
+      }
+      return Promise.resolve([{ id: "p-finance" }, { id: "p-work" }]);
+    });
+    mocks.formatMapContext.mockResolvedValue({
+      themes: [
+        { id: "work", categories: [{ pursuits: [{ id: "p-work" }] }] },
+        { id: "finance", categories: [{ pursuits: [{ id: "p-finance" }] }] },
+      ],
+    });
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        "p-finance": { tone: "in_focus", headline: "ISA", body: "Body" },
+        "p-work": { tone: "in_focus", headline: "Apprenticeship", body: "Body" },
+      },
+      themeInsights: {
+        work: {
+          tone: "encouraging",
+          oneLiner: "Work is active.",
+          reflective: "",
+          contextual: "",
+          combined: "",
+        },
+      },
+    });
+
+    const plan = await planReflectWork(USER_ID, emptyDirty(), {
+      force: false,
+      insightsStale: false,
+      hasInsightCache: true,
+    });
+
+    expect(plan.mode).toBe("dirty");
+    expect(plan.pursuitIds).toEqual(["p-finance"]);
+    expect(plan.themeIds).toEqual(["finance"]);
   });
 
   it("runs full refresh when pursuit archive is on the ledger", async () => {

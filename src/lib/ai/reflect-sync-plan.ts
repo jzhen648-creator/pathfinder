@@ -1,5 +1,9 @@
 import { formatMapContext } from "@/lib/ai/format-map-context";
-import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
+import type { InsightLevelPayload } from "@/lib/insights/insight-types";
+import {
+  parseInsightLevelRecord,
+  parsePursuitInsightRecord,
+} from "@/lib/insights/parse-insight-cache";
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import type { ReadingDirtyAnalysis } from "@/lib/map/reading-dirty-ledger";
 import {
@@ -60,6 +64,70 @@ export async function themeIdsForPursuits(
   return [...new Set(goals.map((goal) => goal.themeId ?? "becoming"))];
 }
 
+/** True when a theme insight row has at least one populated beat. */
+export function hasThemeInsightContent(insight: InsightLevelPayload): boolean {
+  return Boolean(
+    insight.oneLiner?.trim() ||
+      insight.reflective?.trim() ||
+      insight.combined?.trim() ||
+      insight.contextual?.trim(),
+  );
+}
+
+async function loadCachedThemeInsights(
+  userId: string,
+): Promise<Record<string, InsightLevelPayload>> {
+  const insightRow = await prisma.insightCache.findUnique({ where: { userId } });
+  if (!insightRow) return {};
+  return parseInsightLevelRecord(insightRow.themeInsights, "theme");
+}
+
+/** Themes in candidates that have chapters but no cached theme reading yet. */
+export function themeIdsMissingInsight(
+  cachedThemes: Record<string, InsightLevelPayload>,
+  candidateThemeIds: string[],
+): string[] {
+  const unique = [...new Set(candidateThemeIds.filter(Boolean))];
+  return unique.filter((themeId) => {
+    const insight = cachedThemes[themeId];
+    return !insight || !hasThemeInsightContent(insight);
+  });
+}
+
+async function filterThemesMissingCachedInsight(
+  userId: string,
+  candidateThemeIds: string[],
+): Promise<string[]> {
+  const cached = await loadCachedThemeInsights(userId);
+  return themeIdsMissingInsight(cached, candidateThemeIds);
+}
+
+/** Active themes with pursuits but no synthesized theme insight in cache. */
+export async function listMissingThemeInsightIds(userId: string): Promise<string[]> {
+  const themesWithChapters = await listDirtyThemeIds(userId);
+  if (themesWithChapters.length === 0) return [];
+  return filterThemesMissingCachedInsight(userId, themesWithChapters);
+}
+
+async function listEligiblePursuitIdsForThemes(
+  userId: string,
+  themeIds: string[],
+): Promise<string[]> {
+  const ids = [...new Set(themeIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  const goals = await prisma.goal.findMany({
+    where: {
+      userId,
+      themeId: { in: ids },
+      ...interpretationEligiblePursuitWhere,
+    },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return goals.map((goal) => goal.id);
+}
+
 async function buildFullReflectPlan(userId: string): Promise<ReflectWorkPlan> {
   return {
     mode: "full",
@@ -92,11 +160,13 @@ export async function planReflectWork(
     }
 
     const editOnly = await isEditOnlyDirtyBatch(userId);
-    const themeIds = editOnly
-      ? []
-      : dirty.themeIds.length > 0
+    const touchedThemeIds =
+      dirty.themeIds.length > 0
         ? dirty.themeIds
         : await themeIdsForPursuits(userId, dirty.activeDirtyPursuitIds);
+    const themeIds = editOnly
+      ? await filterThemesMissingCachedInsight(userId, touchedThemeIds)
+      : touchedThemeIds;
 
     return {
       mode: "dirty",
@@ -117,6 +187,18 @@ export async function planReflectWork(
       pursuitIds: missingPanelIds,
       themeIds: [],
     };
+  }
+
+  const missingThemeIds = await listMissingThemeInsightIds(userId);
+  if (missingThemeIds.length > 0) {
+    const pursuitIds = await listEligiblePursuitIdsForThemes(userId, missingThemeIds);
+    if (pursuitIds.length > 0) {
+      return {
+        mode: "dirty",
+        pursuitIds,
+        themeIds: missingThemeIds,
+      };
+    }
   }
 
   return { mode: "skip", pursuitIds: [], themeIds: [] };

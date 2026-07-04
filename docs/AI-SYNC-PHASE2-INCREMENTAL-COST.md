@@ -65,12 +65,14 @@ Per-chapter panel updates do not require re-generating all six theme `oneLiner`s
 
 | Trigger | Theme synthesis |
 |---------|-----------------|
-| Single chapter note edit | Skip theme regen; update pursuit panel only |
+| Single chapter note edit | Skip theme regen when theme insight already cached; update pursuit panel only |
+| Edit touching theme with **no cached insight yet** | Include that theme in `themeIds` (one full-scope batch 0 fill, then cheap edits resume) |
+| Clean ledger + missing theme insight | Dirty repair via `listMissingThemeInsightIds` |
 | Chapter added/archived | Full or theme-scoped regen |
 | Manual pull with force | Full regen |
 | Periodic (default 7 days) | Full regen for theme oneLiners + overall Reading hero — **shipped Phase 2.5** |
 
-Implementation: pass `themeIds: []` for edit-only dirty batches (`isEditOnlyDirtyBatch` already exists in [`reading-dirty-ledger.ts`](../src/lib/map/reading-dirty-ledger.ts)).
+Implementation: edit-only dirty batches pass `themeIds: []` **only when every touched theme already has cached insight**; otherwise filter to missing themes (`filterThemesMissingCachedInsight` in [`reflect-sync-plan.ts`](../src/lib/ai/reflect-sync-plan.ts)).
 
 ### C. Gemini context caching (deferred — decision gate)
 
