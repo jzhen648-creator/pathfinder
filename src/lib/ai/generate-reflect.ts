@@ -698,6 +698,9 @@ async function runReflectBatchesIncremental(
 ): Promise<ReflectSyncResult> {
   const batches = chunkReflectPursuitIds(plan.pursuitIds);
 
+  metrics.fullRefresh = plan.mode === "full";
+  metrics.incrementalRefresh = plan.mode === "dirty" || plan.mode === "panels-only";
+
   let insightsRefreshed = false;
   let callsMade = 0;
   const completedPursuitIds: string[] = [];
@@ -816,9 +819,11 @@ export async function runReflectSync(
   options.metrics.dirtyPursuits = dirty.pursuitIds.length;
   options.metrics.reflectCall = true;
 
+  const insightRow = await prisma.insightCache.findUnique({ where: { userId } });
   const plan = await planReflectWork(userId, dirty, {
     force: options.force,
     insightsStale: options.insightsStale,
+    hasInsightCache: Boolean(insightRow),
   });
 
   let workPlan = plan;

@@ -77,6 +77,6 @@ Implementation: [`src/lib/map/log-ai-sync-cost.ts`](../src/lib/map/log-ai-sync-c
 
 Pricing constants (`GEMINI_25_FLASH_*_USD_PER_M`) should be updated when the production model changes.
 
-## Phase 2 (not shipped)
+## Phase 2 (partial — shipped 2026-07-04)
 
-Today almost every refresh is **full-map regen** because `mapVersion` invalidates globally on any chapter edit. Phase 2 design: route auto-syncs to dirty-only `pursuits-only` scope + Gemini context caching. See [`AI-SYNC-PHASE2-INCREMENTAL-COST.md`](./AI-SYNC-PHASE2-INCREMENTAL-COST.md).
+Dirty-first reflect routing: edits with an active dirty ledger use incremental `mode: "dirty"` + `pursuits-only` scope (edit-only batches skip theme synthesis). Edit-triggered debounce (~60s) enabled on mobile. **Deferred:** Gemini explicit context caching — see [`AI-SYNC-PHASE2-INCREMENTAL-COST.md`](./AI-SYNC-PHASE2-INCREMENTAL-COST.md).

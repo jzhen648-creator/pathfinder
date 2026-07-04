@@ -346,6 +346,14 @@ export function needsFullStoryRegen(dirty: ReadingDirtyAnalysis): boolean {
   return false;
 }
 
+/** True when reflect must regenerate from the full map — archive/delete or no active dirty targets. */
+export function needsFullReflectRegen(dirty: ReadingDirtyAnalysis): boolean {
+  if (dirty.staleDirtyPursuitIds.length > 0) return true;
+  if (dirty.hasPursuitArchivedReason) return true;
+  if (dirty.hasGlobal && dirty.activeDirtyPursuitIds.length === 0) return true;
+  return false;
+}
+
 export async function clearReadingDirtyLedger(userId: string): Promise<void> {
   await prisma.aiReadingDirtyItem.deleteMany({ where: { userId } });
 }

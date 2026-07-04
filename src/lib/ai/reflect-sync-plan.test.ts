@@ -4,14 +4,17 @@ import { planReflectWork } from "@/lib/ai/reflect-sync-plan";
 
 const mocks = vi.hoisted(() => ({
   goalFindMany: vi.fn(),
+  goalCount: vi.fn(),
   insightFindUnique: vi.fn(),
   formatMapContext: vi.fn(),
+  dirtyFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    goal: { findMany: mocks.goalFindMany },
+    goal: { findMany: mocks.goalFindMany, count: mocks.goalCount },
     insightCache: { findUnique: mocks.insightFindUnique },
+    aiReadingDirtyItem: { findMany: mocks.dirtyFindMany },
   },
 }));
 
@@ -39,6 +42,8 @@ describe("planReflectWork", () => {
     mocks.formatMapContext.mockResolvedValue({
       themes: [{ id: "work", categories: [{ pursuits: [{ id: "p1" }] }] }],
     });
+    mocks.dirtyFindMany.mockResolvedValue([]);
+    mocks.goalCount.mockResolvedValue(12);
   });
 
   it("runs full refresh when force is true even if reading and panels are fresh", async () => {
@@ -71,6 +76,7 @@ describe("planReflectWork", () => {
     const plan = await planReflectWork(USER_ID, emptyDirty(), {
       force: false,
       insightsStale: false,
+      hasInsightCache: true,
     });
 
     expect(plan.mode).toBe("panels-only");
@@ -139,5 +145,70 @@ describe("planReflectWork", () => {
     expect(plan.mode).toBe("dirty");
     expect(plan.pursuitIds).toEqual(["p9"]);
     expect(plan.themeIds).toEqual(["health"]);
+  });
+
+  it("prefers dirty incremental sync when insightsStale and ledger has active edits", async () => {
+    mocks.dirtyFindMany.mockResolvedValue([{ reason: "pursuit_updated" }]);
+
+    const dirty: ReadingDirtyAnalysis = {
+      ...emptyDirty(),
+      activeDirtyPursuitIds: ["p9"],
+      themeIds: [],
+      totalItems: 2,
+      pursuitIds: ["p9"],
+      hasGlobal: true,
+    };
+
+    const plan = await planReflectWork(USER_ID, dirty, {
+      force: false,
+      insightsStale: true,
+      hasInsightCache: true,
+    });
+
+    expect(plan.mode).toBe("dirty");
+    expect(plan.pursuitIds).toEqual(["p9"]);
+    expect(plan.themeIds).toEqual([]);
+  });
+
+  it("skips theme synthesis for edit-only dirty batches", async () => {
+    mocks.dirtyFindMany.mockResolvedValue([{ reason: "pursuit_updated" }]);
+    mocks.goalFindMany.mockResolvedValue([{ themeId: "health" }]);
+
+    const dirty: ReadingDirtyAnalysis = {
+      ...emptyDirty(),
+      activeDirtyPursuitIds: ["p9"],
+      totalItems: 1,
+      pursuitIds: ["p9"],
+      hasGlobal: true,
+    };
+
+    const plan = await planReflectWork(USER_ID, dirty, {
+      force: false,
+      insightsStale: true,
+      hasInsightCache: true,
+    });
+
+    expect(plan.mode).toBe("dirty");
+    expect(plan.themeIds).toEqual([]);
+  });
+
+  it("runs full refresh when pursuit archive is on the ledger", async () => {
+    mocks.goalFindMany.mockResolvedValue([{ id: "p1" }]);
+
+    const dirty: ReadingDirtyAnalysis = {
+      ...emptyDirty(),
+      activeDirtyPursuitIds: ["p9"],
+      hasPursuitArchivedReason: true,
+      totalItems: 2,
+      pursuitIds: ["p9"],
+    };
+
+    const plan = await planReflectWork(USER_ID, dirty, {
+      force: false,
+      insightsStale: false,
+      hasInsightCache: true,
+    });
+
+    expect(plan.mode).toBe("full");
   });
 });

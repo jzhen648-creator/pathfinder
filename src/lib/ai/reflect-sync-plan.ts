@@ -2,6 +2,11 @@ import { formatMapContext } from "@/lib/ai/format-map-context";
 import { parsePursuitInsightRecord } from "@/lib/insights/parse-insight-cache";
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import type { ReadingDirtyAnalysis } from "@/lib/map/reading-dirty-ledger";
+import {
+  isEditOnlyDirtyBatch,
+  needsFullReflectRegen,
+  shouldUseFullReadingRefresh,
+} from "@/lib/map/reading-dirty-ledger";
 import { prisma } from "@/lib/prisma";
 
 export type ReflectWorkMode = "skip" | "dirty" | "full" | "panels-only";
@@ -55,9 +60,18 @@ export async function themeIdsForPursuits(
   return [...new Set(goals.map((goal) => goal.themeId ?? "becoming"))];
 }
 
+async function buildFullReflectPlan(userId: string): Promise<ReflectWorkPlan> {
+  return {
+    mode: "full",
+    pursuitIds: await listEligiblePursuitIds(userId),
+    themeIds: await listDirtyThemeIds(userId),
+  };
+}
+
 /**
  * Decide which pursuits/themes need reflect work.
  * Manual force refresh regenerates theme readings + all pursuit panels.
+ * Incremental dirty sync runs even when mapVersion drift marks insights stale.
  */
 export async function planReflectWork(
   userId: string,
@@ -65,26 +79,34 @@ export async function planReflectWork(
   options: {
     force?: boolean;
     insightsStale: boolean;
+    hasInsightCache?: boolean;
   },
 ): Promise<ReflectWorkPlan> {
-  if (options.insightsStale || options.force) {
-    return {
-      mode: "full",
-      pursuitIds: await listEligiblePursuitIds(userId),
-      themeIds: await listDirtyThemeIds(userId),
-    };
+  if (options.force === true || needsFullReflectRegen(dirty)) {
+    return buildFullReflectPlan(userId);
   }
 
   if (dirty.activeDirtyPursuitIds.length > 0) {
-    const themeIds =
-      dirty.themeIds.length > 0
+    if (await shouldUseFullReadingRefresh(userId, dirty.activeDirtyPursuitIds.length)) {
+      return buildFullReflectPlan(userId);
+    }
+
+    const editOnly = await isEditOnlyDirtyBatch(userId);
+    const themeIds = editOnly
+      ? []
+      : dirty.themeIds.length > 0
         ? dirty.themeIds
         : await themeIdsForPursuits(userId, dirty.activeDirtyPursuitIds);
+
     return {
       mode: "dirty",
       pursuitIds: dirty.activeDirtyPursuitIds,
       themeIds,
     };
+  }
+
+  if (!options.hasInsightCache || options.insightsStale) {
+    return buildFullReflectPlan(userId);
   }
 
   const missingPanelIds = await listMissingPursuitPanelIds(userId);
@@ -107,6 +129,7 @@ export async function reflectSyncWouldSkip(
   options: {
     force?: boolean;
     insightsStale: boolean;
+    hasInsightCache?: boolean;
   },
 ): Promise<boolean> {
   const plan = await planReflectWork(userId, dirty, options);

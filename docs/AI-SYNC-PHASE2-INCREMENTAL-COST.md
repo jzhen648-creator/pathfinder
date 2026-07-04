@@ -1,6 +1,6 @@
 # AI sync Phase 2 — incremental cost decoupling (design only)
 
-**Status:** Design doc — not implemented. Phase 1 (foreground-only background sync) shipped 2026-07-04.
+**Status:** Partially shipped 2026-07-04 — dirty-first routing, edit-only theme skip, edit-triggered debounce. Gemini explicit context caching deferred.
 
 **Problem:** Today almost every reading refresh is a **full whole-map regeneration**, even when only one chapter changed. Token cost scales with `(sync frequency) × (full map size)` instead of `(sync frequency) × (changed chapters)`.
 

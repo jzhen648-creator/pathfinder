@@ -201,6 +201,31 @@ describe("runReflectBatchesIncremental", () => {
     expect(clearReadingDirtyLedger).toHaveBeenCalledWith(USER_ID);
   });
 
+  it("uses pursuits-only scope for edit-only dirty batches without theme synthesis", async () => {
+    const ids = pursuitIds(3);
+    const scopes: Array<string | undefined> = [];
+    setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) => {
+      scopes.push(options?.scope);
+      return mockReflectForBatch(batch, options?.scope === "full");
+    });
+
+    const metrics = emptyMapAiSyncMetrics();
+    await runReflectBatchesIncremental(
+      USER_ID,
+      emptyDirty(),
+      { pursuitIds: ids, themeIds: [], mode: "dirty" },
+      DEFAULT_PURSUIT_ENRICH_OPTIONS,
+      MAP_VERSION,
+      MEMORY_VERSION,
+      metrics,
+      batchOptions(),
+    );
+
+    expect(scopes).toEqual(["pursuits-only"]);
+    expect(metrics.incrementalRefresh).toBe(true);
+    expect(metrics.fullRefresh).toBe(false);
+  });
+
   it("clears completed pursuits when a later batch errors", async () => {
     const ids = pursuitIds(10);
     let callIndex = 0;

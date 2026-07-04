@@ -145,6 +145,7 @@ async function runMapAiSyncInner(
       insightWorkNeeded = !(await reflectSyncWouldSkip(userId, dirty, {
         force: true,
         insightsStale,
+        hasInsightCache: Boolean(insightRow),
       }));
     }
   } else if (force) {
