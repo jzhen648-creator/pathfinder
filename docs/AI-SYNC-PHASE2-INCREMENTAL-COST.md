@@ -132,7 +132,7 @@ Monitor via [`log-ai-sync-cost.ts`](../src/lib/map/log-ai-sync-cost.ts) — comp
 
 | Risk | Mitigation |
 |------|------------|
-| Stale cross-theme connections after incremental sync | Cross-theme chips are **map-driven** on mobile — not AI regen. Periodic full regen refreshes theme cards + overall hero only |
+| Stale cross-theme connections after incremental sync | **N/A** — cross-theme connection rail removed from Reading tab (2026-07-04). User links live in chapter **Connections** tab only. Periodic full regen refreshes theme cards + overall hero |
 | Theme oneLiner drift | Regenerate themes when `hasGlobal` or on manual force |
 | Cache invalidation bugs | Fallback to full regen when cache miss or hash mismatch |
 | UX confusion (partial update) | Reading tab shows "Updated {N} chapters" or timestamp per section |

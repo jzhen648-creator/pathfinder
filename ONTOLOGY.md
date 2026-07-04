@@ -8,13 +8,13 @@ Canonical relationships between persisted entities and derived UI concepts. Nami
 |---------|--------------|-------------------|----------------|
 | **Map** | Yes | Pursuits + placement + progress | Yes (utility bar **+**, long-press **Build here**, sheet) |
 | **Settings** | Yes | Profile, account, archived pursuits | Yes |
-| **Insights** (tab) | No (regenerated) | Theme insight cards, cross-theme links | No — pull to refresh syncs |
+| **Reading** (tab) | No (regenerated) | Overall reading hero + theme insight cards | No — pull to refresh syncs |
 | **Insight** (inline) | No (regenerated) | Theme/pursuit prose in map sheet | No |
 | **Timeline** (tab) | No (derived) | Chronological pursuit record | No |
 | **Map status filter** | No (derived) | Spatial status highlight on hexes | No |
 
-- **One store.** Map = structured truth: **pursuits** on the hex canvas. Settings holds profile fields used by Insights sync.
-- **Views at three scopes.** Insights tab = collated **theme insight cards**. **Insight** = inline AI block in theme/pursuit map sheet. Timeline = pursuit-grouped spine (upcoming + completed). Map **Filter** = status highlight on hexes.
+- **One store.** Map = structured truth: **pursuits** on the hex canvas. Settings holds profile fields used by Reading sync.
+- **Views at three scopes.** Reading tab = Overall reading + collated **theme insight cards**. **Insight** = inline AI block in theme/pursuit map sheet. Timeline = pursuit-grouped spine (upcoming + completed). Map **Filter** = status highlight on hexes.
 - **One input verb.** Map utility bar **+** or long-press **Build here** creates pursuits. No marks UI on mobile.
 
 **Decision test (check every new feature):**
