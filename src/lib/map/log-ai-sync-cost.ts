@@ -105,7 +105,7 @@ export type RealTokenCostEstimate = {
   realUsd: number;
 };
 
-/** Real provider-usage cost when a sync reported token usage; null when only char estimates exist. */
+/** When null, explicit caching decision is still pending — see docs/AI-SYNC-COST-MODEL.md § Follow-up gate. */
 export function estimateRealTokenCost(metrics: MapAiSyncMetrics): RealTokenCostEstimate | null {
   if (!metrics.hasRealTokenUsage) return null;
 

@@ -87,3 +87,48 @@ When live Gemini calls report usage, `realTokenUsage` includes billing-grade `in
 Implementation: [`src/lib/map/log-ai-sync-cost.ts`](../src/lib/map/log-ai-sync-cost.ts), wired in [`src/app/api/map/ai-sync/route.ts`](../src/app/api/map/ai-sync/route.ts).
 
 Pricing constants (`GEMINI_25_FLASH_*_USD_PER_M`) should be updated when the production model changes.
+
+---
+
+## Follow-up gate: Gemini explicit context caching (do not skip)
+
+**Status (2026-07-04):** Instrumentation shipped (`realTokenUsage` in logs). **Explicit caching not built yet** — decision blocked on prod data.
+
+### Why wait
+
+Implicit caching may already discount the static reflect system prompt over the OpenAI-compat endpoint. Explicit caching adds storage cost, TTL/expiry handling, and prompt-invalidation complexity — and can **cost more than uncached calls** at low sync volume.
+
+### When to decide
+
+After **either**:
+
+- ~**1 week** of production `[map/ai-sync] cost` logs with live Gemini traffic, **or**
+- **≥20** syncs where `realTokenUsage` is non-null (not skipped / not fake provider).
+
+### How to check (Vercel / local dev with real key)
+
+Search logs for `[map/ai-sync] cost` and read `realTokenUsage`:
+
+| Field | Meaning |
+|-------|---------|
+| `cacheHitRate` | `cachedInputTokens / inputTokens` — implicit/explicit cache hits |
+| `realUsd` | Billing-grade USD (cached input at 75% off list input) |
+| `estimatedUsd` vs `realUsd` | Sanity-check char/4 estimate vs provider |
+
+### Decision matrix
+
+| Observation | Action |
+|-------------|--------|
+| `cacheHitRate` consistently **> ~0.3** on repeat syncs | **Do not** build explicit caching — implicit caching is working. Next levers: trim system prompt / output tokens. |
+| `cacheHitRate` **≈ 0** and sync volume **high** (daily editors, many users) | **Build** explicit caching — shared `cachedContents` keyed by hash of static system prompt; lazy create; graceful fallback to uncached on cache miss/error. See [`AI-SYNC-PHASE2-INCREMENTAL-COST.md`](./AI-SYNC-PHASE2-INCREMENTAL-COST.md) §C. |
+| `cacheHitRate` **≈ 0** and volume **low** | **Skip** explicit caching — storage per token-hour likely exceeds savings. Revisit if traffic grows. |
+
+### If building explicit caching
+
+1. Key cache on **hash of full static system prompt** (not map) — prompt edits must invalidate.
+2. One **shared** cache object (not per-user) for the reflect system prefix.
+3. **Never fail ai-sync** on cache errors — fall back to current uncached path.
+4. Reuse scaffold: [`map-context-cache-key.ts`](../src/lib/ai/map-context-cache-key.ts) (structure hash exists; wire to cache lifecycle).
+5. Update this section with the decision date and observed savings.
+
+**Owner reminder:** Revisit at next backend deploy review or when reviewing first week of TestFlight ai-sync logs.

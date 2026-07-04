@@ -1,6 +1,6 @@
 # AI sync Phase 2 — incremental cost decoupling
 
-**Status:** Shipped 2026-07-04 — dirty-first routing, edit-only theme skip, edit-triggered debounce (~60s). **Periodic full regen** shipped Phase 2.5 (§36). Gemini explicit context caching deferred.
+**Status:** Shipped 2026-07-04 — dirty-first routing, edit-only theme skip, edit-triggered debounce (~60s). **Periodic full regen** shipped Phase 2.5 (§36). **Gemini explicit context caching deferred** — gated on prod `realTokenUsage.cacheHitRate`; see [`AI-SYNC-COST-MODEL.md`](./AI-SYNC-COST-MODEL.md) § *Follow-up gate*.
 
 **Problem:** Today almost every reading refresh is a **full whole-map regeneration**, even when only one chapter changed. Token cost scales with `(sync frequency) × (full map size)` instead of `(sync frequency) × (changed chapters)`.
 
@@ -72,23 +72,25 @@ Per-chapter panel updates do not require re-generating all six theme `oneLiner`s
 
 Implementation: pass `themeIds: []` for edit-only dirty batches (`isEditOnlyDirtyBatch` already exists in [`reading-dirty-ledger.ts`](../src/lib/map/reading-dirty-ledger.ts)).
 
-### C. Gemini context caching
+### C. Gemini context caching (deferred — decision gate)
 
-The dominant input cost is re-sending `<map_context>` JSON on every call (~40–80k chars on a 12-chapter map).
+**2026-07-04:** `realTokenUsage` + `cacheHitRate` now logged per sync ([`AI-SYNC-COST-MODEL.md`](./AI-SYNC-COST-MODEL.md) § *Follow-up gate*). **Do not implement explicit caching until prod logs are reviewed.**
 
-**Approach:**
+The dominant input cost is re-sending the **static reflect system prompt** (~fixed per call) plus `<map_context>` JSON (~40–80k chars on a 12-chapter map).
 
-1. Split reflect prompt into **stable prefix** (system prompt + map context skeleton) and **variable suffix** (dirty pursuit IDs, focal facts, reading packet delta).
-2. Use Gemini **context caching** (or explicit cache tokens) for the stable prefix keyed by `(userId, mapContextHash)`.
-3. Invalidate cache when structural map changes (add/archive chapter, category move) — not on every field edit.
+**If `cacheHitRate ≈ 0` after the gate period, approach:**
+
+1. Cache the **static system prompt** via Gemini `cachedContents` (shared across users), keyed by hash of prompt bytes — invalidate on any prompt edit.
+2. Keep per-user `<map_context>` / reading packet in the uncached suffix (or add map-skeleton caching later keyed by `buildMapContextStructureKey`).
+3. Lazy create + in-flight dedup; **fallback to uncached** on TTL expiry or cache API errors.
 
 **Files to touch:**
 
-- [`generate-reflect.ts`](../src/lib/ai/generate-reflect.ts) — prompt assembly
-- [`ai-client.ts`](../src/lib/ai-client.ts) — cache create/reuse API
-- New: `map-context-cache-key.ts` — hash of pursuit IDs + titles + statuses (exclude volatile fields like notes for cache key, include notes in delta block)
+- [`generate-reflect.ts`](../src/lib/ai/generate-reflect.ts) — prompt assembly + cache reference
+- [`ai-client.ts`](../src/lib/ai-client.ts) — `extra_body.cached_content` or native cache create
+- [`map-context-cache-key.ts`](../src/lib/ai/map-context-cache-key.ts) — structure hash scaffold (exists)
 
-**Expected savings:** 60–80% input token reduction on incremental syncs where map skeleton is unchanged.
+**Expected savings (if implicit caching is not already hitting):** large discount on system-prompt input tokens; map-context savings depend on skeleton stability.
 
 ---
 

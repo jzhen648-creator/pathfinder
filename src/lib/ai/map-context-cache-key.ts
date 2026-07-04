@@ -4,6 +4,9 @@ import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 /**
  * Stable hash of map structure for future Gemini context caching.
  * Excludes volatile fields (background, enrichAnswers, milestone descriptions).
+ *
+ * Explicit caching is NOT wired yet — decision gated on prod `realTokenUsage.cacheHitRate`.
+ * See `pathfinder/docs/AI-SYNC-COST-MODEL.md` § "Follow-up gate: Gemini explicit context caching".
  */
 export function buildMapContextStructureKey(mapContext: FormattedMapContext): string {
   const skeleton = mapContext.themes.map((theme) => ({

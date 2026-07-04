@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { recomputeGoalStatus } from "@/lib/goal-status-recompute";
@@ -25,6 +25,7 @@ import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 import { appendPursuitContextEntryAndSync } from "@/lib/pursuit/pursuit-context-log";
 import { createPursuitRelationshipForUser } from "@/lib/pursuit/apply-pursuit-relationship";
+import { persistGoalShortLabel } from "@/lib/goal-short-label";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -257,6 +258,12 @@ export async function POST(request: Request) {
 
     await markPursuitReadingDirty(userId, goal.id, "pursuit_created", {
       details: { event: "created", title: goal.title },
+    });
+
+    after(() => {
+      void persistGoalShortLabel(goal.id).catch((err) =>
+        console.error("[POST /api/goals] persistGoalShortLabel failed", err),
+      );
     });
 
     return NextResponse.json(
