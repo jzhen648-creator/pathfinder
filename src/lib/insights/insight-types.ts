@@ -26,6 +26,12 @@ export const insightLevelSchema = z.object({
   oneLiner: z.string(),
 });
 
+export const overallInsightSchema = z.object({
+  tone: insightToneSchema,
+  oneLiner: z.string(),
+  support: z.string(),
+});
+
 export const pursuitInsightSchema = z.object({
   tone: pursuitInsightToneSchema.default("in_focus"),
   headline: z.string().max(PURSUIT_INSIGHT_HEADLINE_MAX),
@@ -61,12 +67,14 @@ export const insightGenerationSchema = z
   }));
 
 export type InsightLevelPayload = z.infer<typeof insightLevelSchema>;
+export type OverallInsightPayload = z.infer<typeof overallInsightSchema>;
 export type PursuitInsightPayload = z.infer<typeof pursuitInsightSchema>;
 export type GlobalNowInsight = z.infer<typeof globalNowInsightSchema>;
 export type InsightGenerationResult = z.infer<typeof insightGenerationSchema>;
 
 export type InsightCachePayload = {
   global: GlobalNowInsight;
+  overall?: OverallInsightPayload;
   themes: Record<string, InsightLevelPayload>;
   categories: Record<string, InsightLevelPayload>;
   pursuits: Record<string, PursuitInsightPayload>;

@@ -3,9 +3,11 @@ import type { InsightCache } from "@prisma/client";
 import {
   globalNowInsightSchema,
   insightLevelSchema,
+  overallInsightSchema,
   type GlobalNowInsight,
   type InsightCachePayload,
   type InsightLevelPayload,
+  type OverallInsightPayload,
 } from "./insight-types";
 import {
   pursuitEnrichCacheSchema,
@@ -58,6 +60,11 @@ export function parsePursuitInsightRecord(
   return out;
 }
 
+export function parseOverallInsight(raw: unknown): OverallInsightPayload | null {
+  const parsed = overallInsightSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 export function parseGlobalInsight(raw: string): GlobalNowInsight | null {
   try {
     const json = JSON.parse(raw) as unknown;
@@ -76,6 +83,7 @@ export function insightCacheToPayload(
   const themes = parseInsightLevelRecord(row.themeInsights, "theme");
   const categories = parseInsightLevelRecord(readCategoryInsightsRaw(cacheRow), "category");
   const pursuits = parsePursuitInsightRecord(row.pursuitInsights, "pursuit");
+  const overall = parseOverallInsight(row.overallInsight);
 
   let global = parseGlobalInsight(row.globalInsight);
   const hasNodeContent =
@@ -91,6 +99,7 @@ export function insightCacheToPayload(
 
   return {
     global,
+    ...(overall ? { overall } : {}),
     themes,
     categories,
     pursuits,

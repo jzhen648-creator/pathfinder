@@ -241,6 +241,8 @@ model InsightCache {
   /// Category-tier insight JSON. SQL column retains legacy name until optional tail rename.
   categoryInsights  Json     @map("hubInsights")
   pursuitInsights   Json
+  /// AI-authored whole-map reading hero (oneLiner + support) for Reading tab OVERALL card.
+  overallInsight    Json?
   generatedAt     DateTime @default(now())
   /// Hash of pursuit/milestone counts + latest updatedAt; invalidates cache when map changes.
   mapVersion      String

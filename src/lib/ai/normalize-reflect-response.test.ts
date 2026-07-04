@@ -83,6 +83,25 @@ describe("normalizeReflectResponse", () => {
     expect(normalized.themes.work.combined).toBe("Across chapters, work dominates.");
   });
 
+  it("normalizes overall reading with truncated oneLiner and support", () => {
+    const normalized = normalizeReflectResponse({
+      overall: {
+        tone: "encouraging",
+        oneLiner: "Apprenticeship and ISA both carry the map right now.",
+        support: "Formal Education is complete; the apprenticeship has one milestone done.",
+      },
+      themes: {},
+      pursuits: {},
+    }) as { overall: { oneLiner: string; support: string } };
+
+    expect(normalized.overall.oneLiner).toBe(
+      "Apprenticeship and ISA both carry the map right now.",
+    );
+    expect(normalized.overall.support).toBe(
+      "Formal Education is complete; the apprenticeship has one milestone done.",
+    );
+  });
+
   it("applies word-boundary headline truncation on pursuit entries", () => {
     const longHeadline =
       "Your qualifications are running ahead of the job search and that leverage shifts once you start negotiating offers with multiple employers";

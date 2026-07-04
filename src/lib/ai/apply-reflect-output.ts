@@ -279,8 +279,16 @@ export async function applyReflectOutput(
   }
 
   let insightsWritten = false;
-  if (Object.keys(themes).length > 0 || Object.keys(pursuits).length > 0) {
-    await mergeNodeInsightsIntoCache(userId, { themes, categories: {}, pursuits });
+  const overall = reflect.overall?.oneLiner?.trim()
+    ? {
+        tone: reflect.overall.tone,
+        oneLiner: reflect.overall.oneLiner.trim(),
+        support: reflect.overall.support?.trim() ?? "",
+      }
+    : undefined;
+
+  if (Object.keys(themes).length > 0 || Object.keys(pursuits).length > 0 || overall) {
+    await mergeNodeInsightsIntoCache(userId, { themes, categories: {}, pursuits, overall });
     insightsWritten = true;
   }
 

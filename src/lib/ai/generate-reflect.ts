@@ -60,6 +60,7 @@ import {
   THEME_INSIGHT_FIELD_JOBS,
   THEME_INSIGHT_FIELD_LANES,
   THEME_REFLECT_OUTPUT_CONTRACT,
+  OVERALL_READING_OUTPUT_CONTRACT,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 import { buildPursuitToneGuidanceBlock } from "@/lib/insights/pursuit-tone-prompt";
 import { clampInsightGenerationJson } from "@/lib/insights/clamp-insight-json";
@@ -291,6 +292,8 @@ function buildReflectSystemPrompt(
     THEME_INSIGHT_FIELD_JOBS,
     "",
     THEME_REFLECT_OUTPUT_CONTRACT,
+    "",
+    OVERALL_READING_OUTPUT_CONTRACT,
   ].join("\n");
 }
 
@@ -544,7 +547,7 @@ function buildReflectUserMessage(input: {
   if (scope === "full") {
     lines.push(
       "Only include theme entries for the dirty theme IDs listed above.",
-      'Respond with ONLY a JSON object: { "themes": { ... }, "pursuits": { ... } }',
+      'Respond with ONLY a JSON object: { "overall": { ... }, "themes": { ... }, "pursuits": { ... } }',
     );
   } else {
     lines.push(
@@ -979,6 +982,9 @@ export function setGenerateReflectResponseDelegate(delegate: GenerateReflectResp
 function mergeReflectResponses(partials: ReflectResponse[]): ReflectResponse {
   const merged: ReflectResponse = { themes: {}, pursuits: {} };
   for (const partial of partials) {
+    if (partial.overall && !merged.overall) {
+      merged.overall = partial.overall;
+    }
     merged.themes = { ...merged.themes, ...(partial.themes ?? {}) };
     merged.pursuits = { ...merged.pursuits, ...partial.pursuits };
   }

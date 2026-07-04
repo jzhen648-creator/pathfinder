@@ -11,6 +11,7 @@ function baseRow(overrides: Partial<InsightCache>): InsightCache {
     themeInsights: {},
     categoryInsights: {},
     pursuitInsights: {},
+    overallInsight: null,
     generatedAt: new Date("2026-06-01T00:00:00.000Z"),
     mapVersion: "abc",
     memoryVersion: 0,
@@ -22,6 +23,31 @@ function baseRow(overrides: Partial<InsightCache>): InsightCache {
 describe("insightCacheToPayload", () => {
   it("returns null when global and node caches are empty", () => {
     expect(insightCacheToPayload(baseRow({ globalInsight: "" }), false)).toBeNull();
+  });
+
+  it("round-trips overall insight from cache row", () => {
+    const payload = insightCacheToPayload(
+      baseRow({
+        overallInsight: {
+          tone: "encouraging",
+          oneLiner: "Apprenticeship and ISA both carry the map.",
+          support: "Formal Education is complete.",
+        },
+        themeInsights: {
+          work: {
+            tone: "encouraging",
+            oneLiner: "Work is active",
+            reflective: "One pursuit in progress.",
+            contextual: "",
+            combined: "",
+          },
+        },
+      }),
+      false,
+    );
+
+    expect(payload?.overall?.oneLiner).toBe("Apprenticeship and ISA both carry the map.");
+    expect(payload?.overall?.support).toBe("Formal Education is complete.");
   });
 
   it("serves theme/pursuit panels when global is invalid but node caches exist", () => {

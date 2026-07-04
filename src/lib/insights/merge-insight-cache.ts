@@ -4,7 +4,7 @@ import {
   parsePursuitInsightRecord,
   readCategoryInsightsRaw,
 } from "@/lib/insights/parse-insight-cache";
-import type { InsightGenerationResult } from "@/lib/insights/insight-types";
+import type { InsightGenerationResult, OverallInsightPayload } from "@/lib/insights/insight-types";
 import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
 import { prisma } from "@/lib/prisma";
@@ -34,7 +34,9 @@ export function patchHasNodeInsightContent(
 /** Merge node-level insight patches into the user's cache without wiping unrelated entries. */
 export async function mergeNodeInsightsIntoCache(
   userId: string,
-  patch: Pick<InsightGenerationResult, "themes" | "categories" | "pursuits">,
+  patch: Pick<InsightGenerationResult, "themes" | "categories" | "pursuits"> & {
+    overall?: OverallInsightPayload;
+  },
   options?: { stampMapVersion?: boolean },
 ): Promise<void> {
   const gatedThemes =
@@ -59,6 +61,7 @@ export async function mergeNodeInsightsIntoCache(
         themeInsights: gatedThemes,
         categoryInsights: patch.categories,
         pursuitInsights: patch.pursuits,
+        ...(patch.overall ? { overallInsight: patch.overall } : {}),
         mapVersion,
         memoryVersion,
       },
@@ -112,6 +115,7 @@ export async function mergeNodeInsightsIntoCache(
       themeInsights: themes,
       categoryInsights: categories,
       pursuitInsights: pursuits,
+      ...(patch.overall ? { overallInsight: patch.overall } : {}),
       generatedAt: new Date(),
       mapVersion: nextMapVersion,
       memoryVersion: nextMemoryVersion,

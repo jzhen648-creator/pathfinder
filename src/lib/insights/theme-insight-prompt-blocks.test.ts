@@ -11,6 +11,8 @@ import {
   THEME_INSIGHT_FIELD_LANES,
   THEME_PLAN_MIRROR_RULE,
   THEME_REFLECT_OUTPUT_CONTRACT,
+  OVERALL_READING_OUTPUT_CONTRACT,
+  OVERALL_READING_FIELD_JOB,
 } from "@/lib/insights/theme-insight-prompt-blocks";
 
 describe("theme-insight-prompt-blocks", () => {
@@ -101,5 +103,13 @@ describe("theme-insight-prompt-blocks", () => {
     expect(THEME_PLAN_MIRROR_RULE).toContain("clear progression");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("THEME PLAN MIRROR");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("not per-chapter narrative or history recap");
+  });
+
+  it("defines overall reading synthesis for whole-map hero", () => {
+    expect(OVERALL_READING_OUTPUT_CONTRACT).toContain("OVERALL OUTPUT");
+    expect(OVERALL_READING_OUTPUT_CONTRACT).toContain('{ tone, oneLiner, support }');
+    expect(OVERALL_READING_FIELD_JOB).toContain("2–3 heaviest active threads");
+    expect(OVERALL_READING_FIELD_JOB).toContain("highSignificanceActive");
+    expect(OVERALL_READING_FIELD_JOB).toContain("do NOT echo a single theme's oneLiner");
   });
 });

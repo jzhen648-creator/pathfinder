@@ -107,6 +107,30 @@ export const THEME_REFLECT_OUTPUT_CONTRACT = [
   "  oneLiner and reflective remain required when the theme has chapters; combined and contextual are optional.",
 ].join("\n");
 
+export const OVERALL_READING_FIELD_JOB = [
+  "OVERALL READING (whole-map synthesis — Reading tab hero above all theme cards):",
+  "- oneLiner: one complete sentence (<= 140 chars) naming the 2–3 heaviest active threads across themes.",
+  "  Weave multiple themes when the map has more than one — do NOT echo a single theme's oneLiner verbatim.",
+  "  Use <reading_packet> mapAggregates.highSignificanceActive, confirmedRelationships, changeEvents,",
+  "  and recentEvents to decide what carries the map right now.",
+  "- support: one supporting sentence (<= 300 chars) that adds a cross-theme fact or tension the hero did not state.",
+  "  Name real chapter titles; cite entered amounts, deadlines, or status contrasts when they ground the read.",
+  "- When a user-confirmed cross-theme link exists, the hero may name both chapters and the thread between them.",
+  "- Wrong: copy Money & Finance oneLiner alone when Work & Career also has active chapters.",
+  '- Right oneLiner: "The apprenticeship is building skills while the ISA gap stays the long-range anchor."',
+  '- Right support: "Formal Education is complete; the Level 3 apprenticeship is active with one milestone done."',
+].join("\n");
+
+export const OVERALL_READING_OUTPUT_CONTRACT = [
+  "OVERALL OUTPUT (full reflect path only — omit on pursuits-only calls):",
+  '- "overall": { tone, oneLiner, support }',
+  "  tone MUST be one of: celebratory | encouraging | nudge",
+  "  oneLiner <= 140 chars — whole-map hero; support <= 300 chars — one factual cross-theme sentence.",
+  "  Required on every full-scope reflect response when the map has at least one chapter.",
+  "",
+  OVERALL_READING_FIELD_JOB,
+].join("\n");
+
 export const PURSUIT_PANEL_UI_CONTEXT = [
   "CHAPTER PANEL — WHAT THE READER ALREADY SEES:",
   "- Full chapter title in the header directly above the reading.",

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { clarifierSchema, suggestedMilestoneSchema } from "@/lib/pursuit/pursuit-enrich-types";
-import { THEME_ONE_LINER_MAX } from "@/lib/ai/normalize-reflect-response";
+import { THEME_ONE_LINER_MAX, OVERALL_SUPPORT_MAX } from "@/lib/ai/normalize-reflect-response";
 import {
   PURSUIT_INSIGHT_BODY_MAX,
   PURSUIT_INSIGHT_COMPARISON_MAX,
@@ -31,11 +31,19 @@ export const reflectThemeEntrySchema = z.object({
   combined: z.string().max(500).optional().default(""),
 });
 
+export const reflectOverallEntrySchema = z.object({
+  tone: insightToneSchema,
+  oneLiner: z.string().max(THEME_ONE_LINER_MAX),
+  support: z.string().max(OVERALL_SUPPORT_MAX),
+});
+
 export const reflectResponseSchema = z.object({
+  overall: reflectOverallEntrySchema.optional(),
   themes: z.record(z.string(), reflectThemeEntrySchema).optional().default({}),
   pursuits: z.record(z.string(), reflectPursuitEntrySchema),
 });
 
 export type ReflectPursuitEntry = z.infer<typeof reflectPursuitEntrySchema>;
 export type ReflectThemeEntry = z.infer<typeof reflectThemeEntrySchema>;
+export type ReflectOverallEntry = z.infer<typeof reflectOverallEntrySchema>;
 export type ReflectResponse = z.infer<typeof reflectResponseSchema>;

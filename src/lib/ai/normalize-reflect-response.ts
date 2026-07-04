@@ -7,6 +7,7 @@ export { truncateAtWordBoundary } from "@/lib/insights/clamp-insight-json";
 const THEME_TONES = ["encouraging", "nudge", "celebratory"] as const;
 
 export const THEME_ONE_LINER_MAX = 140;
+export const OVERALL_SUPPORT_MAX = 300;
 const THEME_REFLECTIVE_MAX = 800;
 const THEME_SUPPLEMENT_MAX = 500;
 
@@ -70,6 +71,22 @@ export function normalizeReflectResponse(json: unknown): unknown {
       };
     }
     root.themes = normalizedThemes;
+  }
+
+  const overall = root.overall;
+  if (overall && typeof overall === "object" && !Array.isArray(overall)) {
+    const row = overall as Record<string, unknown>;
+    const oneLiner = typeof row.oneLiner === "string" ? row.oneLiner.trim() : "";
+    const support = typeof row.support === "string" ? row.support.trim() : "";
+    if (oneLiner) {
+      root.overall = {
+        tone: normalizeThemeTone(row.tone),
+        oneLiner: truncateThemeOneLiner(oneLiner),
+        support: truncateAtWordBoundary(support, OVERALL_SUPPORT_MAX),
+      };
+    } else {
+      delete root.overall;
+    }
   }
 
   return root;
