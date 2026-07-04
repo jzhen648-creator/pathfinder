@@ -6,6 +6,8 @@ export const CHARS_PER_TOKEN_ESTIMATE = 4;
 /** Gemini 2.5 Flash list pricing (USD per 1M tokens) — update when model/pricing changes. */
 export const GEMINI_25_FLASH_INPUT_USD_PER_M = 0.15;
 export const GEMINI_25_FLASH_OUTPUT_USD_PER_M = 0.6;
+/** Cached-input price for 2.5 Flash (75% off list input); cache hits bill at this rate. */
+export const GEMINI_25_FLASH_CACHED_INPUT_USD_PER_M = 0.0375;
 
 export type AiSyncCostEstimate = {
   aiCallsCompleted: number;
@@ -93,6 +95,39 @@ export function estimateReflectSyncCost(
   };
 }
 
+export type RealTokenCostEstimate = {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  /** cachedInputTokens / inputTokens (0 when no input tokens billed). */
+  cacheHitRate: number;
+  /** Billing-grade USD: uncached input + cached input (discounted) + output. */
+  realUsd: number;
+};
+
+/** Real provider-usage cost when a sync reported token usage; null when only char estimates exist. */
+export function estimateRealTokenCost(metrics: MapAiSyncMetrics): RealTokenCostEstimate | null {
+  if (!metrics.hasRealTokenUsage) return null;
+
+  const inputTokens = Math.max(0, metrics.realInputTokens);
+  const outputTokens = Math.max(0, metrics.realOutputTokens);
+  const cachedInputTokens = Math.min(Math.max(0, metrics.realCachedInputTokens), inputTokens);
+  const uncachedInputTokens = inputTokens - cachedInputTokens;
+
+  const realUsd =
+    (uncachedInputTokens / 1_000_000) * GEMINI_25_FLASH_INPUT_USD_PER_M +
+    (cachedInputTokens / 1_000_000) * GEMINI_25_FLASH_CACHED_INPUT_USD_PER_M +
+    (outputTokens / 1_000_000) * GEMINI_25_FLASH_OUTPUT_USD_PER_M;
+
+  return {
+    inputTokens,
+    outputTokens,
+    cachedInputTokens,
+    cacheHitRate: inputTokens > 0 ? cachedInputTokens / inputTokens : 0,
+    realUsd,
+  };
+}
+
 export type LogAiSyncCostOptions = {
   skipped: boolean;
   force?: boolean;
@@ -108,6 +143,7 @@ export function logAiSyncCost(
   options: LogAiSyncCostOptions,
 ): AiSyncCostEstimate {
   const cost = estimateReflectSyncCost(metrics, { skipped: options.skipped });
+  const real = estimateRealTokenCost(metrics);
 
   console.info("[map/ai-sync] cost", {
     userId,
@@ -125,6 +161,16 @@ export function logAiSyncCost(
     estimatedTotalTokens: cost.estimatedTotalTokens,
     estimatedUsd: Number(cost.estimatedUsd.toFixed(6)),
     breakdown: cost.breakdown,
+    // Real provider usage (present once a live Gemini call reports token counts).
+    realTokenUsage: real
+      ? {
+          inputTokens: real.inputTokens,
+          outputTokens: real.outputTokens,
+          cachedInputTokens: real.cachedInputTokens,
+          cacheHitRate: Number(real.cacheHitRate.toFixed(4)),
+          realUsd: Number(real.realUsd.toFixed(6)),
+        }
+      : null,
   });
 
   return cost;

@@ -44,6 +44,27 @@ export class AiNotConfiguredError extends Error {
   }
 }
 
+/** Billing-grade token usage from a provider response (cachedInputTokens = prompt cache hits). */
+export type AiTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  /** Prompt tokens served from the provider cache (Gemini implicit/explicit caching). */
+  cachedInputTokens: number;
+  totalTokens: number;
+};
+
+function extractTokenUsage(usage: OpenAI.CompletionUsage | undefined): AiTokenUsage | null {
+  if (!usage) return null;
+  const cachedInputTokens =
+    (usage.prompt_tokens_details as { cached_tokens?: number } | undefined)?.cached_tokens ?? 0;
+  return {
+    inputTokens: usage.prompt_tokens ?? 0,
+    outputTokens: usage.completion_tokens ?? 0,
+    cachedInputTokens,
+    totalTokens: usage.total_tokens ?? 0,
+  };
+}
+
 function getConfiguredProviderName() {
   return (process.env.AI_PROVIDER?.trim().toLowerCase() || "gemini") as string;
 }
@@ -202,8 +223,10 @@ export async function generateJsonCompletion(input: {
   temperature?: number;
   /** Per-user queue key — serializes concurrent AI jobs for one account. */
   queueKey?: string | null;
+  /** Called with real provider token usage on success (skipped for the fake provider). */
+  onUsage?: (usage: AiTokenUsage) => void;
 }): Promise<string> {
-  const { queueKey, ...completionInput } = input;
+  const { queueKey, onUsage, ...completionInput } = input;
   return runSerializedAiJob(queueKey, async () => {
     if (isFakeProviderEnabled()) {
       return resolveFakeJsonCompletion({ user: completionInput.user });
@@ -226,6 +249,10 @@ export async function generateJsonCompletion(input: {
     });
 
     recordAiUserRateLimitSuccess(queueKey);
+    if (onUsage) {
+      const usage = extractTokenUsage(completion.usage);
+      if (usage) onUsage(usage);
+    }
     return completion.choices[0]?.message?.content?.trim() ?? "";
   });
 }

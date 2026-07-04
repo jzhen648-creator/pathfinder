@@ -1,5 +1,6 @@
 import {
   AiNotConfiguredError,
+  type AiTokenUsage,
   generateJsonCompletion as generateJsonCompletionRaw,
   generateStructured as generateStructuredRaw,
   generateText as generateTextRaw,
@@ -8,6 +9,7 @@ import {
 } from "./ai-client";
 
 export { hasAiKey as hasGeminiKey, AiNotConfiguredError as GeminiNotConfiguredError };
+export type { AiTokenUsage };
 
 export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
 // gemini-1.5-flash is no longer served; use a current flash model on the same endpoint.

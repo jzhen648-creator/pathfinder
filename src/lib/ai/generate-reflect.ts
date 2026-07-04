@@ -956,6 +956,14 @@ async function generateReflectResponse(
     maxTokens: REFLECT_MAX_OUTPUT_TOKENS,
     temperature: 0.4,
     queueKey: userId,
+    onUsage: metrics
+      ? (usage) => {
+          metrics.hasRealTokenUsage = true;
+          metrics.realInputTokens += usage.inputTokens;
+          metrics.realOutputTokens += usage.outputTokens;
+          metrics.realCachedInputTokens += usage.cachedInputTokens;
+        }
+      : undefined,
   });
 
   let json: unknown;

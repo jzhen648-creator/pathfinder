@@ -34,6 +34,14 @@ export type MapAiSyncMetrics = {
   reflectFullCalls: number;
   /** Scoped reflect calls this sync (dirty pursuits only). */
   reflectScopedCalls: number;
+  /** True once any Gemini call reported real token usage (fake provider stays false). */
+  hasRealTokenUsage: boolean;
+  /** Real prompt (input) tokens billed across reflect calls, from provider usage. */
+  realInputTokens: number;
+  /** Real completion (output) tokens billed across reflect calls, from provider usage. */
+  realOutputTokens: number;
+  /** Real input tokens served from provider cache (Gemini implicit/explicit caching). */
+  realCachedInputTokens: number;
   /** Pursuit enrich failures surfaced to mobile (non-fatal). */
   enrichErrors: string[];
   /** Unified reflect call replaced reading delta + enrich drain. */
@@ -71,6 +79,10 @@ export function emptyMapAiSyncMetrics(): MapAiSyncMetrics {
     reflectResponseChars: 0,
     reflectFullCalls: 0,
     reflectScopedCalls: 0,
+    hasRealTokenUsage: false,
+    realInputTokens: 0,
+    realOutputTokens: 0,
+    realCachedInputTokens: 0,
     enrichErrors: [],
     reflectCall: false,
     periodicFull: false,
