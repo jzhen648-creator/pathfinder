@@ -3,6 +3,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
+import {
+  AUTH_RATE_LIMITS,
+  clientIpFromRequest,
+  consumeAuthRateLimit,
+  rateLimitedResponse,
+} from "@/lib/auth-rate-limit";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -12,6 +18,12 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const ip = clientIpFromRequest(request);
+    const ipLimit = consumeAuthRateLimit(`register:ip:${ip}`, AUTH_RATE_LIMITS.register);
+    if (ipLimit.limited) {
+      return rateLimitedResponse(ipLimit.retryAfterSeconds);
+    }
+
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
 

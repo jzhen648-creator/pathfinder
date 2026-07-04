@@ -8,6 +8,12 @@ import {
   signMobileSessionJwt,
   type MobileAuthResponse,
 } from "@/lib/mobile-auth";
+import {
+  AUTH_RATE_LIMITS,
+  clientIpFromRequest,
+  consumeAuthRateLimit,
+  rateLimitedResponse,
+} from "@/lib/auth-rate-limit";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -24,6 +30,12 @@ export async function POST(request: Request) {
   const secret = requireAuthSecret();
   if (typeof secret !== "string") {
     return NextResponse.json({ error: secret.error }, { status: secret.status });
+  }
+
+  const ip = clientIpFromRequest(request);
+  const ipLimit = consumeAuthRateLimit(`register:ip:${ip}`, AUTH_RATE_LIMITS.register);
+  if (ipLimit.limited) {
+    return rateLimitedResponse(ipLimit.retryAfterSeconds);
   }
 
   let body: unknown;

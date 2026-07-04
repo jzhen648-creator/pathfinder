@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import {
+  AUTH_RATE_LIMITS,
+  clientIpFromRequest,
+  consumeAuthRateLimit,
+  rateLimitedResponse,
+} from "@/lib/auth-rate-limit";
 
 const resetPasswordSchema = z.object({
   token: z.string().min(32),
@@ -15,6 +21,12 @@ function hashResetToken(token: string): string {
 
 export async function POST(request: Request) {
   try {
+    const ip = clientIpFromRequest(request);
+    const ipLimit = consumeAuthRateLimit(`reset:ip:${ip}`, AUTH_RATE_LIMITS.resetPassword);
+    if (ipLimit.limited) {
+      return rateLimitedResponse(ipLimit.retryAfterSeconds);
+    }
+
     const body = await request.json();
     const parsed = resetPasswordSchema.safeParse(body);
 

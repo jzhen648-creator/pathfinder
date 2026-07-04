@@ -7,6 +7,12 @@ import {
   signMobileSessionJwt,
   type MobileAuthResponse,
 } from "@/lib/mobile-auth";
+import {
+  AUTH_RATE_LIMITS,
+  clientIpFromRequest,
+  consumeAuthRateLimit,
+  rateLimitedResponse,
+} from "@/lib/auth-rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
@@ -28,6 +34,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: secret.error }, { status: secret.status });
   }
 
+  const ip = clientIpFromRequest(request);
+  const ipLimit = consumeAuthRateLimit(`login:ip:${ip}`, AUTH_RATE_LIMITS.login);
+  if (ipLimit.limited) {
+    return rateLimitedResponse(ipLimit.retryAfterSeconds);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -41,6 +53,14 @@ export async function POST(request: Request) {
       { error: parsed.error.issues[0]?.message ?? "Invalid payload" },
       { status: 400 },
     );
+  }
+
+  const emailLimit = consumeAuthRateLimit(
+    `login:email:${parsed.data.email.toLowerCase()}`,
+    AUTH_RATE_LIMITS.login,
+  );
+  if (emailLimit.limited) {
+    return rateLimitedResponse(emailLimit.retryAfterSeconds);
   }
 
   const user = await prisma.user.findUnique({
