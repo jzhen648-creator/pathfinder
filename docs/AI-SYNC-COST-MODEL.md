@@ -79,8 +79,10 @@ When dirty ledger is empty and cache matches versions, `isPeriodicFullRefreshDue
 Each ai-sync logs structured cost to server console:
 
 ```
-[map/ai-sync] cost { userId, estimatedInputTokens, estimatedOutputTokens, estimatedUsd, ... }
+[map/ai-sync] cost { userId, estimatedInputTokens, estimatedOutputTokens, estimatedUsd, realTokenUsage?, ... }
 ```
+
+When live Gemini calls report usage, `realTokenUsage` includes billing-grade `inputTokens`, `outputTokens`, `cachedInputTokens`, `cacheHitRate`, and `realUsd` (cached input billed at 75% off list input rate).
 
 Implementation: [`src/lib/map/log-ai-sync-cost.ts`](../src/lib/map/log-ai-sync-cost.ts), wired in [`src/app/api/map/ai-sync/route.ts`](../src/app/api/map/ai-sync/route.ts).
 
