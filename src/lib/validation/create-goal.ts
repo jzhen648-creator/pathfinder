@@ -1,6 +1,7 @@
 import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
-import { resolveThemeIdFromBody } from "@/lib/theme-id";
+import { resolveBranchIdFromBody } from "@/lib/category-id";
 import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
+import { z } from "zod";
 
 export { GOAL_TYPE_VALUES };
 export type CreateGoalGoalType = GoalType;
