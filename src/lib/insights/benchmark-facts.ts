@@ -1,7 +1,15 @@
 import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 
-/** Maintainer-updated — see source comments; not fetched at runtime. */
-export const BENCHMARK_FACTS_AS_OF = "2025-26 UK tax year";
+/** UK tax year label derived at runtime — see currentUkTaxYearLabel. */
+export function currentUkTaxYearLabel(now: Date = new Date()): string {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth(); // 0-indexed
+  const day = now.getUTCDate();
+  // UK tax year starts 6 April; before that belongs to the prior year.
+  const startYear = month < 3 || (month === 3 && day < 6) ? year - 1 : year;
+  const endYearShort = String((startYear + 1) % 100).padStart(2, "0");
+  return `${startYear}-${endYearShort} UK tax year`;
+}
 
 export type BenchmarkPursuitRow = {
   id: string;
@@ -71,9 +79,13 @@ function themeHasBenchmarkAnchor(pursuits: BenchmarkPursuitRow[]): boolean {
   );
 }
 
-function financeFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): string[] {
+function financeFacts(
+  age: number | null,
+  pursuits: BenchmarkPursuitRow[],
+  taxYearLabel: string,
+): string[] {
   const lines: string[] = [
-    `finance: UK ISA annual subscription limit approx £20,000 (${BENCHMARK_FACTS_AS_OF}).`,
+    `finance: UK ISA annual subscription limit £20,000 (${taxYearLabel}).`,
     "finance: relatively few UK ISA holders max the £20k annual subscription; most contribute a fraction — qualitative only, no percentile.",
     "finance: UK median household savings buffer often quoted around 1-3 months essential spend — use approx only.",
   ];
@@ -138,15 +150,18 @@ function becomingFacts(): string[] {
   ];
 }
 
-const THEME_FACT_BUILDERS: Record<
-  string,
-  (age: number | null, pursuits: BenchmarkPursuitRow[]) => string[]
-> = {
+type ThemeFactBuilder = (
+  age: number | null,
+  pursuits: BenchmarkPursuitRow[],
+  taxYearLabel: string,
+) => string[];
+
+const THEME_FACT_BUILDERS: Record<string, ThemeFactBuilder> = {
   finance: financeFacts,
-  work: workFacts,
-  health: (age) => healthFacts(age),
-  people: (_age, _pursuits) => peopleFacts(),
-  becoming: (_age, _pursuits) => becomingFacts(),
+  work: (age, pursuits, _taxYearLabel) => workFacts(age, pursuits),
+  health: (age, _pursuits, _taxYearLabel) => healthFacts(age),
+  people: (_age, _pursuits, _taxYearLabel) => peopleFacts(),
+  becoming: (_age, _pursuits, _taxYearLabel) => becomingFacts(),
 };
 
 /** True when theme has enough signal for a Comparison benchmark attempt. */
@@ -176,8 +191,12 @@ export function benchmarkFactsApplicable(
 }
 
 /** Compact fact bullets for reflect user message — null when nothing applies. */
-export function buildBenchmarkFactsBlock(input: BenchmarkFactsInput): string | null {
-  const lines: string[] = [`asOf: ${BENCHMARK_FACTS_AS_OF}`];
+export function buildBenchmarkFactsBlock(
+  input: BenchmarkFactsInput,
+  now: Date = new Date(),
+): string | null {
+  const taxYearLabel = currentUkTaxYearLabel(now);
+  const lines: string[] = [`asOf: ${taxYearLabel}`];
   if (input.age != null) lines.push(`userAge: ${input.age}`);
   if (input.location?.trim()) lines.push(`userLocation: ${input.location.trim()}`);
 
@@ -188,7 +207,7 @@ export function buildBenchmarkFactsBlock(input: BenchmarkFactsInput): string | n
     }
     const builder = THEME_FACT_BUILDERS[themeId];
     if (!builder) continue;
-    const themeLines = builder(input.age, pursuitsInTheme(input.pursuits, themeId));
+    const themeLines = builder(input.age, pursuitsInTheme(input.pursuits, themeId), taxYearLabel);
     for (const line of themeLines) {
       lines.push(line);
       addedThemeFacts = true;

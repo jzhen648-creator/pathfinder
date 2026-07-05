@@ -105,9 +105,17 @@ describe("theme-insight-prompt-blocks", () => {
   it("defines overall reading synthesis for whole-map hero", () => {
     expect(OVERALL_READING_OUTPUT_CONTRACT).toContain("OVERALL OUTPUT");
     expect(OVERALL_READING_OUTPUT_CONTRACT).toContain('{ tone, oneLiner, support }');
+    expect(OVERALL_READING_OUTPUT_CONTRACT).toContain("<= 120 chars");
     expect(OVERALL_READING_FIELD_JOB).toContain("2–3 heaviest active chapters");
     expect(OVERALL_READING_FIELD_JOB).toContain("highSignificanceActive");
-    expect(OVERALL_READING_FIELD_JOB).toContain("themeRollup");
+    expect(OVERALL_READING_FIELD_JOB).toContain("cross-theme shape");
+    expect(OVERALL_READING_FIELD_JOB).toContain("Do NOT anthropomorphize themes");
     expect(OVERALL_READING_FIELD_JOB).toContain("do NOT echo a single theme's oneLiner");
+  });
+
+  it("bans circular worth-knowing restatements", () => {
+    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("no fact absent from the user's own inputs");
+    expect(PURSUIT_COMPARISON_FIELD_JOBS).toContain("depreciation curve");
+    expect(THEME_REFLECT_OUTPUT_CONTRACT).toContain("no fact absent from the user's own inputs");
   });
 });

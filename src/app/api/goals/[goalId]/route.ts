@@ -158,6 +158,8 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       if (input.completedAt === undefined) {
         data.completedAt = new Date();
       }
+      data.deadline = null;
+      data.future = false;
       data.endedAt = null;
       data.endReason = null;
     } else {
@@ -228,7 +230,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   const dirtyUpdates: Record<string, unknown> = {};
   if (input.title !== undefined) dirtyUpdates.title = data.title;
   if (pursuitStatus !== undefined) dirtyUpdates.status = data.status;
-  if (input.deadline !== undefined) {
+  if (input.deadline !== undefined || pursuitStatus === "COMPLETE") {
     dirtyUpdates.deadline = data.deadline ? data.deadline.toISOString().slice(0, 10) : null;
   }
   if (input.significance !== undefined) dirtyUpdates.significance = data.significance;

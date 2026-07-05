@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   benchmarkFactsApplicable,
   buildBenchmarkFactsBlock,
+  currentUkTaxYearLabel,
   parseDobDateFromUserContext,
   parseDobFromUserContext,
   type BenchmarkPursuitRow,
@@ -71,15 +72,34 @@ describe("benchmarkFactsApplicable — finance/work locale gating", () => {
   });
 });
 
+describe("currentUkTaxYearLabel", () => {
+  it("returns prior tax year before 6 April", () => {
+    expect(currentUkTaxYearLabel(new Date("2026-03-15T12:00:00.000Z"))).toBe(
+      "2025-26 UK tax year",
+    );
+  });
+
+  it("returns current tax year on or after 6 April", () => {
+    expect(currentUkTaxYearLabel(new Date("2026-07-04T12:00:00.000Z"))).toBe(
+      "2026-27 UK tax year",
+    );
+  });
+});
+
 describe("buildBenchmarkFactsBlock — finance rarity signal", () => {
   it("includes ISA max-out rarity line for UK finance theme", () => {
-    const block = buildBenchmarkFactsBlock({
-      age: 30,
-      location: "London, UK",
-      themeIds: ["finance"],
-      pursuits: [financePursuit({ targetAmount: 500_000, currentAmount: 20_000, unit: "GBP" })],
-    });
+    const block = buildBenchmarkFactsBlock(
+      {
+        age: 30,
+        location: "London, UK",
+        themeIds: ["finance"],
+        pursuits: [financePursuit({ targetAmount: 500_000, currentAmount: 20_000, unit: "GBP" })],
+      },
+      new Date("2026-07-04T12:00:00.000Z"),
+    );
     expect(block).not.toBeNull();
+    expect(block).toContain("asOf: 2026-27 UK tax year");
+    expect(block).toContain("UK ISA annual subscription limit £20,000 (2026-27 UK tax year)");
     expect(block).toContain("relatively few UK ISA holders max the £20k annual subscription");
   });
 });

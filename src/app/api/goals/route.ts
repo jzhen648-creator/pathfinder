@@ -119,7 +119,16 @@ export async function POST(request: Request) {
     }
   }
 
-  const future = deadline ? deadlineIsInFutureLocal(deadline) : true;
+  if (input.status === "COMPLETE") {
+    deadline = null;
+  }
+
+  const future =
+    input.status === "COMPLETE"
+      ? false
+      : deadline
+        ? deadlineIsInFutureLocal(deadline)
+        : true;
 
   const now = new Date();
   const year = deadline ? deadline.getFullYear() : now.getFullYear();

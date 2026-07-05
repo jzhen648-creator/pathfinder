@@ -4,6 +4,16 @@ import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-
 import { AMOUNT_BASIS_VALUES } from "@/lib/pursuit/category-amount-profile";
 import { PURSUIT_STATUS_VALUES } from "@/lib/pursuit-status-api";
 
+function isValidCalendarDay(ymd: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(y, mo - 1, d, 12, 0, 0, 0);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
+
 const pursuitStatusSchema = z.enum(PURSUIT_STATUS_VALUES);
 
 /** PATCH `/api/goals/[goalId]` — at least one field required. */
@@ -156,13 +166,10 @@ export const updateGoalPayloadSchema = z
       });
     }
     if (data.timelineStart != null && data.timelineStart !== undefined) {
-      const start = new Date(`${data.timelineStart}T00:00:00.000Z`);
-      const today = new Date();
-      today.setUTCHours(23, 59, 59, 999);
-      if (start.getTime() > today.getTime()) {
+      if (!isValidCalendarDay(data.timelineStart)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Start date cannot be in the future",
+          message: "timelineStart must be a valid date",
           path: ["timelineStart"],
         });
       }

@@ -12,14 +12,9 @@ describe("updateGoalPayloadSchema timelineStart", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects a future start date", () => {
+  it("accepts a future start date", () => {
     const parsed = updateGoalPayloadSchema.safeParse({ timelineStart: "2099-01-01" });
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) {
-      expect(parsed.error.issues.some((issue) => issue.path.includes("timelineStart"))).toBe(
-        true,
-      );
-    }
+    expect(parsed.success).toBe(true);
   });
 });
 
