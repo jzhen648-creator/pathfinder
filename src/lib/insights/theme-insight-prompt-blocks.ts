@@ -162,7 +162,7 @@ export const PURSUIT_INSIGHT_FIELD_LANES = [
   "  within-theme tension, cross-chapter competition or support.",
   "  Do NOT restate the headline's fact in the body.",
   "  Do NOT restate Status, Deadline, or Significance — the Details row shows those.",
-  "  Never write significance as a number or rating (no 3/5, no 'significance of 4', no 'out of five').",
+  "  Never write significance as a number or rating (no 2/3, no 'significance of 3', no 'out of three').",
   "  Do NOT restate milestone row titles (the milestone list is on screen).",
 ].join("\n");
 

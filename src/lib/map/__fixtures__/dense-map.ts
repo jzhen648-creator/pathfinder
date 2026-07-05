@@ -35,14 +35,14 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Job",
           marks: [],
           pursuits: [
-            pursuit("p-cemap", "CeMAP qualification", "ACTIVE", 5, {
+            pursuit("p-cemap", "CeMAP qualification", "ACTIVE", 3, {
               deadline: "2026-06-20",
               milestones: [
                 { id: "m1", title: "Unit 1", completed: false },
                 { id: "m2", title: "Unit 2", completed: false },
               ],
             }),
-            pursuit("p-lead", "Product Lead search", "ACTIVE", 5, {
+            pursuit("p-lead", "Product Lead search", "ACTIVE", 3, {
               deadline: "2026-06-25",
               milestones: [
                 {
@@ -53,7 +53,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
                 },
               ],
             }),
-            pursuit("p-senior", "Senior Engineer at Acme", "COMPLETE", 4, {
+            pursuit("p-senior", "Senior Engineer at Acme", "COMPLETE", 3, {
               completedAt: "2026-04-15",
               milestones: [
                 {
@@ -72,7 +72,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Skills",
           marks: [],
           pursuits: [
-            pursuit("p-speaking", "Public speaking", "MAINTAINING", 3, {
+            pursuit("p-speaking", "Public speaking", "MAINTAINING", 2, {
               milestones: [
                 {
                   id: "m5",
@@ -97,19 +97,19 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Savings",
           marks: [],
           pursuits: [
-            pursuit("p-isa", "£500,000 ISA", "ACTIVE", 5, {
+            pursuit("p-isa", "£500,000 ISA", "ACTIVE", 3, {
               deadline: "2028-12-31",
               targetAmount: 500000,
               currentAmount: 120000,
               unit: "GBP",
             }),
-            pursuit("p-debt", "Clear £10,000 credit card debt", "ACTIVE", 4, {
+            pursuit("p-debt", "Clear £10,000 credit card debt", "ACTIVE", 3, {
               deadline: "2026-07-01",
               targetAmount: 10000,
               currentAmount: 4200,
               unit: "GBP",
             }),
-            pursuit("p-pension", "Max out pension contributions", "MAINTAINING", 4, {
+            pursuit("p-pension", "Max out pension contributions", "MAINTAINING", 3, {
               deadline: "2027-04-05",
             }),
           ],
@@ -127,7 +127,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Fitness",
           marks: [],
           pursuits: [
-            pursuit("p-marathon", "London Marathon 2027", "ACTIVE", 4, {
+            pursuit("p-marathon", "London Marathon 2027", "ACTIVE", 3, {
               deadline: "2027-04-26",
               milestones: [
                 {
@@ -153,10 +153,10 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Family",
           marks: [],
           pursuits: [
-            pursuit("p-wedding", "Plan wedding", "ACTIVE", 5, {
+            pursuit("p-wedding", "Plan wedding", "ACTIVE", 3, {
               deadline: "2026-09-15",
             }),
-            pursuit("p-parents", "Visit parents monthly", "MAINTAINING", 3),
+            pursuit("p-parents", "Visit parents monthly", "MAINTAINING", 2),
           ],
         },
       ],
@@ -172,7 +172,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Mind",
           marks: [],
           pursuits: [
-            pursuit("p-meditation", "Daily meditation", "MAINTAINING", 3),
+            pursuit("p-meditation", "Daily meditation", "MAINTAINING", 2),
           ],
         },
       ],
@@ -188,7 +188,7 @@ export const DENSE_MAP_CONTEXT: FormattedMapContext = {
           categoryLabel: "Hobbies",
           marks: [],
           pursuits: [
-            pursuit("p-guitar", "Learn guitar", "ACTIVE", 3, {
+            pursuit("p-guitar", "Learn guitar", "ACTIVE", 2, {
               deadline: "2026-12-01",
             }),
           ],
@@ -262,27 +262,27 @@ export const DENSE_READING_PACKET: ReadingPacket = {
         {
           title: "Senior Engineer at Acme",
           status: "COMPLETE",
-          significance: 4,
+          significance: 3,
           signal: "arrival",
         },
         {
           title: "CeMAP qualification",
           status: "ACTIVE",
           deadline: "2026-06-20",
-          significance: 5,
+          significance: 3,
           signal: "gap",
         },
         {
           title: "Product Lead search",
           status: "ACTIVE",
           deadline: "2026-06-25",
-          significance: 5,
+          significance: 3,
         },
       ],
       facts: [
         "Work & Career · Job: 1 complete and 2 in progress",
         "Active with deadlines: CeMAP qualification (deadline Jun 2026); Product Lead search (deadline Jun 2026)",
-        "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
+        "Significant but stalled: CeMAP qualification (sig 3, deadline 6d, 0 of 2 milestones completed)",
       ],
     },
   ],
@@ -296,7 +296,7 @@ export const DENSE_READING_PACKET: ReadingPacket = {
         pursuitTitle: "London Marathon 2027",
         themeId: "health",
         themeLabel: "Health & Body",
-        significance: 4,
+        significance: 3,
       },
     ],
     upcoming: [
@@ -308,13 +308,13 @@ export const DENSE_READING_PACKET: ReadingPacket = {
         pursuitTitle: "CeMAP qualification",
         themeId: "work",
         themeLabel: "Work & Career",
-        significance: 5,
+        significance: 3,
       },
     ],
   },
   mapAggregates: buildMapAggregates(flattenDenseMapPursuits(), DENSE_FIXTURE_NOW),
   gapFacts: [
-    "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
+    "Significant but stalled: CeMAP qualification (sig 3, deadline 6d, 0 of 2 milestones completed)",
   ],
   milestonePaceFacts: [
     "Product Lead search: 1/1 milestones complete; last milestone 44d ago",

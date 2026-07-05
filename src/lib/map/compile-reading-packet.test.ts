@@ -67,7 +67,7 @@ const twoJobPursuits = [
     id: "a",
     title: "Senior Engineer at Acme",
     status: "COMPLETE",
-    significance: 4,
+    significance: 3,
     completedAt: "2026-08-01",
     milestones: [],
     themeId: "work",
@@ -79,7 +79,7 @@ const twoJobPursuits = [
     id: "b",
     title: "Product Lead search",
     status: "ACTIVE",
-    significance: 5,
+    significance: 3,
     deadline: "2026-09-01",
     milestones: [],
     themeId: "work",
@@ -136,7 +136,7 @@ describe("compile-reading-packet", () => {
         id: "w1",
         title: "CeMAP qualification",
         status: "ACTIVE",
-        significance: 5,
+        significance: 3,
         deadline: "2026-06-20",
         milestones: [],
         themeId: "work",
@@ -148,7 +148,7 @@ describe("compile-reading-packet", () => {
         id: "w2",
         title: "Product Lead search",
         status: "ACTIVE",
-        significance: 5,
+        significance: 3,
         deadline: "2026-06-25",
         milestones: [],
         themeId: "work",
@@ -160,7 +160,7 @@ describe("compile-reading-packet", () => {
         id: "f1",
         title: "£500,000 ISA",
         status: "ACTIVE",
-        significance: 4,
+        significance: 3,
         deadline: "2028-12-31",
         targetAmount: 500000,
         currentAmount: 120000,
@@ -174,7 +174,7 @@ describe("compile-reading-packet", () => {
     ];
 
     const titles = buildHighSignificanceActiveTitles(pursuits);
-    expect(titles.slice(0, 2)).toEqual(["CeMAP qualification", "£500,000 ISA"]);
+    expect(titles.slice(0, 2)).toEqual(["£500,000 ISA", "CeMAP qualification"]);
     expect(titles[2]).toBe("Product Lead search");
   });
 
@@ -183,10 +183,10 @@ describe("compile-reading-packet", () => {
     expect(aggregates.highSignificanceActive).toEqual([
       "£500,000 ISA",
       "CeMAP qualification",
-      "Plan wedding",
       "London Marathon 2027",
-      "Product Lead search",
+      "Plan wedding",
       "Clear £10,000 credit card debt",
+      "Max out pension contributions",
     ]);
   });
 
@@ -306,7 +306,7 @@ describe("compile-reading-packet", () => {
           id: "c",
           title: "CeMAP qualification",
           status: "ACTIVE",
-          significance: 5,
+          significance: 3,
           milestones: [
             { id: "m1", title: "Unit 1", completed: false },
             { id: "m2", title: "Unit 2", completed: false },
@@ -326,7 +326,7 @@ describe("compile-reading-packet", () => {
           themeLabel: "Work & Career",
           categoryLabel: "Job",
           byStatus: { ACTIVE: 1 },
-          pursuits: [{ title: "CeMAP qualification", status: "ACTIVE", significance: 5 }],
+          pursuits: [{ title: "CeMAP qualification", status: "ACTIVE", significance: 3 }],
           facts: ["Work & Career · Job: 1 in progress"],
         },
       ],
@@ -356,7 +356,7 @@ describe("compile-reading-packet", () => {
           id: "c",
           title: "CeMAP qualification",
           status: "ACTIVE",
-          significance: 5,
+          significance: 3,
           deadline: "2026-07-02",
           timelineStart: "2025-12-14",
           milestones: [
@@ -381,7 +381,7 @@ describe("compile-reading-packet", () => {
           id: "c",
           title: "CeMAP qualification",
           status: "ACTIVE",
-          significance: 5,
+          significance: 3,
           addedToMap: "2025-12-14",
           milestones: [{ id: "m1", title: "Unit 1", completed: false }],
         },
@@ -450,7 +450,7 @@ describe("compile-reading-packet", () => {
                   id: "p-cemap",
                   title: "CeMAP qualification",
                   status: "ACTIVE",
-                  significance: 5,
+                  significance: 3,
                   deadline: "2026-06-20",
                   milestones: [
                     {
@@ -478,7 +478,7 @@ describe("compile-reading-packet", () => {
       id: "cemap",
       title: "CeMAP Qualification",
       status: "COMPLETE",
-      significance: 4,
+      significance: 3,
       completedAt: "2025-07-01",
       milestones: [
         { id: "m1", title: "Module 1", completed: true, completedAt: "2026-06-19" },
@@ -506,7 +506,7 @@ describe("compile-reading-packet", () => {
                   id: "nhse",
                   title: "New Homes Sales Executive",
                   status: "COMPLETE",
-                  significance: 4,
+                  significance: 3,
                   completedAt: "2024-06-20",
                   milestones: [],
                 },
@@ -588,7 +588,7 @@ describe("compile-reading-packet", () => {
         id: "p-debt",
         title: "Clear £10,000 credit card debt",
         status: "ACTIVE",
-        significance: 4,
+        significance: 3,
         deadline: "2026-07-01",
         targetAmount: 10000,
         currentAmount: 4200,
@@ -623,7 +623,7 @@ describe("compile-reading-packet", () => {
   it("builds gap facts for Alex fixture at fixed now", () => {
     const facts = buildGapFacts(flattenDensePursuits(), FIXTURE_NOW);
     expect(facts).toEqual([
-      "Significant but stalled: CeMAP qualification (sig 5, deadline 6d, 0 of 2 milestones completed)",
+      "Significant but stalled: CeMAP qualification (sig 3, deadline 6d, 0 of 2 milestones completed)",
     ]);
   });
 

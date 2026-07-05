@@ -9,7 +9,7 @@ function goal(overrides: Partial<PursuitToneGoalInput> = {}): PursuitToneGoalInp
     background: null,
     enrichAnswers: [],
     status: "ACTIVE",
-    significance: 4,
+    significance: 3,
     deadline: new Date("2026-07-01T00:00:00.000Z"),
     targetAmount: null,
     currentAmount: null,
@@ -46,7 +46,7 @@ describe("resolvePursuitInsightTone", () => {
     expect(
       resolvePursuitInsightTone(
         goal({
-          significance: 3,
+          significance: 2,
           deadline: new Date("2027-01-01T00:00:00.000Z"),
           background: "x".repeat(90),
           milestones: [{ title: "Step one", completedAt: new Date("2026-06-01T00:00:00.000Z") }],

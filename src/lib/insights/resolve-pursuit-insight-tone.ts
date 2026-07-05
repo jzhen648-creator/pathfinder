@@ -5,6 +5,7 @@ import {
   hasMinimumContextSignal,
   pursuitSignalFromGoal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { clampSignificance } from "@/lib/pursuit/significance";
 
 export type PursuitToneGoalInput = {
   title: string;
@@ -37,7 +38,7 @@ function toFormattedMapPursuitSlice(goal: PursuitToneGoalInput): FormattedMapPur
     id: "tone-resolve",
     title: goal.title,
     status: goal.status,
-    significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+    significance: clampSignificance(goal.significance),
     milestones: goal.milestones.map((milestone, index) => {
       const row: FormattedMapPursuit["milestones"][number] = {
         id: milestone.id ?? `ms-${index}`,

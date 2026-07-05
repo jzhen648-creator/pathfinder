@@ -11,6 +11,7 @@ import {
   type SpineEvent,
 } from "@/lib/timeline/spine-events";
 import { prisma } from "@/lib/prisma";
+import { significanceWordLabel } from "@/lib/pursuit/significance";
 
 export type PursuitReadingSignal = "gap" | "arrival";
 
@@ -76,7 +77,7 @@ export type ReadingPacket = {
 
 const MS_PER_DAY = 86_400_000;
 
-export const GAP_MIN_SIGNIFICANCE = 4;
+export const GAP_MIN_SIGNIFICANCE = 3;
 export const GAP_DEADLINE_DAYS = 30;
 // 120d — per-pursuit "arrival" signal for the reading rubric (recently completed arc).
 // Distinct from countReadingPacketRecentCompletions (90d), which drives mapAggregates and thinPacketForMapDepth.
@@ -744,7 +745,7 @@ export function buildFocalPursuitReadingFacts(
   const facts: string[] = [`Status: ${pursuit.status}`];
 
   if (pursuit.significance != null) {
-    facts.push(`Significance: ${pursuit.significance}/5`);
+    facts.push(`Significance: ${significanceWordLabel(pursuit.significance)}`);
   }
   if (pursuit.timelineStart) {
     facts.push(`Timeline started: ${pursuit.timelineStart}`);

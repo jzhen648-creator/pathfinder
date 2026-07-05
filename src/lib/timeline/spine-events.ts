@@ -1,4 +1,5 @@
 import type { FormattedMapContext, FormattedMapMark, FormattedMapPursuit } from "@/lib/ai/format-map-context";
+import { clampSignificance } from "@/lib/pursuit/significance";
 
 export type SpineEventKind =
   | "mark"
@@ -118,7 +119,7 @@ export function buildSpineEventsFromMapContext(
   }
 
   for (const pursuit of flattenPursuits(mapContext)) {
-    const significance = Math.min(5, Math.max(1, Math.round(pursuit.significance ?? 3)));
+    const significance = clampSignificance(pursuit.significance);
     const meta = {
       themeId: pursuit.themeId,
       themeLabel: pursuit.themeLabel,

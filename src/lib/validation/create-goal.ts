@@ -1,5 +1,4 @@
-import { z } from "zod";
-import { resolveBranchIdFromBody } from "@/lib/category-id";
+import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { resolveThemeIdFromBody } from "@/lib/theme-id";
 import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
 
@@ -38,7 +37,7 @@ export const createGoalPayloadSchema = z
     /** @deprecated Use `status`. */
     bloomStatus: z.enum(["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE"]).optional(),
     deadline: z.string(),
-    /** Omitted or null on create = unset; validated 1–5 when present. */
+    /** Omitted or null on create = unset; validated 1–3 when present. */
     significance: z.coerce.number().int().nullable().optional(),
     hasMeasurableTarget: z.boolean(),
     targetAmount: z.string(),
@@ -107,11 +106,11 @@ export const createGoalPayloadSchema = z
 
     if (
       data.significance != null &&
-      (data.significance < 1 || data.significance > 5)
+      (data.significance < 1 || data.significance > SIGNIFICANCE_MAX)
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Significance must be between 1 and 5",
+        message: "Significance must be between 1 and 3",
         path: ["significance"],
       });
     }

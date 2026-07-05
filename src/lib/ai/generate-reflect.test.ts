@@ -69,7 +69,7 @@ vi.mock("@/lib/insights/load-pursuit-tone-goals", () => ({
           description: null,
           enrichAnswers: [],
           status: id === "p-done" ? "COMPLETE" : "ACTIVE",
-          significance: id === "p-cemap" ? 5 : 4,
+          significance: id === "p-cemap" ? 3 : 3,
           deadline: id === "p-cemap" ? gapDeadline : null,
           targetAmount: null,
           currentAmount: null,

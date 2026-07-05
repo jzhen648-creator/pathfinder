@@ -18,6 +18,7 @@ import {
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
+import { clampSignificance } from "@/lib/pursuit/significance";
 import {
   DATE_DEADLINE_ARITHMETIC_RULE,
   ATTRIBUTES_AT_A_DATE_RULE,
@@ -255,9 +256,7 @@ async function generateOnePursuitEnrich(
     status: goal.status ?? "ACTIVE",
     completedAt: goal.completedAt ?? null,
     significance:
-      goal.significance != null
-        ? Math.min(5, Math.max(1, Math.round(goal.significance)))
-        : null,
+      goal.significance != null ? clampSignificance(goal.significance) : null,
     enrichAnswers,
     background: goal.background,
     quickQuestionsQuietUntil: previousQuietUntil,

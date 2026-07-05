@@ -10,6 +10,7 @@ import {
 } from "@/lib/milestone-generator";
 import { persistGeneratedRoadmapForGoal } from "@/lib/persist-generated-roadmap";
 import { prisma } from "@/lib/prisma";
+import { clampSignificance } from "@/lib/pursuit/significance";
 import {
   createGoalPayloadSchema,
   deadlineIsInFutureLocal,
@@ -153,7 +154,7 @@ export async function POST(request: Request) {
   if (input.significance != null) {
     const sigRaw = Number(input.significance);
     if (Number.isFinite(sigRaw)) {
-      significance = Math.min(5, Math.max(1, Math.round(sigRaw)));
+      significance = clampSignificance(sigRaw);
     }
   }
 

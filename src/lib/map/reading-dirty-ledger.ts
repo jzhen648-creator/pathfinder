@@ -6,6 +6,7 @@ import {
   pursuitSignalFromGoal,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
+import { clampSignificance } from "@/lib/pursuit/significance";
 
 export type ReadingDirtySummary = {
   pursuitIds: string[];
@@ -212,7 +213,7 @@ export async function sortDirtyPursuitIdsForReflect(
 
   const rows: DirtyPursuitPriorityRow[] = goals.map((goal) => ({
     id: goal.id,
-    significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+    significance: clampSignificance(goal.significance),
     signal: pursuitSignalFromGoal(goal),
     deadline: goal.deadline,
     createdAt: goal.createdAt,

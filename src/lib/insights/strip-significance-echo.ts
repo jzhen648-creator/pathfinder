@@ -1,4 +1,10 @@
 const SIGNIFICANCE_ECHO_PATTERNS = [
+  /\bsignificance\s*(?:of|is|at|as|[:=])\s*[1-3](?:\s*\/\s*3)?\b/gi,
+  /\b[1-3]\s*\/\s*3\s*(?:significance|priority)\b/gi,
+  /\b(?:at|with|a)\s+[1-3]\s*\/\s*3(?:\s+(?:significance|priority))?\b/gi,
+  /\b[1-3]\s*out\s*of\s*3\b/gi,
+  /\b(?:rated|scored|marked)\s+[1-3]\s*(?:\/\s*3|out\s*of\s*3)\b/gi,
+  /\b[1-3]\s*\/\s*3\b/gi,
   /\bsignificance\s*(?:of|is|at|as|[:=])\s*[1-5](?:\s*\/\s*5)?\b/gi,
   /\b[1-5]\s*\/\s*5\s*(?:significance|priority)\b/gi,
   /\b(?:at|with|a)\s+[1-5]\s*\/\s*5(?:\s+(?:significance|priority))?\b/gi,

@@ -308,7 +308,7 @@ model Goal {
   mapGridQ          Int?
   /// Mobile map world-grid axial r — when set, layout pins this pursuit to the cell.
   mapGridR          Int?
-  /// User-set importance 1–5; null = unset (map renders neutral size).
+  /// User-set importance 1–3; null = unset (map renders neutral size).
   significance      Int?
   future            Boolean       @default(false)
   isTurningPoint    Boolean       @default(false)

@@ -13,7 +13,7 @@ const PARSE_SYSTEM_PROMPT = [
   "title (string, cleaned goal title),",
   "type (milestone = clear endpoint, practice = ongoing habit → stored as project + Maintaining),",
   "targetDate (ISO date string if mentioned, otherwise null),",
-  "significance (integer 1-5, infer from language intensity and life impact),",
+  "significance (integer 1-3, infer from language intensity and life impact),",
   "confidence (float 0-1, how clearly input maps to a goal),",
   "branchId (string, use the provided value unless input strongly implies a different branch),",
   "areaId (string, use the provided value unless input strongly implies a different theme).",

@@ -14,6 +14,7 @@ import {
 import { buildFieldChanges } from "@/lib/map/reading-dirty-details";
 import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
+import { clampSignificance } from "@/lib/pursuit/significance";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 import {
   appendPursuitContextEntryAndSync,
@@ -113,7 +114,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     data.significance =
       input.significance == null
         ? null
-        : Math.min(5, Math.max(1, Math.round(input.significance)));
+        : clampSignificance(input.significance);
   }
   if (input.timelineStart !== undefined) {
     data.timelineStart =

@@ -25,6 +25,7 @@ import {
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
+import { clampSignificance } from "@/lib/pursuit/significance";
 import {
   DATE_DEADLINE_ARITHMETIC_RULE,
   MAP_SPECIFICITY_BAR,
@@ -330,9 +331,7 @@ async function loadReflectPursuitSlotContexts(
       status: goal.status ?? "ACTIVE",
       completedAt: goal.completedAt ?? null,
       significance:
-        goal.significance != null
-          ? Math.min(5, Math.max(1, Math.round(goal.significance)))
-          : null,
+        goal.significance != null ? clampSignificance(goal.significance) : null,
       enrichAnswers,
       background: goal.background,
       quickQuestionsQuietUntil: cachedQuietUntilByPursuit[goal.id],

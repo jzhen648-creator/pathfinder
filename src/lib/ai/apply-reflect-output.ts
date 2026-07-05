@@ -10,6 +10,7 @@ import {
   filterClarifiersAgainstMilestones,
   milestonesToGroundingInput,
 } from "@/lib/pursuit/filter-clarifiers-against-milestones";
+import { clampSignificance } from "@/lib/pursuit/significance";
 import { filterClarifiersAgainstKnownFacts } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
 import {
   gateEnrichResult,
@@ -248,7 +249,7 @@ export async function applyReflectOutput(
       signal,
       status: goal.status ?? "ACTIVE",
       completedAt: goal.completedAt ?? null,
-      significance: Math.min(5, Math.max(1, Math.round(goal.significance ?? 3))),
+      significance: clampSignificance(goal.significance),
       enrichAnswers,
       background: goal.background,
       quickQuestionsQuietUntil: previousQuietUntil,

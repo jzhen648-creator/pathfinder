@@ -4,6 +4,7 @@ import { getLifeArea } from "@/lib/life-areas";
 import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import { daysUntilCalendarDate } from "@/lib/map/deadline-calendar";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
+import { clampSignificance } from "@/lib/pursuit/significance";
 import { prisma } from "@/lib/prisma";
 
 export const MAX_MILESTONE_DESCRIPTION_CHARS = 200;
@@ -41,7 +42,7 @@ export type FormattedMapPursuit = {
     selectedOption: string;
   }>;
   status: string;
-  /** 1–5 when user set; omitted from AI context when unset. */
+  /** 1–3 when user set; omitted from AI context when unset. */
   significance?: number;
   milestones: Array<{
     id: string;
@@ -164,7 +165,7 @@ export function buildPursuitRow(
   };
 
   if (goal.significance != null) {
-    pursuit.significance = Math.min(5, Math.max(1, Math.round(goal.significance)));
+    pursuit.significance = clampSignificance(goal.significance);
   }
 
   if (goal.targetAmount != null) pursuit.targetAmount = goal.targetAmount;

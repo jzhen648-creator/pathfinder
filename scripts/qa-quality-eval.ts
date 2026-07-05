@@ -43,7 +43,8 @@ const CONNECTIVE_TISSUE =
 const EVALUATIVE_LANGUAGE =
   /\b(demonstrates|shows dedication|reflects commitment|significant achievement|impressive progress|remarkable)\b/i;
 
-const SIGNIFICANCE_ECHO = /\b\d\s*\/\s*5\b|\bsignificance\s*[:\-]?\s*[1-5]\b/i;
+const SIGNIFICANCE_ECHO =
+  /\b\d\s*\/\s*[35]\b|\bsignificance\s*[:\-]?\s*[1-5]\b/i;
 
 function gradePanel(headline: string, body: string): QualityFlag[] {
   const flags: QualityFlag[] = [];

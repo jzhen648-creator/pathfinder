@@ -12,7 +12,7 @@ export const parseGoalResponseSchema = z.object({
   title: z.string().min(1),
   type: z.enum(["milestone", "practice"]),
   targetDate: z.union([z.string(), z.null()]),
-  significance: z.coerce.number().min(1).max(5),
+  significance: z.coerce.number().min(1).max(3),
   confidence: z.coerce.number().min(0).max(1),
   branchId: z.string().min(1),
   areaId: z.string().min(1),

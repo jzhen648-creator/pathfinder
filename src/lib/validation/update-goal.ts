@@ -1,3 +1,4 @@
+import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { z } from "zod";
 import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-slug";
 import { AMOUNT_BASIS_VALUES } from "@/lib/pursuit/category-amount-profile";
@@ -16,7 +17,7 @@ export const updateGoalPayloadSchema = z
     description: z.string().optional(),
     /** User-authored background; `null` clears. Stored exactly as typed — max 1000 chars. */
     background: z.string().max(1000).nullable().optional(),
-    /** 1–5 when set; null clears user significance. */
+    /** 1–3 when set; null clears user significance. */
     significance: z.coerce.number().int().nullable().optional(),
     /** Explicit swimlane start; `null` clears override (falls back to createdAt). */
     timelineStart: calendarDaySchema.nullable().optional(),
@@ -102,11 +103,11 @@ export const updateGoalPayloadSchema = z
     if (
       data.significance != null &&
       data.significance !== undefined &&
-      (data.significance < 1 || data.significance > 5)
+      (data.significance < 1 || data.significance > SIGNIFICANCE_MAX)
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Significance must be between 1 and 5",
+        message: "Significance must be between 1 and 3",
         path: ["significance"],
       });
     }

@@ -28,7 +28,7 @@ const pursuitArb: fc.Arbitrary<FormattedMapPursuit> = fc.record({
   id: fc.uuid(),
   title: fc.string({ minLength: 1, maxLength: 40 }),
   status: fc.constantFrom("ACTIVE", "MAINTAINING", "COMPLETE", "PAUSED"),
-  significance: fc.option(fc.integer({ min: 1, max: 5 }), { nil: undefined }),
+  significance: fc.option(fc.integer({ min: 1, max: 3 }), { nil: undefined }),
   deadline: fc.option(
     fc.constantFrom(addDaysFromNow(5), addDaysFromNow(20), addDaysFromNow(45), addDaysFromNow(-3)),
     { nil: undefined },
@@ -126,7 +126,7 @@ describe("compile-reading-packet discovery properties", () => {
       fc.property(pursuitArb, (pursuit) => {
         fc.pre(
           (pursuit.status === "ACTIVE" || pursuit.status === "MAINTAINING") &&
-            (pursuit.significance ?? 0) >= 4 &&
+            (pursuit.significance ?? 0) >= 3 &&
             Boolean(pursuit.deadline?.trim()) &&
             (pursuit.targetAmount ?? 0) > 0 &&
             (pursuit.currentAmount ?? 0) > 0,
