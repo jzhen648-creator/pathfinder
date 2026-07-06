@@ -12,6 +12,7 @@ import {
   hasMinimumContextSignal,
   isHolisticBenchmarkEligible,
   sentenceParaphrasesHeadline,
+  sentenceRestatesBackground,
   sentenceRestatesEnrichAnswer,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
@@ -301,6 +302,67 @@ describe("pursuit-enrich-readiness gates", () => {
       enrichAnswers,
     });
     expect(gated.body).toBe(body);
+  });
+
+  it("sentenceRestatesBackground flags whole-line echo", () => {
+    const background = "Building emergency fund before house purchase";
+    expect(sentenceRestatesBackground(background, background)).toBe(true);
+    expect(
+      sentenceRestatesBackground(
+        "Building emergency fund before house purchase is the stated aim.",
+        background,
+      ),
+    ).toBe(true);
+  });
+
+  it("sentenceRestatesBackground ignores unrelated map-grounded prose", () => {
+    const background = "Building emergency fund before house purchase";
+    expect(
+      sentenceRestatesBackground(
+        "The ISA gap is the long-range anchor on the map.",
+        background,
+      ),
+    ).toBe(false);
+  });
+
+  it("gatePursuitInsightProse strips background glossary from headline and body", () => {
+    const background =
+      "Interview performance and client relationship management\nShifted focus to a different area of property";
+    const gated = gatePursuitInsightProse({
+      headline: "Interview performance and client relationship management define this chapter",
+      body:
+        "Interview performance and client relationship management shaped the role. Shifted focus to a different area of property pulled you away from pure sales.",
+      enrichAnswers: [],
+      background,
+      focalFacts: ["Status: ACTIVE", "Sales negotiator: 1/3 milestones complete"],
+    });
+    expect(gated.headline).not.toMatch(/Interview performance/i);
+    expect(gated.headline).toMatch(/milestones complete/i);
+    expect(gated.body?.toLowerCase() ?? "").not.toContain("interview performance");
+    expect(gated.body?.toLowerCase() ?? "").not.toContain("shifted focus");
+  });
+
+  it("gatePursuitInsightProse gates background-only chapters without enrichAnswers", () => {
+    const background = "Learning Spanish for travel to South America";
+    const gated = gatePursuitInsightProse({
+      headline: "Learning Spanish for travel to South America",
+      body: "Learning Spanish for travel to South America is the stated focus.",
+      enrichAnswers: [],
+      background,
+      focalFacts: ["Status: ACTIVE", "Learn Spanish: no milestones defined"],
+    });
+    expect(gated.headline).toMatch(/no milestones defined/i);
+    expect(gated.body?.toLowerCase() ?? "").not.toContain("south america");
+  });
+
+  it("gatePursuitInsightProse passthrough when no enrichAnswers and no background", () => {
+    const gated = gatePursuitInsightProse({
+      headline: "Race in ten weeks; longest logged run still 8k.",
+      body: "Half-marathon prep sits against a ten-week deadline.",
+      enrichAnswers: [],
+    });
+    expect(gated.headline).toBe("Race in ten weeks; longest logged run still 8k.");
+    expect(gated.body).toBe("Half-marathon prep sits against a ten-week deadline.");
   });
 
   it("buildFocalPursuitReadingFacts leads with structured chapter facts not enrichAnswers", () => {

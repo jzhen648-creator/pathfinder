@@ -378,6 +378,7 @@ async function generateOnePursuitEnrich(
     status: goal.status ?? "ACTIVE",
     quickQuestionsQuietUntil: previousQuietUntil,
     enrichAnswers,
+    background: goal.background,
     focalFacts: insightContext.focalFacts,
   });
   const slotted = applyQuestionSlotToResult(gated, slotContext);

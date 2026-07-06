@@ -210,7 +210,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
       expect(prompt).toContain("Exception — chapter body only");
       expect(prompt).toContain("consequential domain context anchored to this map");
       expect(prompt).toContain("MAP SPECIFICITY:");
-      expect(prompt).toContain("CHAPTER TITLE ON SCREEN:");
+      expect(prompt).toContain("CHAPTER TITLE ON SCREEN (reading copy only");
       expect(prompt).toContain("Never invent chapters or connections not in the data");
       expect(prompt).toContain("Name chapters VERBATIM from map context");
     }

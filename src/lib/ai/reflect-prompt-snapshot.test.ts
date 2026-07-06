@@ -18,7 +18,7 @@ function promptFingerprint(prompt: string): string {
 describe("reflect prompt snapshots", () => {
   it("full-scope prompt fingerprint is stable", () => {
     const prompt = buildReflectSystemPrompt(ENRICH_OPTIONS, "full", false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"ef4d40104f906b0de9d5e3fe51f5d14c46570f910890cd8789741b1f2166908b"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"6260dacb2f7e00816abfcdfdd1b915cc4bb314f114e8b60d7bfe20506da84a0a"`);
     expect(prompt).toContain("TENSION, NOT FORECAST:");
     expect(prompt).toContain("PLAN IMPLICATION");
     expect(prompt).toContain("ATTRIBUTES AT A DATE");
@@ -46,7 +46,7 @@ describe("reflect prompt snapshots", () => {
 
   it("pursuits-only prompt fingerprint is stable", () => {
     const prompt = buildReflectPursuitsOnlySystemPrompt(ENRICH_OPTIONS, false);
-    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"8d55b027753f0a029eb421d410a9edb27527c034dbab2fa510cdd7623a746559"`);
+    expect(promptFingerprint(prompt)).toMatchInlineSnapshot(`"0e7a0aef0ce2a4c3dfdd5ea3d4be853b7c45d82c8bfba4ee12a6e9ef64e13fa5"`);
     expect(prompt).not.toContain("THEME INSIGHTS");
     expect(prompt).not.toContain("OVERALL OUTPUT");
     expect(prompt).toContain("TENSION, NOT FORECAST:");

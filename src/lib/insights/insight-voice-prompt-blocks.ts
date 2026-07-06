@@ -63,8 +63,13 @@ export const USER_WORDS_RULE = [
 export const USER_RATIONALE_RULE = USER_WORDS_RULE;
 
 export const PURSUIT_TITLE_REFERENCE_RULE = [
-  "CHAPTER TITLE ON SCREEN:",
-  "Refer to chapters with a short map-native handle (\"the ISA\", \"this role\") — the reader already sees the full title in the header directly above the reading.",
+  "CHAPTER TITLE ON SCREEN (reading copy only — headline, body, comparison):",
+  "- The reader already sees the full chapter title in the header and Status / deadline / significance in the meta strip.",
+  "- NEVER use the literal words \"chapter\" or \"chapters\" in reading prose — not as a noun, not as filler.",
+  '- Wrong: "The Clear Credit Card chapter has a £10,000 target", "This chapter sits alongside the ISA", "This active chapter, started at age 23".',
+  '- Right: "The card has a £10,000 target", "It sits alongside the ISA", "Started at age 23 as a direct follow-on from CeMAP".',
+  "- Refer to the thing with a short natural handle (\"the card\", \"the role\", \"Sky\", \"the ISA\") or a pronoun — never \"the [Title] chapter\".",
+  "- Do NOT open headline or body by restating title + status + deadline the meta strip already shows — lead with what those surfaces do not say.",
 ].join("\n");
 
 export const MAP_SPECIFICITY_BAR = [

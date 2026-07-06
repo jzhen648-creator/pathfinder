@@ -1,5 +1,6 @@
 import type { PursuitEnrichResult, EnrichAnswer } from "@/lib/pursuit/pursuit-enrich-types";
 import { truncatePursuitInsightHeadline } from "@/lib/insights/clamp-insight-json";
+import { textRestatesKnownFact } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
 import { filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
@@ -300,14 +301,50 @@ function fallbackHeadlineFromFocalFacts(focalFacts: string[] | undefined): strin
   return truncatePursuitInsightHeadline(candidate);
 }
 
-/** Strip enrichAnswer restatements from pursuit headline/body after generation. */
+/** Split background into comparable fact units — newline lines and sentence chunks, deduped. */
+function backgroundFactUnits(background?: string | null): string[] {
+  if (!background?.trim()) return [];
+  const units = new Set<string>();
+  for (const line of background.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    units.add(trimmed);
+    for (const sentence of trimmed.split(/(?<=[.!?])\s+/)) {
+      const chunk = sentence.trim();
+      if (chunk) units.add(chunk);
+    }
+  }
+  return [...units];
+}
+
+/** @internal Exported for vitest — sentence overlaps background fact-unit tokens. */
+export function sentenceRestatesBackground(sentence: string, background?: string | null): boolean {
+  const units = backgroundFactUnits(background);
+  return units.some((fact) => textRestatesKnownFact(sentence, fact));
+}
+
+function sentenceRestatesKnownContext(
+  sentence: string,
+  enrichAnswers: EnrichAnswer[],
+  background?: string | null,
+): boolean {
+  return (
+    sentenceRestatesEnrichAnswer(sentence, enrichAnswers) ||
+    sentenceRestatesBackground(sentence, background)
+  );
+}
+
+/** Strip enrichAnswer and background restatements from pursuit headline/body after generation. */
 export function gatePursuitInsightProse(input: {
   headline?: string;
   body?: string;
   enrichAnswers: EnrichAnswer[];
+  background?: string | null;
   focalFacts?: string[];
 }): { headline?: string; body?: string } {
-  if (input.enrichAnswers.length === 0) {
+  const hasEnrichAnswers = input.enrichAnswers.length > 0;
+  const hasBackground = Boolean(input.background?.trim());
+  if (!hasEnrichAnswers && !hasBackground) {
     return {
       headline: input.headline?.trim() || undefined,
       body: input.body?.trim() || undefined,
@@ -317,14 +354,20 @@ export function gatePursuitInsightProse(input: {
   let headline = input.headline?.trim() ?? "";
   let body = input.body?.trim() ?? "";
 
-  if (headline && sentenceRestatesEnrichAnswer(headline, input.enrichAnswers)) {
+  if (
+    headline &&
+    sentenceRestatesKnownContext(headline, input.enrichAnswers, input.background)
+  ) {
     headline = fallbackHeadlineFromFocalFacts(input.focalFacts) ?? "";
   }
 
   if (body) {
     const sentences = body.split(/(?<=[.!?])\s+/).filter(Boolean);
     body = sentences
-      .filter((sentence) => !sentenceRestatesEnrichAnswer(sentence, input.enrichAnswers))
+      .filter(
+        (sentence) =>
+          !sentenceRestatesKnownContext(sentence, input.enrichAnswers, input.background),
+      )
       .join(" ")
       .trim();
   }
@@ -445,6 +488,7 @@ export type QuickQuestionGateContext = {
   status?: string;
   quickQuestionsQuietUntil?: string | null;
   enrichAnswers?: EnrichAnswer[];
+  background?: string | null;
   focalFacts?: string[];
 };
 
@@ -470,11 +514,15 @@ export function gateEnrichResult(
     : null;
 
   let insight = result.insight;
-  if (insight && qqContext?.enrichAnswers?.length) {
+  if (
+    insight &&
+    (qqContext?.enrichAnswers?.length || qqContext?.background?.trim())
+  ) {
     const prose = gatePursuitInsightProse({
       headline: insight.headline,
       body: insight.body,
-      enrichAnswers: qqContext.enrichAnswers,
+      enrichAnswers: qqContext.enrichAnswers ?? [],
+      background: qqContext.background,
       focalFacts: qqContext.focalFacts,
     });
     insight = {

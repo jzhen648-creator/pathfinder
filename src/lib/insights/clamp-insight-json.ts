@@ -5,6 +5,7 @@ import {
   PURSUIT_INSIGHT_HEADLINE_MAX,
 } from "@/lib/insights/insight-field-limits";
 import { normalizeLegacyPursuitTone } from "@/lib/insights/resolve-pursuit-insight-tone";
+import { stripChapterEcho } from "@/lib/insights/strip-chapter-echo";
 import { stripSignificanceEcho } from "@/lib/insights/strip-significance-echo";
 
 /** Max lengths aligned with Zod schemas in insight-types / pursuit-enrich-types. */
@@ -54,18 +55,22 @@ function truncateHeadline(value: unknown): unknown {
   return truncatePursuitInsightHeadline(value);
 }
 
+function normalizeReadingProse(value: string): string {
+  return stripChapterEcho(stripSignificanceEcho(value));
+}
+
 function clampPursuitInsightFields(row: Record<string, unknown>): void {
   if ("tone" in row) {
     row.tone = normalizePursuitInsightTone(row.tone);
   }
   if ("headline" in row && typeof row.headline === "string") {
-    row.headline = truncateHeadline(stripSignificanceEcho(row.headline));
+    row.headline = truncateHeadline(normalizeReadingProse(row.headline));
   }
   if ("body" in row && typeof row.body === "string") {
-    row.body = truncateString(stripSignificanceEcho(row.body), PURSUIT_INSIGHT_BODY_MAX);
+    row.body = truncateString(normalizeReadingProse(row.body), PURSUIT_INSIGHT_BODY_MAX);
   }
   if ("comparison" in row && typeof row.comparison === "string") {
-    row.comparison = truncateString(stripSignificanceEcho(row.comparison), PURSUIT_INSIGHT_COMPARISON_MAX);
+    row.comparison = truncateString(normalizeReadingProse(row.comparison), PURSUIT_INSIGHT_COMPARISON_MAX);
   }
 }
 

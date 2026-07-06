@@ -1,3 +1,4 @@
+import { stripChapterEcho } from "@/lib/insights/strip-chapter-echo";
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
@@ -132,10 +133,10 @@ export async function applyReflectOutput(
     if (!entry.oneLiner?.trim() && !entry.reflective?.trim()) continue;
     themes[themeId] = {
       tone: entry.tone,
-      oneLiner: entry.oneLiner.trim(),
-      reflective: entry.reflective.trim(),
-      contextual: entry.contextual?.trim() ?? "",
-      combined: entry.combined?.trim() ?? "",
+      oneLiner: stripChapterEcho(entry.oneLiner.trim()),
+      reflective: stripChapterEcho(entry.reflective.trim()),
+      contextual: stripChapterEcho(entry.contextual?.trim() ?? ""),
+      combined: stripChapterEcho(entry.combined?.trim() ?? ""),
     };
   }
 
@@ -202,9 +203,9 @@ export async function applyReflectOutput(
       clarifiers,
       insight: {
         tone: resolvePursuitInsightTone(goal, now),
-        headline: entry.headline,
-        body: entry.body,
-        ...(comparison ? { comparison } : {}),
+        headline: stripChapterEcho(entry.headline),
+        body: stripChapterEcho(entry.body),
+        ...(comparison ? { comparison: stripChapterEcho(comparison) } : {}),
       },
       suggestedMilestones,
     };
@@ -213,6 +214,7 @@ export async function applyReflectOutput(
       status: goal.status ?? "ACTIVE",
       quickQuestionsQuietUntil: previousQuietUntil,
       enrichAnswers,
+      background: goal.background,
       focalFacts: focalFactsByPursuit[pursuitId]?.facts,
     });
     const themeId = goal.themeId ?? "becoming";
@@ -283,8 +285,8 @@ export async function applyReflectOutput(
   const overall = reflect.overall?.oneLiner?.trim()
     ? {
         tone: reflect.overall.tone,
-        oneLiner: reflect.overall.oneLiner.trim(),
-        support: reflect.overall.support?.trim() ?? "",
+        oneLiner: stripChapterEcho(reflect.overall.oneLiner.trim()),
+        support: stripChapterEcho(reflect.overall.support?.trim() ?? ""),
       }
     : undefined;
 

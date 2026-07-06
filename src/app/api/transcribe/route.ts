@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
+import {
+  assertAiUserRateLimit,
+  AiUserRateLimitError,
+  recordAiUserRateLimitSuccess,
+} from "@/lib/ai/ai-user-rate-limit";
 import { authOptions } from "@/lib/auth";
 import {
   GeminiProviderError,
@@ -46,9 +52,14 @@ export async function POST(request: Request) {
         : "recording.webm";
 
   try {
+    assertAiUserRateLimit(session.user.id);
     const text = await transcribeAudioBlob(audio, name);
+    recordAiUserRateLimitSuccess(session.user.id);
     return NextResponse.json({ text });
   } catch (err) {
+    if (err instanceof AiUserRateLimitError) {
+      return aiRouteErrorResponse(err, "[POST /api/transcribe]");
+    }
     if (err instanceof GeminiNotConfiguredError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
