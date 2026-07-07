@@ -58,7 +58,7 @@ These three collapse into one card type and one learning curve for the user — 
 |------|----------------------|
 | **Milestone suggestions** | Already a sibling pattern with a different accept UX (suggestion chips on the pursuit sheet). Same "AI proposes, user accepts" spirit, different component. Shoehorning into a question card adds complexity. |
 | **Connection lines on the map** | A *visual* layer. The connection *data* comes from the Connect question; whether a *line* is ever drawn is a separate renderer decision that must independently clear the constellation-not-graph bar. May never happen. Decoupled. |
-| **Significance-as-gravity** | Selection logic *upstream* of questions — it decides *which* pursuit's questions are worth asking first. Not a card type; a sort key before batching. |
+| **Significance-as-gravity** | Selection logic *upstream* of questions — it decides *which* pursuit's questions are worth asking first. Not a card type; a sort key before batching. **Shipped (2026-07-08):** explicit Pivotal (3) bypasses note floor for clarify; Pivotal COMPLETE opens retrospective slot (`pick-question-slot.ts`, decisions §49). Dirty-priority sort already ranked significance first. |
 | **Richness indicator** | Read-only surfacing of existing signals. It can share math with the question-frequency gate, but it is not itself a question. |
 
 The discipline here is the simplification: three things merge, four things stay themselves. Resisting the urge to absorb everything is what keeps it simple.
@@ -85,7 +85,7 @@ These are flagged, not answered. The feasibility audit informs them; the founder
 2. **Connection data store.** If connections become real, where: typed `enrichAnswers` entry with `peerGoalId`, a minimal `PursuitRelationship` table (peers, not trees), or context-log entries? Sub-question of decision 1. Decoupled from any visual line.
 3. **Connection lines — separate gate.** Even with connection data, do lines ever get drawn? They conflict with the constellation north star. A *visual* decision made on its own merits, later, possibly never. The data is valuable without them.
 4. **Suggestion provenance.** If a suggested pursuit is accepted, do we record it came from completing CeMAP (`createdFrom`)? Useful for "painting a picture" of a continuous life; costs a schema field. (Audit Part 2A.)
-5. **Question selection + frequency.** Replace LLM-discretion with a deterministic scorer (thin + high-significance + just-completed picks the moment and pursuit; model only drafts the MC copy). Phase 2.5 work — partially shipped (see audit). Tune frequency with real testers.
+5. **Question selection + frequency.** Replace LLM-discretion with a deterministic scorer (thin + high-significance + just-completed picks the moment and pursuit; model only drafts the MC copy). Phase 2.5 work — **partially shipped:** significance-aware dirty sort + Pivotal gate + completion retrospective trigger (decisions §49, 2026-07-08). Tune frequency with real testers.
 6. **Does everything actually fit?** Answered by the audit: three asks fit the gesture; milestones, lines, significance-logic, and the richness meter stay adjacent. Don't re-absorb them.
 
 ---
@@ -108,7 +108,7 @@ This entire doc is **post-TestFlight**. The pre-TestFlight build (trust fix + la
 
 Build order, once greenlit post-validation, set by the feasibility audit:
 
-1. **Phase 2.5 (predictability)** — align the clarifier gate with richness, significance-aware ordering, completion boost, and why-now cue on the pursuit sheet. Schema-free. Makes today's Clarify ask feel intentional. *(Shipped — see audit.)*
+1. **Phase 2.5 (predictability)** — align the clarifier gate with richness, significance-aware ordering, completion boost, and why-now cue on the pursuit sheet. Schema-free. Makes today's Clarify ask feel intentional. **Shipped (2026-07-08):** Pivotal note-floor bypass + Pivotal COMPLETE → retrospective slot + why-now prompt line (decisions §49). Significance-aware dirty sort was already shipped.
 2. **Connect ask** — connection question → structured confirmed relationship (data only, no lines).
 3. **Suggest-add ask** — completion/beat → "add this?" → prefilled create flow.
 4. **Adjacent, independent decisions** — connection lines (visual, may never), richness indicator UI (founder confirm — design previously parked it), question-type selection + frequency tuning (remaining Phase 2.5).

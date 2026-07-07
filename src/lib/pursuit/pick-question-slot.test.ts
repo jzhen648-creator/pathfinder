@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  filterClarifiersForQuestionSlot,
+  computeQuickQuestionsQuietUntil,
+  type PursuitSignal,
+} from "@/lib/pursuit/pursuit-enrich-readiness";
+import {
   pickQuestionSlotForPursuit,
-  RETROSPECTIVE_CLARIFIER_ID_PREFIX,
+  questionSlotUserMessageLines,
+  type QuestionSlotContext,
 } from "@/lib/pursuit/pick-question-slot";
-import type { PursuitSignal } from "@/lib/pursuit/pursuit-enrich-readiness";
-import type { Clarifier } from "@/lib/pursuit/pursuit-enrich-types";
+import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 
 const thinSignal: PursuitSignal = {
-  title: "Project",
+  title: "Watch Netflix",
   backgroundChars: 0,
   enrichAnswerCount: 0,
   milestoneCount: 0,
@@ -19,148 +22,100 @@ const thinSignal: PursuitSignal = {
   status: "ACTIVE",
 };
 
-const baseCtx = {
-  signal: thinSignal,
-  completedAt: null,
-  significance: 3,
-  enrichAnswers: [],
-  quickQuestionsQuietUntil: null,
-  siblingGoalIds: ["b"],
-  existingRelationshipPeerIds: [],
-};
+function baseContext(overrides: Partial<QuestionSlotContext> = {}): QuestionSlotContext {
+  return {
+    signal: thinSignal,
+    status: "ACTIVE",
+    completedAt: null,
+    significance: null,
+    enrichAnswers: [],
+    siblingGoalIds: [],
+    existingRelationshipPeerIds: [],
+    ...overrides,
+  };
+}
 
 describe("pickQuestionSlotForPursuit", () => {
-  it("returns none for PAUSED pursuits", () => {
+  it("returns clarify for Pivotal ACTIVE chapter with no note", () => {
     expect(
-      pickQuestionSlotForPursuit({ ...baseCtx, status: "PAUSED" }),
-    ).toBe("none");
-  });
-
-  it("returns none when cooldown is active", () => {
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "ACTIVE",
-        quickQuestionsQuietUntil: new Date(Date.now() + 86_400_000).toISOString(),
-      }),
-    ).toBe("none");
-  });
-
-  it("returns none for COMPLETE pursuits", () => {
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "COMPLETE",
-        completedAt: new Date(),
-      }),
-    ).toBe("none");
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "COMPLETE",
-        completedAt: new Date(),
-        background: "Finished because the goal was met.",
-      }),
-    ).toBe("none");
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "COMPLETE",
-        completedAt: new Date(),
-        enrichAnswers: [
-          {
-            clarifierId: `${RETROSPECTIVE_CLARIFIER_ID_PREFIX}unlock`,
-            prompt: "What did finishing unlock?",
-            selectedOption: "More time",
-          },
-        ],
-      }),
-    ).toBe("none");
-  });
-
-  it("returns none when note is below minimum and no answers yet", () => {
-    expect(pickQuestionSlotForPursuit({ ...baseCtx, status: "ACTIVE" })).toBe("none");
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "ACTIVE",
-        signal: {
-          title: "Save for house deposit",
-          backgroundChars: 0,
-          enrichAnswerCount: 0,
-          milestoneCount: 0,
-          completedMilestoneCount: 0,
-          hasDeadline: true,
-          hasQuantifiedTarget: false,
-          status: "ACTIVE",
-        },
-      }),
-    ).toBe("none");
-  });
-
-  it("returns clarify when note meets minimum", () => {
-    expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "ACTIVE",
-        signal: {
-          ...thinSignal,
-          backgroundChars: 24,
-        },
-      }),
+      pickQuestionSlotForPursuit(
+        baseContext({
+          significance: SIGNIFICANCE_MAX,
+        }),
+      ),
     ).toBe("clarify");
   });
 
-  it("returns clarify for ACTIVE and MAINTAINING once ladder started", () => {
+  it("returns none for Meaningful ACTIVE chapter with no note", () => {
     expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "ACTIVE",
-        signal: { ...thinSignal, enrichAnswerCount: 1 },
-      }),
-    ).toBe("clarify");
+      pickQuestionSlotForPursuit(
+        baseContext({
+          significance: 2,
+        }),
+      ),
+    ).toBe("none");
+  });
+
+  it("returns none for unset significance ACTIVE chapter with no note", () => {
+    expect(pickQuestionSlotForPursuit(baseContext({ significance: null }))).toBe("none");
+  });
+
+  it("returns retrospective for Pivotal COMPLETE chapter", () => {
     expect(
-      pickQuestionSlotForPursuit({
-        ...baseCtx,
-        status: "MAINTAINING",
-        signal: { ...thinSignal, enrichAnswerCount: 1 },
-      }),
-    ).toBe("clarify");
+      pickQuestionSlotForPursuit(
+        baseContext({
+          status: "COMPLETE",
+          significance: SIGNIFICANCE_MAX,
+          completedAt: new Date("2026-07-01"),
+        }),
+      ),
+    ).toBe("retrospective");
+  });
+
+  it("returns none for non-Pivotal COMPLETE chapter", () => {
+    expect(
+      pickQuestionSlotForPursuit(
+        baseContext({
+          status: "COMPLETE",
+          significance: 2,
+          completedAt: new Date("2026-07-01"),
+        }),
+      ),
+    ).toBe("none");
+  });
+
+  it("returns none for Pivotal COMPLETE chapter during cooldown", () => {
+    expect(
+      pickQuestionSlotForPursuit(
+        baseContext({
+          status: "COMPLETE",
+          significance: SIGNIFICANCE_MAX,
+          quickQuestionsQuietUntil: computeQuickQuestionsQuietUntil(),
+        }),
+      ),
+    ).toBe("none");
+  });
+
+  it("returns none for Pivotal PAUSED chapter", () => {
+    expect(
+      pickQuestionSlotForPursuit(
+        baseContext({
+          status: "PAUSED",
+          significance: SIGNIFICANCE_MAX,
+        }),
+      ),
+    ).toBe("none");
   });
 });
 
-describe("filterClarifiersForQuestionSlot", () => {
-  it("keeps at most one forward clarifier for clarify slot", () => {
-    const filtered = filterClarifiersForQuestionSlot(
-      [
-        { id: "a", prompt: "Q1?", options: ["A", "B"], kind: "clarify" },
-        { id: "b", prompt: "Q2?", options: ["A", "B"], kind: "clarify" },
-        { id: "c", prompt: "Q3?", options: ["A", "B"], kind: "clarify" },
-      ],
+describe("questionSlotUserMessageLines", () => {
+  it("adds why-now line for note-less Pivotal clarify slot", () => {
+    const lines = questionSlotUserMessageLines(
       "clarify",
+      baseContext({
+        significance: SIGNIFICANCE_MAX,
+      }),
     );
-    expect(filtered).toHaveLength(1);
-    expect(filtered.map((c) => c.id)).toEqual(["a"]);
-  });
-
-  it("drops retired suggest_add clarifiers from clarify slot", () => {
-    const filtered = filterClarifiersForQuestionSlot(
-      [
-        { id: "a", prompt: "Add?", options: ["Yes", "No thanks"], kind: "suggest_add" } as unknown as Clarifier,
-        { id: "b", prompt: "Q?", options: ["A", "B"], kind: "clarify" },
-      ],
-      "clarify",
-    );
-    expect(filtered).toHaveLength(1);
-    expect(filtered[0]?.id).toBe("b");
-  });
-
-  it("returns empty for none slot", () => {
-    expect(
-      filterClarifiersForQuestionSlot(
-        [{ id: "a", prompt: "Q?", options: ["A", "B"], kind: "clarify" }],
-        "none",
-      ),
-    ).toEqual([]);
+    expect(lines.some((line) => line.includes("marked this chapter Pivotal"))).toBe(true);
   });
 });

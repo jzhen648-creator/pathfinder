@@ -1,7 +1,7 @@
 import type { PursuitEnrichResult, EnrichAnswer } from "@/lib/pursuit/pursuit-enrich-types";
 import { truncatePursuitInsightHeadline } from "@/lib/insights/clamp-insight-json";
 import { textRestatesKnownFact } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
-import { filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
+import { clarifierKind, filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { resolvePursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
@@ -501,13 +501,18 @@ export function gateEnrichResult(
   const options = resolvePursuitEnrichOptions(enrichOptions);
   const status = qqContext?.status ?? signal.status;
 
-  const clarifiers =
-    !options.clarifyTitles ||
-    status === "PAUSED" ||
-    status === "COMPLETE" ||
-    isQuickQuestionsQuiet(qqContext?.quickQuestionsQuietUntil)
-      ? []
-      : filterActiveClarifiers(result.clarifiers);
+  let clarifiers: PursuitEnrichResult["clarifiers"] = [];
+  if (options.clarifyTitles && !isQuickQuestionsQuiet(qqContext?.quickQuestionsQuietUntil)) {
+    if (status === "PAUSED") {
+      clarifiers = [];
+    } else if (status === "COMPLETE") {
+      clarifiers = filterActiveClarifiers(result.clarifiers).filter(
+        (c) => clarifierKind(c) === "retrospective",
+      );
+    } else {
+      clarifiers = filterActiveClarifiers(result.clarifiers);
+    }
+  }
 
   const suggestedMilestones = shouldSuggestMilestones(signal)
     ? result.suggestedMilestones

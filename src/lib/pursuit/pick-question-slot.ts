@@ -15,6 +15,7 @@ import {
   type EnrichAnswer,
   type PursuitEnrichResult,
 } from "@/lib/pursuit/pursuit-enrich-types";
+import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { prisma } from "@/lib/prisma";
 
 export type QuestionSlot = "none" | "clarify" | "retrospective";
@@ -43,15 +44,21 @@ export type QuestionSlotContext = {
 export function pickQuestionSlotForPursuit(ctx: QuestionSlotContext): QuestionSlot {
   const status = ctx.status ?? "ACTIVE";
 
-  if (status === "PAUSED" || status === "COMPLETE") {
-    return "none";
-  }
-
   if (isQuickQuestionsQuiet(ctx.quickQuestionsQuietUntil)) {
     return "none";
   }
 
+  if (status === "PAUSED") {
+    return "none";
+  }
+
+  if (status === "COMPLETE") {
+    return ctx.significance === SIGNIFICANCE_MAX ? "retrospective" : "none";
+  }
+
+  const isPivotal = ctx.significance === SIGNIFICANCE_MAX;
   if (
+    !isPivotal &&
     ctx.signal.enrichAnswerCount === 0 &&
     ctx.signal.backgroundChars < QUICK_QUESTION_MIN_NOTE_CHARS
   ) {
@@ -188,6 +195,15 @@ export function questionSlotUserMessageLines(
     "Read the chapter note and enrichAnswers — do not repeat answered facts; build on prior answers.",
     "Return [] when no high-value gap remains.",
   );
+  if (
+    ctx.significance === SIGNIFICANCE_MAX &&
+    ctx.signal.enrichAnswerCount === 0 &&
+    ctx.signal.backgroundChars < QUICK_QUESTION_MIN_NOTE_CHARS
+  ) {
+    lines.push(
+      "The user marked this chapter Pivotal but left no note — ask one forward-looking question about what makes it matter or the key unknown not yet on the map.",
+    );
+  }
   return lines;
 }
 

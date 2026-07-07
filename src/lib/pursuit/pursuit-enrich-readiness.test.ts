@@ -144,7 +144,7 @@ describe("pursuit-enrich-readiness gates", () => {
     expect(hasMinimumContextSignal(richSignal)).toBe(true);
   });
 
-  it("gateEnrichResult strips clarifiers for COMPLETE pursuits", () => {
+  it("gateEnrichResult strips forward clarifiers for COMPLETE pursuits but keeps retrospective", () => {
     const completeSignal: PursuitSignal = {
       ...thinSignal,
       status: "COMPLETE",
@@ -152,6 +152,12 @@ describe("pursuit-enrich-readiness gates", () => {
     const gated = gateEnrichResult(
       {
         clarifiers: [
+          {
+            id: "route",
+            prompt: "What route?",
+            options: ["A", "B"],
+            kind: "clarify",
+          },
           {
             id: "retro-skill",
             prompt: "Which skill did you develop most?",
@@ -166,7 +172,8 @@ describe("pursuit-enrich-readiness gates", () => {
       { clarifyTitles: true },
       { status: "COMPLETE" },
     );
-    expect(gated.clarifiers).toHaveLength(0);
+    expect(gated.clarifiers).toHaveLength(1);
+    expect(gated.clarifiers[0]?.kind).toBe("retrospective");
   });
 
   it("gateEnrichResult keeps clarifiers for deadline+title pursuits (QQ decoupled from richness)", () => {
