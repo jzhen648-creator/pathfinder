@@ -19,6 +19,14 @@ import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 
 import { mergeUnlockedThemeIds, parseUnlockedThemeIds } from "@/lib/unlocked-themes";
 
+import {
+  buildThemeActivity,
+  daysSinceDate,
+  isStalePursuit,
+  resolveLastTouchedAt,
+  type ThemeActivityGoal,
+} from "@/lib/map/pursuit-staleness";
+
 
 
 /** Root taxonomy category rows + pursuits/marks for map. Taxonomy sync on register, onboarding, activate, or backfill. */
@@ -158,14 +166,33 @@ export async function GET(request: Request) {
     const unlockedThemeIds = mergeUnlockedThemeIds(parseUnlockedThemeIds(user.unlockedLimbIds), categories);
     const mapCategories = categories.map((c) => ({ ...c, categoryId: c.id }));
 
+    const now = Date.now();
+    const themeIdByCategoryId = new Map(categories.map((c) => [c.id, c.themeId]));
+    const activityGoals: ThemeActivityGoal[] = [];
+    const goalsWithStaleness = goals.map((goal) => {
+      const lastTouchedAt = resolveLastTouchedAt(goal);
+      const daysSinceTouched = daysSinceDate(lastTouchedAt, now);
+      const themeId = goal.themeId ?? (goal.categoryId ? themeIdByCategoryId.get(goal.categoryId) : undefined);
+      if (themeId) {
+        activityGoals.push({ themeId, status: goal.status, lastTouchedAt });
+      }
+      return {
+        ...goal,
+        lastTouchedAt: lastTouchedAt.toISOString(),
+        daysSinceTouched,
+        stale: isStalePursuit(goal.status, daysSinceTouched),
+      };
+    });
+
     return NextResponse.json({
       categories: mapCategories,
-      goals,
+      goals: goalsWithStaleness,
       archivedGoals,
       marks: [],
       relationships,
       unlockedThemeIds,
       unlockedLimbIds: unlockedThemeIds,
+      themeActivity: buildThemeActivity(activityGoals, now),
     });
 
   } catch (err) {

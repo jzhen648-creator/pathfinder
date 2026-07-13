@@ -3,6 +3,7 @@ import { canonicalCategoryDisplayLabel } from "@/lib/category-catalog";
 import { getLifeArea } from "@/lib/life-areas";
 import { canonicalRootHubRows } from "@/lib/category-dedupe";
 import { daysUntilCalendarDate } from "@/lib/map/deadline-calendar";
+import { daysSinceDate, resolveLastTouchedAt } from "@/lib/map/pursuit-staleness";
 import { enrichAnswersSchema } from "@/lib/pursuit/pursuit-enrich-types";
 import { clampSignificance } from "@/lib/pursuit/significance";
 import { prisma } from "@/lib/prisma";
@@ -66,6 +67,8 @@ export type FormattedMapPursuit = {
   timelineStart?: string;
   /** ISO calendar date when chapter was added to the map — always set from createdAt. */
   addedToMap?: string;
+  /** Whole days since the last write to this chapter or its milestones — silence signal for AI. */
+  daysSinceTouched?: number;
   /** User-authored background — omitted when unset or empty. */
   background?: string;
 };
@@ -141,6 +144,7 @@ export function buildPursuitRow(
     completedAt?: Date | null;
     timelineStart?: Date | null;
     createdAt: Date;
+    updatedAt?: Date | null;
     milestones: Array<{ id: string; title: string; completedAt: Date | null; description?: string | null }>;
   },
   now = Date.now(),
@@ -183,6 +187,13 @@ export function buildPursuitRow(
   }
   pursuit.addedToMap = goal.createdAt.toISOString().slice(0, 10);
 
+  if (goal.updatedAt) {
+    pursuit.daysSinceTouched = daysSinceDate(
+      resolveLastTouchedAt({ updatedAt: goal.updatedAt, milestones: goal.milestones }),
+      now,
+    );
+  }
+
   const enrichAnswers = serializeEnrichAnswersForMapContext(goal.enrichAnswers);
   if (enrichAnswers) pursuit.enrichAnswers = enrichAnswers;
 
@@ -214,6 +225,7 @@ const goalSelect = {
   completedAt: true,
   timelineStart: true,
   createdAt: true,
+  updatedAt: true,
   milestones: {
     select: {
       id: true,

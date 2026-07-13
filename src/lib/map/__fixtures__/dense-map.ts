@@ -316,6 +316,7 @@ export const DENSE_READING_PACKET: ReadingPacket = {
   gapFacts: [
     "Significant but stalled: CeMAP qualification (sig 3, deadline 6d, 0 of 2 milestones completed)",
   ],
+  silenceFacts: [],
   milestonePaceFacts: [
     "Product Lead search: 1/1 milestones complete; last milestone 44d ago",
     "Senior Engineer at Acme: 1/1 milestones complete; last milestone 65d ago",
