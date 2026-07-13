@@ -36,16 +36,10 @@ async function login(): Promise<string> {
 
 async function prepareFullStorySmoke(userId: string): Promise<void> {
   const staleVersion = `stale-smoke-${Date.now()}`;
-  await Promise.all([
-    prisma.storyCache.updateMany({
-      where: { userId },
-      data: { mapVersion: staleVersion, memoryVersion: 0 },
-    }),
-    prisma.insightCache.updateMany({
-      where: { userId },
-      data: { mapVersion: staleVersion, memoryVersion: 0 },
-    }),
-  ]);
+  await prisma.insightCache.updateMany({
+    where: { userId },
+    data: { mapVersion: staleVersion, memoryVersion: 0 },
+  });
 
   const pursuits = await prisma.goal.findMany({
     where: { userId, archived: false, goalType: { notIn: ["moment", "event"] } },

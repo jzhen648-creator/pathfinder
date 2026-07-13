@@ -1,5 +1,5 @@
 /**
- * 1. Wipes goals, marks, milestones, reframes, and non-system categories.
+ * 1. Wipes goals, milestones, and non-system categories.
  *    Preserves system category rows (isSystemCategory) and resets them to dormant.
  * 2. Optionally deletes demo/test accounts.
  *
@@ -34,13 +34,8 @@ async function wipeAllUserData(): Promise<void> {
 
   console.log(`Step 1: Wiping user content for ${users.length} account(s)…\n`);
 
-  const reframes = await prisma.reframe.deleteMany({});
-  const marks = await prisma.mark.deleteMany({});
-  const caches = await prisma.goalEvaluationCache.deleteMany({});
   const goals = await prisma.goal.deleteMany({});
   const customBranches = await prisma.themeCategory.deleteMany({ where: { isSystemCategory: false } });
-  const trunkEntries = await prisma.trunkEntry.deleteMany({});
-  const trunkSegments = await prisma.trunkSegment.deleteMany({});
 
   const hubReset = await prisma.themeCategory.updateMany({
     where: { isSystemCategory: true },
@@ -50,29 +45,18 @@ async function wipeAllUserData(): Promise<void> {
   const profileReset = await prisma.user.updateMany({
     data: {
       onboardingCompleted: false,
-      firstRunCompleted: false,
-      onboardingPrimaryLimbId: null,
-      onboardingProfileText: null,
-      onboardingProfileData: Prisma.JsonNull,
-      careerEducationContextText: null,
-      lifeWheelRatings: Prisma.JsonNull,
-      lifeWheelHistory: Prisma.JsonNull,
-      lifeWheelAchievementAt: null,
+      onboardingThemeId: null,
+      unlockedLimbIds: Prisma.JsonNull,
     },
   });
 
   console.log("Deleted:");
-  console.log(`  reframes:              ${reframes.count}`);
-  console.log(`  marks:                 ${marks.count}`);
-  console.log(`  goal evaluation cache: ${caches.count}`);
   console.log(`  goals (+ milestones):  ${goals.count}`);
   console.log(`  custom categories:     ${customBranches.count}`);
-  console.log(`  trunk entries:         ${trunkEntries.count}`);
-  console.log(`  trunk segments:        ${trunkSegments.count}`);
   console.log(`\nReset ${hubReset.count} system categor(ies) to dormant.`);
   console.log(`Cleared profile/onboarding on ${profileReset.count} user(s).`);
 
-  console.log("\nEnsuring 17 system categories per user…");
+  console.log("\nEnsuring system categories per user…");
   for (const user of users) {
     const created = await ensureSystemCategoriesForUser(prisma, user.id);
     if (created > 0) console.log(`  ${user.email}: created ${created} categor(ies)`);

@@ -18,7 +18,6 @@ type HubRow = {
   hub: string;
   theme: string;
   goals: number;
-  marks: number;
   milestones: number;
 };
 
@@ -55,8 +54,8 @@ function continuationDepths(goals: { id: string; parentGoalId: string | null }[]
 async function auditUser(userId: string, email: string) {
   const branches = await prisma.themeCategory.findMany({
     where: { userId },
-    select: { id: true, themeId: true, label: true, name: true, status: true },
-    orderBy: [{ limbId: "asc" }, { label: "asc" }],
+    select: { id: true, themeId: true, label: true, status: true },
+    orderBy: [{ themeId: "asc" }, { label: "asc" }],
   });
   const goals = await prisma.goal.findMany({
     where: { userId, archived: false },
@@ -70,10 +69,6 @@ async function auditUser(userId: string, email: string) {
       shortLabel: true,
     },
   });
-  const marks = await prisma.mark.findMany({
-    where: { userId, archived: false },
-    select: { id: true, categoryId: true },
-  });
   const milestones = await prisma.milestone.findMany({
     where: { goal: { userId, archived: false } },
     select: { id: true, goalId: true },
@@ -81,15 +76,11 @@ async function auditUser(userId: string, email: string) {
 
   const branchIds = new Set(branches.map((b) => b.id));
   const goalsByBranch = new Map<string, number>();
-  const marksByBranch = new Map<string, number>();
   const milestonesByBranch = new Map<string, number>();
 
   for (const g of goals) {
     if (!g.categoryId) continue;
     goalsByBranch.set(g.categoryId, (goalsByBranch.get(g.categoryId) ?? 0) + 1);
-  }
-  for (const m of marks) {
-    marksByBranch.set(m.categoryId, (marksByBranch.get(m.categoryId) ?? 0) + 1);
   }
   const goalToBranch = new Map(goals.map((g) => [g.id, g.categoryId]));
   for (const ms of milestones) {
@@ -99,14 +90,13 @@ async function auditUser(userId: string, email: string) {
   }
 
   const hubRows: HubRow[] = branches.map((b) => ({
-    hub: b.label ?? b.name ?? b.id.slice(0, 8),
+    hub: b.label ?? b.id.slice(0, 8),
     theme: b.themeId,
     goals: goalsByBranch.get(b.id) ?? 0,
-    marks: marksByBranch.get(b.id) ?? 0,
     milestones: milestonesByBranch.get(b.id) ?? 0,
   }));
 
-  const zeroDataHubs = hubRows.filter((r) => r.goals === 0 && r.marks === 0 && r.milestones === 0);
+  const zeroDataHubs = hubRows.filter((r) => r.goals === 0 && r.milestones === 0);
 
   const goalBloom: Record<string, number> = {};
   const branchBloom: Record<string, number> = {};
@@ -139,17 +129,17 @@ async function auditUser(userId: string, email: string) {
 
   console.log(`\n=== ${email} ===`);
   console.log(
-    `Branches: ${branches.length} | Goals: ${goals.length} | Marks: ${marks.length} | Milestones: ${milestones.length}`,
+    `Branches: ${branches.length} | Goals: ${goals.length} | Milestones: ${milestones.length}`,
   );
 
   console.log("\nPer-hub counts:");
-  console.log("Theme      Hub                    Goals  Marks  Milestones");
-  console.log("---------  ---------------------  -----  -----  ----------");
+  console.log("Theme      Hub                    Goals  Milestones");
+  console.log("---------  ---------------------  -----  ----------");
   for (const row of hubRows) {
     const theme = row.theme.padEnd(9);
     const hub = row.hub.slice(0, 21).padEnd(21);
     console.log(
-      `${theme}  ${hub}  ${String(row.goals).padStart(5)}  ${String(row.marks).padStart(5)}  ${String(row.milestones).padStart(10)}`,
+      `${theme}  ${hub}  ${String(row.goals).padStart(5)}  ${String(row.milestones).padStart(10)}`,
     );
   }
 

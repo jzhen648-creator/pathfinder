@@ -7,16 +7,12 @@ import { PrismaClient } from "@prisma/client";
 import { syncTaxonomyForUser } from "../src/lib/taxonomy-sync";
 
 async function wipeUserTreeData(prisma: PrismaClient, userId: string): Promise<void> {
-  await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
-  await prisma.mark.deleteMany({ where: { userId } });
   await prisma.themeCategory.deleteMany({ where: { userId, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
     where: { userId, isSystemCategory: true },
     data: { isActive: false },
   });
-  await prisma.trunkEntry.deleteMany({ where: { userId } });
-  await prisma.trunkSegment.deleteMany({ where: { userId } });
 }
 
 async function main() {

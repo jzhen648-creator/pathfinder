@@ -65,3 +65,4 @@ scripts/simulate-mandela-results*.json
 /tmp/
 /tmp-screenshots/
 stream-preview-fix.png
+/fork-overlay-debug.png

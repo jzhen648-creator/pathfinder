@@ -22,7 +22,7 @@ The Next.js app in this repo **deploys to Vercel** and serves **`/api/*`** for t
 
 | Script | Purpose |
 |--------|---------|
-| `npm run fresh-start:mobile` | Wipe map data; reset mobile onboarding for dev account (**broken** — still queries dropped `StreamRun`/`Mark` tables, see `docs/AUDIT-2026-07-13.md`) |
+| `npm run fresh-start:mobile` | Wipe map data; reset mobile onboarding for dev account |
 | `npm run smoke-test` | Sequential API route smoke test |
 | `npx prisma db seed` | Empty test accounts (no map fixtures) |
 

@@ -33,14 +33,6 @@
 
 Public routes (no auth): `GET /api/health`, `GET /privacy`.
 
-## Quota hygiene (if legacy digest suspected)
-
-```powershell
-cd pathfinder
-npx tsx scripts/list-pending-stream-runs.ts
-npx tsx scripts/cancel-pending-stream-runs.ts --email=YOUR_EMAIL
-```
-
 ## Mobile local dev
 
 Copy `pathfinder-mobile/.env.example` → `.env.local` and set:
