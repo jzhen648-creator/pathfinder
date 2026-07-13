@@ -1,0 +1,60 @@
+# Almanac positioning (July 2026)
+
+**Status:** rewritten 2026-07-13 to match the shipped product (manual, deliberate chapter creation — no dump/capture feature).
+**Companion to** [`../PROJECT.md`](../PROJECT.md) — that file is internal design doctrine (the "one test", the moat, the philosophy). This file is the go-to-market frame.
+
+## What the product is (shipped, July 2026)
+
+A private life map. The user deliberately creates **chapters** on a hex canvas across six **themes** (Finance, Work, Self & Mind, Play & Leisure, People, Health). AI assists *inside* each creation and reflects on the whole:
+
+| Capability | Implementation |
+|------------|----------------|
+| Structure a typed sentence into a chapter | `/api/goals/parse` (title, date, significance, theme/category) |
+| Clarifier questions + suggested milestones on create | `src/lib/pursuit/` enrich pipeline |
+| Voice input to text | `/api/transcribe` (Groq) |
+| Regenerated insights (chapter / theme / overall) | reflect pipeline, `src/lib/ai/` |
+| Chronological record | Timeline (derived view) |
+
+There is no brain-dump or bulk-capture surface. Creation is one chapter at a time, on purpose: the deliberate act of adding a chapter **is** the reflection ([`../PROJECT.md`](../PROJECT.md): "building the record is itself valuable").
+
+## One-liner
+
+> **A save point for your life. You write the chapters; the map shows you the whole story.**
+
+## Target user
+
+The deliberate self-examiner (per [`../PROJECT.md`](../PROJECT.md)): takes personal responsibility seriously, thinks in terms of their whole story, uses tools like Notion but feels something missing, wants self-knowledge to flow inward rather than out to a platform. This is a niche, reachable audience (self-development readers, journaling communities) — treat it as the beachhead, not the ceiling.
+
+## Market position
+
+| Neighbor | They have | Almanac's difference |
+|----------|-----------|----------------------|
+| Goal trackers / task managers | Structure, reminders | Whole-life spatial map; setbacks stay visible as part of the story, not erased |
+| Journals (incl. AI journals) | Reflection, entries | Structured, cumulative artifact — chapters with status and milestones, not prose piles |
+| Life dashboards / Wheel of Life | Whole-life scope | A living map you build and revisit, with AI insight that reads *across* areas (the hydraulic effect), not a static self-audit |
+| ChatGPT as thinking partner | The conversation | A durable, owned, spatial artifact; privacy inversion |
+
+**Honest assessment:** with manual-only creation, Almanac competes in the crowded "intentional life tool" quadrant rather than claiming an open gap. The differentiators are the spatial map, the cross-area insight, and the philosophy of keeping setbacks visible. The moat remains emotional accumulation — a year of honest chapters is not rebuildable elsewhere.
+
+## Known risks (unchanged by feature choices)
+
+- **Acquisition depends on a new behavior.** Deliberate chapter-writing is a habit users must start, not one they already have. Onboarding must reach a meaningful first map fast, and per-chapter AI assist (parse, clarifiers, voice) exists to keep creation cost low.
+- **Reflection-app retention curse.** Whole-life tools demo well and retain poorly. The retention bets are the peripheral-vision map and honest-setback mechanics in `PROJECT.md` — unproven; measure them.
+- **Name collision.** "Almanac" conflicts with almanac.com and the former Almanac.io. Run trademark / App Store checks before attachment hardens.
+
+## North-star metric
+
+A new user has chapters in **three or more themes within the first week** — evidence the whole-life map (not a single goal) took hold. Secondary: returns to update a chapter status within 14 days.
+
+## Considered and deferred: batched capture ("the dump")
+
+A July 2026 review explored leading with brain-dump capture (voice/text ramble or imported ChatGPT conversation → AI drafts multiple chapters → user curates via confirm queue), positioning Almanac on the existing dump-into-AI behavior. **Decision: not pursued.** The product keeps deliberate, one-at-a-time creation as its identity. Recorded for the future:
+
+- The Stream extractor was deleted in June 2026; a rebuild would be a batched variant of `goals/parse` plus a confirm queue — moderate, not from-scratch.
+- If acquisition stalls, an **import-only cold start** (paste a conversation → draft starter map, user curates) is the smallest re-entry point that doesn't change daily use.
+- "Stream" is retired vocabulary — do not reuse in UI copy.
+
+## What does not change
+
+- `PROJECT.md` remains the design filter: "does this serve the user's self-understanding — or the platform?"
+- The map is the center of gravity and the moat: the longer it's used, the more irreplaceable it becomes.
