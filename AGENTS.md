@@ -8,15 +8,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 **Product name:** **Almanac** (mobile display name). This repo deploys **Next.js `/api/*`** on Vercel for the Expo client in `pathfinder-mobile/`.
 
-**Workspace map:** [`../START-HERE.md`](../START-HERE.md) · **Git:** [`../GIT-WORKFLOW.md`](../GIT-WORKFLOW.md)
+**Workspace map** (workspace-external — these `../` files exist only in the full workspace checkout, not in this repo): [`../START-HERE.md`](../START-HERE.md) · **Git:** [`../GIT-WORKFLOW.md`](../GIT-WORKFLOW.md)
 
-**Read first:** [`../PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) · [`../PATHFINDER-CORRECTED-FACTS.md`](../PATHFINDER-CORRECTED-FACTS.md) · [`../PATHFINDER-QA-PLAN.md`](../PATHFINDER-QA-PLAN.md)
+**Read first** (workspace-external): [`../PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) · [`../PATHFINDER-CORRECTED-FACTS.md`](../PATHFINDER-CORRECTED-FACTS.md) · [`../PATHFINDER-QA-PLAN.md`](../PATHFINDER-QA-PLAN.md) — in-repo fallback: [`DECISIONS.md`](./DECISIONS.md)
 
-**Mobile UI copy:** [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) — user-facing **chapter**, not pursuit.
+**Mobile UI copy:** [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) (workspace-external) — user-facing **chapter**, not pursuit.
 
 **Persistence vocabulary:** [`GLOSSARY.md`](./GLOSSARY.md) · [`ONTOLOGY.md`](./ONTOLOGY.md)
 
-**Desktop web UI:** **Removed** — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). Do not extend `src/components/tree/` or other desktop map UI unless explicitly asked.
+**Desktop web UI:** **Removed** — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). `src/components/tree/` is deleted; do not recreate desktop map UI unless explicitly asked.
 
 ## Active surfaces
 
@@ -33,9 +33,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 | UI (Almanac mobile) | Persistence |
 |---------------------|-------------|
 | theme | `themeId` / `LifeAreaId` |
-| category | `categoryId` (`TaxonomyCategory`) |
-| chapter | `Goal` (JSON may still say `pursuits`) |
-| status | `Goal.status` (SQL column legacy name `bloomStatus`) |
+| category | `categoryId` (Prisma `ThemeCategory`) |
+| chapter | `Goal` (code/API word: **pursuit**; JSON may still say `pursuits`) |
+| status | `Goal.status` (SQL column `status`; `bloomStatus` renamed away 2026-06-12) |
 
 **Retired on mobile:** Stream UI, marks UI, hub/track user copy, desktop tree map.
 
