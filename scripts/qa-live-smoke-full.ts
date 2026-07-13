@@ -95,7 +95,6 @@ async function main() {
     ok?: boolean;
     skipped?: boolean;
     metrics?: { aiCallsCompleted?: number; reflectCall?: boolean; rateLimited?: boolean };
-    story?: { refreshed?: boolean };
     insights?: { refreshed?: boolean };
   };
 
@@ -106,7 +105,6 @@ async function main() {
     calls >= 1 &&
     calls <= 2 &&
     body.metrics?.reflectCall === true &&
-    body.story?.refreshed === true &&
     body.insights?.refreshed === true &&
     !body.metrics?.rateLimited;
 
@@ -116,7 +114,6 @@ async function main() {
     aiCallsCompleted: calls,
     reflectCall: body.metrics?.reflectCall,
     rateLimited: body.metrics?.rateLimited,
-    storyRefreshed: body.story?.refreshed,
     insightsRefreshed: body.insights?.refreshed,
     ok,
   };

@@ -23,7 +23,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const email = credentials?.email;
         const password = credentials?.password;
 
@@ -31,10 +31,20 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Same brute-force budget as /api/auth/mobile-login. authorize() cannot
-        // return a 429, so a limited attempt reads as invalid credentials.
+        // Shared buckets with /api/auth/mobile-login (same `login:*` keys), so
+        // web + mobile draw from one brute-force budget per email and per IP.
+        // authorize() cannot return a 429, so a limited attempt reads as
+        // invalid credentials.
+        const forwarded = req?.headers?.["x-forwarded-for"];
+        const ip =
+          (typeof forwarded === "string" ? forwarded.split(",")[0]?.trim() : undefined) ||
+          "unknown";
+        const ipRate = consumeAuthRateLimit(`login:ip:${ip}`, AUTH_RATE_LIMITS.login);
+        if (ipRate.limited) {
+          return null;
+        }
         const rate = consumeAuthRateLimit(
-          `nextauth-login:email:${email.trim().toLowerCase()}`,
+          `login:email:${email.toLowerCase()}`,
           AUTH_RATE_LIMITS.login,
         );
         if (rate.limited) {
