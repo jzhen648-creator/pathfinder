@@ -10,7 +10,6 @@ import { resolve } from "node:path";
 
 import { PrismaClient } from "@prisma/client";
 
-import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
 import { ORIENTATION_FACT_KEY } from "../src/lib/ai/format-user-context";
 import {
   ALEX_PROFILE,
@@ -63,26 +62,14 @@ function loadEnvFiles(): void {
 }
 
 async function wipeAlexMapContent(prisma: PrismaClient, userId: string): Promise<void> {
-  const streamSession = getStreamSessionDelegate(prisma);
-
-  await prisma.reframe.deleteMany({ where: { mark: { userId } } });
   await prisma.aiReadingDirtyItem.deleteMany({ where: { userId } });
-  await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
-  await prisma.streamRun.deleteMany({ where: { userId } });
-  if (streamSession) {
-    await streamSession.deleteMany({ where: { userId } });
-  }
   await prisma.pursuitRelationship.deleteMany({ where: { userId } });
   await prisma.pursuitContextEntry.deleteMany({ where: { userId } });
   await prisma.goal.deleteMany({ where: { userId } });
-  await prisma.mark.deleteMany({ where: { userId } });
   await prisma.insightCache.deleteMany({ where: { userId } });
-  await prisma.storyCache.deleteMany({ where: { userId } });
   await prisma.userMemoryHistory.deleteMany({ where: { userId } });
   await prisma.userMemory.deleteMany({ where: { userId } });
   await prisma.profileFact.deleteMany({ where: { userId } });
-  await prisma.trunkEntry.deleteMany({ where: { userId } });
-  await prisma.trunkSegment.deleteMany({ where: { userId } });
 
   await prisma.user.update({
     where: { id: userId },

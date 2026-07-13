@@ -40,7 +40,7 @@ Canonical relationships between persisted entities and derived UI concepts. Nami
 | **Category** | Prisma `ThemeCategory` root row; FK `categoryId` on `Goal` | Named slot under a theme. **Shown in mobile UI.** Legacy: hub, track, section, `branchId`. |
 | **Goal** | Prisma `Goal` | User word **pursuit** — no subtypes. Legacy `goalType`, `moment` / `event` rows. |
 | **Milestone** | Prisma `Milestone` | Phase within one goal only. |
-| **Mark** | Prisma `Mark` | **Schema-only on mobile** — no UI. Desktop / legacy data. |
+| **Mark** | **Dropped** | `Mark` table removed (`20260621120000_drop_legacy_desktop_schema`); mobile never showed marks. |
 | **Soft delete** | `Goal.archived` | Hidden from map; restore via Settings. |
 | **Goal evolution (legacy data)** | `Goal.parentGoalId` | Fork API removed — mobile uses flat peers only. |
 
@@ -48,7 +48,7 @@ Canonical relationships between persisted entities and derived UI concepts. Nami
 
 User word: **Status** — Active · Maintaining · Paused · Complete.
 
-Persisted: `Goal.status` (SQL `bloomStatus`). Legacy bloom values (`BUD`, `GROWING`, `BLOOMED`, `ENDED`) normalized at read. Rules: `goal-status-lifecycle.ts`.
+Persisted: `Goal.status` (SQL column `status` — renamed from `bloomStatus` 2026-06-12). Legacy bloom values (`BUD`, `GROWING`, `BLOOMED`, `ENDED`) normalized at read. Rules: `goal-status-lifecycle.ts`.
 
 **Do not** assign lifecycle from graph shape (successor count, nesting). Status is user- or Stream-set, not derived from milestones alone.
 
@@ -57,7 +57,7 @@ Persisted: `Goal.status` (SQL `bloomStatus`). Legacy bloom values (`BUD`, `GROWI
 - **`thread*`** — legacy geometry / taxonomy seed names, not continuations. Do not introduce new `thread*` domain identifiers.
 - **hub / track / section** — legacy synonyms for **category**. Desktop only.
 - **bloom** — legacy lifecycle word; user-facing **status** only.
-- **Stream** — backend wire only; retired as product surface (Jun 2026).
+- **Stream** — fully removed (Jun 2026): no `/api/stream/*` routes, extract modules deleted, `StreamRun` / `StreamSession` tables dropped.
 
 ## Dangerous collisions (for authors & AI)
 
@@ -66,19 +66,21 @@ Persisted: `Goal.status` (SQL `bloomStatus`). Legacy bloom values (`BUD`, `GROWI
 | **Branch** | Prisma SQL table name vs generic English. Mobile UI: **category**. Code: **ThemeCategory**. |
 | **Fork** | SVG layout fork vs removed goal-evolution API vs legacy split row. Qualify: **layout fork**, **legacy split row**. |
 | **Theme** vs **`LifeAreaId` / `limbId`** | Same ids — **theme** is the product word. |
-| **Reading** vs **Insight** | **Reading** retired as user word. Backend **reading compiler** is internal. User word: **Insight**. |
+| **Reading** vs **Insight** | Per DECISIONS 2026-06-13: **Reading** = whole-map prose (Reading tab, "Update AI reading"); **Insight** = inline panel prose. Backend **reading compiler** is internal. |
 
 ## Terminology policy
 
-**Preferred nouns (mobile UI):** theme · category · pursuit · status · insight
+**Preferred nouns (mobile UI):** theme · category · **chapter** (was pursuit — see `AGENTS.md` / `pathfinder-mobile/TERMINOLOGY.md`) · status · insight
 
-**Forbidden in new mobile UI:** hub, track, branch, thread, bloom, mark, Reading, Stream, project, identity, practice
+**Code/API vocabulary:** **pursuit** remains the code, API and doc word for the `Goal` entity — the chapter rename is UI copy only.
+
+**Forbidden in new mobile UI:** hub, track, branch, thread, bloom, mark, Stream, project, identity, practice
 
 **Desktop-only (on hold):** tree view, edit-map reorganize, mark hover cards, branch-line sequence — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md).
 
 ## References
 
 - Historical UX audit: removed Jul 2026 (git history)
-- Stabilization phase: [`docs/STABILIZATION.md`](./docs/STABILIZATION.md)
-- Milestone projection (desktop hex): `src/components/tree/milestone-tree-projection.ts`
+- Stabilization phase: [`docs/STABILIZATION.md`](./docs/STABILIZATION.md) — **desktop-era, superseded**
 - Status lifecycle: `src/lib/goal-status-lifecycle.ts`
+- Repo audit (docs vs code): [`docs/AUDIT-2026-07-13.md`](./docs/AUDIT-2026-07-13.md)

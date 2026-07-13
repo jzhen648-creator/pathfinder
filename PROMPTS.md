@@ -2,19 +2,19 @@
 
 This document governs every AI-generated string shown to users in Almanac. When writing or revising a system prompt, start here. If output could appear in someone else's app, it fails.
 
-**Implementation map** (where prompts live today):
+**Implementation map** (where prompts live today — updated 2026-07-13; Stream/Story/memory prompt modules were removed with the desktop retirement):
 
 | Surface | Prompt location |
 |--------|------------------|
-| Insights sparkle + global cache | `src/lib/insights/generate-insights.ts` |
-| Stream interpretation + confirmation copy | `src/lib/ai/stream-extract.ts` (`STREAM_*_SYSTEM_PROMPT`, `STREAM_PURUIT_REVIEW_RULES`) |
+| Reflect sync (Reading + theme insights + pursuit panels) | `src/lib/ai/generate-reflect.ts` |
+| Quick questions / clarifiers | `src/lib/pursuit/clarifier-prompt-blocks.ts`, `clarifier-question-prompt.ts`, `generate-create-clarifier.ts` |
+| Pursuit enrich | `src/lib/pursuit/generate-pursuit-enrich.ts`, `pursuit-insight-prompt-context.ts` |
+| Insight voice/tone blocks | `src/lib/insights/insight-voice-prompt-blocks.ts`, `theme-insight-prompt-blocks.ts`, `pursuit-tone-prompt.ts` |
 | Money tracker reflection | `src/app/api/finance/reflection/route.ts` |
-| Story (coach narrative) | `src/lib/story/generate-story.ts` (`STORY_SYSTEM_PROMPT`) |
-| Profile memory (internal, not user insight copy) | `src/lib/memory/seed-memory.ts`, `update-memory.ts` |
 | Milestone suggestions (structural, not insight) | `src/lib/milestone-generator.ts`, `src/app/api/goals/*/suggest-milestones/` |
-| Dashboard message | `src/lib/dashboard-message.ts` |
+| Status-change prompts | `src/lib/ai/pursuit-status-prompt.ts` |
 
-Structured extraction prompts (Stream JSON schema, deduplication, taxonomy category routing via `hubId`) are engineering constraints. This document governs the **human-facing prose** those calls produce: narratives, insights, reflections, and confirmation descriptions.
+This document governs the **human-facing prose** those calls produce: narratives, insights, reflections, and confirmation descriptions.
 
 ---
 

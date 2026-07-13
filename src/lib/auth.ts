@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { AUTH_RATE_LIMITS, consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 import {
   DEV_LOGIN_PASSWORD,
   isDevLoginAttempt,
@@ -27,6 +28,16 @@ export const authOptions: NextAuthOptions = {
         const password = credentials?.password;
 
         if (!email || !password) {
+          return null;
+        }
+
+        // Same brute-force budget as /api/auth/mobile-login. authorize() cannot
+        // return a 429, so a limited attempt reads as invalid credentials.
+        const rate = consumeAuthRateLimit(
+          `nextauth-login:email:${email.trim().toLowerCase()}`,
+          AUTH_RATE_LIMITS.login,
+        );
+        if (rate.limited) {
           return null;
         }
 

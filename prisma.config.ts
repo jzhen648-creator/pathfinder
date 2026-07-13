@@ -5,8 +5,14 @@ import { defineConfig } from "prisma/config";
 
 config({ path: ".env.local", override: true });
 
+// `prisma generate` is pure codegen and needs no database connection, so a
+// fresh clone (postinstall, typecheck, unit tests) must not require env setup.
+// Commands that actually touch the datasource still fail fast without a URL.
+const CODEGEN_COMMANDS = new Set(["generate"]);
+const command = process.argv.find((arg) => !arg.startsWith("-") && CODEGEN_COMMANDS.has(arg));
+
 const databaseUrl = process.env["DATABASE_URL"];
-if (!databaseUrl) {
+if (!databaseUrl && !command) {
   throw new Error("DATABASE_URL is required for Prisma.");
 }
 
@@ -16,6 +22,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: databaseUrl,
+    url: databaseUrl ?? "postgresql://placeholder:placeholder@localhost:5432/placeholder",
   },
 });

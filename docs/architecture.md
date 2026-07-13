@@ -1,5 +1,5 @@
 > **SUPERSEDED for mobile / Claude review.** Desktop tree architecture (May 2026).  
-> **Use instead:** [`../../PATHFINDER-ARCHITECTURE.md`](../../PATHFINDER-ARCHITECTURE.md) (mobile-first) · [`../../PATHFINDER-CONTEXT.md`](../../PATHFINDER-CONTEXT.md) (product + screens).
+> **Use instead (in-repo):** [`../AGENTS.md`](../AGENTS.md) · [`../ONTOLOGY.md`](../ONTOLOGY.md) · [`../DECISIONS.md`](../DECISIONS.md). Workspace-external (not in this repo): `PATHFINDER-ARCHITECTURE.md`, `PATHFINDER-CONTEXT.md`.
 
 # Architecture (compressed) — desktop tree era
 

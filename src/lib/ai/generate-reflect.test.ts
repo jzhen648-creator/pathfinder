@@ -48,6 +48,15 @@ vi.mock("@/lib/map/compile-reading-packet", async (importOriginal) => {
   };
 });
 
+// generate-reflect reads pursuit signals + cached insights straight from
+// Prisma; without this mock the suite needs a live DATABASE_URL.
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    goal: { findMany: vi.fn(async () => []) },
+    insightCache: { findUnique: vi.fn(async () => null) },
+  },
+}));
+
 vi.mock("@/lib/gemini", () => ({
   hasGeminiKey: () => true,
   generateJsonCompletion: mocks.generateJsonCompletion,

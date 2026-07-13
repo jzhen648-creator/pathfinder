@@ -12,7 +12,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveDevLoginEmail } from "../src/lib/dev-login-credentials";
 import { ensureTaxonomyCurrent } from "../src/lib/taxonomy-sync";
-import { getStreamSessionDelegate } from "../src/lib/prisma-stream-session";
 
 const prisma = new PrismaClient();
 
@@ -27,65 +26,36 @@ function parseArgs(argv: string[]) {
 }
 
 async function wipeUserContent(userId: string, dryRun: boolean): Promise<void> {
-  const streamSession = getStreamSessionDelegate(prisma);
-
   if (dryRun) {
     const [
       goals,
-      marks,
-      streamRuns,
-      streamSessions,
       memory,
       memoryHist,
       insight,
-      story,
       facts,
       manual,
-      trunkSeg,
-      trunkEnt,
-      evalCache,
-      reframes,
       dirtyItems,
     ] = await Promise.all([
       prisma.goal.count({ where: { userId } }),
-      prisma.mark.count({ where: { userId } }),
-      prisma.streamRun.count({ where: { userId } }),
-      streamSession ? streamSession.count({ where: { userId } }) : Promise.resolve(0),
       prisma.userMemory.count({ where: { userId } }),
       prisma.userMemoryHistory.count({ where: { userId } }),
       prisma.insightCache.count({ where: { userId } }),
-      prisma.storyCache.count({ where: { userId } }),
       prisma.profileFact.count({ where: { userId } }),
       prisma.userManualProfile.count({ where: { userId } }),
-      prisma.trunkSegment.count({ where: { userId } }),
-      prisma.trunkEntry.count({ where: { userId } }),
-      prisma.goalEvaluationCache.count({ where: { userId } }),
-      prisma.reframe.count({ where: { mark: { userId } } }),
       prisma.aiReadingDirtyItem.count({ where: { userId } }),
     ]);
-    console.log(`  would delete: goals=${goals} marks=${marks} streamRuns=${streamRuns} streamSessions=${streamSessions}`);
-    console.log(`  would delete: userMemory=${memory}+${memoryHist} caches=${insight + story} profileFacts=${facts} manualProfile=${manual}`);
-    console.log(`  would delete: trunk=${trunkSeg}+${trunkEnt} evalCache=${evalCache} reframes=${reframes} dirtyLedger=${dirtyItems}`);
+    console.log(`  would delete: goals=${goals} userMemory=${memory}+${memoryHist} insightCache=${insight}`);
+    console.log(`  would delete: profileFacts=${facts} manualProfile=${manual} dirtyLedger=${dirtyItems}`);
     return;
   }
 
-  await prisma.reframe.deleteMany({ where: { mark: { userId } } });
   await prisma.aiReadingDirtyItem.deleteMany({ where: { userId } });
-  await prisma.goalEvaluationCache.deleteMany({ where: { userId } });
-  await prisma.streamRun.deleteMany({ where: { userId } });
-  if (streamSession) {
-    await streamSession.deleteMany({ where: { userId } });
-  }
   await prisma.goal.deleteMany({ where: { userId } });
-  await prisma.mark.deleteMany({ where: { userId } });
   await prisma.userMemoryHistory.deleteMany({ where: { userId } });
   await prisma.userMemory.deleteMany({ where: { userId } });
   await prisma.insightCache.deleteMany({ where: { userId } });
-  await prisma.storyCache.deleteMany({ where: { userId } });
   await prisma.profileFact.deleteMany({ where: { userId } });
   await prisma.userManualProfile.deleteMany({ where: { userId } });
-  await prisma.trunkEntry.deleteMany({ where: { userId } });
-  await prisma.trunkSegment.deleteMany({ where: { userId } });
   await prisma.themeCategory.deleteMany({ where: { userId, isSystemCategory: false } });
   await prisma.themeCategory.updateMany({
     where: { userId, isSystemCategory: true },
@@ -96,21 +66,12 @@ async function wipeUserContent(userId: string, dryRun: boolean): Promise<void> {
 async function resetUserForMobileOnboarding(userId: string, dryRun: boolean): Promise<void> {
   const data = {
     onboardingCompleted: false,
-    firstRunCompleted: false,
-    onboardingScene: null,
     onboardingThemeId: null,
-    onboardingHubSlug: null,
-    onboardingPrimaryLimbId: null,
     unlockedLimbIds: Prisma.JsonNull,
-    onboardingProfileText: null,
-    onboardingProfileData: Prisma.JsonNull,
-    careerEducationContextText: null,
-    lifeWheelRatings: Prisma.JsonNull,
-    lifeWheelHistory: Prisma.JsonNull,
-    lifeWheelAchievementAt: null,
     taxonomyVersion: null,
     taxonomySyncedAt: null,
     lastReadingDeliveredAt: null,
+    lastFullReflectAt: null,
   };
 
   if (dryRun) {
@@ -191,9 +152,8 @@ async function main() {
   await wipeUserContent(keepUser.id, false);
   await resetUserForMobileOnboarding(keepUser.id, false);
 
-  const [goals, marks, branches, profile] = await Promise.all([
+  const [goals, branches, profile] = await Promise.all([
     prisma.goal.count({ where: { userId: keepUser.id } }),
-    prisma.mark.count({ where: { userId: keepUser.id } }),
     prisma.themeCategory.count({ where: { userId: keepUser.id } }),
     prisma.userManualProfile.count({ where: { userId: keepUser.id } }),
   ]);
@@ -201,7 +161,7 @@ async function main() {
   console.log("\nDone. Kept account state:");
   console.log(`  email: ${keepEmail}`);
   console.log(`  onboardingCompleted: false`);
-  console.log(`  goals: ${goals}, marks: ${marks}, sections: ${branches}, manualProfile: ${profile}`);
+  console.log(`  goals: ${goals}, categories: ${branches}, manualProfile: ${profile}`);
   console.log("\nNext: log out in mobile → log back in → complete onboarding from scratch.");
 }
 

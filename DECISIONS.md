@@ -26,7 +26,7 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-20 — Quick-question answer collapse (single store + structured AI read)
 
-**Shipped:** Quick-question answers live in **`Goal.enrichAnswers` only** — no longer mirrored into `PursuitContextEntry` (`clarifier_answer`) or `Goal.description` prose. Reflect **`map_context`** now includes structured `enrichAnswers` per pursuit row (`format-map-context.ts`). **`npm run build`** runs `migrate:qq-answer-collapse` before `next build` so prose stripping and structured AI read deploy atomically (no double-read window).
+**Shipped:** Quick-question answers live in **`Goal.enrichAnswers` only** — no longer mirrored into `PursuitContextEntry` (`clarifier_answer`) or `Goal.description` prose. Reflect **`map_context`** now includes structured `enrichAnswers` per pursuit row (`format-map-context.ts`). **`npm run build`** ran `migrate:qq-answer-collapse` before `next build` at ship time so prose stripping and structured AI read deployed atomically *(the one-time migration step has since been removed from the build script — current build is `prisma migrate deploy && next build`)*.
 
 **Clear semantics:** **Clear context** wipes **authored notes only** (`description` + empty `manual_edit` log entry). **`enrichAnswers` survive** — quick questions are a separate lifecycle from the Context section.
 
@@ -159,6 +159,8 @@ Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-pr
 **Rationale:** One-pursuit maps were being inflated into false life narratives, failing the “could this appear in someone else's app” test.
 
 ## 2026-06-12 — Marks confirmed staying
+
+> **Superseded (2026-06-21):** the `Mark` table was **dropped** in migration `20260621120000_drop_legacy_desktop_schema` — marks left the model entirely. Kept for history.
 
 **Product:** Marks remain in the model. Pursuits are what you're doing; marks are what's true (life facts: “Passed CeMAP”, “Dad”, “Moved to London”). Marks ground readings in reality; removing them would blind every reading.
 
@@ -1092,6 +1094,8 @@ Separated **intake entry points** so centre FAB and Self node never share a door
 **Also shipped:** Map tab re-press while focused returns to overview (exits edit-map if open). Profile screen uses `ScreenHeader` (no back chevron on tab root). Settings Profile link row removed (redundant with tab).
 
 ## 2026-06-14 — Archive is the sole map removal mechanism
+
+> **Update (2026-06-19):** the "retained safety net" `ABANDONED` enum value was subsequently **removed** in migration `20260619120000_remove_abandoned_status` (remaining rows converted to `archived: true`).
 
 **Abandon pursuit removed from long-press menu.** Two overlapping removal paths existed: **Abandon pursuit** (`status: ABANDONED`, no `archived`) and **Archive pursuit** (`archived: true`). Abandoned pursuits left the map and AI context but did not appear in Settings → Archived pursuits — no UI to find or restore them. **Archive** remains the only removal action: reversible via Settings → Archived pursuits → Restore.
 

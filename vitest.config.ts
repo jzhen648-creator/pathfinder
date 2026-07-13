@@ -9,10 +9,6 @@ export default defineConfig({
     exclude: [
       "src/lib/goal-short-label.test.ts",
       "src/lib/canvas-label-salience.test.ts",
-      "src/lib/stream-extract-errors.test.ts",
-      "src/lib/ai/stream-extract-narrative.test.ts",
-      "src/lib/ai/stream-extract-sessions.test.ts",
-      "src/lib/story/sanitize-story.test.ts",
       "src/lib/icons/match-pursuit-icon-override.test.ts",
       "src/lib/pursuit/pursuit-finance.test.ts",
       "src/lib/pursuit/pursuit-title.test.ts",
