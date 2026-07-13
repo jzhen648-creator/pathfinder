@@ -18,6 +18,7 @@ The ambition does not shrink — the **sequencing** changes.
 | **Destination** (unchanged) | The full life map: a private, cumulative save point for your story ([`../PROJECT.md`](../PROJECT.md)). |
 | **Wedge** (new lead) | Intercept an existing behavior. People already dump fears, plans, and goals into ChatGPT/Claude and nothing durable comes out the other side. Almanac is where the dump lands. |
 | **Rule** | Never ask a new user to start a behavior on day one. The map is the destination; the dump is the door. |
+| **Capture principle** | **Messy in, neat out, human in the loop.** The dump is raw material only — AI drafts, the user curates. Nothing lands on the map without the user deliberately confirming, editing, or naming it. The reflective act (`PROJECT.md`: "building the record is itself valuable") lives in the curation step, not the typing. Chapters stay neat *because* of capture, not despite it. |
 
 **Why not lead with the map:** whole-life dashboards (Wheel of Life apps, "Life OS" templates) are a graveyard category — they demo well and retain poorly because they depend on a new manual habit. The dump wedge rides a habit that already exists.
 
