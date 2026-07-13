@@ -5,6 +5,7 @@ import {
   type ReadingDirtyAnalysis,
   type ReadingDirtyRow,
 } from "@/lib/map/reading-dirty-ledger";
+import { buildSeasonSpineEvents } from "@/lib/timeline/season-events";
 import {
   buildSpineEventsFromMapContext,
   capSpineEventsForPacket,
@@ -670,8 +671,9 @@ function countReadingPacketRecentCompletions(pursuits: FormattedMapPursuit[], no
 export function buildReadingPacketRecentEvents(
   mapContext: FormattedMapContext,
   now: number,
+  seasonEvents: SpineEvent[] = [],
 ): ReadingPacket["recentEvents"] {
-  const spine = capSpineEventsForPacket(buildSpineEventsFromMapContext(mapContext, { now }));
+  const spine = buildSpineEventsFromMapContext(mapContext, { now });
   const recentCompleteTitles = new Set(
     flattenPursuits(mapContext)
       .filter((p) => {
@@ -683,14 +685,16 @@ export function buildReadingPacketRecentEvents(
       .map((p) => p.title),
   );
 
-  return {
-    past: spine.past.filter((event) => {
+  const past = [...spine.past, ...seasonEvents]
+    .filter((event) => {
       if (event.kind === "milestone_complete") return false;
       if (event.kind === "pursuit_complete") return recentCompleteTitles.has(event.title);
       return true;
-    }),
-    upcoming: spine.future,
-  };
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const capped = capSpineEventsForPacket({ past, future: spine.future });
+  return { past: capped.past, upcoming: capped.future };
 }
 
 function formatElapsedSince(startDate: Date, now: number): string {
@@ -735,10 +739,18 @@ export async function compileReadingPacket(
   opts?: CompileReadingPacketOptions,
 ): Promise<ReadingPacket> {
   const now = Date.now();
-  const [mapContext, dirtyRows, focusCategoryIds] = await Promise.all([
+  const [mapContext, dirtyRows, focusCategoryIds, statusTransitions] = await Promise.all([
     opts?.mapContext ? Promise.resolve(opts.mapContext) : formatMapContext(userId),
     listReadingDirtyRows(userId),
     resolveFocusCategoryIds(userId, dirty),
+    // Newest 100 — a comeback whose opening pause falls past the cutoff is
+    // skipped rather than mis-paired; ancient history belongs to editions.
+    prisma.pursuitStatusTransition.findMany({
+      where: { userId },
+      orderBy: { at: "desc" },
+      take: 100,
+      select: { goalId: true, fromStatus: true, toStatus: true, at: true },
+    }),
   ]);
 
   const pursuits = flattenPursuits(mapContext);
@@ -746,11 +758,28 @@ export async function compileReadingPacket(
     dirtyRows.filter((row) => row.entityType === "pursuit"),
   );
 
+  const seasonEvents = buildSeasonSpineEvents(
+    statusTransitions,
+    new Map(
+      pursuits.map((p) => [
+        p.id,
+        {
+          title: p.title,
+          themeId: p.themeId,
+          themeLabel: p.themeLabel,
+          categoryLabel: p.categoryLabel,
+          ...(p.significance != null ? { significance: p.significance } : {}),
+        },
+      ]),
+    ),
+    now,
+  );
+
   const packet: ReadingPacket = {
     changeEvents,
     categorySignals: buildCategorySignals(pursuits, focusCategoryIds, now),
     mapAggregates: buildMapAggregates(pursuits, now),
-    recentEvents: buildReadingPacketRecentEvents(mapContext, now),
+    recentEvents: buildReadingPacketRecentEvents(mapContext, now, seasonEvents),
     gapFacts: buildGapFacts(pursuits, now),
     silenceFacts: buildSilenceFacts(pursuits),
     milestonePaceFacts: buildMilestonePaceFacts(pursuits, now),

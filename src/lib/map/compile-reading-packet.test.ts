@@ -745,3 +745,25 @@ describe("buildSilenceFacts", () => {
     expect(buildSilenceFacts(many)).toHaveLength(6);
   });
 });
+
+describe("recentEvents season merge", () => {
+  it("merges season events into past, sorted by date desc, within the cap", () => {
+    const seasonEvents = [
+      {
+        kind: "pursuit_returned" as const,
+        date: "2026-06-10",
+        placement: "past" as const,
+        pausedDays: 94,
+        title: "London Marathon 2027",
+        themeId: "health",
+        themeLabel: "Health & Body",
+      },
+    ];
+    const events = buildReadingPacketRecentEvents(DENSE_MAP_CONTEXT, FIXTURE_NOW, seasonEvents);
+    const returned = events.past.find((e) => e.kind === "pursuit_returned");
+    expect(returned?.pausedDays).toBe(94);
+    expect(events.past.length).toBeLessThanOrEqual(12);
+    const dates = events.past.map((e) => e.date);
+    expect([...dates].sort((a, b) => b.localeCompare(a))).toEqual(dates);
+  });
+});

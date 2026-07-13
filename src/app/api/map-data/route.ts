@@ -118,7 +118,7 @@ export async function GET(request: Request) {
       forkedGoals: { select: { id: true } },
     };
 
-    const [goals, archivedGoals, relationships] = await Promise.all([
+    const [goals, archivedGoals, relationships, statusTransitions] = await Promise.all([
 
       prisma.goal.findMany({
 
@@ -161,6 +161,12 @@ export async function GET(request: Request) {
         },
       }),
 
+      prisma.pursuitStatusTransition.findMany({
+        where: { userId },
+        orderBy: { at: "asc" },
+        select: { goalId: true, fromStatus: true, toStatus: true, at: true },
+      }),
+
     ]);
 
     const unlockedThemeIds = mergeUnlockedThemeIds(parseUnlockedThemeIds(user.unlockedLimbIds), categories);
@@ -193,6 +199,7 @@ export async function GET(request: Request) {
       unlockedThemeIds,
       unlockedLimbIds: unlockedThemeIds,
       themeActivity: buildThemeActivity(activityGoals, now),
+      statusTransitions,
     });
 
   } catch (err) {
