@@ -68,6 +68,22 @@ enum PursuitStatus {
   MAINTAINING
 }
 
+/// Lived status transitions only — the map records what it witnessed.
+/// Birth statuses, authoring-window corrections, and short-window flips are
+/// never rows (rules: src/lib/pursuit/status-transition-planner.ts).
+model PursuitStatusTransition {
+  id         String        @id @default(cuid())
+  userId     String
+  goalId     String
+  goal       Goal          @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  fromStatus PursuitStatus
+  toStatus   PursuitStatus
+  at         DateTime      @default(now())
+
+  @@index([goalId, at])
+  @@index([userId, at])
+}
+
 enum BranchStatus {
   active
   paused
@@ -326,6 +342,7 @@ model Goal {
   contextEntries    PursuitContextEntry[]
   relationshipsAsA  PursuitRelationship[] @relation("RelationshipGoalA")
   relationshipsAsB  PursuitRelationship[] @relation("RelationshipGoalB")
+  statusTransitions PursuitStatusTransition[]
 
   @@index([parentGoalId])
   @@index([createdFromGoalId])
