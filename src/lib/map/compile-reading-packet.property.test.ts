@@ -117,6 +117,7 @@ const readingPacketArb: fc.Arbitrary<ReadingPacket> = fc.record({
     ),
   }),
   gapFacts: fc.array(fc.string({ minLength: 1, maxLength: 80 }), { maxLength: 6 }),
+  silenceFacts: fc.array(fc.string({ minLength: 1, maxLength: 80 }), { maxLength: 6 }),
   milestonePaceFacts: fc.array(fc.string({ minLength: 1, maxLength: 80 }), { maxLength: 8 }),
 });
 

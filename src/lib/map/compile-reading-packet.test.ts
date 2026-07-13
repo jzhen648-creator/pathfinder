@@ -7,6 +7,7 @@ import {
   buildFocalPursuitReadingFacts,
   buildGapFacts,
   buildHighSignificanceActiveTitles,
+  buildSilenceFacts,
   buildMapAggregates,
   buildMilestonePaceFacts,
   buildThemeRollup,
@@ -204,6 +205,7 @@ describe("compile-reading-packet", () => {
         themeRollup: [],
       },
       gapFacts: [],
+      silenceFacts: [],
       milestonePaceFacts: [],
     };
     const keys = Object.keys(JSON.parse(readingPacketToJson(packet)) as ReadingPacket);
@@ -251,6 +253,7 @@ describe("compile-reading-packet", () => {
         themeRollup: [],
       },
       gapFacts: [],
+      silenceFacts: [],
       milestonePaceFacts: [],
     };
     const parsed = JSON.parse(readingPacketToJson(packet)) as ReadingPacket;
@@ -278,6 +281,7 @@ describe("compile-reading-packet", () => {
         themeRollup: [],
       },
       gapFacts: [],
+      silenceFacts: [],
       milestonePaceFacts: [],
     });
     expect(Object.keys(ordered)).toEqual([
@@ -286,6 +290,7 @@ describe("compile-reading-packet", () => {
       "mapAggregates",
       "recentEvents",
       "gapFacts",
+      "silenceFacts",
       "milestonePaceFacts",
     ]);
   });
@@ -340,6 +345,7 @@ describe("compile-reading-packet", () => {
         themeRollup: [],
       },
       gapFacts: [],
+      silenceFacts: [],
       milestonePaceFacts: [],
     };
 
@@ -548,6 +554,7 @@ describe("compile-reading-packet", () => {
         themeRollup: [],
       },
       gapFacts: [],
+      silenceFacts: [],
       milestonePaceFacts: [],
     };
 
@@ -661,6 +668,7 @@ describe("compile-reading-packet", () => {
         themeRollup: [],
       },
       gapFacts: [],
+      silenceFacts: [],
       milestonePaceFacts: [],
     };
     const json = readingPacketToJson(packet);
@@ -692,5 +700,48 @@ describe("compile-reading-packet", () => {
     expect(job?.facts.some((f) => f.includes("Significant but stalled: CeMAP qualification"))).toBe(
       true,
     );
+  });
+});
+
+describe("buildSilenceFacts", () => {
+  function pursuitWithSilence(
+    title: string,
+    status: string,
+    daysSinceTouched?: number,
+  ): FormattedMapPursuit {
+    const row: FormattedMapPursuit = { id: title, title, status, milestones: [] };
+    if (daysSinceTouched != null) row.daysSinceTouched = daysSinceTouched;
+    return row;
+  }
+
+  it("names quiet in-progress chapters past threshold, longest silence first", () => {
+    const facts = buildSilenceFacts([
+      pursuitWithSilence("Fresh chapter", "ACTIVE", 10),
+      pursuitWithSilence("Quiet run", "ACTIVE", 74),
+      pursuitWithSilence("Silent saving", "MAINTAINING", 140),
+      pursuitWithSilence("Deliberate pause", "PAUSED", 300),
+      pursuitWithSilence("Done long ago", "COMPLETE", 300),
+      pursuitWithSilence("No timestamp", "ACTIVE"),
+    ]);
+    expect(facts).toEqual([
+      'Quiet chapter: "Silent saving" (Maintaining) — last touched 140d ago',
+      'Quiet chapter: "Quiet run" (Active) — last touched 74d ago',
+    ]);
+  });
+
+  it("respects thresholds: ACTIVE 60d, MAINTAINING 120d", () => {
+    expect(
+      buildSilenceFacts([
+        pursuitWithSilence("Almost", "ACTIVE", 59),
+        pursuitWithSilence("Maintained recently enough", "MAINTAINING", 119),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("caps at six lines", () => {
+    const many = Array.from({ length: 9 }, (_, i) =>
+      pursuitWithSilence(`Chapter ${i}`, "ACTIVE", 61 + i),
+    );
+    expect(buildSilenceFacts(many)).toHaveLength(6);
   });
 });

@@ -10,6 +10,8 @@ import {
   capSpineEventsForPacket,
   type SpineEvent,
 } from "@/lib/timeline/spine-events";
+import { formatPursuitStatusLabel } from "@/lib/goal-status-lifecycle";
+import { isStalePursuit } from "@/lib/map/pursuit-staleness";
 import { prisma } from "@/lib/prisma";
 import { significanceWordLabel } from "@/lib/pursuit/significance";
 
@@ -49,6 +51,8 @@ export type ReadingPacketThemeRollup = {
   themeLabel: string;
   inProgressCount: number;
   headlineChapter: string;
+  /** Days since the most recent touch on any chapter in the theme — silence signal. */
+  daysSinceThemeTouched?: number;
 };
 
 export type ReadingPacket = {
@@ -71,6 +75,8 @@ export type ReadingPacket = {
   };
   /** Factual lines for pursuits flagged gap — explicit Gap-lens grounding. */
   gapFacts: string[];
+  /** In-progress chapters gone quiet past their staleness threshold — Move 4 grounding. */
+  silenceFacts: string[];
   /** Deterministic milestone progress lines for AI grounding. */
   milestonePaceFacts: string[];
 };
@@ -201,6 +207,23 @@ export function buildGapFacts(
     facts.push(`Significant but stalled: ${formatGapFactLine(pursuit, now)}`);
   }
   return facts.slice(0, 6);
+}
+
+const SILENCE_FACTS_CAP = 6;
+
+/** Quietest in-progress chapters past their staleness threshold, longest silence first. */
+export function buildSilenceFacts(pursuits: FormattedMapPursuit[]): string[] {
+  return pursuits
+    .filter(
+      (p): p is FormattedMapPursuit & { daysSinceTouched: number } =>
+        p.daysSinceTouched != null && isStalePursuit(p.status, p.daysSinceTouched),
+    )
+    .sort((a, b) => b.daysSinceTouched - a.daysSinceTouched)
+    .slice(0, SILENCE_FACTS_CAP)
+    .map(
+      (p) =>
+        `Quiet chapter: "${p.title}" (${formatPursuitStatusLabel(p.status)}) — last touched ${p.daysSinceTouched}d ago`,
+    );
 }
 
 function flattenPursuits(mapContext: FormattedMapContext): Array<
@@ -457,11 +480,18 @@ export function buildThemeRollup(
     .map(({ themeLabel, pursuits: themePursuits }) => {
       const inProgressCount = themePursuits.filter((p) => p.status !== "COMPLETE").length;
       const headline = pickHeadlineChapterForTheme(themePursuits);
-      return {
+      const rollup: ReadingPacketThemeRollup = {
         themeLabel,
         inProgressCount,
         headlineChapter: headline.title,
       };
+      const touchedAges = themePursuits
+        .map((p) => p.daysSinceTouched)
+        .filter((d): d is number => d != null);
+      if (touchedAges.length > 0) {
+        rollup.daysSinceThemeTouched = Math.min(...touchedAges);
+      }
+      return rollup;
     })
     .sort((a, b) => a.themeLabel.localeCompare(b.themeLabel));
 }
@@ -522,6 +552,7 @@ export function orderReadingPacketKeys(packet: ReadingPacket): ReadingPacket {
     mapAggregates: packet.mapAggregates,
     recentEvents: packet.recentEvents,
     gapFacts: packet.gapFacts,
+    silenceFacts: packet.silenceFacts,
     milestonePaceFacts: packet.milestonePaceFacts,
   };
 }
@@ -721,6 +752,7 @@ export async function compileReadingPacket(
     mapAggregates: buildMapAggregates(pursuits, now),
     recentEvents: buildReadingPacketRecentEvents(mapContext, now),
     gapFacts: buildGapFacts(pursuits, now),
+    silenceFacts: buildSilenceFacts(pursuits),
     milestonePaceFacts: buildMilestonePaceFacts(pursuits, now),
   };
 
