@@ -14,6 +14,7 @@ import {
 import { buildFieldChanges } from "@/lib/map/reading-dirty-details";
 import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
+import { recordPursuitStatusTransition } from "@/lib/pursuit/record-status-transition";
 import { clampSignificance } from "@/lib/pursuit/significance";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 import {
@@ -66,6 +67,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       significance: true,
       archived: true,
       completedAt: true,
+      createdAt: true,
     },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -184,6 +186,16 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       completedAt: true,
     },
   });
+
+  if (pursuitStatus !== undefined && pursuitStatus !== existing.status) {
+    await recordPursuitStatusTransition({
+      userId,
+      goalId,
+      from: existing.status,
+      to: pursuitStatus,
+      goalCreatedAt: existing.createdAt,
+    });
+  }
 
   // Retired pending post-TestFlight cleanup — no live readers/writers.
   if (

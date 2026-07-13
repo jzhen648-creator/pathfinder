@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordPursuitStatusTransition } from "@/lib/pursuit/record-status-transition";
 import { getGoalWithProgress } from "@/lib/roadmap";
 
 const bodySchema = z.object({
@@ -32,7 +33,7 @@ export async function POST(request: Request, { params }: RouteProps) {
 
   const existing = await prisma.goal.findFirst({
     where: { id: goalId, userId },
-    select: { id: true },
+    select: { id: true, status: true, createdAt: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -43,6 +44,14 @@ export async function POST(request: Request, { params }: RouteProps) {
       endedAt: new Date(),
       endReason: parsed.data.endReason?.trim() || null,
     },
+  });
+
+  await recordPursuitStatusTransition({
+    userId,
+    goalId,
+    from: existing.status,
+    to: "PAUSED",
+    goalCreatedAt: existing.createdAt,
   });
 
   const goal = await getGoalWithProgress(goalId, userId);

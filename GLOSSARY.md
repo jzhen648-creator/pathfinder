@@ -43,6 +43,7 @@ Map entities use **`themeId`** and **`categoryId`** in Postgres. JSON may still 
 | **Goal evolution (legacy data)** | `Goal.parentGoalId` / `forkedGoals`. Fork API removed — peers only on mobile. |
 | **Sequence position** | `Goal.sequencePosition` — explicit linear order along the parent category line (mobile reorganize fallback). |
 | **Reorganize** | `POST /api/goals/[goalId]/reorganize` — serves **mobile edit-map** move/reparent (desktop edit-map retired). |
+| **Status transition** | Prisma **`PursuitStatusTransition`** — lived status history only (seasons/comebacks). Birth statuses, authoring-window corrections, and short-window flips never write rows — rules in `src/lib/pursuit/status-transition-planner.ts`. |
 
 ---
 
