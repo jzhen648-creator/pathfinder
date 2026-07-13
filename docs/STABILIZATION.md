@@ -1,3 +1,6 @@
+> **SUPERSEDED — desktop-era stabilization doc (May 2026).** Describes bloom lifecycle, `Subtask` rows, hub panels, and Stream — all removed. Do not use for current QA planning.
+> **Use instead:** [`../ONTOLOGY.md`](../ONTOLOGY.md), [`../GLOSSARY.md`](../GLOSSARY.md), [`../DECISIONS.md`](../DECISIONS.md), [`AUDIT-2026-07-13.md`](./AUDIT-2026-07-13.md).
+
 # Stabilization phase — operational convergence & QA
 
 This document defines the **stabilization / QA phase** after ontology restructuring (milestones, continuation, terminology). It tells contributors and AI agents what is **canonical**, what is **intentionally transitional**, and what **must not be “fixed” ad hoc** during heavy usage validation.

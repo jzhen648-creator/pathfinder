@@ -9,7 +9,7 @@ The Next.js app in this repo **deploys to Vercel** and serves **`/api/*`** for t
 | Area | Path |
 |------|------|
 | API routes | `src/app/api/` |
-| Domain logic | `src/lib/` (taxonomy, Stream, goals, marks) |
+| Domain logic | `src/lib/` (taxonomy, goals, AI reflect/insights) |
 | Database | `prisma/` |
 | Auth pages | `src/app/login/`, `src/app/reset-password/` |
 | Web landing | `src/components/MobileWebLanding.tsx`, `src/lib/web-landing.ts` |
@@ -22,7 +22,8 @@ The Next.js app in this repo **deploys to Vercel** and serves **`/api/*`** for t
 
 | Script | Purpose |
 |--------|---------|
-| `npm run fresh-start:mobile` | Wipe map data; reset mobile onboarding for dev account |
-| `npm run dogfood:stream` | Stress-test `POST /api/stream/extract` |
+| `npm run fresh-start:mobile` | Wipe map data; reset mobile onboarding for dev account (**broken** — still queries dropped `StreamRun`/`Mark` tables, see `docs/AUDIT-2026-07-13.md`) |
 | `npm run smoke-test` | Sequential API route smoke test |
 | `npx prisma db seed` | Empty test accounts (no map fixtures) |
+
+*(Removed 2026-07-13: `npm run dogfood:stream` — script and `POST /api/stream/extract` no longer exist.)*

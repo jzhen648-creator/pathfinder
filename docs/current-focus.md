@@ -1,5 +1,6 @@
-> **SUPERSEDED for product frame — verify against canonical rules before planning.**  
-> **Use instead:** [`.cursor/rules/pathfinder-current-state.mdc`](../../.cursor/rules/pathfinder-current-state.mdc), [`../ONTOLOGY.md`](../ONTOLOGY.md), [`../../pathfinder-mobile/TERMINOLOGY.md`](../../pathfinder-mobile/TERMINOLOGY.md).
+> **SUPERSEDED — historical snapshot (June 2026). Do not plan from this file.**  
+> Priorities, module paths, and taxonomy version below are stale (e.g. taxonomy is now **v13** `2026-06-20-v13-timeless-category-labels`; Story tab, Stream backend, and marks are gone; `hub-*` modules were renamed `category-*` / `taxonomy-sync`).  
+> **Use instead:** [`../AGENTS.md`](../AGENTS.md), [`../ONTOLOGY.md`](../ONTOLOGY.md), [`../GLOSSARY.md`](../GLOSSARY.md), [`../DECISIONS.md`](../DECISIONS.md) (newest entries first), and `pathfinder-mobile/TERMINOLOGY.md` (workspace-external).
 
 # Current focus (June 2026)
 
