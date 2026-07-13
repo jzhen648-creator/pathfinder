@@ -46,14 +46,14 @@ The Peterson/Frankl reader profile in `PROJECT.md` remains a useful early-adopte
 
 ## What this changes in product priorities
 
-1. **Dump becomes the primary input verb on mobile.** The front-door action is capture (voice/text), not **+** add chapter. Manual creation stays as the secondary path. Backend already exists: `src/lib/ai/stream-extract.ts` plus the original confirm-card flow — the surface was retired in June 2026, not the capability. (User-facing name for this verb: TBD — "Stream" is retired vocabulary; do not reuse it in UI copy.)
+1. **Dump becomes the primary input verb on mobile.** The front-door action is capture (voice/text), not **+** add chapter. Manual creation stays as the secondary path. Backend status (verified 2026-07): the multi-item Stream extractor was **deleted** with the June 2026 retirement (`stream-extract.ts`, `goals/chat` now 410) — but voice transcription (`/api/transcribe`), single-statement parsing (`/api/goals/parse`), and the create-enrich/clarifier pipeline are all live. The rebuild is a **batched extractor** (dump → N items + status updates + ambiguous leftovers) plus a confirm-card queue — a new prompt/schema/route on existing plumbing, not a from-scratch subsystem. (User-facing name for this verb: TBD — "Stream" is retired vocabulary; do not reuse it in UI copy.)
 2. **Cold start via import, not onboarding questions.** New user pastes or shares a ChatGPT/Claude conversation → Almanac extracts a starter map. Delivers the whole pitch in the first two minutes and self-selects the target user (only people with dumps have anything to import). Mobile share-sheet target is the follow-on.
 3. **North-star metric:** a user returns with a **second unprompted dump within 7 days**. Not map completeness, not insight quality. If the dump behavior doesn't transfer, nothing downstream matters.
 4. **Reclassify depth work.** Taxonomy refinement, insight-prose tuning, edit-map reorder are retention/depth features — they stay on the backlog but none of them acquire a user. Acquisition work (items 1–2) leads.
 
 ## Validate before building
 
-Concierge test, ~1 week, no shipping required: find ten people who already use ChatGPT as a thinking partner, run one of their real dumps through the existing extraction pipeline by hand, show them their map.
+Concierge test, ~1 week, no shipping required: find ten people who already use ChatGPT as a thinking partner, run one of their real dumps through a standalone extraction script (a batched variant of the `goals/parse` prompt — no product code needed), show them their map.
 
 - "Huh, neat" → a demo.
 - "Wait, can I add more to this?" → the business.
