@@ -272,6 +272,8 @@ export async function shouldUseCreateBurstFullRefresh(userId: string): Promise<b
 const EDIT_ONLY_DIRTY_REASONS = new Set([
   "pursuit_updated",
   "milestone_updated",
+  "milestone_deleted",
+  "milestone_reordered",
   "clarifier_answered",
   "pursuit_reorganized",
   "pursuit_restored",

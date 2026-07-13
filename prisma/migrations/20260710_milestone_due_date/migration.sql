@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Milestone" ADD COLUMN "dueDate" TIMESTAMP(3);

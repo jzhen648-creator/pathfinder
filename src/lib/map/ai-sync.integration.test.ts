@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runMapAiSync } from "@/lib/map/ai-sync";
+import { composeInsightCacheMapVersion } from "@/lib/insights/reflect-prompt-version";
 import { TAXONOMY_VERSION } from "@/lib/taxonomy";
 
 const USER_ID = "test-user";
@@ -83,7 +84,7 @@ function setupFreshCaches() {
   mocks.getMemoryVersion.mockResolvedValue(MEMORY_VERSION);
   mocks.prismaUserFindUnique.mockResolvedValue({ taxonomyVersion: TAXONOMY_VERSION });
   mocks.prismaInsightFindUnique.mockResolvedValue({
-    mapVersion: MAP_VERSION,
+    mapVersion: composeInsightCacheMapVersion(MAP_VERSION),
     memoryVersion: MEMORY_VERSION,
     globalInsight: JSON.stringify({ greeting: "", sections: [] }),
     themeInsights: "{}",
@@ -210,5 +211,40 @@ describe("runMapAiSync integration", () => {
     await runMapAiSync(USER_ID, { force: true });
 
     expect(mocks.runReflectSync).toHaveBeenCalledTimes(1);
+  });
+
+  it("bypasses delivery gate when only reflect prompt version is stale", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(true);
+    mocks.prismaInsightFindUnique.mockResolvedValue({
+      mapVersion: `${MAP_VERSION}:2026-01-01-old`,
+      memoryVersion: MEMORY_VERSION,
+      globalInsight: JSON.stringify({ greeting: "", sections: [] }),
+      themeInsights: "{}",
+      categoryInsights: "{}",
+      pursuitInsights: "{}",
+      generatedAt: new Date(),
+    });
+    mocks.checkReadingDeliveryGate.mockImplementation(
+      (_userId: string, options?: { force?: boolean }) =>
+        Promise.resolve({
+          allowed: options?.force === true,
+          retryAfterMs: options?.force === true ? 0 : 3_600_000,
+          lastDeliveredAt: new Date(),
+          intervalMs: 7_200_000,
+        }),
+    );
+    mocks.runReflectSync.mockResolvedValue({
+      skipped: false,
+      insightsRefreshed: true,
+      geminiRateLimited: false,
+    });
+
+    await runMapAiSync(USER_ID, { force: false });
+
+    expect(mocks.checkReadingDeliveryGate).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ force: true }),
+    );
+    expect(mocks.runReflectSync).toHaveBeenCalled();
   });
 });

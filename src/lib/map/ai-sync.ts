@@ -2,6 +2,12 @@ import { AiUserRateLimitError } from "@/lib/ai/ai-user-rate-limit";
 
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 
+import { composeInsightCacheMapVersion } from "@/lib/insights/reflect-prompt-version";
+import {
+  isPromptOnlyReadingDrift,
+  isReadingDrift,
+} from "@/lib/insights/reading-cache-stale";
+
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 
 import { GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
@@ -72,14 +78,6 @@ async function resolveVersions(userId: string) {
   };
 }
 
-function insightCacheStale(
-  row: { mapVersion: string; memoryVersion: number },
-  mapVersion: string,
-  memoryVersion: number,
-): boolean {
-  return row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion;
-}
-
 function buildBaseResult(mapVersion: string, metrics: MapAiSyncMetrics): MapAiSyncResult {
   return {
     ok: true,
@@ -122,7 +120,11 @@ async function runMapAiSyncInner(
   ]);
 
   const insightsStale =
-    !insightRow || insightCacheStale(insightRow, mapVersion, memoryVersion);
+    !insightRow || isReadingDrift(insightRow, mapVersion, memoryVersion);
+
+  const promptOnlyStale =
+    insightRow != null &&
+    isPromptOnlyReadingDrift(insightRow, mapVersion, memoryVersion);
 
   const reflectEnabled = isReflectCallEnabled();
 
@@ -156,7 +158,7 @@ async function runMapAiSyncInner(
   }
 
   const deliveryGate = await checkReadingDeliveryGate(userId, {
-    force,
+    force: force || promptOnlyStale,
     hasInsightCache: Boolean(insightRow),
   });
 
@@ -223,7 +225,10 @@ async function runMapAiSyncInner(
     const fresh = await resolveVersions(userId);
     await prisma.insightCache.update({
       where: { userId },
-      data: { mapVersion: fresh.mapVersion, memoryVersion: fresh.memoryVersion },
+      data: {
+        mapVersion: composeInsightCacheMapVersion(fresh.mapVersion),
+        memoryVersion: fresh.memoryVersion,
+      },
     });
 
     await clearReadingDirtyLedger(userId);

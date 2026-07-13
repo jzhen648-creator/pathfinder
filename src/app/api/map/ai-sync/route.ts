@@ -8,6 +8,7 @@ import { logAiSyncCost } from "@/lib/map/log-ai-sync-cost";
 import { applyThemeInsightGatesToPayload } from "@/lib/insights/apply-theme-insight-gates";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
 import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
+import { composeInsightCacheMapVersion } from "@/lib/insights/reflect-prompt-version";
 import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-version";
 import { prisma } from "@/lib/prisma";
 import { InsightGenerationResponseError } from "@/lib/insights/insight-generation-errors";
@@ -67,7 +68,10 @@ export async function POST(request: Request) {
     if (!result.skipped && insightRow && result.insights.refreshed) {
       await prisma.insightCache.update({
         where: { userId },
-        data: { mapVersion, memoryVersion },
+        data: {
+          mapVersion: composeInsightCacheMapVersion(mapVersion),
+          memoryVersion,
+        },
       });
       insightRow = await prisma.insightCache.findUnique({ where: { userId } });
     }

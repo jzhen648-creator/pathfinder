@@ -378,6 +378,7 @@ model Milestone {
   description String
   position    Int
   completedAt DateTime?
+  dueDate     DateTime?
   goalId      String
   goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
 

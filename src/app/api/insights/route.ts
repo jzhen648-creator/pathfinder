@@ -6,6 +6,7 @@ import { computeMapVersion, getMemoryVersion } from "@/lib/insights/compute-map-
 
 import { applyThemeInsightGatesToPayload } from "@/lib/insights/apply-theme-insight-gates";
 import { insightCacheToPayload } from "@/lib/insights/parse-insight-cache";
+import { isReadingDrift } from "@/lib/insights/reading-cache-stale";
 
 import { prisma } from "@/lib/prisma";
 
@@ -16,14 +17,6 @@ async function resolveVersions(userId: string) {
   ]);
 
   return { mapVersion, memoryVersion };
-}
-
-function isCacheStale(
-  row: { mapVersion: string; memoryVersion: number },
-  mapVersion: string,
-  memoryVersion: number,
-): boolean {
-  return row.mapVersion !== mapVersion || row.memoryVersion !== memoryVersion;
 }
 
 export async function GET() {
@@ -40,7 +33,7 @@ export async function GET() {
       return NextResponse.json({ cache: null, mapVersion, memoryVersion });
     }
 
-    const stale = isCacheStale(row, mapVersion, memoryVersion);
+    const stale = isReadingDrift(row, mapVersion, memoryVersion);
     const payload = insightCacheToPayload(row, stale);
     if (!payload) {
       return NextResponse.json({ cache: null, mapVersion, memoryVersion });

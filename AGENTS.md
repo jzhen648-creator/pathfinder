@@ -50,4 +50,6 @@ npm test
 
 **After taxonomy changes:** `npm run backfill:taxonomy` (see workspace `START-HERE.md`).
 
+**Reflect prompt deploy:** bump `REFLECT_PROMPT_VERSION` in `src/lib/insights/reflect-prompt-version.ts` when shipping material reflect/enrich prompt or post-gen gate changes (same commit).
+
 **Deploy:** [`DEPLOY.md`](./DEPLOY.md)

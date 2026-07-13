@@ -12,20 +12,28 @@ export type CreatedMilestoneWire = {
   title: string;
   position: number;
   completedAt: null;
+  dueDate: string | null;
 };
 
 type AppendResult =
   | { ok: true; milestone: CreatedMilestoneWire }
   | { ok: false; error: string; status: number };
 
+export type AppendMilestoneInput = {
+  title: string;
+  dueDate?: string;
+};
+
 /** Append one canonical `Milestone` (POST `/api/goals/[id]/milestones`). */
 export async function appendCanonicalMilestoneForGoal(
   goalId: string,
   userId: string,
-  title: string,
+  input: AppendMilestoneInput,
 ): Promise<AppendResult> {
-  const trimmed = title.trim();
+  const trimmed = input.title.trim();
   if (!trimmed) return { ok: false, error: "Milestone title is required", status: 400 };
+  const dueDate =
+    input.dueDate && !Number.isNaN(Date.parse(input.dueDate)) ? new Date(input.dueDate) : null;
 
   let created: CreatedMilestoneWire | null = null;
 
@@ -56,8 +64,9 @@ export async function appendCanonicalMilestoneForGoal(
           title: trimmed,
           description: "",
           position: insertPosition,
+          dueDate,
         },
-        select: { id: true, title: true, position: true },
+        select: { id: true, title: true, position: true, dueDate: true },
       });
 
       created = {
@@ -65,6 +74,7 @@ export async function appendCanonicalMilestoneForGoal(
         title: milestone.title,
         position: milestone.position,
         completedAt: null,
+        dueDate: milestone.dueDate?.toISOString() ?? null,
       };
     });
 

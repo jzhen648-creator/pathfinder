@@ -18,6 +18,15 @@ const patchBodySchema = z.union([
   }),
   z.object({ position: z.number().int().nonnegative() }),
   z.object({ title: z.string().trim().min(1, "title is required") }),
+  z.object({
+    dueDate: z.union([
+      z
+        .string()
+        .min(1)
+        .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid dueDate"),
+      z.null(),
+    ]),
+  }),
 ]);
 
 function resolveCompletedAt(body: z.infer<typeof patchBodySchema>): Date | null | undefined {
@@ -94,6 +103,12 @@ export async function PATCH(request: Request, props: RouteProps) {
     const completedAt = resolveCompletedAt(bodyData);
     const position = "position" in bodyData ? bodyData.position : undefined;
     const title = "title" in bodyData ? bodyData.title : undefined;
+    const dueDate =
+      "dueDate" in bodyData
+        ? bodyData.dueDate
+          ? new Date(bodyData.dueDate)
+          : null
+        : undefined;
 
     const milestone = await prisma.milestone.findFirst({
       where: { id: milestoneId, goalId },
@@ -115,10 +130,11 @@ export async function PATCH(request: Request, props: RouteProps) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updateInput: { completedAt?: Date | null; position?: number; title?: string } = {};
+    const updateInput: { completedAt?: Date | null; position?: number; title?: string; dueDate?: Date | null } = {};
     if (completedAt !== undefined) updateInput.completedAt = completedAt;
     if (position !== undefined) updateInput.position = position;
     if (title !== undefined) updateInput.title = title;
+    if (dueDate !== undefined) updateInput.dueDate = dueDate;
 
     if (Object.keys(updateInput).length === 0) {
       return NextResponse.json({ error: "No updatable fields in payload" }, { status: 400 });
@@ -255,6 +271,22 @@ export async function DELETE(_request: Request, props: RouteProps) {
 
     await prisma.milestone.delete({ where: { id: milestoneId } });
     await recomputeGoalStatus(goalId);
+
+    try {
+      await markPursuitReadingDirty(userId, goalId, "milestone_deleted", {
+        details: {
+          title: milestone.goal.title,
+          milestoneTitle: milestone.title,
+        },
+      });
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error(logPrefix, "markPursuitReadingDirty failed (milestone deleted)", {
+        goalId,
+        message: err.message,
+        stack: err.stack,
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
