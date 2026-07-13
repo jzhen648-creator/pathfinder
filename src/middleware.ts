@@ -5,11 +5,12 @@ import { isDesktopLegacyWebPath, isProductionWeb, WEB_HOME_PATH } from "@/lib/we
 
 const PUBLIC_FILE = /\.(?:ico|png|jpg|jpeg|svg|gif|webp|woff2?|ttf|eot|txt|webmanifest)$/i;
 
-/** Expo web (localhost:8081) and LAN dev clients call /api cross-origin. */
+/** Expo web (localhost:8081) and LAN dev clients call /api cross-origin. Dev-only. */
 const CORS_ORIGIN_PATTERN =
   /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
 
 function isAllowedCorsOrigin(origin: string | null): boolean {
+  if (process.env.NODE_ENV === "production") return false;
   return Boolean(origin && CORS_ORIGIN_PATTERN.test(origin));
 }
 
