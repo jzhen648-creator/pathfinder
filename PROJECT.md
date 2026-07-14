@@ -115,6 +115,49 @@ Before building any feature ask:
 
 If it serves the platform — cut it.
 
+## Constraints: which lift, which harden (PINNED)
+When growth pressure arrives, the instinct is
+to relax our rules to reach a bigger audience.
+Some rules should relax. Others must NOT — and
+the pressure to break them will be strongest
+exactly when we are growing. The One Test above
+is the discriminator: does the constraint protect
+the USER, or does it just protect our CAUTION?
+
+LIFT these (caution, not protection — broadening
+is the reason to relax them):
+- Deliberate-creation-only / no import. The empty
+  first-run is the #1 mainstream blocker. Revive
+  the import cold-start (paste a conversation or
+  talk 30s → drafted starter map the user curates).
+  The user still authors; they just don't start
+  from blank. (See docs/POSITIONING.md broadening.)
+- One-chapter-at-a-time as the FIRST-RUN verb. Fine
+  as the daily verb; too slow for onboarding. A
+  2-minute-wow guided first session lifts this for
+  onboarding only.
+- Rigid six-theme taxonomy. Worth revisiting for
+  messier lives. Low priority.
+
+HARDEN these (they protect the user; scale makes
+them MORE important, not less — never lift for
+engagement):
+- Silence never pushes. No notifications born of
+  quietness. This is the load-bearing wall — the
+  move that turns the mirror into a nag and burns
+  the "not the algorithm" promise.
+- No streaks, red badges, or manufactured urgency
+  (see "What We Are Not Building"). Easy mass-market
+  wins; the trap. Our anti-tasker stance IS the
+  differentiation, and a tired audience makes it
+  worth more.
+- No AI-invented relationships. Privacy inversion.
+  Serve the user, not the platform. Non-negotiable
+  at any size.
+
+Rule of thumb: relax how people GET IN; never relax
+what protects them once inside.
+
 ## The Tagline Options
 - "Your life. Your map. No one else's."
 - "Understand yourself before the algorithm does."
