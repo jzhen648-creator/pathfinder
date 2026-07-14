@@ -25,6 +25,31 @@ There is no brain-dump or bulk-capture surface. Creation is one chapter at a tim
 
 The deliberate self-examiner (per [`../PROJECT.md`](../PROJECT.md)): takes personal responsibility seriously, thinks in terms of their whole story, uses tools like Notion but feels something missing, wants self-knowledge to flow inward rather than out to a platform. This is a niche, reachable audience (self-development readers, journaling communities) — treat it as the beachhead, not the ceiling.
 
+## Broadening path (mass-market, without sacrificing the idea)
+
+The niche above is the **first hundred users**, not the identity. You broaden a product by **widening the door, not the positioning statement** — "for everyone" positioning reaches no one. The deep product (honest record, quiet signals, comebacks) stays exactly as built; what changes is which face it leads with.
+
+**Core reframe — lead with the artifact, not the practice.** The mass-market hook was never missing; it was pointed inward. The map and the year-edition are shareable identity artifacts in the lineage of **Spotify Wrapped**, star charts, and personality tests — things millions who would never "journal" happily make and share. "Deliberate self-examination" is work and mainstream users don't buy work; *"see your whole life on one map"* is a payoff.
+
+**The three real blockers to general-public adoption (all fixable without touching the idea):**
+
+1. **Language.** "Self-examination / understand yourself" reads as homework. Lead instead with *story, chapters, map, save point*.
+2. **First five minutes.** An empty hex + "write a chapter" is an assignment. Mainstream converts on instant payoff, not promise.
+3. **Invisible artifact.** Nothing currently begs to be shown to a friend.
+
+**Broadening moves (priority order):**
+
+1. **Lead with seeing, not writing.** First-touch message: *"See your whole life on one map."* The practice is discovered after the payoff, not required before it.
+2. **Onboarding that produces a wow in ~2 minutes.** Guided first session — "add the five biggest things in your life so far" → a populated, beautiful map + one sharp insight. (Volume 0 instinct aimed at acquisition; see the [`../PROJECT.md`](../PROJECT.md) save-point framing.) Seeing *their own life* rendered well in minute two removes the need for any philosophy pitch.
+3. **Share export — the viral loop.** "My life as a map" as a gorgeous, optionally anonymized image. Fits the ethos: the user chooses what leaves the app.
+4. **Own December — the Wrapped moment.** The Annual/Volume edition is this category's single broadest occasion; already on the roadmap.
+
+**Vocabulary split (first-touch only):** *in* — story, chapters, map, save point. *Out of the shop window, kept for the engine room / niche channels* — self-understanding, examination, the Peterson/Frankl philosophy. This mirrors the `PROJECT.md`-is-internal split the rest of this doc already uses.
+
+**Sequencing caveat.** A broader audience is less forgiving — the niche tolerates roughness because they want the idea; mainstream churns in one session without the wow. So: **niche-first launch** (reachable, patient, and they generate the seasons/stories broad marketing needs), then widen via the share export and the December edition. Niche-first is the on-ramp, not the ceiling.
+
+**Which constraints to lift, which to harden.** Broadening tempts you to relax product rules for reach — but only the *cautious* ones should relax; the ones that *protect the user* must harden as you scale. The pinned decision lives in [`../PROJECT.md`](../PROJECT.md) → "Constraints: which lift, which harden". Short version: **relax how people get in** (import cold-start, wow onboarding); **never relax what protects them once inside** (silence never pushes, no streaks/badges/urgency, no AI-invented links).
+
 ## Market position
 
 | Neighbor | They have | Almanac's difference |
@@ -45,6 +70,8 @@ The deliberate self-examiner (per [`../PROJECT.md`](../PROJECT.md)): takes perso
 ## North-star metric
 
 A new user has chapters in **three or more themes within the first week** — evidence the whole-life map (not a single goal) took hold. Secondary: returns to update a chapter status within 14 days.
+
+**Broadening adds two leading indicators** once the moves above ship: **first-session completion** (did the guided onboarding reach a populated map + insight — the 2-minute wow), and **share rate** (fraction who export "my life as a map"). These measure the mass-market door directly; the 3-themes metric measures whether the map took hold once inside.
 
 ## Considered and deferred: batched capture ("the dump")
 
