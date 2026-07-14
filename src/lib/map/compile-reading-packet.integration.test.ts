@@ -27,6 +27,9 @@ vi.mock("@/lib/prisma", () => ({
     goal: {
       findMany: mocks.prismaGoalFindMany,
     },
+    pursuitStatusTransition: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

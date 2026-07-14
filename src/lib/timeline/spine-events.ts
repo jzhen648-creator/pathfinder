@@ -5,7 +5,10 @@ export type SpineEventKind =
   | "mark"
   | "milestone_complete"
   | "pursuit_deadline"
-  | "pursuit_complete";
+  | "pursuit_complete"
+  /** Season events — derived from PursuitStatusTransition, not map context. */
+  | "pursuit_paused"
+  | "pursuit_returned";
 
 export type SpineEvent = {
   kind: SpineEventKind;
@@ -19,6 +22,8 @@ export type SpineEvent = {
   categoryLabel?: string;
   /** Parent pursuit title for milestone_complete rows. */
   pursuitTitle?: string;
+  /** pursuit_returned only — how long the pause was lived before the comeback. */
+  pausedDays?: number;
 };
 
 export type SpineEventView = {
