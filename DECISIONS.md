@@ -6,6 +6,22 @@
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
+## 2026-07-15 — Device-robust UI sweep · AI route budgets · setup audit
+
+**Trigger:** chapter rename showed no edit box on a non-Pro-Max iPhone (keyboard rose, input occluded). Root cause: `CompactFieldSheet` capped `maxDynamicContentSize` at `0.88 × windowHeight`, clamping `keyboardBehavior="extend"` on shorter viewports. Audit found this was one instance of a pattern: five coexisting sheet/overlay systems, estimated (not measured) keyboard and content heights, and no font-scaling policy.
+
+**Shipped (mobile — `pathfinder-workspace` PRs #1→#2→#3, stacked):** (1) keyboard-anchored sheets get `0.96` height to extend into; (2) **Build here migrated to @gorhom `BottomSheetModal`** — the RN `Modal` → deprecated `BottomSheetScaffold` (which *estimated* keyboard height as 0.35 × window) → `KeyboardAvoidingView` stack is gone; scaffold orphaned pending delete; this also fixed field-editor sheets rendering behind the native Modal window, and `CompactFieldSheet` gained `stackBehavior="push"`; (3) overlays (`MapNodeContextMenu`, `AddPursuitThemeMenu`, `TutorialCoachmark`) now **measure height via onLayout** — estimates are pre-measure fallbacks only; (4) `MAX_FONT_SCALE = 1.4` in `theme/typography.ts`, applied as `maxFontSizeMultiplier` only inside fixed-height controls (global `Text.defaultProps` cap is a **silent no-op on React 19** — do not use it); (5) `supportsTablet: false` until iPad is QA'd; (6) Android menus opt into `experimentalBlurMethod="dimezisBlurView"` (expo-blur renders no real blur on Android otherwise).
+
+**Shipped (API — PR #17):** `export const maxDuration = 60` on all Gemini-calling routes that lacked it (`goals/import-draft`, both `suggest-milestones`, `suggest-clarifier`, `pursuit-panel-sync`, `transcribe`, `finance/reflection`). They ran on Vercel's default timeout while making model calls that routinely exceed it — the source of intermittent 504s that looked like transient AI flakiness. `map/ai-sync` and `profile/*` extract already had budgets.
+
+**Supersedes (doc drift, caused a misdiagnosis):** the 2026-06-20 entry "tap-to-edit … via `MapNodeContextMenu` (`layout="centered"`, `initialSubview`)" no longer describes the code. Field editing lives on the chapter page: `PursuitDetailPanel` → `PursuitFieldEditor` → `CompactFieldSheet`; `MapNodeContextMenu` is long-press quick actions only (Open/Move/Icon/Archive), no rename input.
+
+**Deferred (deliberate):** next-auth v4 → v5 — v5 is still beta (`5.0.0-beta.31`; npm `latest` = 4.24.14 as of this date). `requireApiSessionUserId` (Bearer for mobile + session cookie for web) works on v4; do not move production auth to a beta line. Revisit when v5 ships stable.
+
+**Open action (owner: Jeremy, ~30s):** `vercel.json` pins `icn1` (Seoul) — confirm the Supabase project is in the same region. `GET /api/health` reports `latencyMs` for a `SELECT 1`: low double digits = co-located; ≥100 ms = cross-region (then move the Vercel region to match the DB, not vice versa).
+
+**QA rule going forward:** UI checks run on the smallest supported iPhone (SE/mini simulator) **with iOS Text Size at maximum** — that configuration reproduces the entire class of "works on my phone" reports this sweep fixed.
+
 ## 2026-06-20 — Quick-question model v2 (principle-based generation, batch cadence, status-aware slots)
 
 **Shipped:** Quick questions now generalize to any pursuit via a shared **generation principle** in `clarifier-prompt-blocks.ts` (reflect, enrich, and create paths all import the same blocks — no domain catalog). Per sync the model may return up to **5** clarifiers; mobile shows pending + answered on pursuit **Context** tab (`PursuitContextSection`; answered ids filtered client-side). **Stop rule:** prompt + hard cap + **7-day cooldown** (`quickQuestionsQuietUntil`) when the model returns `[]` on sync — **not** when the user finishes answering a batch (Option B). **QQ stop is decoupled from `hasMinimumContextSignal`** — that gate still governs milestone suggestions and theme benchmarks only; QQ coverage never blocks readings or milestones.
