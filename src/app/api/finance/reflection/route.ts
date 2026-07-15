@@ -4,6 +4,9 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { generateText, hasGeminiKey, GeminiNotConfiguredError } from "@/lib/gemini";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 const payloadSchema = z.object({
   nodes: z.array(
     z.object({

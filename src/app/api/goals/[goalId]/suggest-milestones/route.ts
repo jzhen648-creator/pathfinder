@@ -7,6 +7,9 @@ import { formatUserContext } from "@/lib/ai/format-user-context";
 import { generateJsonCompletion, hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 type RouteProps = { params: Promise<{ goalId: string }> };
 
 const requestSchema = z.object({

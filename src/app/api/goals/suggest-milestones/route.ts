@@ -6,6 +6,9 @@ import { formatUserContext } from "@/lib/ai/format-user-context";
 import { aiRouteErrorResponse } from "@/lib/ai/ai-route-errors";
 import { generateJsonCompletion, hasGeminiKey } from "@/lib/gemini";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 const requestSchema = z.object({
   goalTitle: z.string().trim().min(1, "goalTitle is required"),
   existing: z.array(z.string()),
