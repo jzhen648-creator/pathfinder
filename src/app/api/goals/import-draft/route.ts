@@ -12,6 +12,9 @@ import {
 } from "@/lib/ai/import-draft";
 import { generateJsonCompletion, GeminiNotConfiguredError, hasGeminiKey } from "@/lib/gemini";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 /**
  * POST /api/goals/import-draft
  * Free text → drafted chapters for the user to curate. Stateless: nothing

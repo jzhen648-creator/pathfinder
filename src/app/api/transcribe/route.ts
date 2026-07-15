@@ -14,6 +14,9 @@ import {
   transcribeAudioBlob,
 } from "@/lib/gemini";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 const MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(request: Request) {

@@ -8,6 +8,9 @@ import { hasGeminiKey } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 import { suggestCreateClarifier } from "@/lib/pursuit/generate-create-clarifier";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 const milestoneStubSchema = z.object({
   title: z.string().trim().min(1),
   completed: z.boolean().optional(),

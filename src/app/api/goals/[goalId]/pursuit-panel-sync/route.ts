@@ -5,6 +5,9 @@ import { requireApiSessionUserId } from "@/lib/api-auth";
 import { hasGeminiKey } from "@/lib/gemini";
 import { syncPursuitPanel } from "@/lib/pursuit/generate-pursuit-enrich";
 
+/** Model calls can exceed Vercel's default function timeout — give AI routes a real budget. */
+export const maxDuration = 60;
+
 type RouteProps = {
   params: Promise<{ goalId: string }>;
 };
