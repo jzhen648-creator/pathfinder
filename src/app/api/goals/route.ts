@@ -180,7 +180,8 @@ export async function POST(request: Request) {
           userId,
           title,
           description: description || "",
-          iconName: null,
+          iconName: input.iconName ?? null,
+          ...(input.background ? { background: input.background } : {}),
           lifeArea,
           goalType: input.goalType,
           categoryId: branchRecord.id,
@@ -278,7 +279,27 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        goal: { id: goal.id, title: goal.title },
+        goal: {
+          id: goal.id,
+          title: goal.title,
+          description: goal.description,
+          background: goal.background ?? null,
+          iconName: goal.iconName ?? null,
+          status: goal.status,
+          significance: goal.significance,
+          deadline: goal.deadline ? goal.deadline.toISOString().slice(0, 10) : null,
+          timelineStart: goal.timelineStart
+            ? goal.timelineStart.toISOString().slice(0, 10)
+            : null,
+          completedAt: goal.completedAt
+            ? goal.completedAt.toISOString().slice(0, 10)
+            : null,
+          targetAmount: goal.targetAmount ?? null,
+          currentAmount: goal.currentAmount ?? null,
+          unit: goal.unit ?? null,
+          categoryId: goal.categoryId,
+          themeId: goal.themeId,
+        },
         categoryLabel,
         branchLabel: categoryLabel,
       },

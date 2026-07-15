@@ -24,6 +24,8 @@
 | [`../../PATHFINDER-AUDIT-BRIEF.md`](../../PATHFINDER-AUDIT-BRIEF.md) | Claude audit packet: changed files, review questions, known gaps |
 | [`../PROMPTS.md`](../PROMPTS.md) | AI prompts (Stream, Story) |
 | [`../BRIEF.md`](../BRIEF.md) | Short product summary |
+| [`MOBILE-HANDOFF-CHAPTER-CREATE-INPUTS.md`](./MOBILE-HANDOFF-CHAPTER-CREATE-INPUTS.md) | Mobile: restore visible title/notes on create |
+| [`MOBILE-HANDOFF-IMPORT-COLDSTART.md`](./MOBILE-HANDOFF-IMPORT-COLDSTART.md) | Mobile: paste/talk → starter map drafts |
 
 ## Archive (desktop / tree era)
 
