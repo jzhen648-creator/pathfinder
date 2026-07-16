@@ -3,18 +3,19 @@
 export const TENSION_NOT_FORECAST_RULE = [
   "TENSION, NOT FORECAST:",
   "Name what is true on the map. Do not predict what will happen or how the user will be affected.",
-  "You may state a tension between two real facts; you may not project its consequence.",
+  "You may state two real facts that conflict; you may not project the consequence.",
   "The user entered the facts — they know the stakes. Stating the consequence turns the mirror into an advisor,",
   "and a wrong prediction about real money breaks trust.",
   "",
   'Wrong: "Relying on minimum payments for a balance over £3,000 might mean it takes longer to clear than anticipated,',
   'potentially pushing past the interest-free window. This could impact your financial flexibility."',
-  'Right: "The balance is over £3,000 and the plan is set to the minimum, with the 0% period running out.',
-  'Those two facts sit in tension."',
+  'Right: "The balance is over £3,000 and the plan is set to the minimum, with the 0% period running out."',
   "",
-  "Allowed: stating both facts and that they are in tension.",
+  "Allowed: stating both facts plainly.",
   'Not allowed: "might mean", "could", "potentially", "this puts you at risk of", or any clause describing',
   "a future outcome or its effect on the user.",
+  'Not allowed as a closer: "the gap is the story", "long-range anchor", "through-line", or bare "sit in tension"',
+  "with no concrete map nouns or numbers.",
   "",
   "See PLAN IMPLICATION below for allowed deterministic plan reads from user-entered numbers.",
 ].join("\n");
@@ -23,10 +24,11 @@ export const PLAN_IMPLICATION_RULE = [
   "PLAN IMPLICATION (allowed — not forecast):",
   "Users author future life on the map: Active chapters, deadlines, targets, and milestones are their plan.",
   "You may read that plan back — coherence, gaps, collisions, and deterministic arithmetic from their numbers.",
+  "Milestones are OPTIONAL planning scaffolding — they do not measure chapter completion or real-world progress.",
   "",
   "Allowed:",
-  '- Plan tension from entered amounts: "£100k+ balance against a £500k+ target — maxed contributions close the allowance but not the gap."',
-  '- Plan state: "deadline in 45d with zero milestones started" when reading_packet or map_context shows it.',
+  '- Plan tension from entered amounts: "£100k+ balance against a £500k+ target — maxed contributions close the allowance; £400k+ still remains."',
+  '- Urgent deadline plus a real frontier: "The race is ten weeks out and the longest logged run is still 8k."',
   '- Missing frontier: "Two Complete chapters, nothing Active after 2021 names what comes next."',
   '- Discontinuity: name when completed chapters do not connect on the map — do not invent "progression".',
   "",
@@ -34,6 +36,8 @@ export const PLAN_IMPLICATION_RULE = [
   '- Invented growth rates, "you will hit £X by YEAR", population percentiles, or "might mean / could / potentially".',
   '- Confirming trivial arithmetic as insight alone (e.g. "monthly contributions align with the £20k annual limit").',
   '- Generic filler: "clear path", "long-term growth", "steady progress" without a specific plan tension.',
+  '- Metaphor closers: "the story", "anchor", "through-line", unsupported "bottleneck".',
+  '- Administrative inventory as the headline: "deadline in 716 days", "2 of 5 milestones complete", "3 active".',
 ].join("\n");
 
 export const ORIENTATION_AS_LENS_RULE = [
@@ -81,11 +85,13 @@ export const MAP_SPECIFICITY_BAR = [
 export const DATE_DEADLINE_ARITHMETIC_RULE = [
   "DATE / DEADLINE ARITHMETIC:",
   "- User context includes Today (ISO date). Chapter rows in map_context include daysUntilDeadline when a deadline exists.",
-  "- reading_packet may also include precomputed lines like \"deadline in Nd\" — treat these as authoritative.",
+  "- reading_packet may include precomputed proximity — treat those numbers as authoritative when you need them.",
   "- Never infer \"N years away\" from the deadline year alone (e.g. deadline 2027 does NOT mean \"two years away\" when Today is 2026).",
-  "- Use daysUntilDeadline or \"deadline in Nd\" for proximity: under ~45 days → days; under ~18 months → months; beyond that → years, rounded down (14 months is not \"two years\").",
+  "- Humanize proximity: under ~45 days → days; under ~18 months → months; beyond that → year/month labels — not raw Nd in the headline.",
+  "- Headlines may use deadline proximity ONLY when urgent (about ≤45 days), overdue, or clustered across chapters — and only when paired with another concrete frontier.",
+  "- Wrong as a headline: \"Deadline in 716 days\" or \"Deadline in 716 days; one of four milestones complete\".",
   "- Wrong when Today is 2026-06-21 and daysUntilDeadline is ~300: \"the race is still two years away\".",
-  "- Right: \"London Marathon is about ten months out\" or \"deadline in 300d\".",
+  "- Right: \"London Marathon is about ten months out; longest logged run still 8k.\"",
 ].join("\n");
 
 export const ATTRIBUTES_AT_A_DATE_RULE = [
@@ -109,11 +115,18 @@ export const ATTRIBUTES_AT_A_DATE_RULE = [
 
 export const PURSUIT_HEADLINE_FIELD_JOB = [
   "CHAPTER HEADLINE JOB:",
-  "- State the single most specific present-tense fact — a number, a gap, a deadline proximity, or a milestone frontier.",
+  "- Prefer, in order: authored background/constraint, amount frontier, meaningful chronology, cross-chapter relationship,",
+  "  then an urgent deadline only when paired with another concrete frontier.",
+  "- Milestones are optional scaffolding — never headline with \"N of M milestones\" or treat milestone count as % complete.",
+  "- Never headline with raw days-until-deadline when the target date is already in the meta strip (especially long-range dates).",
+  "- Meaning = useful specificity the title/meta strip/Milestones tab do not already show — not a slogan, metaphor, or audit.",
   "- The reader already sees status in the meta strip — do NOT narrate status (\"in progress\", \"ongoing\", \"active\", \"currently working\", \"progressing well\").",
   "",
   'Wrong: "Half-marathon training is in progress."',
+  'Wrong: "Deadline in 716 days; one of four milestones complete."',
+  'Wrong: "The target gap is the story."',
   'Right: "Race in ten weeks; longest logged run still 8k."',
+  'Right: "ISA balance is £30,000 against a £1,000,000 target — regular contributions are set."',
 ].join("\n");
 
 export const PROSE_CONCRETE_NOUNS_RULE = [
@@ -124,8 +137,13 @@ export const PROSE_CONCRETE_NOUNS_RULE = [
   "Banned connective filler alone:",
   '- "this reflects", "overall picture", "in terms of", "landscape of", "journey toward", "broader context".',
   "",
+  "Banned riddle closers:",
+  '- "the gap is the story", "is the story", "long-range anchor", "through-line", "defines the theme",',
+  '  bare "sit in tension" / "those two facts sit in tension" with no concrete map nouns or numbers.',
+  "",
   'Wrong: "This reflects your broader commitment to long-term growth across several active chapters."',
-  'Right: "ISA chapter: £12,400 of £500,000; Emergency fund chapter: complete with £8k saved."',
+  'Wrong: "Contributions are set but the gap is the story."',
+  'Right: "ISA: £12,400 of £500,000; Emergency fund: complete with £8k saved."',
 ].join("\n");
 
 export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
@@ -142,13 +160,19 @@ export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
 ].join("\n");
 
 export const REFLECT_VOICE_ANTI_PATTERNS = [
-  "VOICE ANTI-PATTERNS (chapter headline/body/comparison):",
+  "VOICE ANTI-PATTERNS (chapter headline/body/comparison + theme oneLiner/reflective):",
   "- Do not open any text with the user's name (\"Alex, ...\").",
   "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
   "- Do not narrate fact sources: \"your note\", \"you mentioned\", \"which aligns with your note about\", \"your answer\".",
   "- Do not use \"significant\" as filler — name what is actually notable.",
   "- Do not write \"You have been making progress\" — say what the progress is.",
   "- No filler words alone: \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
+  "- No riddle closers: \"is the story\", \"the gap is the story\", \"long-range anchor\", \"through-line\",",
+  "  \"defines the theme\", unsupported \"bottleneck\", or bare \"sit in tension\".",
+  "- No administrative inventory as reading: milestone ratios, raw \"deadline in Nd\", status labels,",
+  "  significance labels, or \"N active / in progress\" counts — those belong to Details, Milestones, Timeline,",
+  "  and As it stands.",
+  "- Prefer plain interpretation: concrete observation first; restrained meaning only when supported by map facts.",
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 ].join("\n");
 

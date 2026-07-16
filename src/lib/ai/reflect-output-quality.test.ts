@@ -26,7 +26,7 @@ const COMPLIANT_REFLECT_SLICE: ReflectResponse = {
   themes: {
     work: {
       tone: "encouraging",
-      oneLiner: "CeMAP is the bottleneck while the job search stays warm.",
+      oneLiner: "CeMAP still has open units while the job search has a June deadline.",
       reflective:
         "Product Lead search and CeMAP qualification both sit in Job — the search has a June deadline while CeMAP still has units open.",
       contextual: "",

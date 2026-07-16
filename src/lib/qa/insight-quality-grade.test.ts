@@ -20,11 +20,35 @@ describe("gradeInsightQuality", () => {
       pursuits: {
         p1: {
           headline: "Balance over £3,000 on minimum payments",
-          body: "The 0% period is running out — those two facts sit in tension.",
+          body: "The balance is over £3,000 and the plan is set to the minimum, with the 0% period running out.",
         },
       },
     });
     expect(flags.filter((f) => f.startsWith("banned-"))).toEqual([]);
+  });
+
+  it("flags riddle closers in theme oneLiners", () => {
+    const flags = gradeInsightQuality({
+      themes: {
+        finance: {
+          oneLiner: "Contributions are set but the gap is the story.",
+          reflective: "ISA remains active in Money & Finance.",
+        },
+      },
+    });
+    expect(flags.some((f) => f.startsWith("banned-riddle:"))).toBe(true);
+  });
+
+  it("flags administrative milestone and deadline inventory", () => {
+    const flags = gradeInsightQuality({
+      pursuits: {
+        p1: {
+          headline: "Deadline in 716 days; one of four milestones complete",
+          body: "Training continues.",
+        },
+      },
+    });
+    expect(flags.some((f) => f.startsWith("banned-admin:"))).toBe(true);
   });
 
   it("flags status-narration headlines", () => {

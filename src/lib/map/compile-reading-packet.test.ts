@@ -376,7 +376,7 @@ describe("compile-reading-packet", () => {
     );
     expect(facts).toHaveLength(1);
     expect(facts[0]).toBe(
-      "CeMAP qualification: started 6 months ago; deadline in 18d; 0 of 3 milestones completed",
+      "CeMAP qualification: started 6 months ago; deadline in 18d; milestones defined (3) with none completed yet",
     );
   });
 

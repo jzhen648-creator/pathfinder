@@ -254,12 +254,24 @@ describe("pursuit-enrich-readiness gates", () => {
 
   it("gateThemeInsightProse strips paraphrase but keeps grounding facts", () => {
     const gated = gateThemeInsightProse({
-      oneLiner: "The ISA target and current balance are miles apart — contributions are set but the gap is the story.",
+      oneLiner: "ISA balance is £12,400 against a £500,000 target — contributions are set.",
       reflective:
         "Wealth building here is about steady contributions toward a significant target. Build £500k ISA: £12,400 of £500,000; £200/month contribution.",
     });
-    expect(gated.reflective).toBe("Build £500k ISA: £12,400 of £500,000; £200/month contribution.");
-    expect(gated.reflective?.toLowerCase()).not.toContain("steady contributions");
+    expect(gated.oneLiner).toMatch(/£12,400/);
+    // Amount grounding that restates the oneLiner is stripped; filler without map substance goes too.
+    expect(gated.reflective ?? "").not.toMatch(/steady contributions|significant target/i);
+  });
+
+  it("gateThemeInsightProse drops riddle oneLiners and promotes a clear reflective lead", () => {
+    const gated = gateThemeInsightProse({
+      oneLiner: "Contributions are set but the gap is the story.",
+      reflective:
+        "Build £500k ISA: £12,400 of £500,000; £200/month contribution. Formal Education completed at 17.",
+      fallbackOneLiner: "ISA: £12,400 of £500,000",
+    });
+    expect(gated.oneLiner).toMatch(/£12,400|£500,000/);
+    expect(gated.oneLiner?.toLowerCase()).not.toContain("story");
   });
 
   it("gatePursuitInsightProse strips enrichAnswer glossary from body", () => {
@@ -285,10 +297,10 @@ describe("pursuit-enrich-readiness gates", () => {
       body:
         "Interview performance and client relationship management shaped the role. Shifted focus to a different area of property pulled you away from pure sales.",
       enrichAnswers,
-      focalFacts: ["Status: ACTIVE", "Sales negotiator: 1/3 milestones complete"],
+      focalFacts: ["Status: ACTIVE", "Amount: 1200/5000 GBP"],
     });
     expect(gated.headline).not.toMatch(/Interview performance/i);
-    expect(gated.headline).toMatch(/milestones complete/i);
+    expect(gated.headline).toMatch(/Amount:|1200/);
     expect(gated.body?.toLowerCase() ?? "").not.toContain("interview performance");
   });
 
@@ -326,7 +338,7 @@ describe("pursuit-enrich-readiness gates", () => {
     const background = "Building emergency fund before house purchase";
     expect(
       sentenceRestatesBackground(
-        "The ISA gap is the long-range anchor on the map.",
+        "The ISA balance is £12,400 against a £500,000 target on the map.",
         background,
       ),
     ).toBe(false);
@@ -341,10 +353,10 @@ describe("pursuit-enrich-readiness gates", () => {
         "Interview performance and client relationship management shaped the role. Shifted focus to a different area of property pulled you away from pure sales.",
       enrichAnswers: [],
       background,
-      focalFacts: ["Status: ACTIVE", "Sales negotiator: 1/3 milestones complete"],
+      focalFacts: ["Status: ACTIVE", "Amount: 1200/5000 GBP"],
     });
     expect(gated.headline).not.toMatch(/Interview performance/i);
-    expect(gated.headline).toMatch(/milestones complete/i);
+    expect(gated.headline).toMatch(/Amount:|1200/);
     expect(gated.body?.toLowerCase() ?? "").not.toContain("interview performance");
     expect(gated.body?.toLowerCase() ?? "").not.toContain("shifted focus");
   });

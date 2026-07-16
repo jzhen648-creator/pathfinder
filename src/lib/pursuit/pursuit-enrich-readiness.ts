@@ -1,5 +1,11 @@
 import type { PursuitEnrichResult, EnrichAnswer } from "@/lib/pursuit/pursuit-enrich-types";
 import { truncatePursuitInsightHeadline } from "@/lib/insights/clamp-insight-json";
+import {
+  clarifyInsightHeadline,
+  isAdministrativeFocalFact,
+  isClearInsightHeadline,
+  significantClarityTokens,
+} from "@/lib/insights/insight-clarity";
 import { textRestatesKnownFact } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
 import { clarifierKind, filterActiveClarifiers } from "@/lib/pursuit/pursuit-enrich-types";
 import type { PursuitEnrichOptions } from "@/lib/pursuit/enrich-options";
@@ -297,7 +303,12 @@ export function sentenceRestatesEnrichAnswer(sentence: string, enrichAnswers: En
 
 function fallbackHeadlineFromFocalFacts(focalFacts: string[] | undefined): string | undefined {
   if (!focalFacts?.length) return undefined;
-  const candidate = focalFacts.find((fact) => !fact.startsWith("Status:")) ?? focalFacts[0];
+  const amount =
+    focalFacts.find((fact) => fact.startsWith("Amount:") || fact.startsWith("Amount target:")) ??
+    null;
+  if (amount) return truncatePursuitInsightHeadline(amount);
+  const candidate = focalFacts.find((fact) => !isAdministrativeFocalFact(fact));
+  if (!candidate) return undefined;
   return truncatePursuitInsightHeadline(candidate);
 }
 
@@ -391,12 +402,17 @@ export function sentenceParaphrasesHeadline(sentence: string, oneLiner: string):
   return matched.length / headlineTokens.length >= 0.6;
 }
 
-/** Strip reflective sentences that paraphrase the theme oneLiner after generation. */
+/** Strip reflective sentences that paraphrase the theme oneLiner; drop riddle oneLiners. */
 export function gateThemeInsightProse(input: {
   oneLiner?: string;
   reflective?: string;
+  knownTitleTokens?: readonly string[];
+  fallbackOneLiner?: string;
 }): { oneLiner?: string; reflective?: string } {
-  const oneLiner = input.oneLiner?.trim() ?? "";
+  let oneLiner = clarifyInsightHeadline(input.oneLiner?.trim() ?? "", {
+    knownTitleTokens: input.knownTitleTokens,
+    fallback: input.fallbackOneLiner,
+  });
   let reflective = input.reflective?.trim() ?? "";
 
   if (oneLiner && reflective) {
@@ -407,11 +423,29 @@ export function gateThemeInsightProse(input: {
       .trim();
   }
 
+  // If headline cleared but reflective opens with a clear concrete sentence, promote it.
+  if (!oneLiner && reflective) {
+    const first = reflective.split(/(?<=[.!?])\s+/).filter(Boolean)[0] ?? "";
+    if (isClearInsightHeadline(first, { knownTitleTokens: input.knownTitleTokens })) {
+      oneLiner = first.trim();
+      reflective = reflective
+        .slice(first.length)
+        .replace(/^\s+/, "")
+        .trim();
+    }
+  }
+
   return {
     oneLiner: oneLiner || undefined,
     reflective: reflective || undefined,
   };
 }
+
+export {
+  clarifyInsightHeadline,
+  isClearInsightHeadline,
+  significantClarityTokens,
+};
 
 function significantTitleTokens(title: string): string[] {
   return title

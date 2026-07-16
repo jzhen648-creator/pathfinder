@@ -153,7 +153,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
     expect(full).toContain("At most one observation per chapter.");
     expect(full).toContain("GROUNDING RULE (mandatory)");
     expect(full).toContain("TENSION, NOT FORECAST:");
-    expect(full).toContain("Those two facts sit in tension.");
+    expect(full).toMatch(/sit in tension|compete for the same|name both facts/);
     expect(full).not.toContain("won or lost");
     expect(full).not.toContain("Use age/location for contextual benchmarking");
     expect(full).not.toContain(
@@ -241,7 +241,7 @@ describe("buildReflectSystemPrompt benchmark rubric", () => {
   it("full-scope theme oneLiner asks for a complete sentence within 140 chars", () => {
     const full = buildReflectSystemPrompt(ENRICH_OPTIONS, "full");
     expect(full).toContain("oneLiner <= 140 chars");
-    expect(full).toContain("self-contained thought");
+    expect(full).toContain("self-contained sentence");
     expect(full).not.toContain("oneLiner <= 100 chars");
   });
 });

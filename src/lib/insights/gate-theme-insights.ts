@@ -16,6 +16,7 @@ import {
   gateThemeContextualContent,
   gateThemeInsightProse,
   gateThemeReflective,
+  significantClarityTokens,
   type ThemeLinkGateRow,
   type ThemeContextualGateInput,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
@@ -140,6 +141,20 @@ export async function gateThemeInsightsPatch(
       relationships,
       pursuitThemeMap,
     );
+    const knownTitleTokens = themeSignals.flatMap((signal) =>
+      significantClarityTokens(signal.title),
+    );
+    const amountFallback = themePursuits
+      .map((row) => {
+        const current = row.currentAmount;
+        const target = row.targetAmount;
+        if (current != null && target != null && target > 0) {
+          return `${row.title}: ${current} of ${target}`;
+        }
+        return "";
+      })
+      .find((line) => line.length > 0);
+
     const { oneLiner, reflective } = gateThemeInsightProse({
       oneLiner: gateMisappliedCurrentAgeProse(
         entry.oneLiner?.trim() ?? "",
@@ -147,6 +162,8 @@ export async function gateThemeInsightsPatch(
         themeAgeFacts,
       ),
       reflective: gateMisappliedCurrentAgeProse(reflectiveAfterLinks, profile.age, themeAgeFacts),
+      knownTitleTokens,
+      fallbackOneLiner: amountFallback,
     });
 
     gated[themeId] = {

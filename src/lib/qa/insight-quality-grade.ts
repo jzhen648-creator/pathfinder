@@ -1,5 +1,7 @@
 /** Advisory insight quality flags — never gates CI. */
 
+import { hasRiddleCloser, isAdministrativeEcho } from "@/lib/insights/insight-clarity";
+
 export const BANNED_FILLER = ["connective tissue", "threads together", "woven through"] as const;
 
 export const BANNED_FORECAST = [
@@ -11,6 +13,21 @@ export const BANNED_FORECAST = [
 ] as const;
 
 export const BANNED_STATUS_NARRATION = ["active pursuit", "maintaining status"] as const;
+
+export const BANNED_RIDDLE = [
+  "the gap is the story",
+  "gap is still the story",
+  "is the story",
+  "long-range anchor",
+  "through-line",
+] as const;
+
+export const BANNED_ADMIN_ECHO = [
+  "milestones complete",
+  "deadline in",
+  " in progress",
+  " active)",
+] as const;
 
 type PursuitPanel = { headline?: string; body?: string; fromMap?: string; comparison?: string };
 type ThemePanel = {
@@ -68,6 +85,16 @@ function gradeProse(prose: string, scope: "pursuit" | "pursuit-supplement" | "th
   for (const phrase of BANNED_FILLER) {
     if (lower.includes(phrase)) flags.push(`banned-filler:${phrase}`);
   }
+
+  for (const phrase of BANNED_RIDDLE) {
+    if (lower.includes(phrase)) flags.push(`banned-riddle:${phrase}`);
+  }
+  if (hasRiddleCloser(prose)) flags.push("banned-riddle:closer");
+
+  for (const phrase of BANNED_ADMIN_ECHO) {
+    if (lower.includes(phrase)) flags.push(`banned-admin:${phrase.trim()}`);
+  }
+  if (isAdministrativeEcho(prose)) flags.push("banned-admin:echo");
 
   return flags;
 }

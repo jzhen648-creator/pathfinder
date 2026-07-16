@@ -17,7 +17,9 @@ type QualityFlag =
   | "status-narration-headline"
   | "connective-tissue-filler"
   | "evaluative-language"
-  | "significance-echo";
+  | "significance-echo"
+  | "riddle-closer"
+  | "administrative-echo";
 
 type FixtureResult = {
   id: string;
@@ -40,6 +42,12 @@ const STATUS_NARRATION_HEADLINE =
 const CONNECTIVE_TISSUE =
   /\b(this reflects|overall picture|in terms of|landscape of|journey toward|broader context)\b/i;
 
+const RIDDLE_CLOSER =
+  /\b(?:is|remains|stays)\s+(?:still\s+)?the\s+story\b|\blong[- ]range\s+anchor\b|\bthrough[- ]line\b/i;
+
+const ADMINISTRATIVE_ECHO =
+  /\b\d+\s*(?:of|\/)\s*\d+\s+milestones?\b|\bdeadline\s+in\s+\d+\s*d(?:ays?)?\b|\b\d+\s+(?:active|in\s+progress)\b/i;
+
 const EVALUATIVE_LANGUAGE =
   /\b(demonstrates|shows dedication|reflects commitment|significant achievement|impressive progress|remarkable)\b/i;
 
@@ -61,6 +69,12 @@ function gradePanel(headline: string, body: string): QualityFlag[] {
   }
   if (SIGNIFICANCE_ECHO.test(combined)) {
     flags.push("significance-echo");
+  }
+  if (RIDDLE_CLOSER.test(combined)) {
+    flags.push("riddle-closer");
+  }
+  if (ADMINISTRATIVE_ECHO.test(combined)) {
+    flags.push("administrative-echo");
   }
 
   return flags;

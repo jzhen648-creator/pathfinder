@@ -2,43 +2,55 @@
 
 export const THEME_INSIGHT_FIELD_LANES = [
   "THEME READING FIELD LANES:",
-  "- oneLiner: the read — one sentence on where this theme's weight sits or what tension defines it.",
-  "  When Active chapters have deadlines or targets, close with what the user is aiming toward on the map — plan mirror, not praise.",
-  "- reflective (From your map): map-grounding the read did not already say —",
+  "- oneLiner: ONE plain sentence stating the most useful concrete map observation in this theme.",
+  "  Prefer, in order: authored fact/constraint, amount frontier, chronology, cross-chapter relationship,",
+  "  then an urgent deadline only when paired with another frontier.",
+  "  When Active chapters have targets or imminent deadlines, name the plan fact plainly — plan mirror, not praise or metaphor.",
+  "  Meaning = useful specificity the UI does not already show — never a riddle, slogan, literary closer, or audit.",
+  "  Never headline with milestone ratios, raw days-until-deadline, or active-chapter counts.",
+  "- reflective (From your map): restrained interpretation or additional map facts the oneLiner did not already say —",
   "  name chapter titles verbatim (never the filler noun \"chapter\" — use titles like \"Third Job\", \"Clear Credit Card\", not \"this chapter\" or \"the X chapter\").",
-  "  Cite entered facts (amounts, deadlines, milestone completion, status contrasts).",
+  "  Cite entered facts (amounts, constraints, chronology, status contrasts).",
   "  When <chapter_age_facts> exists, you may anchor facts in age-chronology order — follow voicing hints; do not restate an unchanged age.",
   "- Do NOT restate the oneLiner's conclusion in reflective — if a sentence could replace the headline, delete it.",
+  "- Sparse maps: omit manufactured meaning; a short factual observation is fine — administrative inventory is not.",
   "- Wrong: oneLiner \"Long-term investing is the through-line\"; reflective \"The theme centers on building wealth through steady contributions toward a significant target.\"",
-  '- Right: oneLiner "The ISA target and current balance are miles apart — contributions are set but the gap is the story.";',
+  '- Wrong: oneLiner "Contributions are set but the gap is the story."',
+  '- Wrong: oneLiner "Deadline in 716 days; one of four milestones complete."',
+  '- Right: oneLiner "ISA balance is £30,000 against a £1,000,000 target — regular contributions are set.";',
   '  reflective "At 17 the apprenticeship, and that same year the Level 3 course; the first mortgage role came two years on, at 19."',
 ].join("\n");
 
 export const THEME_INSIGHT_NON_DUPLICATION = [
   "THEME NON-DUPLICATION:",
-  "- oneLiner = the read (interpretation); reflective = specific map facts that ground it — never a paraphrase.",
-  "- Each line adds new information: oneLiner names the theme bottleneck or what is carrying it;",
+  "- oneLiner = the concrete observation; reflective = specific map facts or restrained meaning that ground it — never a paraphrase.",
+  "- Each line adds new information: oneLiner names the clearest plan fact or concentration;",
   "  reflective names chapters and cites entered data the headline did not already state.",
   "- Ban near-duplicate phrasing: if reflective reuses the headline's core nouns or swaps synonyms for the same claim, rewrite it with chapter titles and numbers.",
   "- Ban the filler noun \"chapter\" in reading prose — use chapter titles verbatim instead.",
   '  Wrong: "This chapter sits alongside the ISA." Right: "Clear Credit Card sits alongside the ISA."',
   "- Ban meta UI copy: never \"confirmed relationships on your map\", \"your map shows\", or \"the app sees\".",
   "- Ban theme filler without map numbers: \"long-term growth\", \"steady contributions\", \"significant target\" when no entered amount/deadline backs them.",
+  "- Ban metaphor closers: \"the story\", \"anchor\", \"through-line\", \"defines the theme\", unsupported \"bottleneck\".",
+  "- Ban administrative inventory: milestone ratios, raw \"deadline in Nd\", significance labels, \"N active\".",
   "- Ban timeline recap as theme synthesis: listing Complete chapters in order and calling it \"progression\" or a \"clear path\".",
   "- Ban invented bridges between chapters the map does not connect (e.g. unrelated degree → unrelated job as \"clear progression\").",
 ].join("\n");
 
 export const THEME_PLAN_MIRROR_RULE = [
   "THEME PLAN MIRROR (read the user's authored future — not a history summary):",
-  "- Active and Maintaining chapters with deadlines, targets, or open milestone frontiers are PLANNED FUTURE on the map.",
-  "- Theme oneLiner: read the theme as a PLAN — what carries it forward, the bottleneck, what competes — not a diary recap.",
+  "- Active and Maintaining chapters with targets, authored constraints, or imminent deadlines are PLANNED FUTURE on the map.",
+  "- Milestones are optional scaffolding — never treat \"N of M milestones\" as theme synthesis or % complete.",
+  "- Theme oneLiner: state the plan fact plainly — amounts, competing Active chapters, empty frontiers — not a diary recap, slogan, or calendar audit.",
   "- When Active/plan chapters AND Complete chapters coexist, weight the Active plan in oneLiner; Complete chapters ground reflective only.",
   "- When every chapter in the theme is Complete and nothing Active or Maintaining continues the arc, oneLiner MUST name the empty frontier plainly.",
-  "- Use <reading_packet> lines (Active with deadlines, gapFacts, amount rows) and map_context status/deadline/target fields.",
+  "- Use <reading_packet> lines (amount rows, gapFacts when urgent, changeEvents) and map_context title/amount/background fields.",
   "",
   "Wrong (recap): \"Formal education and first professional role establish a clear progression from academic study to a professional role.\"",
   "Wrong (trivial echo): \"Monthly contributions align with the annual ISA limit, setting a clear path for long-term growth.\"",
-  'Right (plan tension): "The ISA target is £500k+ and the balance is over £100k — contributions are set but the gap is still the story."',
+  "Wrong (riddle): \"Contributions are set but the gap is still the story.\"",
+  "Wrong (audit): \"Deadline in 716 days; one of four milestones complete.\"",
+  'Right (plan fact): "ISA target is £500k+ with balance over £100k — contributions are set; the shortfall remains £400k+."',
   'Right (missing frontier): "Formal Education and First Job are both complete — nothing Active on the map after 2021 names what comes next."',
   'Right (discontinuity): "A geology BSc and an estate-agency first role are both complete — the map does not connect them."',
 ].join("\n");
@@ -47,9 +59,9 @@ export const THEME_INSIGHT_FIELD_JOBS = [
   "THEME INSIGHTS (macro synthesis of the user's plan in this theme — not per-chapter narrative or history recap):",
   '- "themes": map of themeId -> { tone, oneLiner, reflective }',
   "  tone MUST be one of: celebratory | encouraging | nudge",
-  "  oneLiner <= 140 chars — one complete, self-contained thought (a full sentence, not a fragment);",
-  "  must never trail off mid-phrase. Name what is carrying this theme or where the bottleneck sits",
-  "  (not a chapter-by-chapter summary).",
+  "  oneLiner <= 140 chars — one complete, self-contained sentence (not a fragment);",
+  "  must never trail off mid-phrase. Lead with a concrete map fact (title, number, date, or entered fact).",
+  "  Do not invent meaning when the map only supports a factual status line.",
   "",
   THEME_PLAN_MIRROR_RULE,
   "",
@@ -77,7 +89,7 @@ export const NOTABLE_FACTS_OBSERVATION_RULE = [
   'Right: "Contributions hit the full £20k allowance — that is uncommon; most people use a fraction."',
   "",
   'Wrong: "Saving £500k in an ISA is a great financial goal."',
-  'Right: "The ISA target is £500k; the balance on the map is a fraction of that — those two numbers sit in tension."',
+  'Right: "The ISA target is £500k; the balance on the map is a fraction of that."',
 ].join("\n");
 
 export const THEME_REFLECT_OUTPUT_CONTRACT = [
@@ -122,7 +134,8 @@ export const OVERALL_READING_FIELD_JOB = [
   "  Wrong: \"Work & Career is focused on Third Job; Money & Finance is balancing the SiPP…; Health & Body is training for a Half Marathon.\"",
   "  Right: \"Three deadlines cluster between October and December — job search, app launch, and marathon prep share the same autumn window.\"",
   "- Wrong: copy Money & Finance oneLiner alone when Work & Career also has active chapters.",
-  '- Right oneLiner: "The apprenticeship is building skills while the ISA gap stays the long-range anchor."',
+  '- Wrong oneLiner: "The apprenticeship is building skills while the ISA gap stays the long-range anchor."',
+  '- Right oneLiner: "Apprenticeship and ISA are the heaviest Active chapters — skills path plus a £30k / £1m savings target."',
   '- Right support: "Three deadlines cluster between October and December — job search, app launch, and marathon prep share the same autumn window."',
 ].join("\n");
 
@@ -160,9 +173,11 @@ export const PURSUIT_CONTEXT_TAB_NON_DUPLICATION = [
 
 export const PURSUIT_READING_AUTHORSHIP_ORDER = [
   "CHAPTER READING AUTHORSHIP (chapter headline/body/comparison ONLY — does NOT apply to theme oneLiner or reflective):",
-  "- Lead headline and body from status, deadline, milestone pace, amount progress, and timeline arc in <focal_chapter_facts> or <reading_packet>.",
+  "- Lead headline and body from amount progress, authored background, chronology, and cross-chapter relationships in <focal_chapter_facts> or <reading_packet>.",
+  "- Status, significance, milestone ratios, and raw days-until-deadline are supporting context — never the headline thesis.",
   "- enrichAnswers in <confirmed_on_context_tab> are supporting interpretation — never the primary subject of headline or body.",
   "- Wrong: restating three confirmed Quick Question picks as the entire chapter reading.",
+  "- Wrong: \"Deadline in 716 days; one of four milestones complete.\"",
   "- Right: position the chapter from structured map facts; use at most one enrichAnswer mention in body only when it explains tension vs a named sibling chapter.",
 ].join("\n");
 

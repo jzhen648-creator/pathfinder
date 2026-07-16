@@ -1,4 +1,5 @@
 import { stripChapterEcho } from "@/lib/insights/strip-chapter-echo";
+import { clarifyInsightHeadline, significantClarityTokens } from "@/lib/insights/insight-clarity";
 import type { ReflectResponse } from "@/lib/ai/reflect-types";
 import { formatMapContext } from "@/lib/ai/format-map-context";
 import { mergeNodeInsightsIntoCache } from "@/lib/insights/merge-insight-cache";
@@ -203,7 +204,10 @@ export async function applyReflectOutput(
       clarifiers,
       insight: {
         tone: resolvePursuitInsightTone(goal, now),
-        headline: stripChapterEcho(entry.headline),
+        headline: clarifyInsightHeadline(stripChapterEcho(entry.headline), {
+          knownTitleTokens: significantClarityTokens(goal.title),
+          fallback: focalFactsByPursuit[pursuitId]?.facts?.[0],
+        }),
         body: stripChapterEcho(entry.body),
         ...(comparison ? { comparison: stripChapterEcho(comparison) } : {}),
       },

@@ -20,7 +20,7 @@ describe("theme-insight-prompt-blocks", () => {
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("{ tone, oneLiner, reflective }");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("FROM YOUR MAP");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("<= 140 chars");
-    expect(THEME_INSIGHT_FIELD_JOBS).toContain("self-contained thought");
+    expect(THEME_INSIGHT_FIELD_JOBS).toContain("self-contained sentence");
     expect(THEME_INSIGHT_FIELD_JOBS).not.toContain("ACROSS PURSUITS");
     expect(THEME_INSIGHT_FIELD_JOBS).not.toContain("COMPARISON");
   });

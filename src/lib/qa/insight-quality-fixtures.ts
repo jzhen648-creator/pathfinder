@@ -15,7 +15,7 @@ export const STATIC_INSIGHT_QUALITY_FIXTURES: StaticQualityFixture[] = [
       pursuits: {
         "p-card": {
           headline: "Balance over £3,000 on minimum payments",
-          body: "The 0% period is running out — those two facts sit in tension.",
+          body: "The balance is over £3,000 and the plan is set to the minimum, with the 0% period running out.",
           fromMap: "Plan is set to minimum; balance is over £3,000.",
         },
       },
@@ -51,9 +51,9 @@ export const STATIC_INSIGHT_QUALITY_FIXTURES: StaticQualityFixture[] = [
     payload: {
       themes: {
         finance: {
-          oneLiner: "ISA target and debt payoff share the same month",
+          oneLiner: "ISA target £500k with balance over £100k — contributions are set",
           reflective: "Build £500k ISA and Clear credit card debt are both active in Money & Finance.",
-          combined: "The ISA target and minimum payment plan sit in tension — same cash, two directions.",
+          combined: "ISA target and minimum payment plan compete for the same cash this month.",
         },
       },
     },
@@ -66,6 +66,40 @@ export const STATIC_INSIGHT_QUALITY_FIXTURES: StaticQualityFixture[] = [
         work: {
           oneLiner: "Work theme overview",
           reflective: "Connective tissue threads together CeMAP and the job search.",
+        },
+      },
+    },
+  },
+  {
+    id: "theme-riddle-fail",
+    expectPass: false,
+    payload: {
+      themes: {
+        finance: {
+          oneLiner: "Contributions are set but the gap is the story.",
+          reflective: "ISA remains the active Money & Finance chapter.",
+        },
+      },
+    },
+  },
+  {
+    id: "founder-isa-clear-pass",
+    expectPass: true,
+    payload: {
+      themes: {
+        finance: {
+          oneLiner: "ISA balance is £30,000 against a £1,000,000 target — regular contributions are set.",
+          reflective: "The shortfall remains large while contributions continue.",
+        },
+      },
+      pursuits: {
+        "p-isa": {
+          headline: "£30,000 balance against a £1,000,000 target",
+          body: "Regular contributions are set on the map.",
+        },
+        "p-app": {
+          headline: "Formal Education completed at 17 before this apprenticeship began",
+          body: "Training continues on the map after Formal Education.",
         },
       },
     },

@@ -577,9 +577,16 @@ export function buildMilestonePaceFacts(
       let line = `${pursuit.title}: ${spanLabel}`;
       if (pursuit.deadline) {
         const until = daysUntil(pursuit.deadline, now);
-        if (until != null) line += `; deadline in ${until}d`;
+        // Keep urgent/overdue proximity for model context; omit long-range Nd inventory.
+        if (until != null && until <= 45) line += `; deadline in ${until}d`;
+        else if (until != null && until < 0) line += `; deadline ${Math.abs(until)}d overdue`;
+        else if (until != null) {
+          const label = formatDeadlineLabel(pursuit.deadline);
+          if (label) line += `; target ${label}`;
+        }
       }
-      line += `; 0 of ${milestones.length} milestones completed`;
+      // Milestone ratios stay in supporting context — optional scaffolding, not headline bait.
+      line += `; milestones defined (${milestones.length}) with none completed yet`;
       facts.push(line);
       continue;
     }
@@ -827,9 +834,12 @@ export function buildFocalPursuitReadingFacts(
   if (pursuit.deadline) {
     const label = formatDeadlineLabel(pursuit.deadline);
     const until = pursuit.daysUntilDeadline ?? daysUntil(pursuit.deadline, now);
-    if (until != null) {
+    if (until != null && until <= 45) {
       facts.push(`Deadline: ${label ?? pursuit.deadline} (${until}d)`);
+    } else if (until != null && until < 0) {
+      facts.push(`Deadline: ${label ?? pursuit.deadline} (${Math.abs(until)}d overdue)`);
     } else {
+      // Long-range: ISO/month label only — raw Nd is meta-strip inventory, not headline bait.
       facts.push(`Deadline: ${label ?? pursuit.deadline}`);
     }
   }
