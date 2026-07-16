@@ -1,6 +1,7 @@
 import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { resolveBranchIdFromBody } from "@/lib/category-id";
 import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
+import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-slug";
 import { z } from "zod";
 
 export { GOAL_TYPE_VALUES };
@@ -59,6 +60,10 @@ export const createGoalPayloadSchema = z
     timelineStart: z.string().optional(),
     /** When creating a historical record — completion date (YYYY-MM-DD). Requires status COMPLETE. */
     completedAt: z.string().optional(),
+    /** User-authored background prose on create — AI reads, never writes. Max 1000 chars. */
+    background: z.string().max(1000).optional(),
+    /** Lucide kebab-case slug from mobile icon picker; omit/null → theme fallback at render. */
+    iconName: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();
@@ -148,6 +153,17 @@ export const createGoalPayloadSchema = z
       });
     }
 
+    if (data.iconName !== undefined && data.iconName != null) {
+      const slug = data.iconName.trim().toLowerCase();
+      if (!slug || !isValidStoredPursuitIconSlug(slug)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "iconName must be a valid Lucide slug or null",
+          path: ["iconName"],
+        });
+      }
+    }
+
     const timelineStartTrim = data.timelineStart?.trim() ?? "";
     if (timelineStartTrim.length > 0 && !parseLocalDateOnly(timelineStartTrim)) {
       ctx.addIssue({
@@ -179,6 +195,12 @@ export const createGoalPayloadSchema = z
     ...data,
     categoryId: resolveBranchIdFromBody(data),
     status: data.status ?? data.bloomStatus,
+    iconName:
+      data.iconName == null || data.iconName === undefined
+        ? data.iconName
+        : data.iconName.trim().toLowerCase() || null,
+    background:
+      data.background === undefined ? undefined : data.background.trim() || undefined,
   }));
 
 export type CreateGoalPayloadInput = z.input<typeof createGoalPayloadSchema>;
