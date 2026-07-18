@@ -331,6 +331,12 @@ model Goal {
   location          String?
   timelineNote      String?
   subtype           String?
+  /// Universal chapter archetype id (e.g. employment_role). Null = Custom Chapter.
+  chapterType       String?
+  /// Structured identity facts for typed chapters (JSON object of string keys → string values).
+  identityFacts     Json?
+  /// Short statement of what matters now within this chapter (≤140 chars in API).
+  currentFocus      String?
   themeId           String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

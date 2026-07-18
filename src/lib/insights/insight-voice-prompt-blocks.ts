@@ -63,6 +63,16 @@ export const USER_WORDS_RULE = [
   "- Quick questions capture factual gaps; background captures broader meaning. Do not ask the model to duplicate either in reading copy.",
 ].join("\n");
 
+export const CHAPTER_TYPE_IDENTITY_RULE = [
+  "## Chapter type and identity",
+  "",
+  "When a chapter has `chapterType`, treat that archetype as authoritative — do not re-derive the kind of chapter from the title alone.",
+  "`identityFacts` are structured facts the user entered (role title, organisation, destination, account subtype, etc.). Prefer them over guessing from the title.",
+  "`currentFocus` is what matters now inside the chapter — distinct from identity and from Context (`background`).",
+  "When `chapterType` is absent, the chapter is a Custom Chapter — free-form title is the identity.",
+  "Do not invent typed structure the user did not enter.",
+].join("\n");
+
 /** @deprecated Use USER_WORDS_RULE */
 export const USER_RATIONALE_RULE = USER_WORDS_RULE;
 

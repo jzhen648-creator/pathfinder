@@ -1,3 +1,8 @@
+import {
+  CURRENT_FOCUS_MAX_CHARS,
+  chapterTypeSchema,
+  identityFactsSchema,
+} from "@/lib/chapter-types";
 import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { z } from "zod";
 import { isValidStoredPursuitIconSlug } from "@/lib/icons/validate-pursuit-icon-slug";
@@ -53,6 +58,12 @@ export const updateGoalPayloadSchema = z
     amountBasis: z.enum(AMOUNT_BASIS_VALUES).nullable().optional(),
     /** When true with a title change, mark derived details for AI reconcile (does not delete enrichAnswers). */
     reconcileDetails: z.boolean().optional(),
+    /** Universal chapter archetype; null clears back to Custom. */
+    chapterType: chapterTypeSchema.nullable().optional(),
+    /** Structured identity facts; null clears. */
+    identityFacts: identityFactsSchema.nullable().optional(),
+    /** What matters now; null clears. */
+    currentFocus: z.string().max(CURRENT_FOCUS_MAX_CHARS).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const hasField =
@@ -72,7 +83,10 @@ export const updateGoalPayloadSchema = z
       data.currentAmount !== undefined ||
       data.targetAmount !== undefined ||
       data.unit !== undefined ||
-      data.amountBasis !== undefined;
+      data.amountBasis !== undefined ||
+      data.chapterType !== undefined ||
+      data.identityFacts !== undefined ||
+      data.currentFocus !== undefined;
     if (!hasField) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

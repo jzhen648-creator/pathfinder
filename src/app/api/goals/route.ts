@@ -207,6 +207,18 @@ export async function POST(request: Request) {
             : {}),
           ...(timelineStart ? { timelineStart } : {}),
           ...(completedAt ? { completedAt } : {}),
+          ...(input.chapterType !== undefined
+            ? { chapterType: input.chapterType }
+            : {}),
+          ...(input.identityFacts !== undefined
+            ? { identityFacts: input.identityFacts ?? Prisma.DbNull }
+            : {}),
+          ...(input.currentFocus !== undefined
+            ? {
+                currentFocus:
+                  input.currentFocus === null ? null : input.currentFocus.trim() || null,
+              }
+            : {}),
         },
       });
     });

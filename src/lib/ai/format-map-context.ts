@@ -71,6 +71,12 @@ export type FormattedMapPursuit = {
   daysSinceTouched?: number;
   /** User-authored background — omitted when unset or empty. */
   background?: string;
+  /** Universal chapter archetype — null/omit means Custom Chapter. */
+  chapterType?: string;
+  /** Structured identity facts for typed chapters. */
+  identityFacts?: Record<string, string>;
+  /** What matters now within this chapter. */
+  currentFocus?: string;
 };
 
 export type FormattedMapContext = {
@@ -128,12 +134,24 @@ function trimMilestoneDescription(description: string | null | undefined): strin
 }
 
 /** @internal Exported for vitest — AI map_context pursuit row shape. */
+function asIdentityFacts(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string" && value.trim()) out[key] = value.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function buildPursuitRow(
   goal: {
     id: string;
     title: string;
     background?: string | null;
     enrichAnswers?: unknown;
+    chapterType?: string | null;
+    identityFacts?: unknown;
+    currentFocus?: string | null;
     status: string;
     significance: number | null;
     targetAmount: number | null;
@@ -201,6 +219,15 @@ export function buildPursuitRow(
     pursuit.background = goal.background;
   }
 
+  if (goal.chapterType?.trim()) {
+    pursuit.chapterType = goal.chapterType.trim();
+  }
+  const identityFacts = asIdentityFacts(goal.identityFacts);
+  if (identityFacts) pursuit.identityFacts = identityFacts;
+  if (goal.currentFocus?.trim()) {
+    pursuit.currentFocus = goal.currentFocus.trim();
+  }
+
   return pursuit;
 }
 
@@ -215,6 +242,9 @@ const goalSelect = {
   title: true,
   background: true,
   enrichAnswers: true,
+  chapterType: true,
+  identityFacts: true,
+  currentFocus: true,
   status: true,
   significance: true,
   targetAmount: true,

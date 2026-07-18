@@ -39,6 +39,7 @@ import {
   TENSION_NOT_FORECAST_RULE,
   PLAN_IMPLICATION_RULE,
   ATTRIBUTES_AT_A_DATE_RULE,
+  CHAPTER_TYPE_IDENTITY_RULE,
 } from "@/lib/insights/insight-voice-prompt-blocks";
 import {
   buildBenchmarkFactsBlock,
@@ -206,6 +207,8 @@ function buildReflectSharedVoiceBlocks(): string[] {
     ORIENTATION_AS_LENS_RULE,
     "",
     USER_RATIONALE_RULE,
+    "",
+    CHAPTER_TYPE_IDENTITY_RULE,
     "",
     PURSUIT_TITLE_REFERENCE_RULE,
     "",

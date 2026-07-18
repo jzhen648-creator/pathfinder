@@ -1,3 +1,8 @@
+import {
+  CURRENT_FOCUS_MAX_CHARS,
+  chapterTypeSchema,
+  identityFactsSchema,
+} from "@/lib/chapter-types";
 import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { resolveBranchIdFromBody } from "@/lib/category-id";
 import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
@@ -59,6 +64,12 @@ export const createGoalPayloadSchema = z
     timelineStart: z.string().optional(),
     /** When creating a historical record — completion date (YYYY-MM-DD). Requires status COMPLETE. */
     completedAt: z.string().optional(),
+    /** Universal chapter archetype; omit/null = Custom Chapter. */
+    chapterType: chapterTypeSchema.nullable().optional(),
+    /** Structured identity facts for typed chapters. */
+    identityFacts: identityFactsSchema.nullable().optional(),
+    /** What matters now within this chapter. */
+    currentFocus: z.string().max(CURRENT_FOCUS_MAX_CHARS).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const title = data.title.trim();

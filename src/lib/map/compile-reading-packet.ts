@@ -812,6 +812,26 @@ export function buildFocalPursuitReadingFacts(
 ): string[] {
   const facts: string[] = [`Status: ${pursuit.status}`];
 
+  if (pursuit.chapterType?.trim()) {
+    facts.push(`Chapter type: ${pursuit.chapterType.trim()}`);
+  }
+  if (pursuit.identityFacts) {
+    for (const [key, value] of Object.entries(pursuit.identityFacts)) {
+      if (value?.trim()) facts.push(`Identity · ${key}: ${value.trim()}`);
+    }
+  }
+  if (pursuit.currentFocus?.trim()) {
+    facts.push(`Current focus: ${pursuit.currentFocus.trim()}`);
+  }
+  if (pursuit.background?.trim()) {
+    const background = pursuit.background.trim();
+    facts.push(
+      background.length > 240
+        ? `Context: ${background.slice(0, 240).trim()}…`
+        : `Context: ${background}`,
+    );
+  }
+
   if (pursuit.significance != null) {
     facts.push(`Significance: ${significanceWordLabel(pursuit.significance)}`);
   }

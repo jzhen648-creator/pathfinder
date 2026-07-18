@@ -2,7 +2,7 @@
  * Bump in the same commit/PR as material reflect/enrich prompt or post-gen gate changes.
  * Stored as a suffix on InsightCache.mapVersion — no schema migration.
  */
-export const REFLECT_PROMPT_VERSION = "2026-07-16-evidence-hierarchy";
+export const REFLECT_PROMPT_VERSION = "2026-07-19-chapter-type-identity";
 
 const MAP_VERSION_SEPARATOR = ":";
 

@@ -1,4 +1,5 @@
 import { NextResponse, after } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { excludePursuitFromInterpretation } from "@/lib/insights/invalidate-reading-caches";
 import {
@@ -102,6 +103,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     unit?: string | null;
     amountBasis?: string | null;
     background?: string | null;
+    chapterType?: string | null;
+    identityFacts?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+    currentFocus?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
   // Retired pending post-TestFlight cleanup — no live readers/writers.
@@ -147,6 +151,15 @@ export async function PATCH(request: Request, { params }: RouteProps) {
   if (input.unit !== undefined) data.unit = input.unit?.trim() || null;
   if (input.amountBasis !== undefined) data.amountBasis = input.amountBasis;
   if (input.background !== undefined) data.background = input.background;
+  if (input.chapterType !== undefined) data.chapterType = input.chapterType;
+  if (input.identityFacts !== undefined) {
+    data.identityFacts =
+      input.identityFacts === null ? Prisma.DbNull : input.identityFacts;
+  }
+  if (input.currentFocus !== undefined) {
+    data.currentFocus =
+      input.currentFocus === null ? null : input.currentFocus.trim() || null;
+  }
   if (input.completedAt !== undefined) {
     data.completedAt = new Date(`${input.completedAt}T00:00:00.000Z`);
   }
@@ -241,6 +254,9 @@ export async function PATCH(request: Request, { params }: RouteProps) {
 
   const dirtyUpdates: Record<string, unknown> = {};
   if (input.title !== undefined) dirtyUpdates.title = data.title;
+  if (input.chapterType !== undefined) dirtyUpdates.chapterType = data.chapterType;
+  if (input.identityFacts !== undefined) dirtyUpdates.identityFacts = input.identityFacts;
+  if (input.currentFocus !== undefined) dirtyUpdates.currentFocus = data.currentFocus;
   if (pursuitStatus !== undefined) dirtyUpdates.status = data.status;
   if (input.deadline !== undefined || pursuitStatus === "COMPLETE") {
     dirtyUpdates.deadline = data.deadline ? data.deadline.toISOString().slice(0, 10) : null;
