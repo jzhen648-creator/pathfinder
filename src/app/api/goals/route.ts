@@ -21,12 +21,17 @@ import {
   loadCategorySequencedNodes,
   resolveSequenceAnchor,
 } from "@/lib/category-sequence";
+import { deriveCategoryFiling } from "@/lib/category-derivation";
+import { resolveBranchForHub } from "@/lib/resolve-category";
 import { activateCategoryForUser } from "@/lib/system-categories";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import { markPursuitReadingDirty } from "@/lib/map/reading-dirty-ledger";
 import { isLifeAreaId, unlockThemesForUser } from "@/lib/unlocked-themes";
 import { appendPursuitContextEntryAndSync } from "@/lib/pursuit/pursuit-context-log";
 import { createPursuitRelationshipForUser } from "@/lib/pursuit/apply-pursuit-relationship";
 import { persistGoalShortLabel } from "@/lib/goal-short-label";
+import type { ChapterTypeId } from "@/lib/chapter-types";
+import type { LifeAreaId } from "@/lib/types";
 
 function shouldGenerateRoadmap(requested: boolean | undefined): boolean {
   if (!requested) return false;
@@ -78,12 +83,50 @@ export async function POST(request: Request) {
     }
   }
 
-  const branchRecord = await prisma.themeCategory.findFirst({
-    where: { id: input.categoryId.trim(), userId },
-    select: { id: true, themeId: true, label: true, isActive: true },
-  });
-  if (!branchRecord) {
-    return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+  let branchRecord: {
+    id: string;
+    themeId: string;
+    label: string | null;
+    isActive: boolean;
+  } | null = null;
+
+  const explicitCategoryId = input.categoryId?.trim() ?? "";
+  if (explicitCategoryId) {
+    branchRecord = await prisma.themeCategory.findFirst({
+      where: { id: explicitCategoryId, userId },
+      select: { id: true, themeId: true, label: true, isActive: true },
+    });
+    if (!branchRecord) {
+      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+    }
+  } else {
+    const themeId = input.themeId;
+    if (!themeId || !isLifeAreaId(themeId)) {
+      return NextResponse.json(
+        { error: "themeId is required when categoryId is omitted" },
+        { status: 400 },
+      );
+    }
+    await ensureTaxonomyCurrent(prisma, userId);
+    const filing = deriveCategoryFiling({
+      themeId: themeId as LifeAreaId,
+      title: input.title,
+      chapterType: (input.chapterType ?? null) as ChapterTypeId | null,
+    });
+    const resolved = await resolveBranchForHub(prisma, userId, themeId, filing.hubSlug);
+    if (!resolved) {
+      return NextResponse.json(
+        { error: `Could not resolve category for theme (${filing.hubLabel})` },
+        { status: 400 },
+      );
+    }
+    branchRecord = await prisma.themeCategory.findFirst({
+      where: { id: resolved.categoryId, userId },
+      select: { id: true, themeId: true, label: true, isActive: true },
+    });
+    if (!branchRecord) {
+      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+    }
   }
 
   if (!branchRecord.isActive) {

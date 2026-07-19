@@ -18,7 +18,7 @@ They do **not** share one storage path. This is the important subtlety: it is **
 |-----|-----------------|----------------------|
 | **Clarify** | Save user-stated context | Today: `description` / `enrichAnswers`; target storage depends on the Pursuit Context Log decision |
 | **Connect** | Record a relationship | **Open decision** — needs queryable structure, not a prose line (see Open Decisions) |
-| **Suggest-add** | Open create flow | Nothing is "answered" unless provenance is chosen — opens `PlacementCreateSheet` prefilled; user authors it |
+| **Suggest-add** | Open create flow | Nothing is "answered" unless provenance is chosen — opens `composer/chapter-create` prefilled; user authors it |
 
 That shared gesture is the real, defensible simplification. It is **not** "everything becomes a question" — the audit showed that forcing milestones, map lines, selection logic, and a read-only meter into this pathway would *increase* complexity, not reduce it.
 

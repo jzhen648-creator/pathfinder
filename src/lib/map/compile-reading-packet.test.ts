@@ -438,6 +438,47 @@ describe("compile-reading-packet", () => {
     expect(facts.some((fact) => fact.startsWith("Age at start:"))).toBe(false);
   });
 
+  it("labels overdue deadlines as overdue (not negative 'in Nd')", () => {
+    const facts = buildFocalPursuitReadingFacts(
+      {
+        id: "g1",
+        title: "CeMAP qualification",
+        status: "ACTIVE",
+        deadline: "2026-06-01",
+        milestones: [],
+      },
+      FIXTURE_NOW,
+    );
+    expect(facts.some((fact) => /deadline in -\d+d/i.test(fact))).toBe(false);
+    expect(
+      facts.some((fact) => /Deadline:.*\(\d+d overdue\)/i.test(fact)),
+    ).toBe(true);
+    expect(facts).toContain("Target date passed 13d ago — still Active");
+  });
+
+  it("pace facts use overdue wording when the target has passed", () => {
+    const facts = buildMilestonePaceFacts(
+      [
+        {
+          id: "c",
+          title: "CeMAP qualification",
+          status: "ACTIVE",
+          significance: 3,
+          deadline: "2026-06-01",
+          timelineStart: "2025-12-14",
+          milestones: [
+            { id: "m1", title: "Unit 1", completed: false },
+            { id: "m2", title: "Unit 2", completed: false },
+          ],
+        },
+      ],
+      FIXTURE_NOW,
+    );
+    expect(facts).toHaveLength(1);
+    expect(facts[0]).toMatch(/deadline \d+d overdue/);
+    expect(facts[0]).not.toMatch(/deadline in -/);
+  });
+
   it("buildReadingPacketRecentEvents excludes milestone_complete from reading spine", () => {
     const mapContext: FormattedMapContext = {
       themes: [

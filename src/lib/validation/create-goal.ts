@@ -6,7 +6,10 @@ import {
 import { SIGNIFICANCE_MAX } from "@/lib/pursuit/significance";
 import { resolveBranchIdFromBody } from "@/lib/category-id";
 import { GOAL_TYPE_VALUES, type GoalType } from "@/lib/goal-type";
+import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import { z } from "zod";
+
+const themeIdSchema = z.enum(LIFE_AREA_IDS);
 
 export { GOAL_TYPE_VALUES };
 export type CreateGoalGoalType = GoalType;
@@ -35,8 +38,13 @@ export const createGoalPayloadSchema = z
     title: z.string(),
     description: z.string(),
     branchId: z.string().optional(),
-    /** Taxonomy category row id (preferred). */
+    /** Taxonomy category row id — optional when themeId is provided (server derives). */
     categoryId: z.string().optional(),
+    /**
+     * Theme for name-first create. Required when categoryId/branchId omitted so
+     * the server can derive an internal category.
+     */
+    themeId: themeIdSchema.optional(),
     goalType: z.enum(GOAL_TYPE_VALUES),
     /** Canonical pursuit status on create. */
     status: z.enum(["ACTIVE", "MAINTAINING", "PAUSED", "COMPLETE"]).optional(),
@@ -96,11 +104,11 @@ export const createGoalPayloadSchema = z
     }
 
     const branchId = resolveBranchIdFromBody(data);
-    if (!branchId) {
+    if (!branchId && !data.themeId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Category is required (categoryId)",
-        path: ["categoryId"],
+        message: "themeId is required when categoryId is omitted",
+        path: ["themeId"],
       });
     }
 

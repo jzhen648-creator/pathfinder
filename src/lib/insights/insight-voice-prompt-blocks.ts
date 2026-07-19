@@ -194,3 +194,16 @@ export const REFLECT_CORE_RULES = [
   "- Do not restate status changes, edits, or metadata updates in headline or body.",
   "- Be honest about gaps and sparse maps.",
 ].join("\n");
+
+/**
+ * Register from facts — warmth and plainness.
+ * Almanac mirrors someone already acting; it does not nag from app-touch silence.
+ */
+export const REGISTER_FROM_FACTS_RULE = [
+  "REGISTER FROM FACTS:",
+  "- Warm on real completions and concrete wins the map shows.",
+  "- Plain otherwise — calm is not soft, and it is not a coach.",
+  "- When a target date has passed and the chapter is still Active or Maintaining, state that once as a fact (plan / ledger hygiene).",
+  "- No imperatives, no \"you should\", no consequence-narration, no manufactured urgency, no shame framing, no streak or score judgment.",
+  "- Do not infer that the person has stopped from days untouched or silence facts alone — those are map quiet, not life judgment.",
+].join("\n");

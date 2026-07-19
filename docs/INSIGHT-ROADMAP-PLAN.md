@@ -69,7 +69,7 @@ The mechanism unifies **three interpretive asks** behind one user gesture (quiet
 |-----|--------|-----------------|
 | **Clarify** | Shipped (`clarifyTitles`) | `POST …/clarifier-answers` → `enrichAnswers` + `description` append |
 | **Connect** | Prompt stub only (`suggestConnections`, default off) | **Not built** — today writes prose only; needs structured store |
-| **Suggest-add** | Not in repo | **Not built** — must open `PlacementCreateSheet` prefilled, never auto-place |
+| **Suggest-add** | Not in repo | **Not built** — must open `composer/chapter-create` prefilled, never auto-place |
 
 **One gesture, three handlers** — not one persistence pipeline.
 

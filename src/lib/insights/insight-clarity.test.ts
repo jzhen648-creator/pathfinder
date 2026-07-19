@@ -65,6 +65,19 @@ describe("insight clarity", () => {
     ).toBe(true);
   });
 
+  it("treats bare past-target as admin echo; paired past-target as plan-mirror", () => {
+    expect(isAdministrativeEcho("Target date passed 30 days ago")).toBe(true);
+    expect(isClearInsightHeadline("Target date passed 30 days ago")).toBe(false);
+    expect(
+      isAdministrativeEcho("ISA — target date passed 30 days ago"),
+    ).toBe(false);
+    expect(
+      isClearInsightHeadline("ISA — target date passed 30 days ago", {
+        knownTitleTokens: ["isa"],
+      }),
+    ).toBe(true);
+  });
+
   it("gateThemeInsightProse drops riddle oneLiners and can promote reflective", () => {
     const gated = gateThemeInsightProse({
       oneLiner: "Contributions are set but the gap is the story.",

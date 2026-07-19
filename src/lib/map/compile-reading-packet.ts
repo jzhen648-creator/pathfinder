@@ -577,9 +577,9 @@ export function buildMilestonePaceFacts(
       let line = `${pursuit.title}: ${spanLabel}`;
       if (pursuit.deadline) {
         const until = daysUntil(pursuit.deadline, now);
-        // Keep urgent/overdue proximity for model context; omit long-range Nd inventory.
-        if (until != null && until <= 45) line += `; deadline in ${until}d`;
-        else if (until != null && until < 0) line += `; deadline ${Math.abs(until)}d overdue`;
+        // Overdue first — `until <= 45` alone would mis-label negative days as "in Nd".
+        if (until != null && until < 0) line += `; deadline ${Math.abs(until)}d overdue`;
+        else if (until != null && until <= 45) line += `; deadline in ${until}d`;
         else if (until != null) {
           const label = formatDeadlineLabel(pursuit.deadline);
           if (label) line += `; target ${label}`;
@@ -854,10 +854,17 @@ export function buildFocalPursuitReadingFacts(
   if (pursuit.deadline) {
     const label = formatDeadlineLabel(pursuit.deadline);
     const until = pursuit.daysUntilDeadline ?? daysUntil(pursuit.deadline, now);
-    if (until != null && until <= 45) {
-      facts.push(`Deadline: ${label ?? pursuit.deadline} (${until}d)`);
-    } else if (until != null && until < 0) {
+    // Overdue first — `until <= 45` alone would mis-label negative days as "(Nd)".
+    if (until != null && until < 0) {
       facts.push(`Deadline: ${label ?? pursuit.deadline} (${Math.abs(until)}d overdue)`);
+      if (pursuit.status === "ACTIVE" || pursuit.status === "MAINTAINING") {
+        const statusLabel = pursuit.status === "MAINTAINING" ? "Maintaining" : "Active";
+        facts.push(
+          `Target date passed ${Math.abs(until)}d ago — still ${statusLabel}`,
+        );
+      }
+    } else if (until != null && until <= 45) {
+      facts.push(`Deadline: ${label ?? pursuit.deadline} (${until}d)`);
     } else {
       // Long-range: ISO/month label only — raw Nd is meta-strip inventory, not headline bait.
       facts.push(`Deadline: ${label ?? pursuit.deadline}`);

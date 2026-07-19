@@ -37,7 +37,7 @@ const DEADLINE_PAREN_DAYS = /\((\d+)d\)/i;
 const DEADLINE_MONTHS_YEARS =
   /\bdeadline\s+in\s+\d+\s*(?:months?|years?)\b/i;
 const TARGET_DATE_AUDIT =
-  /\btarget\s+date\s+(?:is\s+today|passed)\b|\bpassed\s+\d+\s+days?\s+ago\b/i;
+  /\btarget\s+date\s+(?:is\s+today|passed)(?:\s+\d+\s+days?\s+ago)?\b|\bpassed\s+\d+\s+days?\s+ago\b/i;
 const STATUS_NARRATION =
   /\b(?:is\s+)?(?:an?\s+)?active\s+pursuit\b|\bin\s+progress\b|\bongoing\b|\bcurrently\s+working\b|\bprogressing\s+well\b/i;
 const SIGNIFICANCE_LABEL =
@@ -163,6 +163,11 @@ export function isAdministrativeEcho(text: string): boolean {
 
   const deadlineDays = maxDeadlineDaysMentioned(trimmed);
   if (deadlineDays != null && deadlineDays <= URGENT_DEADLINE_DAYS && remainderTokens.length >= 1) {
+    return false;
+  }
+
+  // Past-target phrasing paired with another map token is plan-mirror hygiene, not bare audit.
+  if (TARGET_DATE_AUDIT.test(trimmed) && remainderTokens.length >= 1) {
     return false;
   }
 
