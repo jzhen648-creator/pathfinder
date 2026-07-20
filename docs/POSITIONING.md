@@ -48,7 +48,7 @@ The niche above is the **first hundred users**, not the identity. You broaden a 
 
 **Sequencing caveat.** A broader audience is less forgiving — the niche tolerates roughness because they want the idea; mainstream churns in one session without the wow. So: **niche-first launch** (reachable, patient, and they generate the seasons/stories broad marketing needs), then widen via the share export and the December edition. Niche-first is the on-ramp, not the ceiling.
 
-**Which constraints to lift, which to harden.** Broadening tempts you to relax product rules for reach — but only the *cautious* ones should relax; the ones that *protect the user* must harden as you scale. The pinned decision lives in [`../PROJECT.md`](../PROJECT.md) → "Constraints: which lift, which harden". Short version: **relax how people get in** (import cold-start, wow onboarding); **never relax what protects them once inside** (silence never pushes, no streaks/badges/urgency, no AI-invented links).
+**Which constraints to lift, which to harden.** Broadening tempts you to relax product rules for reach — but only the *cautious* ones should relax; the ones that *protect the user* must harden as you scale. The pinned decision lives in [`../PROJECT.md`](../PROJECT.md) → "Constraints: which lift, which harden". Short version: **relax how people get in** (guided first-run / wow onboarding — not paste-import; Sketch my map removed §75); **never relax what protects them once inside** (silence never pushes, no streaks/badges/urgency, no AI-invented links).
 
 ## Market position
 

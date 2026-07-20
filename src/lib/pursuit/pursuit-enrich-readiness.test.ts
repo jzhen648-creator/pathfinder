@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   gateEnrichResult,
+  fallbackHeadlineFromFocalFacts,
   gatePursuitInsightProse,
   gateThemeCombined,
   gateThemeContextual,
@@ -272,6 +273,20 @@ describe("pursuit-enrich-readiness gates", () => {
     });
     expect(gated.oneLiner).toMatch(/£12,400|£500,000/);
     expect(gated.oneLiner?.toLowerCase()).not.toContain("story");
+  });
+
+  it("fallbackHeadlineFromFocalFacts prefers amount over status inventory", () => {
+    expect(
+      fallbackHeadlineFromFocalFacts([
+        "Status: ACTIVE",
+        "Significance: Meaningful",
+        "Amount: 75 of 68 kg",
+        "Deadline: 1 Apr 2027",
+      ]),
+    ).toBe("Amount: 75 of 68 kg");
+    expect(
+      fallbackHeadlineFromFocalFacts(["Status: ACTIVE", "Significance: Meaningful"]),
+    ).toBeUndefined();
   });
 
   it("gatePursuitInsightProse strips enrichAnswer glossary from body", () => {

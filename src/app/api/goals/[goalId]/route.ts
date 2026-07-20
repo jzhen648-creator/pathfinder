@@ -1,6 +1,8 @@
 import { NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireApiSessionUserId } from "@/lib/api-auth";
+import type { ChapterTypeId } from "@/lib/chapter-types";
+import { resolveTitleRenameRefile } from "@/lib/category-derivation";
 import { excludePursuitFromInterpretation } from "@/lib/insights/invalidate-reading-caches";
 import {
   clearQuickQuestionsQuietUntilInCache,
@@ -17,6 +19,10 @@ import { resolvePursuitStatusFromBody } from "@/lib/pursuit-status-api";
 import { prisma } from "@/lib/prisma";
 import { recordPursuitStatusTransition } from "@/lib/pursuit/record-status-transition";
 import { clampSignificance } from "@/lib/pursuit/significance";
+import { resolveBranchForHub } from "@/lib/resolve-category";
+import { activateCategoryForUser } from "@/lib/system-categories";
+import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
+import { isLifeAreaId } from "@/lib/unlocked-themes";
 import { updateGoalPayloadSchema } from "@/lib/validation/update-goal";
 import {
   appendPursuitContextEntryAndSync,
@@ -69,6 +75,10 @@ export async function PATCH(request: Request, { params }: RouteProps) {
       archived: true,
       completedAt: true,
       createdAt: true,
+      themeId: true,
+      categoryId: true,
+      chapterType: true,
+      themeCategory: { select: { id: true, label: true, themeId: true } },
     },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -104,10 +114,42 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     amountBasis?: string | null;
     background?: string | null;
     chapterType?: string | null;
+    categoryId?: string;
     identityFacts?: Prisma.InputJsonValue | typeof Prisma.DbNull;
     currentFocus?: string | null;
   } = {};
   if (input.title !== undefined) data.title = input.title.trim();
+
+  // Silent re-file on rename only when still on the theme-default hub.
+  if (
+    titleChanged &&
+    existing.themeCategory?.label &&
+    existing.themeId &&
+    isLifeAreaId(existing.themeId)
+  ) {
+    const themeId = existing.themeId;
+    const chapterType = (input.chapterType ?? existing.chapterType ?? null) as ChapterTypeId | null;
+    const { shouldRefile, filing } = resolveTitleRenameRefile({
+      themeId,
+      currentHubLabel: existing.themeCategory.label,
+      newTitle: input.title!.trim(),
+      chapterType,
+    });
+    if (shouldRefile) {
+      await ensureTaxonomyCurrent(prisma, userId);
+      const resolved = await resolveBranchForHub(prisma, userId, themeId, filing.hubSlug);
+      if (resolved && resolved.categoryId !== existing.categoryId) {
+        data.categoryId = resolved.categoryId;
+        const nextCategory = await prisma.themeCategory.findFirst({
+          where: { id: resolved.categoryId, userId },
+          select: { id: true, isActive: true },
+        });
+        if (nextCategory && !nextCategory.isActive) {
+          await activateCategoryForUser(prisma, userId, nextCategory.id);
+        }
+      }
+    }
+  }
   // Retired pending post-TestFlight cleanup — no live readers/writers.
   const descriptionPatch =
     input.description !== undefined ? input.description.trim() : undefined;

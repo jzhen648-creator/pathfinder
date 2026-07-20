@@ -1,5 +1,16 @@
 /** Shared theme-level insight field jobs for reflect prompts. */
 
+/** Thin / single-chapter themes — honesty over forced synthesis. */
+export const THIN_THEME_READING_CONTRACT = [
+  "THIN THEME CONTRACT (1–2 chapters in the theme):",
+  "- oneLiner: one concrete fact is enough (title + number/date/authored constraint). Do not invent cross-chapter tension.",
+  "- reflective: omit (write \"\") rather than pad with synthesis, progression narrative, or sibling comparison that does not exist.",
+  "- Do not require \"theme synthesis\" when the theme has a single Active chapter — mirror that chapter's plan fact.",
+  "- contextual (Worth knowing): still optional; omit when nothing domain-useful beyond the user's own inputs.",
+  "- Wrong: manufacturing rivalry, \"through-line\", or empty-frontier drama for a lone Active chapter with a clear target.",
+  '- Right: oneLiner names the target/deadline/amount; reflective "".',
+].join("\n");
+
 export const THEME_INSIGHT_FIELD_LANES = [
   "THEME READING FIELD LANES:",
   "- oneLiner: ONE plain sentence stating the most useful concrete map observation in this theme.",
@@ -14,6 +25,7 @@ export const THEME_INSIGHT_FIELD_LANES = [
   "  When <chapter_age_facts> exists, you may anchor facts in age-chronology order — follow voicing hints; do not restate an unchanged age.",
   "- Do NOT restate the oneLiner's conclusion in reflective — if a sentence could replace the headline, delete it.",
   "- Sparse maps: omit manufactured meaning; a short factual observation is fine — administrative inventory is not.",
+  THIN_THEME_READING_CONTRACT,
   "- Wrong: oneLiner \"Long-term investing is the through-line\"; reflective \"The theme centers on building wealth through steady contributions toward a significant target.\"",
   '- Wrong: oneLiner "Contributions are set but the gap is the story."',
   '- Wrong: oneLiner "Deadline in 716 days; one of four milestones complete."',
@@ -22,19 +34,15 @@ export const THEME_INSIGHT_FIELD_LANES = [
 ].join("\n");
 
 export const THEME_INSIGHT_NON_DUPLICATION = [
-  "THEME NON-DUPLICATION:",
+  "THEME NON-DUPLICATION (field jobs — READING BANS still apply):",
   "- oneLiner = the concrete observation; reflective = specific map facts or restrained meaning that ground it — never a paraphrase.",
   "- Each line adds new information: oneLiner names the clearest plan fact or concentration;",
   "  reflective names chapters and cites entered data the headline did not already state.",
   "- Ban near-duplicate phrasing: if reflective reuses the headline's core nouns or swaps synonyms for the same claim, rewrite it with chapter titles and numbers.",
   "- Ban the filler noun \"chapter\" in reading prose — use chapter titles verbatim instead.",
   '  Wrong: "This chapter sits alongside the ISA." Right: "Clear Credit Card sits alongside the ISA."',
-  "- Ban meta UI copy: never \"confirmed relationships on your map\", \"your map shows\", or \"the app sees\".",
-  "- Ban theme filler without map numbers: \"long-term growth\", \"steady contributions\", \"significant target\" when no entered amount/deadline backs them.",
-  "- Ban metaphor closers: \"the story\", \"anchor\", \"through-line\", \"defines the theme\", unsupported \"bottleneck\".",
-  "- Ban administrative inventory: milestone ratios, raw \"deadline in Nd\", significance labels, \"N active\".",
-  "- Ban timeline recap as theme synthesis: listing Complete chapters in order and calling it \"progression\" or a \"clear path\".",
-  "- Ban invented bridges between chapters the map does not connect (e.g. unrelated degree → unrelated job as \"clear progression\").",
+  "- Ban inventing \"progression\" / \"clear path\" bridges between Completes the map does not connect.",
+  "- Complete-only themes: factual age-ordered chronology in reflective is allowed; do not invent an Active plan.",
 ].join("\n");
 
 export const THEME_PLAN_MIRROR_RULE = [
@@ -43,15 +51,18 @@ export const THEME_PLAN_MIRROR_RULE = [
   "- Milestones are optional scaffolding — never treat \"N of M milestones\" as theme synthesis or % complete.",
   "- Theme oneLiner: state the plan fact plainly — amounts, competing Active chapters, empty frontiers — not a diary recap, slogan, or calendar audit.",
   "- When Active/plan chapters AND Complete chapters coexist, weight the Active plan in oneLiner; Complete chapters ground reflective only.",
-  "- When every chapter in the theme is Complete and nothing Active or Maintaining continues the arc, oneLiner MUST name the empty frontier plainly.",
+  "- When every chapter in the theme is Complete and nothing Active or Maintaining continues the arc:",
+  "  oneLiner may name the empty frontier OR the most recent Complete fact; reflective may use factual age chronology from <chapter_age_facts>.",
+  "  Do not invent an Active plan; do not call unconnected Completes a \"clear progression\".",
   "- Use <reading_packet> lines (amount rows, gapFacts when urgent, changeEvents) and map_context title/amount/background fields.",
   "",
-  "Wrong (recap): \"Formal education and first professional role establish a clear progression from academic study to a professional role.\"",
+  "Wrong (invented progression): \"Formal education and first professional role establish a clear progression from academic study to a professional role.\"",
   "Wrong (trivial echo): \"Monthly contributions align with the annual ISA limit, setting a clear path for long-term growth.\"",
   "Wrong (riddle): \"Contributions are set but the gap is still the story.\"",
   "Wrong (audit): \"Deadline in 716 days; one of four milestones complete.\"",
   'Right (plan fact): "ISA target is £500k+ with balance over £100k — contributions are set; the shortfall remains £400k+."',
   'Right (missing frontier): "Formal Education and First Job are both complete — nothing Active on the map after 2021 names what comes next."',
+  'Right (Complete chronology): "At 17 the apprenticeship, and that same year the Level 3 course; the first mortgage role came two years on, at 19."',
   'Right (discontinuity): "A geology BSc and an estate-agency first role are both complete — the map does not connect them."',
 ].join("\n");
 
@@ -129,6 +140,7 @@ export const OVERALL_READING_FIELD_JOB = [
   "- support: one supporting sentence (<= 480 chars) — cross-theme shape the theme cards below cannot say.",
   "  Name chapter titles — never the filler noun \"chapter\".",
   "  Name deadline clusters, competing seasons, or tensions that span themes — observation only, not coaching.",
+  "  When quantified amounts exist across themes (savings, debt, weight, income), support may name cross-theme balance in those numbers — still observation, not coaching.",
   "  Do NOT enumerate every theme or repeat what each theme card already says.",
   "  Do NOT anthropomorphize themes (themes do not act — the user does).",
   "  Wrong: \"Work & Career is focused on Third Job; Money & Finance is balancing the SiPP…; Health & Body is training for a Half Marathon.\"",

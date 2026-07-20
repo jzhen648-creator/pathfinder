@@ -9,7 +9,14 @@ import {
   isQuickQuestionsQuiet,
   type PursuitSignal,
 } from "@/lib/pursuit/pursuit-enrich-readiness";
-import type { Clarifier, PursuitEnrichCachePayload, PursuitEnrichResult } from "@/lib/pursuit/pursuit-enrich-types";
+import {
+  CLARIFIER_PLACEHOLDER_BODY,
+  CLARIFIER_PLACEHOLDER_HEADLINE_ALMANAC,
+  isClarifierPlaceholderProse,
+  type Clarifier,
+  type PursuitEnrichCachePayload,
+  type PursuitEnrichResult,
+} from "@/lib/pursuit/pursuit-enrich-types";
 
 export type ClarifierMergeMode = "routine" | "initial" | "replenish" | "next";
 
@@ -100,6 +107,62 @@ export function resolvePreservedInsightText(
   if (trimmed) return trimmed;
   const cachedTrimmed = cached?.trim();
   return cachedTrimmed || undefined;
+}
+
+/**
+ * Prefer fresh non-invite prose; when gates/theme-dedupe blank a field, keep prior real reading.
+ * Never resurrects the QQ-invite shell as a reading.
+ */
+export function resolvePreservedReadingProse(
+  fresh: string | undefined,
+  cached: string | undefined,
+): string | undefined {
+  const freshTrimmed = fresh?.trim() ?? "";
+  if (freshTrimmed && !isClarifierPlaceholderProse(freshTrimmed)) return freshTrimmed;
+  const cachedTrimmed = cached?.trim() ?? "";
+  if (cachedTrimmed && !isClarifierPlaceholderProse(cachedTrimmed)) return cachedTrimmed;
+  return freshTrimmed || undefined;
+}
+
+/** Restore chapter headline/body from cache when the fresh pass was blanked (theme echo / QQ restatement). */
+export function mergePreservedPursuitInsightProse(
+  insight: PursuitEnrichResult["insight"],
+  cached: PursuitEnrichCachePayload | undefined,
+): PursuitEnrichResult["insight"] {
+  const headline = resolvePreservedReadingProse(insight?.headline, cached?.headline) ?? "";
+  const body = resolvePreservedReadingProse(insight?.body, cached?.body) ?? "";
+  const comparison = insight?.comparison?.trim() || undefined;
+
+  if (!insight) {
+    if (!headline && !body && !cached?.comparison?.trim()) return null;
+    return {
+      tone: cached?.tone ?? "context",
+      headline,
+      body,
+      ...(cached?.comparison?.trim() ? { comparison: cached.comparison.trim() } : {}),
+    };
+  }
+
+  return {
+    ...insight,
+    headline,
+    body,
+    ...(comparison ? { comparison } : {}),
+  };
+}
+
+/** True when a cache payload should be merged (prose, QQ, or milestone suggestions). */
+export function pursuitCachePayloadHasContent(
+  payload: PursuitEnrichCachePayload | null | undefined,
+): boolean {
+  if (!payload) return false;
+  return Boolean(
+    payload.headline?.trim() ||
+      payload.body?.trim() ||
+      payload.comparison?.trim() ||
+      payload.clarifiers?.length ||
+      payload.suggestedMilestones?.length,
+  );
 }
 
 export function resolvePreservedComparison(
@@ -211,7 +274,11 @@ export function buildPursuitCachePayload(
 ): PursuitEnrichCachePayload | null {
   const hasClarifiers = result.clarifiers.length > 0;
   const hasMilestones = (result.suggestedMilestones?.length ?? 0) > 0;
-  const hasInsight = Boolean(result.insight?.headline?.trim());
+  const hasInsight = Boolean(
+    result.insight?.headline?.trim() ||
+      result.insight?.body?.trim() ||
+      result.insight?.comparison?.trim(),
+  );
 
   if (!hasClarifiers && !hasMilestones && !hasInsight) return null;
 
@@ -237,10 +304,24 @@ export function buildPursuitCachePayload(
     };
   }
 
+  // QQ invite shell only when clarifiers need a panel — never overwrite prose, never for milestones-only.
+  if (hasClarifiers) {
+    return {
+      tone: "context",
+      headline: CLARIFIER_PLACEHOLDER_HEADLINE_ALMANAC,
+      body: CLARIFIER_PLACEHOLDER_BODY,
+      clarifiers,
+      suggestedMilestones,
+      ...quietField,
+      ...skippedField,
+      ...reconcileField,
+    };
+  }
+
   return {
-    tone: "context",
-    headline: "Help Almanac read this chapter",
-    body: "Answer a quick question below — then update your Reading when you're ready.",
+    tone: result.insight?.tone ?? "context",
+    headline: "",
+    body: "",
     clarifiers,
     suggestedMilestones,
     ...quietField,

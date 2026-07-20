@@ -76,3 +76,36 @@ export function isRetiredClarifierKind(kind: unknown): boolean {
 export function filterActiveClarifiers(clarifiers: Clarifier[]): Clarifier[] {
   return clarifiers.filter((clarifier) => !isRetiredClarifierKind(clarifier.kind));
 }
+
+/** QQ-invite shell stored when enrich has clarifiers but no chapter prose. */
+export const CLARIFIER_PLACEHOLDER_HEADLINE_ALMANAC = "Help Almanac read this chapter";
+export const CLARIFIER_PLACEHOLDER_HEADLINE_LEGACY = "Help Pathfinder read this pursuit";
+export const CLARIFIER_PLACEHOLDER_BODY =
+  "Answer a quick question below — then update your Reading when you're ready.";
+
+/** True when the cached headline is the clarifier-only invite (not a real reading). */
+export function isClarifierPlaceholderHeadline(headline: string | null | undefined): boolean {
+  const trimmed = headline?.trim() ?? "";
+  return (
+    trimmed === CLARIFIER_PLACEHOLDER_HEADLINE_ALMANAC ||
+    trimmed === CLARIFIER_PLACEHOLDER_HEADLINE_LEGACY
+  );
+}
+
+/** True when a pursuit cache row has a substantive reading headline (not invite / empty). */
+export function hasSubstantivePursuitHeadline(headline: string | null | undefined): boolean {
+  const trimmed = headline?.trim() ?? "";
+  return Boolean(trimmed) && !isClarifierPlaceholderHeadline(trimmed);
+}
+
+/** True when body is the QQ-invite shell (not real reading prose). */
+export function isClarifierPlaceholderBody(body: string | null | undefined): boolean {
+  return (body?.trim() ?? "") === CLARIFIER_PLACEHOLDER_BODY;
+}
+
+/** Invite headline or body — never treat as substantive reading to preserve. */
+export function isClarifierPlaceholderProse(text: string | null | undefined): boolean {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return false;
+  return isClarifierPlaceholderHeadline(trimmed) || isClarifierPlaceholderBody(trimmed);
+}

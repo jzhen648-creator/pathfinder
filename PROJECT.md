@@ -126,12 +126,11 @@ the USER, or does it just protect our CAUTION?
 
 LIFT these (caution, not protection — broadening
 is the reason to relax them):
-- Deliberate-creation-only / no import. The empty
-  first-run is the #1 mainstream blocker. Revive
-  the import cold-start (paste a conversation or
-  talk 30s → drafted starter map the user curates).
-  The user still authors; they just don't start
-  from blank. (See docs/POSITIONING.md broadening.)
+- Empty first-run friction — guided map add +
+  teaching card (import cold-start / Sketch my map
+  was tried and **removed** — workspace decisions §75).
+  Do not reintroduce paste-AI bulk import without a
+  new decision.
 - One-chapter-at-a-time as the FIRST-RUN verb. Fine
   as the daily verb; too slow for onboarding. A
   2-minute-wow guided first session lifts this for

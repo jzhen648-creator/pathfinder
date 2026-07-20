@@ -84,6 +84,29 @@ describe("planReflectWork", () => {
     expect(plan.themeIds).toEqual([]);
   });
 
+  it("treats clarifier placeholder headlines as missing panels", async () => {
+    mocks.goalFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        p1: {
+          tone: "context",
+          headline: "Help Almanac read this chapter",
+          body: "Answer a quick question below — then update your Reading when you're ready.",
+        },
+        p2: { tone: "in_focus", headline: "Real reading", body: "Body" },
+      },
+    });
+
+    const plan = await planReflectWork(USER_ID, emptyDirty(), {
+      force: false,
+      insightsStale: false,
+      hasInsightCache: true,
+    });
+
+    expect(plan.mode).toBe("panels-only");
+    expect(plan.pursuitIds).toEqual(["p1"]);
+  });
+
   it("uses dirty pursuits when the ledger has active edits", async () => {
     const dirty: ReadingDirtyAnalysis = {
       ...emptyDirty(),

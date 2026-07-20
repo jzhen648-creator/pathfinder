@@ -15,6 +15,7 @@ import {
 import { clampSignificance } from "@/lib/pursuit/significance";
 import { filterClarifiersAgainstKnownFacts } from "@/lib/pursuit/filter-clarifiers-against-known-facts";
 import {
+  fallbackHeadlineFromFocalFacts,
   gateEnrichResult,
   resolveQuickQuestionsQuietUntilAfterGeneration,
   shouldSuggestMilestones,
@@ -30,6 +31,8 @@ import {
   buildPursuitCachePayload,
   clarifierPreserveAllowed,
   mergePreservedClarifiers,
+  mergePreservedPursuitInsightProse,
+  pursuitCachePayloadHasContent,
   resolvePreservedComparison,
   resolveReflectSuggestedMilestones,
 } from "@/lib/pursuit/pursuit-cache-patch";
@@ -206,7 +209,7 @@ export async function applyReflectOutput(
         tone: resolvePursuitInsightTone(goal, now),
         headline: clarifyInsightHeadline(stripChapterEcho(entry.headline), {
           knownTitleTokens: significantClarityTokens(goal.title),
-          fallback: focalFactsByPursuit[pursuitId]?.facts?.[0],
+          fallback: fallbackHeadlineFromFocalFacts(focalFactsByPursuit[pursuitId]?.facts),
         }),
         body: stripChapterEcho(entry.body),
         ...(comparison ? { comparison: stripChapterEcho(comparison) } : {}),
@@ -272,15 +275,15 @@ export async function applyReflectOutput(
       clarifiers: slotted.clarifiers,
       previousQuietUntil,
     });
-    const payload = buildPursuitCachePayload(slotted, {
+    const withPreservedProse: PursuitEnrichResult = {
+      ...slotted,
+      insight: mergePreservedPursuitInsightProse(slotted.insight, cachedEntry),
+    };
+    const payload = buildPursuitCachePayload(withPreservedProse, {
       quickQuestionsQuietUntil,
       skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
     });
-    if (
-      payload?.headline?.trim() ||
-      payload?.clarifiers?.length ||
-      payload?.suggestedMilestones?.length
-    ) {
+    if (payload && pursuitCachePayloadHasContent(payload)) {
       pursuits[pursuitId] = payload;
     }
   }

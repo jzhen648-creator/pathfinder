@@ -9,6 +9,7 @@ import {
   PURSUIT_READING_AUTHORSHIP_ORDER,
   THEME_INSIGHT_FIELD_JOBS,
   THEME_INSIGHT_FIELD_LANES,
+  THIN_THEME_READING_CONTRACT,
   THEME_PLAN_MIRROR_RULE,
   THEME_REFLECT_OUTPUT_CONTRACT,
   OVERALL_READING_OUTPUT_CONTRACT,
@@ -31,6 +32,8 @@ describe("theme-insight-prompt-blocks", () => {
     expect(THEME_INSIGHT_FIELD_LANES).toContain("Long-term investing is the through-line");
     expect(THEME_INSIGHT_FIELD_LANES).toContain("At 17 the apprenticeship");
     expect(THEME_INSIGHT_FIELD_LANES).toContain("<chapter_age_facts>");
+    expect(THEME_INSIGHT_FIELD_LANES).toContain("THIN THEME CONTRACT");
+    expect(THIN_THEME_READING_CONTRACT).toContain("one concrete fact is enough");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("THEME READING FIELD LANES");
     expect(THEME_INSIGHT_FIELD_JOBS).toContain("Ban near-duplicate phrasing");
   });
@@ -111,6 +114,7 @@ describe("theme-insight-prompt-blocks", () => {
     expect(OVERALL_READING_FIELD_JOB).toContain("cross-theme shape");
     expect(OVERALL_READING_FIELD_JOB).toContain("Do NOT anthropomorphize themes");
     expect(OVERALL_READING_FIELD_JOB).toContain("do NOT echo a single theme's oneLiner");
+    expect(OVERALL_READING_FIELD_JOB).toContain("cross-theme balance in those numbers");
   });
 
   it("bans circular worth-knowing restatements", () => {

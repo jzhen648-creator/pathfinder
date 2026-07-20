@@ -12,6 +12,7 @@ import {
   enrichAnswersSchema,
   enrichAnswerSchema,
   clarifierKind,
+  isClarifierPlaceholderHeadline,
   type Clarifier,
   type EnrichAnswer,
 } from "@/lib/pursuit/pursuit-enrich-types";
@@ -80,8 +81,12 @@ export async function pruneClarifierFromInsightCache(
     ? appendSkippedClarifierPrompt(entry.skippedClarifierPrompts, dismissed.prompt)
     : entry.skippedClarifierPrompts;
 
+  const clearOrphanPlaceholder =
+    pendingClearedByDismiss && isClarifierPlaceholderHeadline(entry.headline);
+
   pursuits[goalId] = {
     ...entry,
+    ...(clearOrphanPlaceholder ? { headline: "", body: "" } : {}),
     clarifiers: clarifiers.length > 0 ? clarifiers : undefined,
     skippedClarifierPrompts,
     // Dismiss-only empty queue: no cooldown — replenish may follow immediately.

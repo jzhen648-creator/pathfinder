@@ -279,18 +279,6 @@ const EDIT_ONLY_DIRTY_REASONS = new Set([
   "pursuit_restored",
 ]);
 
-/** Panel-drain only — story already delivered; dirty rows wait for enrich, not a Reading regen. */
-const ENRICH_DRAIN_ONLY_REASONS = new Set(["pursuit_created", "clarifier_answered"]);
-
-export async function isEnrichDrainOnlyBatch(userId: string): Promise<boolean> {
-  const rows = await prisma.aiReadingDirtyItem.findMany({
-    where: { userId, entityType: "pursuit" },
-    select: { reason: true },
-  });
-  if (rows.length === 0) return false;
-  return rows.every((row) => ENRICH_DRAIN_ONLY_REASONS.has(row.reason));
-}
-
 /** True when every dirty pursuit row is a metadata edit — prefer delta + enrich over combined full refresh. */
 export async function isEditOnlyDirtyBatch(userId: string): Promise<boolean> {
   const rows = await prisma.aiReadingDirtyItem.findMany({

@@ -5,6 +5,7 @@ import {
   clearQuickQuestionsQuietUntilInCache,
   deleteClarifierAnswerForUser,
   invalidateDerivedEnrichmentOnTitleChange,
+  pruneClarifierFromInsightCache,
   pruneMootPendingClarifiersOnStatusChange,
 } from "@/lib/pursuit/apply-clarifier-answers";
 import { clarifierPreserveAllowed } from "@/lib/pursuit/pursuit-cache-patch";
@@ -71,6 +72,83 @@ function slotContext(quickQuestionsQuietUntil?: string | null) {
     existingRelationshipPeerIds: [] as string[],
   };
 }
+
+describe("pruneClarifierFromInsightCache", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("clears orphan placeholder headline/body when the last clarifier is removed", async () => {
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        [GOAL_ID]: {
+          tone: "context",
+          headline: "Help Almanac read this chapter",
+          body: "Answer a quick question below — then update your Reading when you're ready.",
+          clarifiers: [
+            {
+              id: "route",
+              prompt: "Primary approach?",
+              options: ["Diet", "Exercise"],
+              kind: "clarify",
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await pruneClarifierFromInsightCache(USER_ID, GOAL_ID, "route");
+
+    expect(result.shouldReplenish).toBe(true);
+    expect(mocks.insightCacheUpdate).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+      data: {
+        pursuitInsights: {
+          [GOAL_ID]: expect.objectContaining({
+            headline: "",
+            body: "",
+            clarifiers: undefined,
+          }),
+        },
+      },
+    });
+  });
+
+  it("keeps real reading prose when pruning the last clarifier", async () => {
+    mocks.insightFindUnique.mockResolvedValue({
+      pursuitInsights: {
+        [GOAL_ID]: {
+          tone: "in_focus",
+          headline: "68kg by April 2027 sits against a long runway",
+          body: "Cardio and strength milestones pace the drop.",
+          clarifiers: [
+            {
+              id: "route",
+              prompt: "Primary approach?",
+              options: ["Diet", "Exercise"],
+              kind: "clarify",
+            },
+          ],
+        },
+      },
+    });
+
+    await pruneClarifierFromInsightCache(USER_ID, GOAL_ID, "route");
+
+    expect(mocks.insightCacheUpdate).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+      data: {
+        pursuitInsights: {
+          [GOAL_ID]: expect.objectContaining({
+            headline: "68kg by April 2027 sits against a long runway",
+            body: "Cardio and strength milestones pace the drop.",
+            clarifiers: undefined,
+          }),
+        },
+      },
+    });
+  });
+});
 
 describe("clearQuickQuestionsQuietUntilInCache", () => {
   beforeEach(() => {

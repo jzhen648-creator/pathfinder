@@ -256,9 +256,11 @@ export function clarifyInsightHeadline(
   options?: { knownTitleTokens?: readonly string[]; fallback?: string },
 ): string {
   const trimmed = text.trim();
-  if (!trimmed) return "";
-  if (isClearInsightHeadline(trimmed, options)) return trimmed;
   const fallback = options?.fallback?.trim() ?? "";
+  if (!trimmed) {
+    return fallback && isClearInsightHeadline(fallback, options) ? fallback : "";
+  }
+  if (isClearInsightHeadline(trimmed, options)) return trimmed;
   if (fallback && isClearInsightHeadline(fallback, options)) return fallback;
   return "";
 }

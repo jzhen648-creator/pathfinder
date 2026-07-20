@@ -169,22 +169,28 @@ export const VOICE_EVALUATIVE_ANTI_PATTERNS = [
   "- The voice is a calm friend who knows your situation, not a manager writing your annual review.",
 ].join("\n");
 
-export const REFLECT_VOICE_ANTI_PATTERNS = [
-  "VOICE ANTI-PATTERNS (chapter headline/body/comparison + theme oneLiner/reflective):",
-  "- Do not open any text with the user's name (\"Alex, ...\").",
-  "- Do not say \"your map shows\", \"the app sees\", \"this Reading reflects\".",
-  "- Do not narrate fact sources: \"your note\", \"you mentioned\", \"which aligns with your note about\", \"your answer\".",
-  "- Do not use \"significant\" as filler — name what is actually notable.",
-  "- Do not write \"You have been making progress\" — say what the progress is.",
-  "- No filler words alone: \"it will be interesting\", \"journey\", \"keep building\", \"as they take shape\", \"holistic commitment\".",
-  "- No riddle closers: \"is the story\", \"the gap is the story\", \"long-range anchor\", \"through-line\",",
-  "  \"defines the theme\", unsupported \"bottleneck\", or bare \"sit in tension\".",
+/**
+ * Canonical reading bans — include once per Reflect system prompt.
+ * Field-job blocks should not restate these Never/Wrong lines.
+ */
+export const READING_BANS = [
+  "READING BANS (chapter + theme + overall — once):",
+  "- No forecasts or consequence narration: \"might mean\", \"could\", \"potentially\", \"you will hit\".",
+  "- No life-coach filler: \"journey\", \"landscape of your life\", \"as they take shape\", \"holistic commitment\", \"keep building\".",
+  "- No riddle closers: \"the gap is the story\", \"is the story\", \"long-range anchor\", \"through-line\",",
+  "  \"defines the theme\", unsupported \"bottleneck\", bare \"sit in tension\".",
   "- No administrative inventory as reading: milestone ratios, raw \"deadline in Nd\", status labels,",
-  "  significance labels, or \"N active / in progress\" counts — those belong to Details, Milestones, Timeline,",
-  "  and As it stands.",
-  "- Prefer plain interpretation: concrete observation first; restrained meaning only when supported by map facts.",
+  "  significance labels, or \"N active / in progress\" — Details / Milestones / Timeline / As it stands own those.",
+  "- No meta UI copy: \"your map shows\", \"the app sees\", \"this Reading reflects\", \"your note says\".",
+  "- No opening with the user's name.",
+  "- No invented chapters, connections, percentiles, or statistics.",
+  "- Prefer omit over padded meaning on sparse maps.",
+  "- Prefer plain interpretation: concrete observation first; restrained meaning only when map facts support it.",
   VOICE_EVALUATIVE_ANTI_PATTERNS,
 ].join("\n");
+
+/** @deprecated Prefer READING_BANS — kept for tests that still import the name. */
+export const REFLECT_VOICE_ANTI_PATTERNS = READING_BANS;
 
 export const REFLECT_CORE_RULES = [
   "CORE RULES:",

@@ -286,26 +286,46 @@ function significantProseTokens(text: string): string[] {
     .filter((token) => token.length >= 3 && !PROSE_STOP_WORDS.has(token));
 }
 
-/** @internal Exported for vitest — sentence overlaps enrichAnswer selectedOption tokens. */
+/**
+ * True when the sentence is a QQ glossary (lists ≥2 answers, or is almost only one answer).
+ * Light mentions of a single option alongside other map facts are allowed.
+ */
 export function sentenceRestatesEnrichAnswer(sentence: string, enrichAnswers: EnrichAnswer[]): boolean {
+  if (enrichAnswers.length === 0) return false;
   const sentenceTokens = significantProseTokens(sentence);
   if (sentenceTokens.length === 0) return false;
+
+  let answersHit = 0;
+  let glossaryOfOne = false;
 
   for (const answer of enrichAnswers) {
     const optionTokens = significantProseTokens(answer.selectedOption);
     if (optionTokens.length === 0) continue;
     const matched = optionTokens.filter((token) => sentenceTokens.includes(token));
-    if (matched.length >= Math.min(2, optionTokens.length)) return true;
-    if (matched.length / optionTokens.length >= 0.6) return true;
+    const optionCoverage = matched.length / optionTokens.length;
+    if (matched.length < Math.min(2, optionTokens.length) && optionCoverage < 0.6) continue;
+
+    answersHit += 1;
+    const sentenceCoverage = matched.length / sentenceTokens.length;
+    if (sentenceTokens.length <= optionTokens.length + 4 && sentenceCoverage >= 0.65) {
+      glossaryOfOne = true;
+    }
   }
-  return false;
+
+  return answersHit >= 2 || glossaryOfOne;
 }
 
-function fallbackHeadlineFromFocalFacts(focalFacts: string[] | undefined): string | undefined {
+/** Prefer amount frontier, else first non-admin focal fact — for theme-dedupe / empty headlines. */
+export function fallbackHeadlineFromFocalFacts(
+  focalFacts: string[] | undefined,
+): string | undefined {
   if (!focalFacts?.length) return undefined;
   const amount =
-    focalFacts.find((fact) => fact.startsWith("Amount:") || fact.startsWith("Amount target:")) ??
-    null;
+    focalFacts.find((fact) =>
+      /^(Amount(?: target)?|Debt remaining(?: target)?|Saved(?: target)?|Income(?: target)?|Weight(?: target)?):/.test(
+        fact,
+      ),
+    ) ?? null;
   if (amount) return truncatePursuitInsightHeadline(amount);
   const candidate = focalFacts.find((fact) => !isAdministrativeFocalFact(fact));
   if (!candidate) return undefined;

@@ -421,6 +421,24 @@ describe("compile-reading-packet", () => {
     expect(facts.some((fact) => fact.startsWith("Age at completion:"))).toBe(false);
   });
 
+  it("buildFocalPursuitReadingFacts emits direction-aware amount labels", () => {
+    const facts = buildFocalPursuitReadingFacts(
+      {
+        id: "g1",
+        title: "Lose weight",
+        status: "ACTIVE",
+        currentAmount: 68,
+        targetAmount: 60,
+        unit: "kg",
+        milestones: [],
+      },
+      FIXTURE_NOW,
+      null,
+      { themeId: "health", categoryLabel: "Body care" },
+    );
+    expect(facts).toContain("Weight: 68/60 kg (reducing toward target)");
+  });
+
   it("buildFocalPursuitReadingFacts omits age at start when only addedToMap is present", () => {
     const dob = new Date("2007-01-01T00:00:00.000Z");
     const facts = buildFocalPursuitReadingFacts(

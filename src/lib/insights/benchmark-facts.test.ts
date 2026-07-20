@@ -101,6 +101,7 @@ describe("buildBenchmarkFactsBlock — finance rarity signal", () => {
     expect(block).toContain("asOf: 2026-27 UK tax year");
     expect(block).toContain("UK ISA annual subscription limit £20,000 (2026-27 UK tax year)");
     expect(block).toContain("relatively few UK ISA holders max the £20k annual subscription");
+    expect(block).toContain("safety-net buffers commonly framed as ~3-6 months");
   });
 });
 
@@ -115,6 +116,26 @@ describe("benchmarkFactsApplicable — health unchanged", () => {
     expect(
       benchmarkFactsApplicable("health", [healthPursuit()], 30, "Tokyo, Japan"),
     ).toBe(true);
+  });
+
+  it("includes weight comparison line when health pursuits are quantified", () => {
+    const block = buildBenchmarkFactsBlock(
+      {
+        age: 30,
+        location: "London, UK",
+        themeIds: ["health"],
+        pursuits: [
+          healthPursuit({
+            title: "Lose weight",
+            currentAmount: 68,
+            targetAmount: 60,
+            unit: "kg",
+          }),
+        ],
+      },
+      new Date("2026-07-04T12:00:00.000Z"),
+    );
+    expect(block).toContain("weight currentAmount/targetAmount");
   });
 });
 

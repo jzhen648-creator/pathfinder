@@ -5,6 +5,7 @@ import {
   parsePursuitInsightRecord,
 } from "@/lib/insights/parse-insight-cache";
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
+import { hasSubstantivePursuitHeadline } from "@/lib/pursuit/pursuit-enrich-types";
 import type { ReadingDirtyAnalysis } from "@/lib/map/reading-dirty-ledger";
 import {
   isEditOnlyDirtyBatch,
@@ -30,7 +31,7 @@ export async function listEligiblePursuitIds(userId: string): Promise<string[]> 
   return goals.map((goal) => goal.id);
 }
 
-/** Pursuit panels with no cached headline — eligible for panel-only repair. */
+/** Pursuit panels with no substantive cached headline — eligible for panel-only repair. */
 export async function listMissingPursuitPanelIds(userId: string): Promise<string[]> {
   const eligibleIds = await listEligiblePursuitIds(userId);
   if (eligibleIds.length === 0) return [];
@@ -39,7 +40,7 @@ export async function listMissingPursuitPanelIds(userId: string): Promise<string
   if (!insightRow) return eligibleIds;
 
   const cached = parsePursuitInsightRecord(insightRow.pursuitInsights, "pursuit");
-  return eligibleIds.filter((id) => !cached[id]?.headline?.trim());
+  return eligibleIds.filter((id) => !hasSubstantivePursuitHeadline(cached[id]?.headline));
 }
 
 export async function listDirtyThemeIds(userId: string): Promise<string[]> {

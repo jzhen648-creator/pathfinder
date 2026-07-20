@@ -7,7 +7,10 @@ import {
 import { PEOPLE_THEME_BODY_CLAUSE } from "@/lib/ai/people-theme-prompt";
 import { formatUserContext } from "@/lib/ai/format-user-context";
 import { isReflectCallEnabled, REFLECT_MAX_OUTPUT_TOKENS, chunkReflectPursuitIds } from "@/lib/ai/reflect-call";
-import { normalizeReflectResponse } from "@/lib/ai/normalize-reflect-response";
+import {
+  buildThemeChapterDedupeContext,
+  normalizeReflectResponse,
+} from "@/lib/ai/normalize-reflect-response";
 import { reflectResponseSchema, type ReflectResponse } from "@/lib/ai/reflect-types";
 import { applyReflectOutput } from "@/lib/ai/apply-reflect-output";
 import {
@@ -33,8 +36,8 @@ import {
   PROSE_CONCRETE_NOUNS_RULE,
   PURSUIT_HEADLINE_FIELD_JOB,
   PURSUIT_TITLE_REFERENCE_RULE,
+  READING_BANS,
   REFLECT_CORE_RULES,
-  REFLECT_VOICE_ANTI_PATTERNS,
   REGISTER_FROM_FACTS_RULE,
   USER_RATIONALE_RULE,
   TENSION_NOT_FORECAST_RULE,
@@ -221,7 +224,7 @@ function buildReflectSharedVoiceBlocks(): string[] {
     "",
     REGISTER_FROM_FACTS_RULE,
     "",
-    REFLECT_VOICE_ANTI_PATTERNS,
+    READING_BANS,
   ];
 }
 
@@ -969,7 +972,10 @@ async function generateReflectResponse(
     );
   }
 
-  const normalized = normalizeReflectResponse(json);
+  const normalized = normalizeReflectResponse(
+    json,
+    buildThemeChapterDedupeContext(mapContext),
+  );
   const parsed = reflectResponseSchema.safeParse(normalized);
   if (!parsed.success) {
     throw new ReflectGenerationResponseError(

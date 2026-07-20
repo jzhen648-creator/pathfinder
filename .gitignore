@@ -61,6 +61,9 @@ scripts/simulate-mandela-results*.json
 # local API dumps (may contain user ids)
 /branches.json
 
+# V1 migration exports (personal data — never commit)
+/tmp-v1-exports/
+
 # local screenshots / scratch
 /tmp/
 /tmp-screenshots/

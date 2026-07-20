@@ -14,6 +14,7 @@ import {
 import { formatPursuitStatusLabel } from "@/lib/goal-status-lifecycle";
 import { isStalePursuit } from "@/lib/map/pursuit-staleness";
 import { prisma } from "@/lib/prisma";
+import { formatDirectionAwareAmountFact } from "@/lib/pursuit/category-amount-profile";
 import { significanceWordLabel } from "@/lib/pursuit/significance";
 
 export type PursuitReadingSignal = "gap" | "arrival";
@@ -804,11 +805,17 @@ export function themeLabelForId(themeId: string): string {
   return getLifeArea(themeId)?.label ?? themeId;
 }
 
+export type FocalPursuitFactOptions = {
+  themeId?: string | null;
+  categoryLabel?: string | null;
+};
+
 /** Deterministic chapter arc facts for pursuit panel prompts — no enrichAnswers. */
 export function buildFocalPursuitReadingFacts(
   pursuit: FormattedMapPursuit,
   now = Date.now(),
   dateOfBirth: Date | null = null,
+  options?: FocalPursuitFactOptions,
 ): string[] {
   const facts: string[] = [`Status: ${pursuit.status}`];
 
@@ -870,18 +877,14 @@ export function buildFocalPursuitReadingFacts(
       facts.push(`Deadline: ${label ?? pursuit.deadline}`);
     }
   }
-  const hasTarget = (pursuit.targetAmount ?? 0) > 0;
-  const hasCurrent = (pursuit.currentAmount ?? 0) > 0;
-  if (hasTarget || hasCurrent) {
-    const unit = pursuit.unit?.trim() ? ` ${pursuit.unit.trim()}` : "";
-    if (hasCurrent && hasTarget) {
-      facts.push(`Amount: ${pursuit.currentAmount}/${pursuit.targetAmount}${unit}`);
-    } else if (hasTarget) {
-      facts.push(`Amount target: ${pursuit.targetAmount}${unit}`);
-    } else {
-      facts.push(`Amount: ${pursuit.currentAmount}${unit}`);
-    }
-  }
+  const amountFact = formatDirectionAwareAmountFact({
+    themeId: options?.themeId,
+    categoryLabel: options?.categoryLabel,
+    currentAmount: pursuit.currentAmount,
+    targetAmount: pursuit.targetAmount,
+    unit: pursuit.unit,
+  });
+  if (amountFact) facts.push(amountFact);
 
   const signal = computePursuitSignal(pursuit, now);
   if (signal === "gap") {
@@ -897,13 +900,18 @@ export function buildFocalPursuitReadingFacts(
 function findPursuitsInMapContext(
   mapContext: FormattedMapContext,
   pursuitIds: string[],
-): FormattedMapPursuit[] {
+): Array<FormattedMapPursuit & { themeId: string; categoryLabel: string }> {
   const ids = new Set(pursuitIds);
-  const found: FormattedMapPursuit[] = [];
+  const found: Array<FormattedMapPursuit & { themeId: string; categoryLabel: string }> = [];
   for (const theme of mapContext.themes) {
     for (const category of theme.categories) {
       for (const pursuit of category.pursuits) {
-        if (ids.has(pursuit.id)) found.push(pursuit);
+        if (!ids.has(pursuit.id)) continue;
+        found.push({
+          ...pursuit,
+          themeId: theme.id,
+          categoryLabel: category.categoryLabel || category.label,
+        });
       }
     }
   }
@@ -921,7 +929,10 @@ export function buildFocalPursuitFactsBlock(
   for (const pursuit of findPursuitsInMapContext(mapContext, pursuitIds)) {
     block[pursuit.id] = {
       title: pursuit.title,
-      facts: buildFocalPursuitReadingFacts(pursuit, now, dateOfBirth),
+      facts: buildFocalPursuitReadingFacts(pursuit, now, dateOfBirth, {
+        themeId: pursuit.themeId,
+        categoryLabel: pursuit.categoryLabel,
+      }),
     };
   }
   return block;

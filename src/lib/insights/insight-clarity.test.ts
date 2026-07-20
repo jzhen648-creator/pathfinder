@@ -14,6 +14,7 @@ import {
 } from "@/lib/insights/theme-insight-prompt-blocks";
 import {
   PROSE_CONCRETE_NOUNS_RULE,
+  READING_BANS,
   REFLECT_VOICE_ANTI_PATTERNS,
   PURSUIT_HEADLINE_FIELD_JOB,
 } from "@/lib/insights/insight-voice-prompt-blocks";
@@ -31,6 +32,16 @@ describe("insight clarity", () => {
         { fallback: "ISA: £30,000 of £1,000,000" },
       ),
     ).toBe("ISA: £30,000 of £1,000,000");
+  });
+
+  it("uses clear fallback when headline is empty (theme-dedupe aftermath)", () => {
+    expect(
+      clarifyInsightHeadline("", { fallback: "ISA: £30,000 of £1,000,000" }),
+    ).toBe("ISA: £30,000 of £1,000,000");
+    expect(clarifyInsightHeadline("   ", { fallback: "Amount: 75 of 68 kg" })).toBe(
+      "Amount: 75 of 68 kg",
+    );
+    expect(clarifyInsightHeadline("", { fallback: "Status: ACTIVE" })).toBe("");
   });
 
   it("rejects administrative milestone and long-range deadline inventory", () => {
@@ -97,6 +108,7 @@ describe("prompt no longer teaches riddles or audit headlines", () => {
       THEME_PLAN_MIRROR_RULE,
       OVERALL_READING_FIELD_JOB,
       PROSE_CONCRETE_NOUNS_RULE,
+      READING_BANS,
       REFLECT_VOICE_ANTI_PATTERNS,
       PURSUIT_HEADLINE_FIELD_JOB,
     ].join("\n");
@@ -104,6 +116,7 @@ describe("prompt no longer teaches riddles or audit headlines", () => {
     expect(joined.toLowerCase()).toContain("gap is the story");
     expect(joined.toLowerCase()).toMatch(/wrong.*716 days|administrative inventory/);
     expect(joined.toLowerCase()).toContain("optional");
+    expect(READING_BANS).toContain("READING BANS");
   });
 });
 
@@ -128,6 +141,49 @@ describe("cross-level headline dedupe", () => {
     );
     expect(next["p-isa"]?.headline).toBe("");
     expect(next["p-app"]?.headline).toMatch(/formal education/i);
+  });
+
+  it("skips dedupe for thin themes (≤2 chapters)", () => {
+    const next = dedupePursuitHeadlinesAgainstThemes(
+      {
+        "p-68kg": {
+          tone: "in_focus",
+          headline: "68kg target for April 2027 with diet and exercise set",
+          body: "Three milestones pace the drop.",
+        },
+      },
+      ["The 68kg target is set for April 2027, with three milestones defined."],
+      {
+        pursuitThemeIdByPursuitId: { "p-68kg": "health" },
+        themeChapterCountByThemeId: { health: 1 },
+        themeOneLinersByThemeId: {
+          health: "The 68kg target is set for April 2027, with three milestones defined.",
+        },
+      },
+    );
+    expect(next["p-68kg"]?.headline).toContain("68kg");
+  });
+
+  it("still dedupes when the theme has more than 2 chapters", () => {
+    const next = dedupePursuitHeadlinesAgainstThemes(
+      {
+        "p-a": {
+          tone: "in_focus",
+          headline: "ISA balance £30k against £1m target — contributions are set",
+          body: "Body.",
+        },
+      },
+      ["ISA balance is £30,000 against a £1,000,000 target — regular contributions are set."],
+      {
+        pursuitThemeIdByPursuitId: { "p-a": "finance", "p-b": "finance", "p-c": "finance" },
+        themeChapterCountByThemeId: { finance: 3 },
+        themeOneLinersByThemeId: {
+          finance:
+            "ISA balance is £30,000 against a £1,000,000 target — regular contributions are set.",
+        },
+      },
+    );
+    expect(next["p-a"]?.headline).toBe("");
   });
 
   it("claimsRoughlyEqual matches near-duplicate amount claims", () => {

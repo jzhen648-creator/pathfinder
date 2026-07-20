@@ -82,6 +82,8 @@ import {
   buildPursuitCachePayload,
   clarifierPreserveAllowed,
   mergePreservedClarifiers,
+  mergePreservedPursuitInsightProse,
+  pursuitCachePayloadHasContent,
   type ClarifierMergeMode,
   resolvePreservedComparison,
   resolveReflectSuggestedMilestones,
@@ -91,8 +93,6 @@ import {
   CLARIFIER_INITIAL_BATCH,
   CLARIFIER_REPLENISH_BATCH,
 } from "@/lib/pursuit/clarifier-prompt-blocks";
-
-const MAX_ENRICH_PER_RUN = 1;
 
 const HEADLINE_MUST_ADD_MEANING = [
   "HEADLINE MUST ADD MEANING:",
@@ -385,96 +385,20 @@ async function generateOnePursuitEnrich(
     focalFacts: insightContext.focalFacts,
   });
   const slotted = applyQuestionSlotToResult(gated, slotContext);
-  if (slotted.insight) {
-    slotted.insight.tone = resolvePursuitInsightTone(goal);
+  const withPreservedProse: PursuitEnrichResult = {
+    ...slotted,
+    insight: mergePreservedPursuitInsightProse(slotted.insight, cachedEntry),
+  };
+  if (withPreservedProse.insight) {
+    withPreservedProse.insight.tone = resolvePursuitInsightTone(goal);
   }
   const quickQuestionsQuietUntil = resolveQuickQuestionsQuietUntilAfterGeneration({
     slot,
-    clarifiers: slotted.clarifiers,
+    clarifiers: withPreservedProse.clarifiers,
     previousQuietUntil,
   });
-  return { result: slotted, quickQuestionsQuietUntil };
+  return { result: withPreservedProse, quickQuestionsQuietUntil };
 }
-
-/** Serialized per-pursuit enrich — clarifiers, insight, gated milestones. */
-export async function refreshPursuitEnrich(
-  userId: string,
-  pursuitIds: string[],
-  options?: PursuitEnrichOptions,
-): Promise<{ processedIds: string[]; remainingIds: string[]; geminiCallsMade: number }> {
-  const enrichOptions = resolvePursuitEnrichOptions(options ?? DEFAULT_PURSUIT_ENRICH_OPTIONS);
-  if (!hasGeminiKey()) {
-    throw new GeminiNotConfiguredError();
-  }
-
-  const uniqueIds = [...new Set(pursuitIds.filter(Boolean))];
-  if (uniqueIds.length === 0) {
-    return { processedIds: [], remainingIds: [], geminiCallsMade: 0 };
-  }
-
-  const batchIds = uniqueIds.slice(0, MAX_ENRICH_PER_RUN);
-  const remainingIds = uniqueIds.slice(MAX_ENRICH_PER_RUN);
-
-  const [userContext, toneGoals, mapContext, insightCacheRow] = await Promise.all([
-    formatUserContext(userId),
-    loadPursuitToneGoals(userId, batchIds),
-    formatMapContext(userId),
-    prisma.insightCache.findUnique({ where: { userId }, select: { pursuitInsights: true } }),
-  ]);
-  const cachedPursuits = parsePursuitInsightRecord(
-    insightCacheRow?.pursuitInsights,
-    "pursuit",
-  );
-  const amountImpactEligible = isAmountImpactEligible(mapContext);
-
-  const pursuits: Record<string, PursuitEnrichCachePayload> = {};
-  const writtenIds: string[] = [];
-  let geminiCallsMade = 0;
-
-  for (const pursuitId of batchIds) {
-    const goal = toneGoals.get(pursuitId);
-    if (!goal) continue;
-    const signal = pursuitSignalFromGoal(goal);
-    const cachedEntry = cachedPursuits[pursuitId];
-    const { result, quickQuestionsQuietUntil } = await generateOnePursuitEnrich(
-      userId,
-      pursuitId,
-      userContext,
-      goal,
-      signal,
-      enrichOptions,
-      amountImpactEligible,
-      cachedEntry,
-      "routine",
-    );
-    geminiCallsMade += 1;
-    const payload = buildPursuitCachePayload(result, {
-      quickQuestionsQuietUntil,
-      skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
-      clearTitleReconcilePending: cachedEntry?.titleReconcilePending === true,
-    });
-    if (payload?.headline?.trim() || payload?.clarifiers?.length || payload?.suggestedMilestones?.length) {
-      pursuits[pursuitId] = payload;
-      writtenIds.push(pursuitId);
-    }
-  }
-
-  if (Object.keys(pursuits).length > 0) {
-    await mergeNodeInsightsIntoCache(userId, { themes: {}, categories: {}, pursuits }, {
-      stampMapVersion: remainingIds.length === 0 && writtenIds.length === batchIds.length,
-    });
-  }
-
-  const unwrittenBatchIds = batchIds.filter((id) => !writtenIds.includes(id));
-
-  return {
-    processedIds: writtenIds,
-    remainingIds: [...remainingIds, ...unwrittenBatchIds],
-    geminiCallsMade,
-  };
-}
-
-export { MAX_ENRICH_PER_RUN };
 
 /** Pursuit-only panel + quick questions — after create (initial), answer (next), or dismiss replenish. */
 export async function syncPursuitPanel(
@@ -529,7 +453,7 @@ export async function syncPursuitPanel(
     skippedClarifierPrompts: cachedEntry?.skippedClarifierPrompts,
     clearTitleReconcilePending: cachedEntry?.titleReconcilePending === true,
   });
-  if (!payload) {
+  if (!payload || !pursuitCachePayloadHasContent(payload)) {
     return { clarifierCount: 0 };
   }
 

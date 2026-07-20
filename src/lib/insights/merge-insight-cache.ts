@@ -7,6 +7,7 @@ import {
 import type { InsightGenerationResult, OverallInsightPayload } from "@/lib/insights/insight-types";
 import { gateThemeInsightsPatch } from "@/lib/insights/gate-theme-insights";
 import { interpretationEligiblePursuitWhere } from "@/lib/pursuit/interpretation-eligible";
+import { hasSubstantivePursuitHeadline } from "@/lib/pursuit/pursuit-enrich-types";
 import { prisma } from "@/lib/prisma";
 
 export { pruneOffMapPursuitsFromInsightCache, pruneArchivedPursuitsFromInsightCache } from "@/lib/insights/invalidate-reading-caches";
@@ -37,7 +38,11 @@ export async function mergeNodeInsightsIntoCache(
   patch: Pick<InsightGenerationResult, "themes" | "categories" | "pursuits"> & {
     overall?: OverallInsightPayload;
   },
-  options?: { stampMapVersion?: boolean },
+  options?: {
+    stampMapVersion?: boolean;
+    /** Drop retired category insight tier (Reflect never writes category rows). */
+    clearCategoryInsights?: boolean;
+  },
 ): Promise<void> {
   const gatedThemes =
     Object.keys(patch.themes).length > 0
@@ -49,6 +54,8 @@ export async function mergeNodeInsightsIntoCache(
   ]);
 
   const stampMapVersion = options?.stampMapVersion !== false;
+  const clearCategoryInsights =
+    options?.clearCategoryInsights === true || Object.keys(patch.themes).length > 0;
 
   const existing = await prisma.insightCache.findUnique({ where: { userId } });
   if (!existing) {
@@ -59,7 +66,7 @@ export async function mergeNodeInsightsIntoCache(
         userId,
         globalInsight: emptyGlobalInsightJson(),
         themeInsights: gatedThemes,
-        categoryInsights: patch.categories,
+        categoryInsights: clearCategoryInsights ? {} : patch.categories,
         pursuitInsights: patch.pursuits,
         ...(patch.overall ? { overallInsight: patch.overall } : {}),
         mapVersion,
@@ -73,10 +80,12 @@ export async function mergeNodeInsightsIntoCache(
     parseInsightLevelRecord(existing.themeInsights, "theme"),
     gatedThemes,
   );
-  const categories = mergeLevelRecords(
-    parseInsightLevelRecord(readCategoryInsightsRaw(existing), "category"),
-    patch.categories,
-  );
+  const categories = clearCategoryInsights
+    ? {}
+    : mergeLevelRecords(
+        parseInsightLevelRecord(readCategoryInsightsRaw(existing), "category"),
+        patch.categories,
+      );
   const pursuits = mergeLevelRecords(
     parsePursuitInsightRecord(existing.pursuitInsights, "pursuit"),
     patch.pursuits,
@@ -85,7 +94,8 @@ export async function mergeNodeInsightsIntoCache(
   const pursuitOnlyPatch =
     Object.keys(patch.themes).length === 0 &&
     Object.keys(patch.categories).length === 0 &&
-    Object.keys(patch.pursuits).length > 0;
+    Object.keys(patch.pursuits).length > 0 &&
+    !clearCategoryInsights;
 
   let nextMapVersion = existing.mapVersion;
   let nextMemoryVersion = existing.memoryVersion;
@@ -100,8 +110,8 @@ export async function mergeNodeInsightsIntoCache(
       },
       select: { id: true },
     });
-    const allPursuitsCached = eligibleGoals.every(
-      (goal) => Boolean(pursuits[goal.id]?.headline?.trim()),
+    const allPursuitsCached = eligibleGoals.every((goal) =>
+      hasSubstantivePursuitHeadline(pursuits[goal.id]?.headline),
     );
     if (allPursuitsCached) {
       nextMapVersion = mapVersion;

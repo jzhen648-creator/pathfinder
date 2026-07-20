@@ -1,3 +1,4 @@
+import type { FormattedMapContext } from "@/lib/ai/format-map-context";
 import { truncateAtWordBoundary } from "@/lib/insights/clamp-insight-json";
 import { claimsRoughlyEqual, clarifyInsightHeadline } from "@/lib/insights/insight-clarity";
 import { PURSUIT_INSIGHT_COMPARISON_MAX } from "@/lib/insights/insight-field-limits";
@@ -29,33 +30,86 @@ export function normalizeThemeTone(raw: unknown): (typeof THEME_TONES)[number] {
   return "encouraging";
 }
 
+/** Skip theme↔chapter headline dedupe when the theme has this many chapters or fewer. */
+export const THIN_THEME_DEDUPE_CHAPTER_CAP = 2;
+
+export type ThemeChapterDedupeContext = {
+  pursuitThemeIdByPursuitId: Record<string, string>;
+  themeChapterCountByThemeId: Record<string, number>;
+  /** themeId -> clarified oneLiner (same pass as normalize). */
+  themeOneLinersByThemeId?: Record<string, string>;
+};
+
+/** Build thin-theme dedupe context from map_context (taxonomy categories remain structure only). */
+export function buildThemeChapterDedupeContext(
+  mapContext: FormattedMapContext,
+): ThemeChapterDedupeContext {
+  const pursuitThemeIdByPursuitId: Record<string, string> = {};
+  const themeChapterCountByThemeId: Record<string, number> = {};
+  for (const theme of mapContext.themes) {
+    let count = 0;
+    for (const category of theme.categories) {
+      for (const pursuit of category.pursuits) {
+        count += 1;
+        pursuitThemeIdByPursuitId[pursuit.id] = theme.id;
+      }
+    }
+    themeChapterCountByThemeId[theme.id] = count;
+  }
+  return { pursuitThemeIdByPursuitId, themeChapterCountByThemeId };
+}
+
 /**
  * Prefer theme synthesis when a chapter headline restates the same claim.
  * Leaves an empty headline so apply/display can fall back to deterministic facts.
+ * Thin themes (≤ {@link THIN_THEME_DEDUPE_CHAPTER_CAP} chapters) skip dedupe — chapter and theme may share the fact.
  */
 export function dedupePursuitHeadlinesAgainstThemes(
   pursuits: Record<string, Record<string, unknown>>,
   themeOneLiners: string[],
+  dedupeContext?: ThemeChapterDedupeContext,
 ): Record<string, Record<string, unknown>> {
   if (themeOneLiners.length === 0) return pursuits;
   const next: Record<string, Record<string, unknown>> = {};
+  const cap = THIN_THEME_DEDUPE_CHAPTER_CAP;
+
   for (const [pursuitId, entry] of Object.entries(pursuits)) {
     const headline = typeof entry.headline === "string" ? entry.headline.trim() : "";
-    const echoesTheme =
-      headline.length > 0 &&
-      themeOneLiners.some((themeOneLiner) => oneLinersRoughlyEqual(headline, themeOneLiner));
-    next[pursuitId] = echoesTheme
-      ? {
-          ...entry,
-          headline: "",
-        }
-      : entry;
+    if (!headline) {
+      next[pursuitId] = entry;
+      continue;
+    }
+
+    if (dedupeContext) {
+      const themeId = dedupeContext.pursuitThemeIdByPursuitId[pursuitId];
+      const chapterCount = themeId
+        ? (dedupeContext.themeChapterCountByThemeId[themeId] ?? 0)
+        : 0;
+      if (!themeId || chapterCount <= cap) {
+        next[pursuitId] = entry;
+        continue;
+      }
+      const themeOneLiner =
+        dedupeContext.themeOneLinersByThemeId?.[themeId]?.trim() ?? "";
+      const echoesOwnTheme =
+        themeOneLiner.length > 0 && oneLinersRoughlyEqual(headline, themeOneLiner);
+      next[pursuitId] = echoesOwnTheme ? { ...entry, headline: "" } : entry;
+      continue;
+    }
+
+    const echoesTheme = themeOneLiners.some((themeOneLiner) =>
+      oneLinersRoughlyEqual(headline, themeOneLiner),
+    );
+    next[pursuitId] = echoesTheme ? { ...entry, headline: "" } : entry;
   }
   return next;
 }
 
 /** Coerce Gemini reflect JSON before Zod — reuse pursuit enrich normalizer for panel entries. */
-export function normalizeReflectResponse(json: unknown): unknown {
+export function normalizeReflectResponse(
+  json: unknown,
+  dedupeContext?: ThemeChapterDedupeContext,
+): unknown {
   if (!json || typeof json !== "object" || Array.isArray(json)) return json;
   const root = { ...(json as Record<string, unknown>) };
 
@@ -83,6 +137,7 @@ export function normalizeReflectResponse(json: unknown): unknown {
 
   const themes = root.themes;
   const normalizedThemeOneLiners: string[] = [];
+  const themeOneLinersByThemeId: Record<string, string> = {};
   if (themes && typeof themes === "object" && !Array.isArray(themes)) {
     const normalizedThemes: Record<string, unknown> = {};
     for (const [themeId, entry] of Object.entries(themes as Record<string, unknown>)) {
@@ -93,7 +148,10 @@ export function normalizeReflectResponse(json: unknown): unknown {
       const contextual = typeof row.contextual === "string" ? row.contextual.trim() : "";
       if (!oneLiner && !reflective) continue;
       const clarifiedOneLiner = clarifyInsightHeadline(truncateThemeOneLiner(oneLiner));
-      if (clarifiedOneLiner) normalizedThemeOneLiners.push(clarifiedOneLiner);
+      if (clarifiedOneLiner) {
+        normalizedThemeOneLiners.push(clarifiedOneLiner);
+        themeOneLinersByThemeId[themeId] = clarifiedOneLiner;
+      }
       normalizedThemes[themeId] = {
         tone: normalizeThemeTone(row.tone),
         oneLiner: clarifiedOneLiner,
@@ -105,9 +163,13 @@ export function normalizeReflectResponse(json: unknown): unknown {
   }
 
   if (Object.keys(normalizedPursuits).length > 0) {
+    const contextWithOneLiners: ThemeChapterDedupeContext | undefined = dedupeContext
+      ? { ...dedupeContext, themeOneLinersByThemeId }
+      : undefined;
     root.pursuits = dedupePursuitHeadlinesAgainstThemes(
       normalizedPursuits,
       normalizedThemeOneLiners,
+      contextWithOneLiners,
     );
   }
 

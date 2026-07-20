@@ -5,6 +5,7 @@ import {
   financeHubUnlocksAmount,
   matchNameFilingHint,
   resolveHubLabelForChapterTypeInTheme,
+  resolveTitleRenameRefile,
   suggestChapterTypeFromTitle,
 } from "./category-derivation";
 import { LIFE_AREA_IDS, categoriesForTheme, normalizeCategoryLabelKey } from "./taxonomy";
@@ -130,5 +131,115 @@ describe("category-derivation", () => {
     });
     expect(filing.source).toBe("chapterType");
     expect(filing.hubLabel).toBe("Family");
+  });
+
+  it("files savings and insurance by name into measurable finance hubs", () => {
+    expect(
+      deriveCategoryFiling({
+        themeId: "finance",
+        title: "House savings",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Assets & investing");
+    expect(
+      deriveCategoryFiling({
+        themeId: "finance",
+        title: "Life insurance",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Safety net & insurance");
+    // Emergency savings still prefer safety net over generic "saving"
+    expect(
+      deriveCategoryFiling({
+        themeId: "finance",
+        title: "Emergency savings",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Safety net & insurance");
+  });
+
+  it("files weight titles and numeric kg/lb into Body care", () => {
+    expect(
+      deriveCategoryFiling({
+        themeId: "health",
+        title: "Lose weight",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Body care");
+    expect(
+      deriveCategoryFiling({
+        themeId: "health",
+        title: "68kg",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Body care");
+    expect(
+      deriveCategoryFiling({
+        themeId: "health",
+        title: "175 lbs",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Body care");
+  });
+
+  it("files training race titles under Training & sport", () => {
+    expect(
+      deriveCategoryFiling({
+        themeId: "health",
+        title: "London Marathon",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Training & sport");
+    expect(
+      deriveCategoryFiling({
+        themeId: "health",
+        title: "Couch to 5k",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Training & sport");
+  });
+
+  it("files work promotion and course titles into Jobs / Qualifications", () => {
+    expect(
+      deriveCategoryFiling({
+        themeId: "work",
+        title: "Promotion to senior",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Jobs & roles");
+    expect(
+      deriveCategoryFiling({
+        themeId: "work",
+        title: "CeMAP course",
+        chapterType: "custom",
+      }).hubLabel,
+    ).toBe("Qualifications");
+  });
+
+  it("re-files on rename only from theme-default hubs", () => {
+    const fromDefault = resolveTitleRenameRefile({
+      themeId: "health",
+      currentHubLabel: "Training & sport",
+      newTitle: "68kg",
+      chapterType: "custom",
+    });
+    expect(fromDefault.shouldRefile).toBe(true);
+    expect(fromDefault.filing.hubLabel).toBe("Body care");
+
+    const alreadyHintFiled = resolveTitleRenameRefile({
+      themeId: "finance",
+      currentHubLabel: "Assets & investing",
+      newTitle: "Life insurance",
+      chapterType: "custom",
+    });
+    expect(alreadyHintFiled.shouldRefile).toBe(false);
+
+    const noHint = resolveTitleRenameRefile({
+      themeId: "health",
+      currentHubLabel: "Training & sport",
+      newTitle: "Something unique",
+      chapterType: "custom",
+    });
+    expect(noHint.shouldRefile).toBe(false);
   });
 });

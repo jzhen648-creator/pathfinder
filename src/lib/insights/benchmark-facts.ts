@@ -104,6 +104,9 @@ function financeFacts(
       "finance: compare user's targetAmount/currentAmount on map to allowance and age-band norms; do not invent percentiles.",
     );
   }
+  lines.push(
+    "finance: emergency / safety-net buffers commonly framed as ~3-6 months essential spend — approximate ranges only; insurance coverage adequacy is qualitative unless map amounts exist.",
+  );
   return lines;
 }
 
@@ -124,7 +127,7 @@ function workFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): string[
   return lines;
 }
 
-function healthFacts(age: number | null): string[] {
+function healthFacts(age: number | null, pursuits: BenchmarkPursuitRow[]): string[] {
   const band = ageBandLabel(age);
   const lines = [
     "health: couch-to-5k style plans often use approx 8-10 weeks; half-marathon prep commonly quoted at 12-16 weeks from a 5k base — ranges only.",
@@ -133,6 +136,11 @@ function healthFacts(age: number | null): string[] {
   if (band === "25-34") {
     lines.push(
       "health: recreational runners 25-34 — finishing a half marathon is common but rarely without 3+ months structured training from a sedentary start.",
+    );
+  }
+  if (themeHasQuantifiedPursuit(pursuits)) {
+    lines.push(
+      "health: when weight currentAmount/targetAmount (kg/lb) are on the map, compare progress toward target — infer reduce vs gain from current vs target; do not invent BMI or population percentiles.",
     );
   }
   return lines;
@@ -159,7 +167,7 @@ type ThemeFactBuilder = (
 const THEME_FACT_BUILDERS: Record<string, ThemeFactBuilder> = {
   finance: financeFacts,
   work: (age, pursuits, _taxYearLabel) => workFacts(age, pursuits),
-  health: (age, _pursuits, _taxYearLabel) => healthFacts(age),
+  health: (age, pursuits, _taxYearLabel) => healthFacts(age, pursuits),
   people: (_age, _pursuits, _taxYearLabel) => peopleFacts(),
   becoming: (_age, _pursuits, _taxYearLabel) => becomingFacts(),
 };
