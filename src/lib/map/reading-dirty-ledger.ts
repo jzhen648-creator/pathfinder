@@ -349,6 +349,17 @@ export async function clearReadingDirtyLedger(userId: string): Promise<void> {
   await prisma.aiReadingDirtyItem.deleteMany({ where: { userId } });
 }
 
+/**
+ * Clear only rows that existed at (or before) `cutoff`. Edits made while a
+ * sync is running upsert their dirty row with a fresh `createdAt`, so they
+ * survive this clear and drive the next incremental sync.
+ */
+export async function clearReadingDirtyLedgerBefore(userId: string, cutoff: Date): Promise<void> {
+  await prisma.aiReadingDirtyItem.deleteMany({
+    where: { userId, createdAt: { lte: cutoff } },
+  });
+}
+
 export async function clearReadingDirtyForPursuits(
   userId: string,
   pursuitIds: string[],

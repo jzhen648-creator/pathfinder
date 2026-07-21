@@ -21,6 +21,8 @@ export const AUTH_RATE_LIMITS = {
   login: { limit: 10, windowMs: 15 * MINUTE },
   /** Per IP: signup spam / account enumeration via 409s. */
   register: { limit: 6, windowMs: 60 * MINUTE },
+  /** Per IP: silent anonymous mint (guest-first launch). */
+  anonymous: { limit: 6, windowMs: 60 * MINUTE },
   /** Per IP and per email: reset-email flooding. */
   forgotPassword: { limit: 5, windowMs: 60 * MINUTE },
   /** Per IP: token brute forcing. */
@@ -38,6 +40,20 @@ function pruneExpired(now: number): void {
   }
 }
 
+/**
+ * Hard cap: when pruning expired buckets is not enough (an attacker cycling
+ * unique keys within one window), evict the soonest-to-expire entries so the
+ * map cannot grow without bound.
+ */
+function evictSoonestToExpire(): void {
+  if (buckets.size <= MAX_BUCKETS) return;
+  const entries = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
+  const toEvict = buckets.size - MAX_BUCKETS + Math.ceil(MAX_BUCKETS * 0.05);
+  for (const [key] of entries.slice(0, toEvict)) {
+    buckets.delete(key);
+  }
+}
+
 export type RateLimitCheck = { limited: boolean; retryAfterSeconds: number };
 
 /**
@@ -50,7 +66,10 @@ export function consumeAuthRateLimit(
 ): RateLimitCheck {
   const now = Date.now();
 
-  if (buckets.size > MAX_BUCKETS) pruneExpired(now);
+  if (buckets.size > MAX_BUCKETS) {
+    pruneExpired(now);
+    evictSoonestToExpire();
+  }
 
   let bucket = buckets.get(key);
   if (!bucket || now >= bucket.resetAt) {
@@ -69,7 +88,15 @@ export function consumeAuthRateLimit(
   return { limited: false, retryAfterSeconds: 0 };
 }
 
-/** Best-effort client IP from proxy headers (Vercel sets `x-forwarded-for`). */
+/**
+ * Best-effort client IP from proxy headers.
+ *
+ * Trust note: the first `x-forwarded-for` hop is client-controlled unless a
+ * trusted proxy overwrites it. On Vercel (current deploy target) the platform
+ * sets/normalizes this header, so it is safe to use. If this API ever moves
+ * off Vercel, revisit this — a spoofable XFF turns the per-IP limits into
+ * per-request-header limits.
+ */
 export function clientIpFromRequest(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {

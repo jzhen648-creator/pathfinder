@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   formatUserContext: vi.fn(),
   compileReadingPacket: vi.fn(),
   mergeNodeInsightsIntoCache: vi.fn(),
-  clearReadingDirtyLedger: vi.fn(),
+  clearReadingDirtyLedgerBefore: vi.fn(),
   prismaGoalFindMany: vi.fn(),
   prismaInsightFindUnique: vi.fn(),
   prismaUserManualProfileFindUnique: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock("@/lib/map/reading-dirty-ledger", async (importOriginal) => {
   return {
     ...actual,
     analyzeReadingDirty: mocks.analyzeReadingDirty,
-    clearReadingDirtyLedger: mocks.clearReadingDirtyLedger,
+    clearReadingDirtyLedgerBefore: mocks.clearReadingDirtyLedgerBefore,
   };
 });
 
@@ -154,7 +154,7 @@ describe("runReflectSync integration", () => {
     mocks.formatUserContext.mockResolvedValue(DENSE_USER_CONTEXT);
     mocks.compileReadingPacket.mockResolvedValue(DENSE_READING_PACKET);
     mocks.mergeNodeInsightsIntoCache.mockResolvedValue(undefined);
-    mocks.clearReadingDirtyLedger.mockResolvedValue(undefined);
+    mocks.clearReadingDirtyLedgerBefore.mockResolvedValue(undefined);
     mocks.prismaInsightFindUnique.mockResolvedValue({ pursuitInsights: "{}" });
     mocks.prismaUserManualProfileFindUnique.mockResolvedValue(null);
     mocks.prismaPursuitRelationshipFindMany.mockResolvedValue([]);

@@ -10,7 +10,7 @@ import { applyReflectOutput } from "@/lib/ai/apply-reflect-output";
 import { emptyMapAiSyncMetrics } from "@/lib/map/ai-sync-metrics";
 import {
   clearReadingDirtyForPursuits,
-  clearReadingDirtyLedger,
+  clearReadingDirtyLedgerBefore,
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
 import { DEFAULT_PURSUIT_ENRICH_OPTIONS } from "@/lib/pursuit/enrich-options";
@@ -27,7 +27,7 @@ vi.mock("@/lib/map/reading-dirty-ledger", async (importOriginal) => {
   return {
     ...actual,
     clearReadingDirtyForPursuits: vi.fn(),
-    clearReadingDirtyLedger: vi.fn(),
+    clearReadingDirtyLedgerBefore: vi.fn(),
   };
 });
 
@@ -60,6 +60,7 @@ function batchOptions() {
     mapContext: emptyMapContext(),
     amountImpactEligible: false,
     holisticBenchmarkEligible: false,
+    ledgerCutoff: new Date(),
   };
 }
 
@@ -97,7 +98,7 @@ describe("runReflectBatchesIncremental", () => {
       insightsWritten: true,
     }));
     vi.mocked(clearReadingDirtyForPursuits).mockResolvedValue(undefined);
-    vi.mocked(clearReadingDirtyLedger).mockResolvedValue(undefined);
+    vi.mocked(clearReadingDirtyLedgerBefore).mockResolvedValue(undefined);
     setGenerateReflectResponseDelegate(async (_userId, _dirty, batch, _themes, _opts, _metrics, options) =>
       mockReflectForBatch(batch, options?.scope === "full"),
     );
@@ -134,7 +135,7 @@ describe("runReflectBatchesIncremental", () => {
     expect(metrics.morePending).toBe(true);
     expect(metrics.pendingInsightCount).toBe(1);
     expect(clearReadingDirtyForPursuits).toHaveBeenCalledWith(USER_ID, ids.slice(0, 32));
-    expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
+    expect(clearReadingDirtyLedgerBefore).not.toHaveBeenCalled();
     expect(result.insightsRefreshed).toBe(true);
   });
 
@@ -154,7 +155,7 @@ describe("runReflectBatchesIncremental", () => {
 
     expect(metrics.aiCallsPlanned).toBe(metrics.aiCallsCompleted);
     expect(metrics.aiCallsPlanned).toBe(4);
-    expect(clearReadingDirtyLedger).toHaveBeenCalledWith(USER_ID);
+    expect(clearReadingDirtyLedgerBefore).toHaveBeenCalledWith(USER_ID, expect.any(Date));
   });
 
   it("clears dirty ledger for completed pursuits only on cap-exhaust partial exit", async () => {
@@ -173,7 +174,7 @@ describe("runReflectBatchesIncremental", () => {
 
     expect(clearReadingDirtyForPursuits).toHaveBeenCalledWith(USER_ID, ids.slice(0, 32));
     expect(metrics.pendingInsightCount).toBe(1);
-    expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
+    expect(clearReadingDirtyLedgerBefore).not.toHaveBeenCalled();
   });
 
   it("uses full scope for batch 0 when themeIds are present", async () => {
@@ -198,7 +199,7 @@ describe("runReflectBatchesIncremental", () => {
 
     expect(scopes).toEqual(["full"]);
     expect(result.insightsRefreshed).toBe(true);
-    expect(clearReadingDirtyLedger).toHaveBeenCalledWith(USER_ID);
+    expect(clearReadingDirtyLedgerBefore).toHaveBeenCalledWith(USER_ID, expect.any(Date));
   });
 
   it("uses pursuits-only scope for edit-only dirty batches without theme synthesis", async () => {
@@ -252,7 +253,7 @@ describe("runReflectBatchesIncremental", () => {
     expect(result.geminiCallsMade).toBe(1);
     expect(metrics.morePending).toBe(true);
     expect(clearReadingDirtyForPursuits).toHaveBeenCalledWith(USER_ID, ids.slice(0, 8));
-    expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
+    expect(clearReadingDirtyLedgerBefore).not.toHaveBeenCalled();
   });
 });
 
@@ -264,7 +265,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
       insightsWritten: true,
     }));
     vi.mocked(clearReadingDirtyForPursuits).mockResolvedValue(undefined);
-    vi.mocked(clearReadingDirtyLedger).mockResolvedValue(undefined);
+    vi.mocked(clearReadingDirtyLedgerBefore).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -311,7 +312,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
     expect(result.geminiCallsMade).toBe(1);
     expect(metrics.aiCallsCompleted).toBe(1);
     expect(metrics.enrichErrors).toEqual([]);
-    expect(clearReadingDirtyLedger).toHaveBeenCalledWith(USER_ID);
+    expect(clearReadingDirtyLedgerBefore).toHaveBeenCalledWith(USER_ID, expect.any(Date));
   });
 
   it("caps at one retry per sync when two batches hit transient 503", async () => {
@@ -345,7 +346,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
     expect(metrics.enrichErrors[0]).toContain("temporarily unavailable");
     expect(metrics.morePending).toBe(true);
     expect(clearReadingDirtyForPursuits).toHaveBeenCalledWith(USER_ID, ids.slice(0, 8));
-    expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
+    expect(clearReadingDirtyLedgerBefore).not.toHaveBeenCalled();
   });
 
   it("does not retry on 429 rate limit", async () => {
@@ -402,7 +403,7 @@ describe("runReflectBatchesIncremental transient 503 retry", () => {
     expect(metrics.aiCallsCompleted).toBe(0);
     expect(metrics.enrichErrors).toHaveLength(1);
     expect(metrics.enrichErrors[0]).toContain("temporarily unavailable");
-    expect(clearReadingDirtyLedger).not.toHaveBeenCalled();
+    expect(clearReadingDirtyLedgerBefore).not.toHaveBeenCalled();
   });
 
   it("increments aiCallsCompleted once after a successful transient retry", async () => {

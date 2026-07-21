@@ -3,8 +3,9 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
+import { requireApiSessionUserId } from "@/lib/api-auth";
 import {
+  ANONYMOUS_EMAIL_DOMAIN,
   buildMobileAuthResponse,
   requireAuthSecret,
   type MobileAuthResponse,
@@ -17,7 +18,7 @@ import {
   rateLimitedResponse,
 } from "@/lib/auth-rate-limit";
 
-const registerSchema = z.object({
+const claimSchema = z.object({
   name: z
     .string()
     .min(2, "Name must be at least 2 characters.")
@@ -33,9 +34,8 @@ const registerSchema = z.object({
 });
 
 /**
- * Mobile-only register. Mirrors `/api/auth/register` but returns a session JWT
- * on success so the mobile client can sign the user straight in (no follow-up
- * login round-trip).
+ * Upgrade an anonymous session into a real email/password account.
+ * Keeps the same user id so map data stays attached.
  */
 export async function POST(request: Request) {
   const secret = requireAuthSecret();
@@ -43,8 +43,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: secret.error }, { status: secret.status });
   }
 
+  const auth = await requireApiSessionUserId();
+  if (!auth.ok) return auth.response;
+
   const ip = clientIpFromRequest(request);
-  const ipLimit = consumeAuthRateLimit(`register:ip:${ip}`, AUTH_RATE_LIMITS.register);
+  const ipLimit = consumeAuthRateLimit(`claim:ip:${ip}`, AUTH_RATE_LIMITS.register);
   if (ipLimit.limited) {
     return rateLimitedResponse(ipLimit.retryAfterSeconds);
   }
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON body required" }, { status: 400 });
   }
 
-  const parsed = registerSchema.safeParse(body);
+  const parsed = claimSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid request." },
@@ -64,14 +67,30 @@ export async function POST(request: Request) {
     );
   }
 
-  // Normalized like mobile-claim / mobile-merge so one mailbox can never end
-  // up with two accounts differing only in case/whitespace.
   const email = parsed.data.email.trim().toLowerCase();
+  if (email.endsWith(`@${ANONYMOUS_EMAIL_DOMAIN}`)) {
+    return NextResponse.json(
+      { error: "Please enter a real email address." },
+      { status: 400 },
+    );
+  }
+
+  const current = await prisma.user.findUnique({ where: { id: auth.userId } });
+  if (!current) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!current.isAnonymous) {
+    return NextResponse.json(
+      { error: "This account is already saved." },
+      { status: 409 },
+    );
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  if (existing && existing.id !== current.id) {
+    // `code` lets the client offer the merge flow instead of a dead-end.
     return NextResponse.json(
-      { error: "An account with this email already exists." },
+      { error: "An account with this email already exists.", code: "email_taken" },
       { status: 409 },
     );
   }
@@ -79,31 +98,29 @@ export async function POST(request: Request) {
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   let user;
   try {
-    user = await prisma.user.create({
+    user = await prisma.user.update({
+      where: { id: current.id },
       data: {
         name: parsed.data.name.trim(),
         email,
         passwordHash,
         isAnonymous: false,
-        onboardingCompleted: false,
       },
     });
   } catch (err) {
-    // Concurrent registration for the same email can slip past the
-    // read-then-create check — surface the unique violation as the same 409.
+    // A concurrent registration/claim for the same email can slip past the
+    // read-then-update check — return the intended 409 instead of a 500.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return NextResponse.json(
-        { error: "An account with this email already exists." },
+        { error: "An account with this email already exists.", code: "email_taken" },
         { status: 409 },
       );
     }
     throw err;
   }
 
-  await ensureTaxonomyCurrent(prisma, user.id);
-
-  await recordBetaUsageEvents(user.id, [{ name: "auth.register" }]).catch(() => {
-    // Non-blocking — registration must succeed even if telemetry fails.
+  await recordBetaUsageEvents(user.id, [{ name: "auth.claim" }]).catch(() => {
+    // Non-blocking
   });
 
   const response: MobileAuthResponse = await buildMobileAuthResponse(user, secret);

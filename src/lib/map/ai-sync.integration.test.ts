@@ -11,6 +11,7 @@ const MEMORY_VERSION = 1;
 const mocks = vi.hoisted(() => ({
   runReflectSync: vi.fn(),
   isReflectCallEnabled: vi.fn(),
+  reflectSyncWouldSkip: vi.fn(),
   computeMapVersion: vi.fn(),
   getMemoryVersion: vi.fn(),
   listReadingDirtySummary: vi.fn(),
@@ -27,6 +28,14 @@ vi.mock("@/lib/ai/generate-reflect", () => ({
   runReflectSync: mocks.runReflectSync,
 }));
 
+vi.mock("@/lib/ai/reflect-sync-plan", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ai/reflect-sync-plan")>();
+  return {
+    ...actual,
+    reflectSyncWouldSkip: mocks.reflectSyncWouldSkip,
+  };
+});
+
 vi.mock("@/lib/insights/compute-map-version", () => ({
   computeMapVersion: mocks.computeMapVersion,
   getMemoryVersion: mocks.getMemoryVersion,
@@ -37,7 +46,7 @@ vi.mock("@/lib/map/reading-dirty-ledger", async (importOriginal) => {
   return {
     ...actual,
     listReadingDirtySummary: mocks.listReadingDirtySummary,
-    clearReadingDirtyLedger: vi.fn(),
+    clearReadingDirtyLedgerBefore: vi.fn(),
     markGlobalReadingDirty: mocks.markGlobalReadingDirty,
   };
 });
@@ -82,7 +91,10 @@ function baseDirtySummary(overrides?: Partial<{
 function setupFreshCaches() {
   mocks.computeMapVersion.mockResolvedValue(MAP_VERSION);
   mocks.getMemoryVersion.mockResolvedValue(MEMORY_VERSION);
-  mocks.prismaUserFindUnique.mockResolvedValue({ taxonomyVersion: TAXONOMY_VERSION });
+  mocks.prismaUserFindUnique.mockResolvedValue({
+    taxonomyVersion: TAXONOMY_VERSION,
+    isAnonymous: false,
+  });
   mocks.prismaInsightFindUnique.mockResolvedValue({
     mapVersion: composeInsightCacheMapVersion(MAP_VERSION),
     memoryVersion: MEMORY_VERSION,
@@ -107,6 +119,7 @@ describe("runMapAiSync integration", () => {
     vi.clearAllMocks();
     setupFreshCaches();
     mocks.isReflectCallEnabled.mockReturnValue(false);
+    mocks.reflectSyncWouldSkip.mockResolvedValue(false);
     mocks.listReadingDirtySummary.mockResolvedValue(baseDirtySummary());
     mocks.runReflectSync.mockImplementation(
       async (
@@ -123,6 +136,24 @@ describe("runMapAiSync integration", () => {
         };
       },
     );
+  });
+
+  it("withholds Gemini readings for anonymous accounts", async () => {
+    mocks.prismaUserFindUnique.mockResolvedValue({
+      taxonomyVersion: TAXONOMY_VERSION,
+      isAnonymous: true,
+    });
+    mocks.isReflectCallEnabled.mockReturnValue(true);
+    mocks.listReadingDirtySummary.mockResolvedValue(
+      baseDirtySummary({ pursuitIds: ["p1"], totalItems: 1 }),
+    );
+
+    const result = await runMapAiSync(USER_ID, { force: true });
+
+    expect(mocks.runReflectSync).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(true);
+    expect(result.readingsWithheld).toBe(true);
+    expect(result.metrics.aiCallsCompleted).toBe(0);
   });
 
   it("skips sync when reflect is disabled even with dirty ledger", async () => {
@@ -178,28 +209,44 @@ describe("runMapAiSync integration", () => {
   });
 
   it("clean map + force skips reflect with 0 calls", async () => {
+    // Fresh cache, empty dirty ledger, force=true — the wouldSkip pre-check
+    // must prevent reflect from ever being invoked (0 Gemini calls).
     mocks.isReflectCallEnabled.mockReturnValue(true);
-    mocks.prismaInsightFindUnique.mockResolvedValue({
-      mapVersion: "stale-map",
-      memoryVersion: MEMORY_VERSION,
-      globalInsight: JSON.stringify({ greeting: "", sections: [] }),
-      themeInsights: "{}",
-      categoryInsights: "{}",
-      pursuitInsights: "{}",
-      generatedAt: new Date(),
-    });
-    mocks.runReflectSync.mockResolvedValue({
-      skipped: true,
-      insightsRefreshed: false,
-      geminiCallsMade: 0,
-      geminiRateLimited: false,
-    });
+    mocks.reflectSyncWouldSkip.mockResolvedValue(true);
 
     const result = await runMapAiSync(USER_ID, { force: true });
 
-    expect(mocks.runReflectSync).toHaveBeenCalledTimes(1);
+    expect(mocks.reflectSyncWouldSkip).toHaveBeenCalledWith(
+      USER_ID,
+      expect.anything(),
+      expect.objectContaining({ force: true }),
+    );
+    expect(mocks.runReflectSync).not.toHaveBeenCalled();
     expect(result.metrics.aiCallsCompleted).toBe(0);
     expect(result.skipped).toBe(true);
+  });
+
+  it("returns deliveryBlocked without reflect calls when the delivery gate is closed", async () => {
+    mocks.isReflectCallEnabled.mockReturnValue(true);
+    mocks.listReadingDirtySummary.mockResolvedValue(
+      baseDirtySummary({ pursuitIds: ["p1"], totalItems: 2 }),
+    );
+    mocks.checkReadingDeliveryGate.mockResolvedValue({
+      allowed: false,
+      retryAfterMs: 3_600_000,
+      lastDeliveredAt: new Date(),
+      intervalMs: 7_200_000,
+    });
+
+    const result = await runMapAiSync(USER_ID, { force: false });
+
+    expect(mocks.runReflectSync).not.toHaveBeenCalled();
+    expect(mocks.recordReadingDelivery).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(true);
+    expect(result.progress.deliveryBlocked).toBe(true);
+    expect(result.progress.morePending).toBe(true);
+    expect(result.progress.retryableAt).not.toBeNull();
+    expect(result.metrics.aiCallsCompleted).toBe(0);
   });
 
   it("single Update tap invokes reflect once for dirty pursuits", async () => {

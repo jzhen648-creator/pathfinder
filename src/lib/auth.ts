@@ -2,11 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { AUTH_RATE_LIMITS, consumeAuthRateLimit } from "@/lib/auth-rate-limit";
-import {
-  DEV_LOGIN_PASSWORD,
-  isDevLoginAttempt,
-  resolveDevLoginEmail,
-} from "@/lib/dev-login-credentials";
+import { isDevLoginAttempt, resolveDevLoginEmail } from "@/lib/dev-login-credentials";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
@@ -51,11 +47,16 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        // Normalized like the mobile auth routes; raw-casing fallback covers
+        // accounts registered before normalization landed.
+        const normalizedEmail = email.trim().toLowerCase();
+        const user =
+          (await prisma.user.findUnique({ where: { email: normalizedEmail } })) ??
+          (email.trim() !== normalizedEmail
+            ? await prisma.user.findUnique({ where: { email: email.trim() } })
+            : null);
 
-        if (!user) {
+        if (!user || !user.passwordHash || user.isAnonymous) {
           return null;
         }
 
@@ -65,11 +66,9 @@ export const authOptions: NextAuthOptions = {
           isDevLoginAttempt(email, password) &&
           email === resolveDevLoginEmail()
         ) {
-          const passwordHash = await bcrypt.hash(DEV_LOGIN_PASSWORD, 12);
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { passwordHash },
-          });
+          // Accept the dev shortcut WITHOUT persisting: DATABASE_URL may
+          // point at a remote database, and rewriting the real account's
+          // hash to a password committed in the repo would be destructive.
           isValid = true;
         }
 

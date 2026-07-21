@@ -24,7 +24,7 @@ import { canMakeReflectCall } from "@/lib/map/sync-gemini-budget";
 import {
   analyzeReadingDirty,
   clearReadingDirtyForPursuits,
-  clearReadingDirtyLedger,
+  clearReadingDirtyLedgerBefore,
   type ReadingDirtyAnalysis,
 } from "@/lib/map/reading-dirty-ledger";
 import { loadPursuitToneGoals } from "@/lib/insights/load-pursuit-tone-goals";
@@ -690,6 +690,8 @@ async function runReflectBatchesIncremental(
   options: {
     mapContext: FormattedMapContext;
     amountImpactEligible: boolean;
+    /** Dirty rows created after this instant were not part of this run — keep them. */
+    ledgerCutoff: Date;
   },
 ): Promise<ReflectSyncResult> {
   const batches = chunkReflectPursuitIds(plan.pursuitIds);
@@ -782,7 +784,9 @@ async function runReflectBatchesIncremental(
     });
   }
 
-  await clearReadingDirtyLedger(userId);
+  // Only clear rows that existed when the dirty set was analyzed — edits made
+  // during the Gemini calls keep their rows for the next incremental sync.
+  await clearReadingDirtyLedgerBefore(userId, options.ledgerCutoff);
   metrics.morePending = false;
   metrics.pendingInsightCount = 0;
 
@@ -810,6 +814,7 @@ export async function runReflectSync(
   }
 
   const enrichOptions = resolvePursuitEnrichOptions(options.enrichOptions);
+  const ledgerCutoff = new Date();
   const dirty = await analyzeReadingDirty(userId);
   options.metrics.dirtyItems = dirty.totalItems;
   options.metrics.dirtyPursuits = dirty.pursuitIds.length;
@@ -854,7 +859,7 @@ export async function runReflectSync(
     mapVersion,
     memoryVersion,
     options.metrics,
-    { mapContext, amountImpactEligible },
+    { mapContext, amountImpactEligible, ledgerCutoff },
   );
 }
 

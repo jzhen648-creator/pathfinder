@@ -27,7 +27,7 @@ import {
   recordFullReflectDelivery,
 } from "@/lib/map/reading-periodic-full-refresh";
 import {
-  clearReadingDirtyLedger,
+  clearReadingDirtyLedgerBefore,
   analyzeReadingDirty,
   listReadingDirtySummary,
 } from "@/lib/map/reading-dirty-ledger";
@@ -50,6 +50,8 @@ export type MapAiSyncResult = {
   ok: true;
   mapVersion: string;
   skipped: boolean;
+  /** Anonymous accounts never run Gemini — readings unlock after claim. */
+  readingsWithheld?: boolean;
   insights: { refreshed: boolean; skipped: boolean };
   progress: {
     startedWork: boolean;
@@ -109,9 +111,25 @@ async function runMapAiSyncInner(
     throw new GeminiNotConfiguredError();
   }
 
+  const account = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isAnonymous: true },
+  });
+  if (account?.isAnonymous) {
+    const { mapVersion } = await resolveVersions(userId);
+    const metrics = emptyMapAiSyncMetrics();
+    return {
+      ...buildBaseResult(mapVersion, metrics),
+      readingsWithheld: true,
+    };
+  }
+
   let force = options?.force === true;
   const enrichOptions = resolvePursuitEnrichOptions(options?.enrichOptions);
   const metrics = emptyMapAiSyncMetrics();
+  // Dirty rows created after this instant belong to edits this sync may not
+  // have seen — they must survive the post-sync ledger clear.
+  const syncStartedAt = new Date();
   const { mapVersion, memoryVersion } = await resolveVersions(userId);
 
   const [insightRow, dirtySummary] = await Promise.all([
@@ -222,19 +240,36 @@ async function runMapAiSyncInner(
   }
 
   if (insightsRefreshed && !metrics.morePending) {
-    const fresh = await resolveVersions(userId);
-    await prisma.insightCache.update({
-      where: { userId },
-      data: {
-        mapVersion: composeInsightCacheMapVersion(fresh.mapVersion),
-        memoryVersion: fresh.memoryVersion,
-      },
-    });
+    // Clear only rows that existed when this sync started — edits made while
+    // Gemini was running keep their re-stamped dirty rows.
+    await clearReadingDirtyLedgerBefore(userId, syncStartedAt);
+    const remaining = await listReadingDirtySummary(userId);
 
-    await clearReadingDirtyLedger(userId);
+    if (remaining.totalItems === 0) {
+      const fresh = await resolveVersions(userId);
+      await prisma.insightCache.update({
+        where: { userId },
+        data: {
+          mapVersion: composeInsightCacheMapVersion(fresh.mapVersion),
+          memoryVersion: fresh.memoryVersion,
+        },
+      });
+    } else {
+      // The map changed while this reading was being generated — leave the
+      // cache stamped with its pre-sync version (so drift detection fires)
+      // and report the surviving work so the client schedules a follow-up.
+      metrics.morePending = true;
+      metrics.pendingInsightCount = Math.max(
+        metrics.pendingInsightCount,
+        remaining.pursuitIds.length,
+      );
+    }
   }
 
-  if (metrics.aiCallsCompleted > 0) {
+  // Only arm the delivery cadence gate when this reading is complete —
+  // arming it on a partial sync would block the client's own 90-second
+  // drain follow-ups behind the multi-hour gate.
+  if (metrics.aiCallsCompleted > 0 && !metrics.morePending) {
     await recordReadingDelivery(userId);
   }
 

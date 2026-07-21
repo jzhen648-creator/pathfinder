@@ -3,8 +3,9 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
+  buildMobileAuthResponse,
+  DUMMY_BCRYPT_HASH,
   requireAuthSecret,
-  signMobileSessionJwt,
   type MobileAuthResponse,
 } from "@/lib/mobile-auth";
 import { recordBetaUsageEvents } from "@/lib/telemetry/beta-usage";
@@ -16,8 +17,11 @@ import {
 } from "@/lib/auth-rate-limit";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address."),
-  password: z.string().min(1, "Password is required."),
+  email: z
+    .string()
+    .email("Please enter a valid email address.")
+    .max(254, "Email is too long."),
+  password: z.string().min(1, "Password is required.").max(128, "Password is too long."),
 });
 
 /**
@@ -56,18 +60,23 @@ export async function POST(request: Request) {
     );
   }
 
-  const emailLimit = consumeAuthRateLimit(
-    `login:email:${parsed.data.email.toLowerCase()}`,
-    AUTH_RATE_LIMITS.login,
-  );
+  const email = parsed.data.email.trim().toLowerCase();
+  const emailLimit = consumeAuthRateLimit(`login:email:${email}`, AUTH_RATE_LIMITS.login);
   if (emailLimit.limited) {
     return rateLimitedResponse(emailLimit.retryAfterSeconds);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email },
-  });
-  if (!user) {
+  // Fallback lookup with the raw casing covers accounts registered before
+  // email normalization landed.
+  const user =
+    (await prisma.user.findUnique({ where: { email } })) ??
+    (parsed.data.email.trim() !== email
+      ? await prisma.user.findUnique({ where: { email: parsed.data.email.trim() } })
+      : null);
+  if (!user || !user.passwordHash || user.isAnonymous) {
+    // Equalize timing with the wrong-password path so response time doesn't
+    // reveal whether the email has an account.
+    await bcrypt.compare(parsed.data.password, DUMMY_BCRYPT_HASH);
     return NextResponse.json(
       { error: "Invalid email or password." },
       { status: 401 },
@@ -82,29 +91,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const token = await signMobileSessionJwt(
-    {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      onboardingCompleted: user.onboardingCompleted,
-    },
-    secret,
-  );
-
   await recordBetaUsageEvents(user.id, [{ name: "auth.login" }]).catch(() => {
     // Non-blocking
   });
 
-  const response: MobileAuthResponse = {
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      onboardingCompleted: user.onboardingCompleted,
-    },
-  };
-
+  const response: MobileAuthResponse = await buildMobileAuthResponse(user, secret);
   return NextResponse.json(response);
 }

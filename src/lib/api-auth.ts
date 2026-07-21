@@ -8,9 +8,15 @@ async function resolveApiUserId(secret: string): Promise<string | null> {
   if (auth?.toLowerCase().startsWith("bearer ")) {
     const raw = auth.slice(7).trim();
     if (raw) {
-      const decoded = await decode({ token: raw, secret });
-      const sub = typeof decoded?.sub === "string" ? decoded.sub.trim() : "";
-      if (sub) return sub;
+      // `decode` throws on expired/tampered/malformed tokens (unlike `getToken`,
+      // which swallows errors) — treat those as unauthenticated, not a 500.
+      try {
+        const decoded = await decode({ token: raw, secret });
+        const sub = typeof decoded?.sub === "string" ? decoded.sub.trim() : "";
+        if (sub) return sub;
+      } catch {
+        return null;
+      }
     }
   }
 
@@ -32,10 +38,12 @@ export async function requireApiSessionUserId(): Promise<
 > {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
+    // Generic body on purpose — never disclose which env var is missing.
+    console.error("[api-auth] NEXTAUTH_SECRET is not set");
     return {
       ok: false,
       response: NextResponse.json(
-        { error: "Server misconfigured: NEXTAUTH_SECRET is not set." },
+        { error: "Server configuration error. Please try again later." },
         { status: 500 },
       ),
     };
