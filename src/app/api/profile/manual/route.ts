@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { parseManualDateOfBirth } from "@/lib/profile/parse-manual-date-of-birth";
 
 const employmentStatusSchema = z.enum([
   "EMPLOYED",
@@ -76,16 +77,6 @@ function normalizeLanguages(value: string[] | undefined): string[] | undefined {
   return out;
 }
 
-function parseDateOfBirth(value: string | null | undefined): Date | null | undefined {
-  if (value === undefined) return undefined;
-  if (value === null || value.trim() === "") return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("dateOfBirth must be a valid ISO date string");
-  }
-  return date;
-}
-
 function serializeManualProfile(profile: ManualProfileRow | null) {
   if (!profile) return {};
   return {
@@ -137,7 +128,7 @@ export async function PUT(request: Request) {
 
   let dateOfBirth: Date | null | undefined;
   try {
-    dateOfBirth = parseDateOfBirth(parsed.data.dateOfBirth);
+    dateOfBirth = parseManualDateOfBirth(parsed.data.dateOfBirth);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid dateOfBirth";
     return NextResponse.json({ error: message }, { status: 400 });
