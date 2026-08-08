@@ -56,6 +56,7 @@ model User {
   proposalApplications      ImportProposalApplication[]
   chapterRevisions          ChapterRevision[]
   interpretationCorrections InterpretationCorrection[]
+  livingTreeGroups          LivingTreeGroup[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -524,6 +525,7 @@ model Goal {
   importProposals        ImportProposal[]          @relation("ProposalTargetGoal")
   relatedImportProposals ImportProposal[]          @relation("ProposalRelatedGoal")
   chapterRevisions       ChapterRevision[]
+  livingTreeMembership   LivingTreeGroupMembership?
 
   @@index([parentGoalId])
   @@index([createdFromGoalId])
@@ -824,6 +826,7 @@ model ImportProposalApplication {
   priorTargetEffectiveTo DateTime?
   appliedAt              DateTime               @default(now())
   revertedAt             DateTime?
+  livingTreeEffect       LivingTreeApplicationEffect?
 
   @@index([userId, appliedAt])
   @@index([targetObservationId])
@@ -966,4 +969,83 @@ model ImportSegmentRun {
   @@unique([jobId, fragmentId])
   @@index([jobId, status, position])
   @@index([status, nextRetryAt])
+}
+
+enum LivingTreeGroupOrigin {
+  BOOTSTRAP
+  ACCEPTED_CHAPTER
+}
+
+/// Persisted Living Tree projection configuration. A group organises how the
+/// confirmed model is displayed; it is not a life fact, chapter, theme or
+/// relationship, and it never carries meaning of its own.
+///
+/// Slot range, archive/slot exclusivity and one-group-per-visible-slot are
+/// enforced by database constraints declared in the migration, not by Prisma.
+model LivingTreeGroup {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// User-confirmed and editable. AI may propose it; only confirmation stores it.
+  name        String
+  /// 1..5 while visible on the tree. Null means All chapters, or archived.
+  slot        Int?
+  /// Slot held at archive time so Undo can restore the same position.
+  lastSlot    Int?
+  archivedAt  DateTime?
+  /// Per-group optimistic concurrency. Bumped on every write to this group.
+  version     Int                   @default(1)
+  origin      LivingTreeGroupOrigin
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  memberships       LivingTreeGroupMembership[]
+  effectsAsGroup    LivingTreeApplicationEffect[] @relation("EffectGroup")
+  effectsAsPromoted LivingTreeApplicationEffect[] @relation("EffectPromotedGroup")
+
+  @@index([userId, archivedAt])
+}
+
+/// At most one primary group per chapter. The primary key is the cardinality
+/// proof and an absent row means the chapter is ungrouped and lives in All
+/// chapters.
+///
+/// Deliberately carries no userId: ownership derives from the chapter, so an
+/// account merge moves nothing here and cannot strand or mis-own a row. A
+/// database trigger rejects a membership whose chapter and group have different
+/// owners.
+model LivingTreeGroupMembership {
+  goalId      String          @id
+  goal        Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  groupId     String
+  group       LivingTreeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  confirmedAt DateTime        @default(now())
+
+  @@index([groupId])
+}
+
+/// Projection-side record of what one applied proposal did to the tree, so Undo
+/// and reapply replay exact prior state instead of reconstructing it. Held apart
+/// from ImportProposalApplication because a group is projection configuration,
+/// not confirmed life meaning.
+model LivingTreeApplicationEffect {
+  applicationId       String                    @id
+  application         ImportProposalApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  /// Group the accepted chapter joined.
+  groupId             String
+  group               LivingTreeGroup           @relation("EffectGroup", fields: [groupId], references: [id], onDelete: Cascade)
+  /// True when this application created the group rather than joining one.
+  groupCreated        Boolean                   @default(false)
+  groupSlotAtApply    Int?
+  /// Written when Undo empties and archives the group.
+  groupArchivedOnUndo Boolean                   @default(false)
+  groupLastSlotOnUndo Int?
+  /// Group promoted into the slot Undo freed, so reapply can demote it again.
+  promotedGroupId     String?
+  promotedGroup       LivingTreeGroup?          @relation("EffectPromotedGroup", fields: [promotedGroupId], references: [id], onDelete: SetNull)
+  promotedToSlot      Int?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([groupId])
 }
