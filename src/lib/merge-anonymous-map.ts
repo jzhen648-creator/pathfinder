@@ -2,6 +2,11 @@ import type { Prisma } from "@prisma/client";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import { systemCategoryKey } from "@/lib/system-categories";
 import { parseUnlockedThemeIds } from "@/lib/unlocked-themes";
+import { assertSourceDomainTransferred } from "@/lib/merge/assert-source-domain-empty";
+import { repairRevisionFiling } from "@/lib/merge/repair-revision-filing";
+import { resolveMergeConflicts } from "@/lib/merge/resolve-merge-conflicts";
+import { transferSourceDomain } from "@/lib/merge/transfer-source-domain";
+import { SOURCE_DOMAIN_OWNER_TABLES } from "@/lib/merge/source-domain-owner-tables";
 
 /**
  * Prisma delegates used by the merge — satisfied by both PrismaClient and
@@ -20,11 +25,17 @@ export type MergeDbClient = Pick<
   | "profileFact"
   | "userMemory"
   | "aiReadingDirtyItem"
+  | (typeof SOURCE_DOMAIN_OWNER_TABLES)[number]
+  | "sourceFragment"
+  | "sourceEvidenceSpan"
+  | "importJob"
 >;
 
 export type MergeAnonymousMapResult = {
   movedGoals: number;
   createdCategories: number;
+  movedSourceRows: number;
+  repairedRevisions: number;
 };
 
 function isBlank(value: string | null | undefined): boolean {
@@ -57,6 +68,10 @@ export async function mergeAnonymousMapIntoAccount(
   if (sourceUserId === targetUserId) {
     throw new Error("Cannot merge a user into itself.");
   }
+
+  // Unique keys are scoped by userId, so guest rows that would collide with the
+  // target are renamed while they are still guest-owned.
+  await resolveMergeConflicts(db, sourceUserId, targetUserId);
 
   const [sourceCategories, targetCategories, sourceGoals] = await Promise.all([
     db.themeCategory.findMany({
@@ -216,10 +231,24 @@ export async function mergeAnonymousMapIntoAccount(
   });
   movedGoals += stragglers.count;
 
+  // Every source-domain table cascades from User. Without this the guest's
+  // sources, receipts, evidence, observations, chapter links, proposals,
+  // application history and revisions are destroyed by the delete below while
+  // their chapters survive, leaving confirmed chapters with no citations.
+  const movedSourceCounts = await transferSourceDomain(db, sourceUserId, targetUserId);
+  const movedSourceRows = Object.values(movedSourceCounts).reduce((sum, n) => sum + n, 0);
+
+  // Moved chapters are re-filed under the target's categories, so the stored
+  // CREATED revision must follow or Undo would fail as STALE_TARGET forever.
+  const { repairedRevisions } = await repairRevisionFiling(db, targetUserId);
+
+  // Roll the whole merge back rather than delete anything that did not move.
+  await assertSourceDomainTransferred(db, sourceUserId);
+
   // Cascade clears the source's now goal-free taxonomy, caches, and telemetry.
   await db.user.delete({ where: { id: sourceUserId } });
 
-  return { movedGoals, createdCategories };
+  return { movedGoals, createdCategories, movedSourceRows, repairedRevisions };
 }
 
 /**

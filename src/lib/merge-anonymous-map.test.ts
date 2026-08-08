@@ -132,6 +132,42 @@ function buildMockDb(overrides: MockOverrides = {}) {
       update: vi.fn(async () => ({})),
     },
     aiReadingDirtyItem: { upsert: vi.fn(async () => ({})) },
+    // Source-domain delegates. The unit suite covers category/profile merging;
+    // ownership transfer, conflict resolution, filing repair and the pre-delete
+    // assertion are proven against PostgreSQL in
+    // src/lib/merge/merge-source-domain.integration.test.ts.
+    importSource: {
+      findMany: vi.fn(async () => []),
+      update: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
+    },
+    importCaptureReceipt: {
+      findMany: vi.fn(async () => []),
+      update: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
+    },
+    lifeObservation: { updateMany: vi.fn(async () => ({ count: 0 })), count: vi.fn(async () => 0) },
+    chapterObservation: { updateMany: vi.fn(async () => ({ count: 0 })), count: vi.fn(async () => 0) },
+    importProposal: { updateMany: vi.fn(async () => ({ count: 0 })), count: vi.fn(async () => 0) },
+    importProposalApplication: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
+    },
+    chapterRevision: {
+      findMany: vi.fn(async () => []),
+      update: vi.fn(async () => ({})),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
+    },
+    interpretationCorrection: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      count: vi.fn(async () => 0),
+    },
+    sourceFragment: { count: vi.fn(async () => 0) },
+    sourceEvidenceSpan: { count: vi.fn(async () => 0) },
+    importJob: { count: vi.fn(async () => 0) },
   };
 
   return db as typeof db & MergeDbClient;

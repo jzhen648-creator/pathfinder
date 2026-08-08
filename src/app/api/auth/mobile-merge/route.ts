@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import {
@@ -108,9 +109,15 @@ export async function POST(request: Request) {
   // Slow on remote DBs — run before the transaction so it cannot blow the tx timeout.
   await ensureTaxonomyCurrent(prisma, target.id);
 
+  // Serializable: the merge now moves the source domain as well, and a
+  // concurrent capture must not slip a row past the pre-delete assertion.
   const result = await prisma.$transaction(
     (tx) => mergeAnonymousMapIntoAccount(tx, source.id, target.id),
-    { maxWait: 10_000, timeout: 30_000 },
+    {
+      maxWait: 10_000,
+      timeout: 30_000,
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
   );
 
   await recordBetaUsageEvents(target.id, [
