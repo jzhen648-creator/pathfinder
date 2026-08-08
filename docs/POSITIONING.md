@@ -1,5 +1,7 @@
 # Almanac positioning (July 2026)
 
+> **Historical V1 shipped-positioning reference.** The workspace-root Decisions §87–§89 and V2 behavior/memory/non-chatbot specifications define the product now being built. This file remains accurate only for the final V1-style TestFlight experience.
+
 **Status:** rewritten 2026-07-13 to match the shipped product (manual, deliberate chapter creation — no dump/capture feature).
 **Companion to** [`../PROJECT.md`](../PROJECT.md) — that file is internal design doctrine (the "one test", the moat, the philosophy). This file is the go-to-market frame.
 
