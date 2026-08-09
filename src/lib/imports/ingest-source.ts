@@ -8,8 +8,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { fingerprintSource, normalizeSourceText } from "@/lib/imports/source-identity";
 
-export { MAX_IMPORT_SOURCE_CHARACTERS } from "@/lib/imports/processing-budget";
-import { MAX_IMPORT_SOURCE_CHARACTERS } from "@/lib/imports/processing-budget";
+/** Storage ceiling only. Processing cost is paced per run and bounded per day
+ * in `processing-budget.ts`; a long source is continued inside Almanac rather
+ * than refused, so nobody is sent back to another app to re-prompt. */
+export const MAX_IMPORT_SOURCE_CHARACTERS = 500_000;
 export const IMPORT_LIST_DEFAULT_LIMIT = 50;
 export const IMPORT_LIST_MAX_LIMIT = 100;
 const IMPORT_TRANSACTION_ATTEMPTS = 3;

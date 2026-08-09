@@ -1,3 +1,4 @@
+import { DEFAULT_IMPORT_SEGMENTS_PER_RUN } from "@/lib/imports/process-source";
 import { segmentImportSource } from "@/lib/imports/segmentation";
 import {
   loadProcessingUsage,
@@ -26,7 +27,12 @@ export async function enforceProcessingBudget(
   // A missing source is not a budget problem; let the processor raise not-found.
   if (!source) return { allowed: true };
 
-  const segmentCount = segmentImportSource(source.rawText).length;
+  // Charge for what this run will process, not the whole source: a long
+  // source is paced across runs rather than refused.
+  const segmentCount = Math.min(
+    segmentImportSource(source.rawText).length,
+    DEFAULT_IMPORT_SEGMENTS_PER_RUN,
+  );
   const usage = await loadProcessingUsage(prisma, userId, now);
   return planProcessingBudget({ segmentCount, usage });
 }
