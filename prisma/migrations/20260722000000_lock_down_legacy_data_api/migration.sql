@@ -1,0 +1,48 @@
+-- Almanac is server-mediated: the mobile app talks to owner-scoped Next.js API
+-- routes, never directly to Supabase's public-schema Data API. Lock the legacy
+-- V1 tables to that boundary before the additive V2 source-model migrations run.
+
+ALTER TABLE IF EXISTS "Account" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "AiReadingDirtyItem" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "BetaUsageEvent" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "Goal" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "InsightCache" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "Milestone" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "ProfileFact" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "PursuitContextEntry" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "PursuitRelationship" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "PursuitStatusTransition" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "Session" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "ThemeCategory" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "UserManualProfile" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "UserMemory" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "UserMemoryHistory" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "VerificationToken" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+
+-- PUBLIC grants apply to every role, including Data API roles. Revoke them even
+-- on databases whose current ACLs happen to be clean.
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+
+-- Supabase creates these roles; isolated PostgreSQL test databases do not. Keep
+-- the migration portable while revoking both current and future auto-grants when
+-- the roles exist.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        EXECUTE 'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon';
+        EXECUTE 'REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM anon';
+        EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL PRIVILEGES ON TABLES FROM anon';
+        EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL PRIVILEGES ON SEQUENCES FROM anon';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        EXECUTE 'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM authenticated';
+        EXECUTE 'REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM authenticated';
+        EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL PRIVILEGES ON TABLES FROM authenticated';
+        EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL PRIVILEGES ON SEQUENCES FROM authenticated';
+    END IF;
+END
+$$;

@@ -129,6 +129,106 @@ integrationSuite("import source persistence — PostgreSQL", () => {
     expect(rowSecurity.every((table) => table.relrowsecurity)).toBe(true);
   });
 
+  it("keeps the legacy V1 schema behind the server API boundary", async () => {
+    const migration = await prisma.$queryRaw<Array<{ migration_name: string }>>`
+      SELECT migration_name
+      FROM _prisma_migrations
+      WHERE migration_name IN (
+        '20260722000000_lock_down_legacy_data_api',
+        '20260722010000_lock_down_public_functions'
+      )
+        AND finished_at IS NOT NULL
+    `;
+    expect(migration).toHaveLength(2);
+
+    const legacyTables = [
+      "Account",
+      "AiReadingDirtyItem",
+      "BetaUsageEvent",
+      "Goal",
+      "InsightCache",
+      "Milestone",
+      "ProfileFact",
+      "PursuitContextEntry",
+      "PursuitRelationship",
+      "PursuitStatusTransition",
+      "Session",
+      "ThemeCategory",
+      "User",
+      "UserManualProfile",
+      "UserMemory",
+      "UserMemoryHistory",
+      "VerificationToken",
+      "_prisma_migrations",
+    ];
+
+    const rowSecurity = await prisma.$queryRaw<
+      Array<{ relname: string; relrowsecurity: boolean }>
+    >`
+      SELECT relname, relrowsecurity
+      FROM pg_class
+      WHERE relnamespace = 'public'::regnamespace
+        AND relkind = 'r'
+        AND relname = ANY(${legacyTables})
+      ORDER BY relname
+    `;
+    expect(rowSecurity).toHaveLength(legacyTables.length);
+    expect(rowSecurity.every((table) => table.relrowsecurity)).toBe(true);
+
+    const publicTableGrants = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count
+      FROM pg_class AS relation
+      CROSS JOIN LATERAL aclexplode(
+        COALESCE(relation.relacl, acldefault('r', relation.relowner))
+      ) AS acl
+      WHERE relation.relnamespace = 'public'::regnamespace
+        AND relation.relkind = 'r'
+        AND relation.relname = ANY(${legacyTables})
+        AND acl.grantee = 0
+    `;
+    expect(publicTableGrants[0]?.count).toBe(BigInt(0));
+
+    const publicSequenceGrants = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count
+      FROM pg_class AS relation
+      CROSS JOIN LATERAL aclexplode(
+        COALESCE(relation.relacl, acldefault('S', relation.relowner))
+      ) AS acl
+      WHERE relation.relnamespace = 'public'::regnamespace
+        AND relation.relkind = 'S'
+        AND acl.grantee = 0
+    `;
+    expect(publicSequenceGrants[0]?.count).toBe(BigInt(0));
+
+    const publicFunctionGrants = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count
+      FROM pg_proc AS routine
+      CROSS JOIN LATERAL aclexplode(
+        COALESCE(routine.proacl, acldefault('f', routine.proowner))
+      ) AS acl
+      WHERE routine.pronamespace = 'public'::regnamespace
+        AND acl.grantee = 0
+    `;
+    expect(publicFunctionGrants[0]?.count).toBe(BigInt(0));
+
+    const postgresDefaultGrantLeaks = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count
+      FROM pg_default_acl AS defaults
+      CROSS JOIN LATERAL aclexplode(defaults.defaclacl) AS acl
+      LEFT JOIN pg_roles AS grantee ON grantee.oid = acl.grantee
+      WHERE defaults.defaclrole = 'postgres'::regrole
+        AND (
+          (defaults.defaclobjtype IN ('r', 'S')
+            AND defaults.defaclnamespace = 'public'::regnamespace)
+          OR
+          (defaults.defaclobjtype = 'f'
+            AND defaults.defaclnamespace IN (0, 'public'::regnamespace))
+        )
+        AND (acl.grantee = 0 OR grantee.rolname IN ('anon', 'authenticated'))
+    `;
+    expect(postgresDefaultGrantLeaks[0]?.count).toBe(BigInt(0));
+  });
+
   it("persists the immutable source without creating AI jobs", async () => {
     const userId = await createUser("stored");
     const input = capture("database-capture-0001");
