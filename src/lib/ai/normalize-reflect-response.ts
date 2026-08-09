@@ -114,7 +114,7 @@ export function normalizeReflectResponse(
   const root = { ...(json as Record<string, unknown>) };
 
   const pursuits = root.pursuits;
-  let normalizedPursuits: Record<string, Record<string, unknown>> = {};
+  const normalizedPursuits: Record<string, Record<string, unknown>> = {};
   if (pursuits && typeof pursuits === "object" && !Array.isArray(pursuits)) {
     for (const [pursuitId, entry] of Object.entries(pursuits as Record<string, unknown>)) {
       const row = normalizePursuitEnrichEntry(entry);
