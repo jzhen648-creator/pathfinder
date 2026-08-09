@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceProcessingBudget } from "@/lib/imports/enforce-processing-budget";
 import { requireApiSessionUserId } from "@/lib/api-auth";
 import {
   ImportSourceProcessingNotFoundError,
@@ -35,6 +36,13 @@ export async function POST(_request: Request, context: RouteContext) {
 
   const { importId } = await context.params;
   try {
+    const budget = await enforceProcessingBudget(auth.userId, importId);
+    if (!budget.allowed) {
+      return NextResponse.json(
+        { error: budget.message, code: budget.code, retryAfterHours: budget.retryAfterHours },
+        { status: 429 },
+      );
+    }
     const result = await processImportSource(auth.userId, importId);
     const status =
       result.status === "needs_retry" ||

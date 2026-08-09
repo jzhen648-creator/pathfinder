@@ -10,6 +10,12 @@ vi.mock("@/lib/api-auth", () => ({
   requireApiSessionUserId: (...args: unknown[]) => mocks.requireApiSessionUserId(...args),
 }));
 
+// The budget guard reaches the database; the route suite covers status mapping,
+// and the limits themselves are proven in processing-budget.test.ts.
+vi.mock("@/lib/imports/enforce-processing-budget", () => ({
+  enforceProcessingBudget: vi.fn(async () => ({ allowed: true })),
+}));
+
 vi.mock("@/lib/imports/process-source", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/imports/process-source")>();
   return {

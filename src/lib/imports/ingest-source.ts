@@ -8,7 +8,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { fingerprintSource, normalizeSourceText } from "@/lib/imports/source-identity";
 
-export const MAX_IMPORT_SOURCE_CHARACTERS = 500_000;
+export { MAX_IMPORT_SOURCE_CHARACTERS } from "@/lib/imports/processing-budget";
+import { MAX_IMPORT_SOURCE_CHARACTERS } from "@/lib/imports/processing-budget";
 export const IMPORT_LIST_DEFAULT_LIMIT = 50;
 export const IMPORT_LIST_MAX_LIMIT = 100;
 const IMPORT_TRANSACTION_ATTEMPTS = 3;
