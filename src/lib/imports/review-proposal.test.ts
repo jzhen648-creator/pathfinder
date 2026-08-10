@@ -11,6 +11,7 @@ describe("import proposal review schema", () => {
         action: "set_new_chapter",
         title: "Return to London",
         primaryThemeId: "people",
+        groupName: "Rebuild my London life",
       }).success,
     ).toBe(true);
     expect(
@@ -18,6 +19,7 @@ describe("import proposal review schema", () => {
         action: "set_new_chapter",
         title: "Return to London",
         primaryThemeId: "unknown-theme",
+        groupName: "Rebuild my London life",
       }).success,
     ).toBe(false);
   });
@@ -28,7 +30,11 @@ describe("import proposal review schema", () => {
         action: "edit",
         proposedText: "I will return to London on 16 August 2026.",
         effectiveFrom: "2026-08-16T00:00:00.000Z",
-        newChapterDraft: { title: "Return to London", primaryThemeId: "people" },
+        newChapterDraft: {
+          title: "Return to London",
+          primaryThemeId: "people",
+          groupName: "Rebuild my London life",
+        },
       }).success,
     ).toBe(true);
   });

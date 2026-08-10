@@ -25,6 +25,10 @@ import { prisma } from "@/lib/prisma";
 import { ensureTaxonomyCurrent } from "@/lib/taxonomy-sync";
 import { LIFE_AREA_IDS, normalizeCategoryLabelKey } from "@/lib/taxonomy";
 import { parseUnlockedThemeIds } from "@/lib/unlocked-themes";
+import {
+  applyLivingTreeGroupMembership,
+  undoLivingTreeGroupMembership,
+} from "@/lib/living-tree/apply-group-membership";
 
 type TransactionClient = Prisma.TransactionClient;
 const TRANSACTION_ATTEMPTS = 3;
@@ -335,6 +339,13 @@ export async function applyNewChapterProposalInTransaction(
           observationId: observation.id,
         },
       });
+      await applyLivingTreeGroupMembership(transaction, {
+        userId,
+        goalId: chapter.id,
+        applicationId: application.id,
+        groupName: plan.draft.groupName,
+        now,
+      });
       return {
         status: "applied" as const,
         proposalId: proposal.id,
@@ -467,13 +478,20 @@ export async function applyNewChapterProposalInTransaction(
         targetGoalId: chapter.id,
       },
     });
-    await transaction.importProposalApplication.create({
+    const application = await transaction.importProposalApplication.create({
       data: {
         userId,
         proposalId: proposal.id,
         resultObservationId: observation.id,
         appliedAt: now,
       },
+    });
+    await applyLivingTreeGroupMembership(transaction, {
+      userId,
+      goalId: chapter.id,
+      applicationId: application.id,
+      groupName: plan.draft.groupName,
+      now,
     });
 
   return {
@@ -567,6 +585,12 @@ export async function undoNewChapterProposalApplication(
       throw new ImportProposalApplicationConflictError("STALE_TARGET");
     }
 
+    await undoLivingTreeGroupMembership(transaction, {
+      userId,
+      goalId: chapter.id,
+      applicationId: application.id,
+      now,
+    });
     await transaction.goal.update({ where: { id: chapter.id }, data: { archived: true } });
     await transaction.lifeObservation.update({
       where: { id: observation.id },

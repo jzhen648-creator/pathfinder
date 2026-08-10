@@ -21,13 +21,15 @@ describe("real-provider import extraction QA fixtures", () => {
     }
   });
 
-  it("covers a single-segment Snapshot, conversation, and multi-segment summary", () => {
+  it("covers first import, repeat update, ordinary conversation, and multi-segment summary", () => {
     const segmentCounts = Object.fromEntries(
       IMPORT_EXTRACTION_QA_FIXTURES.map((fixture) => [
         fixture.id,
         segmentImportSource(fixture.sourceText).length,
       ]),
     );
+    expect(segmentCounts["first-import-prompt-output"]).toBe(1);
+    expect(segmentCounts["repeat-update-quietness"]).toBe(1);
     expect(segmentCounts["structured-snapshot"]).toBe(1);
     expect(segmentCounts["ordinary-conversation"]).toBe(1);
     expect(segmentCounts["large-multi-chapter-summary"]).toBeGreaterThan(1);

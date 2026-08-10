@@ -9,16 +9,37 @@ describe("new chapter draft payload", () => {
   it("preserves processing metadata while adding a typed draft", () => {
     const payload = withNewChapterDraft(
       { reviewBucket: "primary", candidateIds: ["candidate-1"] },
-      { title: "  Return to London  ", primaryThemeId: "people" },
+      {
+        title: "  Return to London  ",
+        primaryThemeId: "people",
+        groupName: "  Rebuild my London life  ",
+      },
     );
     expect(payload).toEqual({
       reviewBucket: "primary",
       candidateIds: ["candidate-1"],
-      newChapterDraft: { title: "Return to London", primaryThemeId: "people" },
+      newChapterDraft: {
+        title: "Return to London",
+        primaryThemeId: "people",
+        groupName: "Rebuild my London life",
+      },
     });
     expect(parseNewChapterDraft(payload)).toEqual({
       title: "Return to London",
       primaryThemeId: "people",
+      groupName: "Rebuild my London life",
+    });
+  });
+
+  it("keeps older proposals compatible by using the chapter title as the group name", () => {
+    expect(
+      parseNewChapterDraft({
+        newChapterDraft: { title: "Return to London", primaryThemeId: "people" },
+      }),
+    ).toEqual({
+      title: "Return to London",
+      primaryThemeId: "people",
+      groupName: "Return to London",
     });
   });
 

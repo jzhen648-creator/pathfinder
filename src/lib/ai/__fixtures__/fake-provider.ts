@@ -100,6 +100,21 @@ function inferFixtureFromPrompt(user: string): FakeProviderFixtureId {
   }
   if (overrideFixture) return overrideFixture;
   if (user.includes("<import_segment>")) {
+    if (user.includes("Alex intends to return to Manchester on 16 August 2026")) {
+      return "importLifeSnapshot";
+    }
+    if (user.includes("User: I am returning to Manchester on 16 August 2026")) {
+      return "importRawConversation";
+    }
+    if (user.includes("Manchester return remains planned for 16 August 2026")) {
+      return "importCustomSummary";
+    }
+    if (user.includes("Maybe I could buy an EV9 and run private tours")) {
+      return "importIdeaExploration";
+    }
+    if (user.includes("I decided not to pursue the EV9 private-tour business")) {
+      return "importIdeaRejection";
+    }
     return "importCandidates";
   }
   if (user.includes('Return ONLY: { "pursuits"')) {
@@ -264,6 +279,7 @@ function fixtureJson(id: FakeProviderFixtureId, user: string): string {
             proposedText: "Alex plans to return to Manchester on 16 August 2026.",
             chapterTitle: "Return to Manchester",
             primaryThemeId: "people",
+            groupName: "Return to Manchester",
             informationType: "commitment",
             subjectType: "user",
             subjectLabel: null,
@@ -380,6 +396,7 @@ function fixtureJson(id: FakeProviderFixtureId, user: string): string {
             proposedText: "Alex plans to return to Manchester on 16 August 2026.",
             chapterTitle: "Return to Manchester",
             primaryThemeId: "people",
+            groupName: "Return to Manchester",
             informationType: "commitment",
             subjectType: "user",
             subjectLabel: null,
@@ -399,6 +416,7 @@ function fixtureJson(id: FakeProviderFixtureId, user: string): string {
             proposedText: "Alex and his partner want to settle in Manchester eventually.",
             chapterTitle: "Settle in Manchester",
             primaryThemeId: "people",
+            groupName: "Settle in Manchester",
             informationType: "aspiration",
             subjectType: "shared",
             subjectLabel: "Alex and his partner",

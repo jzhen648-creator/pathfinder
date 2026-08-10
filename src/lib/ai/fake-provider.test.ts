@@ -98,6 +98,34 @@ describe("AI_FAKE_PROVIDER seam", () => {
     });
   });
 
+  it("recognises the realistic snapshot fixture during an end-to-end fake-provider run", async () => {
+    const json = await generateJsonCompletion({
+      system: "test",
+      user: `<import_segment>\n${JSON.stringify({ sourceId: "source-1", position: 0, text: LIFE_IMPORT_FIXTURE_TEXTS.snapshot })}\n</import_segment>`,
+    });
+
+    expect(JSON.parse(json).candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ classification: "new_chapter", chapterTitle: "Return to Manchester" }),
+        expect.objectContaining({ canonicalKey: "identity:british-singaporean" }),
+      ]),
+    );
+  });
+
+  it("recognises an overlapping later summary during an end-to-end fake-provider run", async () => {
+    const json = await generateJsonCompletion({
+      system: "test",
+      user: `<import_segment>\n${JSON.stringify({ sourceId: "source-2", position: 0, text: LIFE_IMPORT_FIXTURE_TEXTS.customSummary })}\n</import_segment>`,
+    });
+
+    expect(JSON.parse(json).candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "return-date-reinforcement", classification: "reinforcement" }),
+        expect.objectContaining({ id: "return-date-conflict", classification: "conflict" }),
+      ]),
+    );
+  });
+
   it("turns a fictional full-life snapshot into five review items without promoting advice", async () => {
     const result = await importFixture("importLifeSnapshot", LIFE_IMPORT_FIXTURE_TEXTS.snapshot);
     const candidates = result.candidates.map((candidate) => ({

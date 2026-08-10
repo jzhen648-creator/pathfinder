@@ -116,6 +116,7 @@ export const importExtractionCandidateSchema = z
     proposedText: z.string().trim().min(1).max(1_000),
     chapterTitle: z.string().trim().min(1).max(100).nullable().optional(),
     primaryThemeId: importPrimaryThemeIdSchema.nullable().optional(),
+    groupName: z.string().trim().min(1).max(100).nullable().optional(),
     informationType: importInformationTypeSchema,
     subjectType: importSubjectTypeSchema,
     subjectLabel: z.string().trim().min(1).max(160).nullable().optional(),
@@ -173,7 +174,7 @@ export const importExtractionCandidateSchema = z
           path: ["informationType"],
         });
       }
-    } else if (candidate.chapterTitle || candidate.primaryThemeId) {
+    } else if (candidate.chapterTitle || candidate.primaryThemeId || candidate.groupName) {
       context.addIssue({
         code: "custom",
         message: "Chapter draft fields are only valid for new_chapter proposals.",
@@ -240,7 +241,8 @@ export class ImportProviderOutputError extends Error {
  * Repair narrow mechanical provider inconsistencies without inventing facts:
  * information-type values accidentally placed in classification become a
  * conservative new observation, and a complete untargeted chapter draft is
- * the new_chapter shape even when the model emitted classification "new".
+ * the new_chapter shape even when the model emitted classification "new" or
+ * accidentally placed new_chapter in memoryDestination.
  */
 export function normalizeImportExtractionOutput(output: unknown): unknown {
   if (!output || typeof output !== "object") return output;
@@ -305,7 +307,14 @@ export function normalizeImportExtractionOutput(output: unknown): unknown {
         informationTypeValues.has(value.classification)
           ? "new"
           : value.classification;
-      const normalized: Record<string, unknown> = { ...value, temporal, classification };
+      const memoryDestination =
+        value.memoryDestination === "new_chapter" ? "chapter" : value.memoryDestination;
+      const normalized: Record<string, unknown> = {
+        ...value,
+        temporal,
+        classification,
+        memoryDestination,
+      };
       const targets = Array.isArray(normalized.targetGoalIds) ? normalized.targetGoalIds : [];
       if (
         normalized.classification === "new" &&
@@ -316,7 +325,7 @@ export function normalizeImportExtractionOutput(output: unknown): unknown {
         typeof normalized.primaryThemeId === "string" &&
         normalized.primaryThemeId.trim().length > 0
       ) {
-        return { ...normalized, classification: "new_chapter" };
+        return { ...normalized, classification: "new_chapter", targetGoalIds: [] };
       }
       if (
         normalized.classification === "reinforcement" &&
@@ -329,6 +338,7 @@ export function normalizeImportExtractionOutput(output: unknown): unknown {
           targetGoalIds: [],
           chapterTitle: null,
           primaryThemeId: null,
+          groupName: null,
         };
       }
       return normalized;

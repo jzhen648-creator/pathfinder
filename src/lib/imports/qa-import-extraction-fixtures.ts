@@ -16,6 +16,7 @@ export type ImportExtractionExpectation = {
   informationTypes?: ImportInformationType[];
   subjectTypes?: ImportSubjectType[];
   temporalStates?: ImportTemporalState[];
+  classifications?: ImportExtractionCandidate["classification"][];
   targetGoalId?: string;
 };
 
@@ -33,6 +34,8 @@ export type ImportExtractionQaFixture = {
   context: ImportProviderContext;
   expectations: ImportExtractionExpectation[];
   forbidden: ImportExtractionForbiddenRule[];
+  /** A tighter review-load gate for fixtures that should be nearly silent. */
+  maxPrimary?: number;
 };
 
 const context: ImportProviderContext = {
@@ -134,6 +137,105 @@ const commonForbidden: ImportExtractionForbiddenRule[] = [
 ];
 
 export const IMPORT_EXTRACTION_QA_FIXTURES: ImportExtractionQaFixture[] = [
+  {
+    id: "first-import-prompt-output",
+    label: "First-import prompt output",
+    context: { goals: [], observations: [] },
+    sourceText: `Almanac Snapshot — generated 10 August 2026
+
+0. My active areas
+- Mortgage adviser career — securing the first role and building experience will still matter in six months.
+- Riverside flat decision — resolving ownership and refinancing will still matter in six months.
+- Sustainable training — establishing a repeatable routine will still matter in six months.
+
+1. Snapshot scope and limitations
+This summary uses only the current project conversation and saved memory exposed here. Dates or facts may be incomplete.
+
+2. The short version
+Maya is preparing to return to Manchester on 16 August 2026 and consolidate her work, home and health plans.
+
+3. Stable background and identity
+[User-stated | current | date unknown] Maya is British-Indian, Manchester is home, and her ties to India are an enduring part of her identity.
+
+4. Important people and relationships
+[User-stated | current | date unknown] Maya expects to stay with her mother for several months after returning.
+[Unresolved] Maya's partner may later move to Britain, but the legal route and timing are not confirmed.
+
+5. Current life chapters
+
+### Mortgage adviser career
+[User-stated | current | 1 August 2026] Maya completed her mortgage-advice qualification, submitted twelve applications for PAYE adviser roles, and has two interviews booked after she returns.
+
+### Riverside flat decision
+[Unresolved] Maya jointly owns the Riverside flat with her father. A proposed transfer payment is £18,000, while a rough half share of gross equity appears closer to £36,000 before legal, tax and refinancing costs. No amount is settled.
+
+### Sustainable training
+[User-stated | current | 1 August 2026] Maya has completed two strength sessions each week for three weeks. Adding boxing after the move is planned, not completed.
+
+6. Goals, possibilities, and ideas not yet committed
+[User-stated | possible | date unknown] Maya has wondered about opening a café, but has done no research and is not pursuing it.
+
+7. Confirmed decisions and commitments
+[User-stated | current | 1 August 2026] Maya will not buy or lease a vehicle before customer demand is validated.
+
+8. Unresolved questions and contradictions
+[Unresolved] The Riverside transfer value and Maya's partner's immigration timing remain unresolved.
+
+9. AI analysis and advice — not my facts or commitments
+[AI advice | not my commitment] An assistant suggested buying an electric SUV for a possible tour business.`,
+    expectations: [
+      {
+        id: "first-import-identity",
+        description: "The prompt's durable identity material becomes background.",
+        termGroups: [["british-indian", "british indian"]],
+        destinations: ["background"],
+        informationTypes: ["fact", "context"],
+        subjectTypes: ["user"],
+      },
+      {
+        id: "first-import-career-chapter",
+        description: "The named active career situation becomes an editable new chapter.",
+        termGroups: [["mortgage", "adviser"], ["applications", "interviews"]],
+        destinations: ["chapter"],
+        classifications: ["new_chapter"],
+        subjectTypes: ["user"],
+      },
+      {
+        id: "first-import-property-chapter",
+        description: "The unresolved property situation becomes one new chapter, not two balances.",
+        termGroups: [["riverside", "flat"], ["18,000", "36,000", "transfer"]],
+        destinations: ["chapter"],
+        classifications: ["new_chapter"],
+        informationTypes: ["tension", "open_question", "fact"],
+        temporalStates: ["unresolved", "current", "unknown"],
+      },
+      {
+        id: "first-import-health-chapter",
+        description: "Observed training consistency becomes a new chapter while planned boxing stays planned.",
+        termGroups: [["strength", "training"], ["three weeks", "two"]],
+        destinations: ["chapter"],
+        classifications: ["new_chapter"],
+        subjectTypes: ["user"],
+      },
+      {
+        id: "first-import-partner-unresolved",
+        description: "The partner move remains shared or other-person context and unresolved.",
+        termGroups: [["partner"], ["britain", "legal", "timing"]],
+        destinations: ["background", "source_only", "possibility"],
+        subjectTypes: ["shared", "other_person"],
+        temporalStates: ["unresolved", "possible", "unknown"],
+      },
+    ],
+    forbidden: [
+      ...commonForbidden,
+      {
+        id: "first-import-area-heading-only",
+        description: "An area heading alone must not become a content-free chapter.",
+        termGroups: [["six months"], ["active areas", "area"]],
+        when: (candidate) => candidate.classification === "new_chapter",
+      },
+    ],
+  },
   {
     id: "structured-snapshot",
     label: "Structured life Snapshot",
@@ -295,5 +397,73 @@ For clarity, the latest return date is 16 August 2026, not October. The mortgage
       },
     ],
     forbidden: commonForbidden,
+  },
+  {
+    id: "repeat-update-quietness",
+    label: "Repeat update quietness",
+    context: {
+      goals: context.goals,
+      observations: [
+        {
+          id: "obs-return-date-current",
+          kind: "PLAN",
+          canonicalText: "Maya is returning to Manchester on 16 August 2026 and the flight is booked.",
+        },
+        {
+          id: "obs-career-pipeline",
+          kind: "EVENT",
+          canonicalText: "Maya submitted twelve mortgage-adviser applications and booked two interviews.",
+        },
+        {
+          id: "obs-health-routine",
+          kind: "EVENT",
+          canonicalText: "Maya completed two strength sessions per week for three consecutive weeks.",
+        },
+        {
+          id: "obs-property-unresolved-current",
+          kind: "OPEN_QUESTION",
+          canonicalText: "The Riverside transfer is unresolved between an informal £18,000 figure and roughly £36,000 gross equity before costs.",
+        },
+        {
+          id: "obs-identity-current",
+          kind: "FACT",
+          canonicalText: "Maya is British-Indian and Manchester is home.",
+        },
+      ],
+    },
+    sourceText: `Update from 10 August 2026.
+
+The flight back to Manchester is still booked for 16 August 2026. I am still British-Indian and Manchester is still home. The Riverside transfer is still unresolved between the informal £18,000 figure and roughly £36,000 gross equity before costs. I am still completing two strength sessions per week.
+
+The actual change is in my mortgage-adviser search: I completed the first of the two booked interviews on 9 August 2026. The second interview is still scheduled. I have not received an offer and I have not accepted a job.`,
+    expectations: [
+      {
+        id: "repeat-career-interview-update",
+        description: "Only the newly completed interview should require a material review decision.",
+        termGroups: [["mortgage", "adviser"], ["completed", "first"], ["interview"]],
+        destinations: ["chapter"],
+        classifications: ["update"],
+        informationTypes: ["event", "fact"],
+        subjectTypes: ["user"],
+        targetGoalId: "goal-career",
+      },
+    ],
+    forbidden: [
+      {
+        id: "repeat-no-job-offer",
+        description: "The absence of an offer must not become an accepted role or commitment.",
+        termGroups: [["offer", "job"], ["received", "accepted"]],
+        when: (candidate) =>
+          candidate.memoryDestination !== "source_only" &&
+          !/\b(?:not|no)\b/i.test(candidate.proposedText),
+      },
+      {
+        id: "repeat-no-new-chapter",
+        description: "Repeated facts and one interview update must not create a new chapter.",
+        termGroups: [["manchester", "riverside", "strength", "interview"]],
+        when: (candidate) => candidate.classification === "new_chapter",
+      },
+    ],
+    maxPrimary: 1,
   },
 ];

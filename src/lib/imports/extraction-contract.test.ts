@@ -99,6 +99,7 @@ describe("import extraction contract", () => {
       classification: "new_chapter",
       chapterTitle: "Return to London",
       primaryThemeId: "people",
+      groupName: "Rebuild my London life",
       targetGoalIds: [],
       existingObservationId: null,
     };
@@ -118,7 +119,7 @@ describe("import extraction contract", () => {
   it("does not allow chapter draft fields on ordinary updates", () => {
     expect(
       importExtractionResultSchema.safeParse({
-        candidates: [{ ...validCandidate, chapterTitle: "Unexpected" }],
+        candidates: [{ ...validCandidate, chapterTitle: "Unexpected", groupName: "Unexpected" }],
       }).success,
     ).toBe(false);
   });
@@ -129,6 +130,7 @@ describe("import extraction contract", () => {
       classification: "new",
       chapterTitle: "Test a small tour service",
       primaryThemeId: "work",
+      groupName: "Test a side business",
       targetGoalIds: [],
       existingObservationId: null,
     };
@@ -139,6 +141,27 @@ describe("import extraction contract", () => {
       classification: "new_chapter",
       chapterTitle: "Test a small tour service",
       primaryThemeId: "work",
+    });
+  });
+
+  it("normalizes a complete chapter draft when the provider transposes destination and classification", () => {
+    const candidate = {
+      ...validCandidate,
+      classification: "new",
+      memoryDestination: "new_chapter",
+      chapterTitle: "Build mortgage-adviser experience",
+      primaryThemeId: "work",
+      groupName: "Build my London career",
+      targetGoalIds: undefined,
+      existingObservationId: null,
+    };
+
+    expect(parseImportExtractionResult({ candidates: [candidate] }).candidates[0]).toMatchObject({
+      classification: "new_chapter",
+      memoryDestination: "chapter",
+      chapterTitle: "Build mortgage-adviser experience",
+      primaryThemeId: "work",
+      targetGoalIds: [],
     });
   });
 

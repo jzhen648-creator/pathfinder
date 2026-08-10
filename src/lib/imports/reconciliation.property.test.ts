@@ -77,6 +77,9 @@ describe("reconciliation properties", () => {
           expect([...result.primary, ...result.overflow]).not.toContainEqual(
             expect.objectContaining({ classification: "uncertain" }),
           );
+          expect([...result.primary, ...result.overflow]).not.toContainEqual(
+            expect.objectContaining({ classification: "reinforcement" }),
+          );
         },
       ),
       { numRuns: 250 },

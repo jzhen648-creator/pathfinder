@@ -557,7 +557,7 @@ describe("source reconciliation", () => {
     expect(result[0]?.targetGoalIds).toEqual(["career", "money"]);
   });
 
-  it("caps primary review work and retains low-confidence material outside the Inbox", () => {
+  it("caps primary review work and keeps reinforcement or low-confidence material quiet", () => {
     const candidates = [
       candidate({ id: "a", classification: "conflict" }),
       candidate({ id: "b", classification: "update" }),
@@ -571,9 +571,10 @@ describe("source reconciliation", () => {
 
     const result = partitionProposalCandidates(candidates);
     expect(result.primary).toHaveLength(5);
-    expect(result.overflow).toHaveLength(1);
+    expect(result.overflow).toHaveLength(0);
     expect(result.retainedOnly.map((item) => item.classification).sort()).toEqual([
       "no_durable_value",
+      "reinforcement",
       "uncertain",
     ]);
   });

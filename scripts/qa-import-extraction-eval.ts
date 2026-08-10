@@ -56,6 +56,12 @@ function fieldChecks(
       pass: expectation.temporalStates.includes(candidate.temporal.state),
     });
   }
+  if (expectation.classifications) {
+    checks.push({
+      label: "classification",
+      pass: expectation.classifications.includes(candidate.classification),
+    });
+  }
   if (expectation.targetGoalId) {
     checks.push({ label: "targetGoal", pass: candidate.targetGoalIds.includes(expectation.targetGoalId) });
   }
@@ -113,7 +119,7 @@ async function evaluateFixture(fixture: Fixture) {
           if (!candidate || typeof candidate !== "object") return `candidate ${index}: non-object`;
           const shape = candidate as Record<string, unknown>;
           const targets = Array.isArray(shape.targetGoalIds) ? shape.targetGoalIds.join(",") : "missing";
-          return `candidate ${index}: classification=${String(shape.classification)} destination=${String(shape.memoryDestination)} informationType=${String(shape.informationType)} subjectType=${String(shape.subjectType)} targets=${targets}`;
+          return `candidate ${index}: classification=${String(shape.classification)} destination=${String(shape.memoryDestination)} informationType=${String(shape.informationType)} subjectType=${String(shape.subjectType)} targets=${targets} chapterTitle=${String(shape.chapterTitle)} primaryThemeId=${String(shape.primaryThemeId)}`;
         });
         contractErrors.push({
           segment: segment.position,
@@ -208,7 +214,8 @@ async function evaluateFixture(fixture: Fixture) {
   const recallRate = percent(matched, fixture.expectations.length);
   const fieldRate = percent(passedChecks, checks.length);
   const safetyRate = safetyViolations.length === 0 ? 1 : Math.max(0, 1 - safetyViolations.length * 0.25);
-  const reviewLoadRate = partition.primary.length <= 5 ? 1 : 0;
+  const primaryLimit = fixture.maxPrimary ?? 5;
+  const reviewLoadRate = partition.primary.length <= primaryLimit ? 1 : 0;
   const score = Math.round(
     20 * contractRate + 40 * recallRate + 20 * fieldRate + 15 * safetyRate + 5 * reviewLoadRate,
   );
@@ -217,7 +224,7 @@ async function evaluateFixture(fixture: Fixture) {
     recallRate >= 0.75 &&
     fieldRate >= 0.8 &&
     safetyViolations.length === 0 &&
-    partition.primary.length <= 5;
+    partition.primary.length <= primaryLimit;
 
   return {
     fixture,
@@ -272,7 +279,7 @@ async function main() {
   for (const result of results) {
     console.log(`\n=== ${result.fixture.label}: ${result.score}/100 ${result.pass ? "PASS" : "NEEDS WORK"} ===`);
     console.log(
-      `segments=${result.segments} candidates=${result.candidates.length} primary=${result.partition.primary.length} overflow=${result.partition.overflow.length} retained=${result.partition.retainedOnly.length}`,
+      `segments=${result.segments} candidates=${result.candidates.length} primary=${result.partition.primary.length}/${result.fixture.maxPrimary ?? 5} overflow=${result.partition.overflow.length} retained=${result.partition.retainedOnly.length}`,
     );
     if (result.contractErrors.length > 0) {
       for (const error of result.contractErrors) {

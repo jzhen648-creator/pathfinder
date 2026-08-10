@@ -7,6 +7,7 @@ const LIFE_AREA_SET = new Set<string>(LIFE_AREA_IDS);
 export type NewChapterDraft = {
   title: string;
   primaryThemeId: LifeAreaId;
+  groupName: string;
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -22,9 +23,18 @@ export function parseNewChapterDraft(payload: unknown): NewChapterDraft | null {
   const title = typeof draft.title === "string" ? draft.title.trim() : "";
   const primaryThemeId =
     typeof draft.primaryThemeId === "string" ? draft.primaryThemeId : "";
-  if (!title || title.length > 100 || !LIFE_AREA_SET.has(primaryThemeId)) return null;
+  const groupName = typeof draft.groupName === "string" ? draft.groupName.trim() : title;
+  if (
+    !title ||
+    title.length > 100 ||
+    !groupName ||
+    groupName.length > 100 ||
+    !LIFE_AREA_SET.has(primaryThemeId)
+  ) {
+    return null;
+  }
 
-  return { title, primaryThemeId: primaryThemeId as LifeAreaId };
+  return { title, primaryThemeId: primaryThemeId as LifeAreaId, groupName };
 }
 
 export function withNewChapterDraft(
@@ -37,6 +47,7 @@ export function withNewChapterDraft(
     newChapterDraft: {
       title: draft.title.trim(),
       primaryThemeId: draft.primaryThemeId,
+      groupName: draft.groupName.trim(),
     },
   } as Prisma.InputJsonObject;
 }

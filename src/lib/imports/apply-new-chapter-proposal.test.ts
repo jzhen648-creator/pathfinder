@@ -11,7 +11,11 @@ const BASE = {
   kind: ImportProposalKind.NEW_CHAPTER,
   memoryDestination: LifeMemoryDestination.CHAPTER,
   evidenceCount: 1,
-  draft: { title: "Return to London", primaryThemeId: "people" as const },
+  draft: {
+    title: "Return to London",
+    primaryThemeId: "people" as const,
+    groupName: "Rebuild my London life",
+  },
   hasTargetChapter: false,
   hasRevertedApplication: false,
 };

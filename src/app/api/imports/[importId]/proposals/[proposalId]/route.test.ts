@@ -79,6 +79,7 @@ describe("PATCH /api/imports/[importId]/proposals/[proposalId]", () => {
       action: "set_new_chapter",
       title: "Return to London",
       primaryThemeId: "people",
+      groupName: "Rebuild my London life",
     });
     expect(response.status).toBe(200);
     expect(mocks.reviewImportProposal).toHaveBeenCalledWith(
@@ -89,6 +90,7 @@ describe("PATCH /api/imports/[importId]/proposals/[proposalId]", () => {
         action: "set_new_chapter",
         title: "Return to London",
         primaryThemeId: "people",
+        groupName: "Rebuild my London life",
       },
     );
   });

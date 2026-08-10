@@ -34,6 +34,7 @@ export const reviewImportProposalSchema = z.discriminatedUnion("action", [
       action: z.literal("set_new_chapter"),
       title: z.string().trim().min(1).max(100),
       primaryThemeId: z.enum(LIFE_AREA_IDS),
+      groupName: z.string().trim().min(1).max(100),
     })
     .strict(),
   z
@@ -48,6 +49,7 @@ export const reviewImportProposalSchema = z.discriminatedUnion("action", [
         .object({
           title: z.string().trim().min(1).max(100),
           primaryThemeId: z.enum(LIFE_AREA_IDS),
+          groupName: z.string().trim().min(1).max(100),
         })
         .strict()
         .optional(),
@@ -204,6 +206,7 @@ export async function reviewImportProposal(
                   payload: withNewChapterDraft(clearedPayload, {
                     title: input.title,
                     primaryThemeId: input.primaryThemeId,
+                    groupName: input.groupName,
                   }),
                 }
               : {

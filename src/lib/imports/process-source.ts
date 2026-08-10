@@ -249,6 +249,7 @@ function proposalProcessingKey(candidate: ConsolidatedCandidate): string {
         goals: [...candidate.targetGoalIds].sort(),
         chapterTitle: candidate.chapterTitle ?? null,
         primaryThemeId: candidate.primaryThemeId ?? null,
+        groupName: candidate.groupName ?? null,
       }),
       "utf8",
     )
@@ -568,6 +569,7 @@ async function finalizeProposals(userId: string, sourceId: string, jobId: string
                   newChapterDraft: {
                     title: candidate.chapterTitle,
                     primaryThemeId: candidate.primaryThemeId,
+                    groupName: candidate.groupName ?? candidate.chapterTitle,
                   },
                 }
               : {}),

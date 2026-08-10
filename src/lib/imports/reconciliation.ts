@@ -452,11 +452,15 @@ export function partitionProposalCandidates(
   const consolidated = consolidateReconciliationCandidates(candidates);
   const reviewable = consolidated.filter(
     (candidate) =>
-      candidate.classification !== "no_durable_value" && candidate.classification !== "uncertain",
+      candidate.classification !== "reinforcement" &&
+      candidate.classification !== "no_durable_value" &&
+      candidate.classification !== "uncertain",
   );
   const retainedOnly = consolidated.filter(
     (candidate) =>
-      candidate.classification === "no_durable_value" || candidate.classification === "uncertain",
+      candidate.classification === "reinforcement" ||
+      candidate.classification === "no_durable_value" ||
+      candidate.classification === "uncertain",
   );
 
   const safeLimit = Math.max(0, Math.floor(primaryLimit));

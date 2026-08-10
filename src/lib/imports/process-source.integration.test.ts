@@ -205,6 +205,7 @@ integrationSuite("import source processing — PostgreSQL", () => {
               proposedText: "Returning to London on 16 August 2026 to rebuild my UK base.",
               chapterTitle: "Return to London",
               primaryThemeId: "people",
+              groupName: "Rebuild my London life",
               informationType: "decision",
               memoryDestination: "chapter",
               backgroundCategory: null,
@@ -238,6 +239,26 @@ integrationSuite("import source processing — PostgreSQL", () => {
     });
     expect(await prisma.chapterRevision.count({ where: { goalId: chapter.id } })).toBe(1);
     expect(await prisma.chapterObservation.count({ where: { goalId: chapter.id } })).toBe(1);
+    const membership = await prisma.livingTreeGroupMembership.findUniqueOrThrow({
+      where: { goalId: chapter.id },
+      include: { group: true },
+    });
+    expect(membership.group).toMatchObject({
+      userId,
+      name: "Rebuild my London life",
+      slot: 1,
+      archivedAt: null,
+      origin: "ACCEPTED_CHAPTER",
+    });
+    const application = await prisma.importProposalApplication.findUniqueOrThrow({
+      where: { proposalId: proposal.id },
+      include: { livingTreeEffect: true },
+    });
+    expect(application.livingTreeEffect).toMatchObject({
+      groupId: membership.groupId,
+      groupCreated: true,
+      groupSlotAtApply: 1,
+    });
 
     expect(await applyNewChapterProposal(userId, stored.source.id, proposal.id)).toMatchObject({
       status: "already_applied",
@@ -251,6 +272,12 @@ integrationSuite("import source processing — PostgreSQL", () => {
     expect(await prisma.goal.findUniqueOrThrow({ where: { id: chapter.id } })).toMatchObject({
       archived: true,
     });
+    expect(
+      await prisma.livingTreeGroupMembership.findUnique({ where: { goalId: chapter.id } }),
+    ).toBeNull();
+    expect(
+      await prisma.livingTreeGroup.findUniqueOrThrow({ where: { id: membership.groupId } }),
+    ).toMatchObject({ archivedAt: expect.any(Date), slot: null, lastSlot: 1 });
 
     expect(await applyNewChapterProposal(userId, stored.source.id, proposal.id)).toMatchObject({
       status: "applied",
@@ -260,6 +287,92 @@ integrationSuite("import source processing — PostgreSQL", () => {
     expect(await prisma.goal.findUniqueOrThrow({ where: { id: chapter.id } })).toMatchObject({
       archived: false,
     });
+    expect(
+      await prisma.livingTreeGroupMembership.findUniqueOrThrow({ where: { goalId: chapter.id } }),
+    ).toMatchObject({ groupId: membership.groupId });
+    expect(
+      await prisma.livingTreeGroup.findUniqueOrThrow({ where: { id: membership.groupId } }),
+    ).toMatchObject({ archivedAt: null, slot: 1, lastSlot: null });
+  }, 15_000);
+
+  it("uses one confirmed first-import area name for multiple related chapters", async () => {
+    const userId = await createUser("named-area-group");
+    const text = [
+      "0. My active areas",
+      "- Build my London career",
+      "5. Current life chapters",
+      "## Build my London career",
+      "I am applying for mortgage adviser roles.",
+      "I am also building practical client-case experience.",
+    ].join("\n");
+    const stored = await createSource(userId, text, "named-area-group");
+    const provider: ImportExtractionProvider = {
+      async extractSegment(input) {
+        return {
+          candidates: [
+            candidate("career-applications", input.segmentText, {
+              classification: "new_chapter",
+              canonicalKey: "career:mortgage-adviser-applications",
+              proposedText: "Applying for mortgage adviser roles.",
+              chapterTitle: "Secure a mortgage adviser role",
+              primaryThemeId: "work",
+              groupName: "Build my London career",
+              informationType: "commitment",
+              memoryDestination: "chapter",
+              backgroundCategory: null,
+              temporal: {
+                state: "ongoing",
+                precision: "ongoing",
+                effectiveFrom: null,
+                effectiveTo: null,
+              },
+            }),
+            candidate("career-experience", input.segmentText, {
+              classification: "new_chapter",
+              canonicalKey: "career:mortgage-adviser-experience",
+              proposedText: "Building practical client-case experience.",
+              chapterTitle: "Build adviser experience",
+              primaryThemeId: "work",
+              groupName: "Build my London career",
+              informationType: "commitment",
+              memoryDestination: "chapter",
+              backgroundCategory: null,
+              temporal: {
+                state: "ongoing",
+                precision: "ongoing",
+                effectiveFrom: null,
+                effectiveTo: null,
+              },
+            }),
+          ],
+        };
+      },
+    };
+
+    await processImportSource(userId, stored.source.id, { provider });
+    const proposals = await prisma.importProposal.findMany({
+      where: { sourceId: stored.source.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(proposals).toHaveLength(2);
+    for (const proposal of proposals) {
+      await prisma.importProposal.update({
+        where: { id: proposal.id },
+        data: { payload: withProposalReviewDecision(proposal.payload, "accept") },
+      });
+    }
+    expect(await confirmLifeUpdate(userId, stored.source.id)).toMatchObject({
+      status: "applied",
+      appliedProposalIds: expect.arrayContaining(proposals.map((proposal) => proposal.id)),
+    });
+
+    const groups = await prisma.livingTreeGroup.findMany({
+      where: { userId, archivedAt: null },
+      include: { memberships: true },
+    });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ name: "Build my London career", slot: 1 });
+    expect(groups[0]!.memberships).toHaveLength(2);
   }, 15_000);
 
   it("preserves an explored possibility and targets it when the user later rejects it", async () => {
@@ -456,6 +569,37 @@ integrationSuite("import source processing — PostgreSQL", () => {
     expect(
       await prisma.importSource.findUniqueOrThrow({ where: { id: stored.source.id } }),
     ).toMatchObject({ state: "PROCESSED" });
+  });
+
+  it("keeps an already-known reinforcement out of review while preserving the source", async () => {
+    const userId = await createUser("reinforcement-quiet");
+    const stored = await createSource(userId, "I still live in Manchester.");
+    const provider: ImportExtractionProvider = {
+      async extractSegment(input) {
+        return {
+          candidates: [
+            candidate("home-city-repeat", input.segmentText, {
+              classification: "reinforcement",
+              canonicalKey: "background:home-city",
+              proposedText: "I still live in Manchester.",
+            }),
+          ],
+        };
+      },
+    };
+
+    const result = await processImportSource(userId, stored.source.id, { provider });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      proposalCount: 0,
+      overflowCount: 0,
+      retainedOnlyCount: 1,
+    });
+    expect(await prisma.importProposal.count({ where: { sourceId: stored.source.id } })).toBe(0);
+    expect(
+      await prisma.importSource.findUniqueOrThrow({ where: { id: stored.source.id } }),
+    ).toMatchObject({ state: "PROCESSED", rawText: "I still live in Manchester." });
   });
 
   it("retries one transient 503 inside the run and then succeeds", async () => {
