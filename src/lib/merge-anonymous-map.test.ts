@@ -132,6 +132,11 @@ function buildMockDb(overrides: MockOverrides = {}) {
       update: vi.fn(async () => ({})),
     },
     aiReadingDirtyItem: { upsert: vi.fn(async () => ({})) },
+    atlasPlacement: {
+      findMany: vi.fn(async () => []),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      createMany: vi.fn(async () => ({ count: 0 })),
+    },
     // Source-domain delegates. The unit suite covers category/profile merging;
     // ownership transfer, conflict resolution, filing repair and the pre-delete
     // assertion are proven against PostgreSQL in

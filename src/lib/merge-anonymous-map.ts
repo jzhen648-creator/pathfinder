@@ -1,4 +1,9 @@
 import type { Prisma } from "@prisma/client";
+import {
+  captureAtlasPlacementsForMerge,
+  restoreAtlasPlacementsAfterMerge,
+  type CapturedAtlasPlacement,
+} from "@/lib/atlas/merge-atlas-placements";
 import { LIFE_AREA_IDS } from "@/lib/taxonomy";
 import { systemCategoryKey } from "@/lib/system-categories";
 import { parseUnlockedThemeIds } from "@/lib/unlocked-themes";
@@ -25,6 +30,7 @@ export type MergeDbClient = Pick<
   | "profileFact"
   | "userMemory"
   | "aiReadingDirtyItem"
+  | "atlasPlacement"
   | (typeof SOURCE_DOMAIN_OWNER_TABLES)[number]
   | "sourceFragment"
   | "sourceEvidenceSpan"
@@ -106,6 +112,8 @@ export async function mergeAnonymousMapIntoAccount(
   let targetOrder = targetCategories.length;
   const receivingCategoryIds: string[] = [];
   const categoryIdRemap = new Map<string, string>();
+  const capturedAtlasPlacements: CapturedAtlasPlacement[] =
+    await captureAtlasPlacementsForMerge(db, sourceUserId);
 
   for (const sourceCategoryId of usedSourceCategoryIds) {
     const sourceCategory = sourceCategoryById.get(sourceCategoryId);
@@ -225,11 +233,20 @@ export async function mergeAnonymousMapIntoAccount(
   // Straggler re-check: any goal written for the source between the initial
   // read and here (e.g. a concurrent create racing the merge) must not be
   // cascade-deleted with the source user.
+  capturedAtlasPlacements.push(
+    ...(await captureAtlasPlacementsForMerge(db, sourceUserId)),
+  );
   const stragglers = await db.goal.updateMany({
     where: { userId: sourceUserId },
     data: { userId: targetUserId },
   });
   movedGoals += stragglers.count;
+
+  await restoreAtlasPlacementsAfterMerge(
+    db,
+    targetUserId,
+    capturedAtlasPlacements,
+  );
 
   // Every source-domain table cascades from User. Without this the guest's
   // sources, receipts, evidence, observations, chapter links, proposals,

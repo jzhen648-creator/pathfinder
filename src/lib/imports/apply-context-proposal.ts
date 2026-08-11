@@ -1,5 +1,6 @@
 import {
   ChapterRevisionKind,
+  ImportProposalKind,
   ImportProposalStatus,
   ImportSourceState,
   LifeMemoryDestination,
@@ -50,11 +51,35 @@ export function appendConfirmedContext(current: string | null, addition: string)
   return `${existing}\n\n${next}`;
 }
 
+/** Replace one previously confirmed paragraph without rewriting unrelated context. */
+export function replaceConfirmedContext(
+  current: string | null,
+  previous: string,
+  replacement: string,
+): string | null {
+  const existing = current?.trim() ?? "";
+  const target = previous.trim().toLowerCase();
+  const next = replacement.trim();
+  if (!existing || !target || !next) return null;
+  const paragraphs = existing.split(/\r?\n\r?\n/);
+  const index = paragraphs.findIndex((paragraph) => paragraph.trim().toLowerCase() === target);
+  if (index < 0) return null;
+  paragraphs[index] = next;
+  return paragraphs.join("\n\n");
+}
+
 export type ContextProposalPlanInput = {
   status: ImportProposalStatus;
+  kind: ImportProposalKind;
   memoryDestination: LifeMemoryDestination;
   evidenceCount: number;
   hasActiveChapterTarget: boolean;
+  targetGoalId: string | null;
+  targetObservation: null | {
+    status: LifeObservationStatus;
+    memoryDestination: LifeMemoryDestination;
+    chapterIds: string[];
+  };
 };
 
 export function planContextProposalApplication(input: ContextProposalPlanInput) {
@@ -76,6 +101,25 @@ export function planContextProposalApplication(input: ContextProposalPlanInput) 
   if (input.memoryDestination === LifeMemoryDestination.CHAPTER) {
     if (!input.hasActiveChapterTarget) {
       throw new ImportProposalApplicationConflictError("MISSING_TARGET");
+    }
+    if (input.kind === ImportProposalKind.UPDATE) {
+      if (!input.targetObservation || !input.targetGoalId) {
+        throw new ImportProposalApplicationConflictError("MISSING_TARGET");
+      }
+      if (
+        input.targetObservation.status !== LifeObservationStatus.ACTIVE ||
+        input.targetObservation.memoryDestination !== LifeMemoryDestination.CHAPTER ||
+        input.targetObservation.chapterIds.length !== 1 ||
+        input.targetObservation.chapterIds[0] !== input.targetGoalId
+      ) {
+        throw new ImportProposalApplicationConflictError("STALE_TARGET");
+      }
+    } else if (input.kind === ImportProposalKind.NEW_OBSERVATION) {
+      if (input.targetObservation) {
+        throw new ImportProposalApplicationConflictError("INCONSISTENT_APPLICATION");
+      }
+    } else {
+      throw new ImportProposalApplicationConflictError("UNSUPPORTED_PROPOSAL");
     }
     return { action: "update_chapter" as const };
   }
@@ -104,11 +148,33 @@ const CONTEXT_PROPOSAL_INCLUDE = {
   targetGoal: {
     select: { id: true, userId: true, title: true, background: true, archived: true },
   },
+  observation: {
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      memoryDestination: true,
+      canonicalText: true,
+      effectiveTo: true,
+      chapters: { select: { userId: true, goalId: true } },
+    },
+  },
   exactEvidence: {
     select: { role: true, evidenceSpanId: true },
   },
   application: {
     include: {
+      targetObservation: {
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          memoryDestination: true,
+          canonicalText: true,
+          effectiveTo: true,
+          chapters: { select: { userId: true, goalId: true } },
+        },
+      },
       resultObservation: { select: { id: true, userId: true, status: true } },
     },
   },
@@ -159,15 +225,29 @@ export async function applyContextProposalInTransaction(
       };
     }
 
+    const targetObservationForPlan = proposal.application?.revertedAt
+      ? proposal.application.targetObservation
+      : proposal.observation;
     const plan = planContextProposalApplication({
       status: proposal.status,
+      kind: proposal.kind,
       memoryDestination: proposal.memoryDestination,
       evidenceCount: proposal.exactEvidence.length,
       hasActiveChapterTarget: Boolean(proposal.targetGoal && !proposal.targetGoal.archived),
+      targetGoalId: proposal.targetGoalId,
+      targetObservation: targetObservationForPlan
+        ? {
+            status: targetObservationForPlan.status,
+            memoryDestination: targetObservationForPlan.memoryDestination,
+            chapterIds: targetObservationForPlan.chapters.map(({ goalId }) => goalId),
+          }
+        : null,
     });
-    const isBackground = plan.action === "create_background";
     const isChapter = plan.action === "update_chapter";
     if (proposal.targetGoal && proposal.targetGoal.userId !== userId) {
+      throw new ImportProposalApplicationNotFoundError();
+    }
+    if (proposal.observation && proposal.observation.userId !== userId) {
       throw new ImportProposalApplicationNotFoundError();
     }
 
@@ -179,6 +259,22 @@ export async function applyContextProposalInTransaction(
         resultObservation.status !== LifeObservationStatus.DISMISSED
       ) {
         throw new ImportProposalApplicationConflictError("INCONSISTENT_APPLICATION");
+      }
+      const targetObservation = proposal.application.targetObservation;
+      if (targetObservation) {
+        if (
+          targetObservation.userId !== userId ||
+          targetObservation.status !== proposal.application.priorTargetStatus
+        ) {
+          throw new ImportProposalApplicationConflictError("STALE_TARGET");
+        }
+        await transaction.lifeObservation.update({
+          where: { id: targetObservation.id },
+          data: {
+            status: LifeObservationStatus.SUPERSEDED,
+            effectiveTo: proposal.effectiveFrom ?? now,
+          },
+        });
       }
       if (isChapter) {
         const revision = proposal.chapterRevision;
@@ -228,6 +324,30 @@ export async function applyContextProposalInTransaction(
       };
     }
 
+    const targetObservation =
+      isChapter && proposal.kind === ImportProposalKind.UPDATE ? proposal.observation : null;
+    let chapterBackgroundChange: { before: string | null; after: string } | null = null;
+    if (isChapter && proposal.targetGoal) {
+      const before = proposal.targetGoal.background;
+      const after = targetObservation
+        ? replaceConfirmedContext(before, targetObservation.canonicalText, proposal.proposedText)
+        : appendConfirmedContext(before, proposal.proposedText);
+      if (after === null) {
+        throw new ImportProposalApplicationConflictError("STALE_TARGET");
+      }
+      chapterBackgroundChange = { before, after };
+    }
+
+    if (targetObservation) {
+      await transaction.lifeObservation.update({
+        where: { id: targetObservation.id },
+        data: {
+          status: LifeObservationStatus.SUPERSEDED,
+          effectiveTo: proposal.effectiveFrom ?? now,
+        },
+      });
+    }
+
     const observedAt = proposal.observedAt ?? proposal.source.capturedAt ?? proposal.source.createdAt;
     const resultObservation = await transaction.lifeObservation.create({
       data: {
@@ -242,6 +362,7 @@ export async function applyContextProposalInTransaction(
         temporalPrecision: proposal.temporalPrecision,
         canonicalKey: proposal.canonicalKey,
         canonicalText: proposal.proposedText,
+        supersedesObservationId: targetObservation?.id ?? null,
         occurredAt:
           proposal.informationType === LifeObservationKind.EVENT ||
           proposal.informationType === LifeObservationKind.DECISION
@@ -263,9 +384,7 @@ export async function applyContextProposalInTransaction(
       },
     });
 
-    if (isChapter && proposal.targetGoal) {
-      const beforeBackground = proposal.targetGoal.background;
-      const afterBackground = appendConfirmedContext(beforeBackground, proposal.proposedText);
+    if (isChapter && proposal.targetGoal && chapterBackgroundChange) {
       await transaction.chapterObservation.create({
         data: {
           userId,
@@ -276,7 +395,7 @@ export async function applyContextProposalInTransaction(
       });
       await transaction.goal.update({
         where: { id: proposal.targetGoal.id },
-        data: { background: afterBackground },
+        data: { background: chapterBackgroundChange.after },
       });
       await transaction.chapterRevision.create({
         data: {
@@ -285,8 +404,8 @@ export async function applyContextProposalInTransaction(
           proposalId: proposal.id,
           kind: revisionKind(proposal.informationType, proposal.effectiveFrom),
           summary: proposal.proposedText,
-          beforeState: { background: beforeBackground },
-          afterState: { background: afterBackground },
+          beforeState: { background: chapterBackgroundChange.before },
+          afterState: { background: chapterBackgroundChange.after },
           occurredAt: proposal.effectiveFrom,
           confirmedAt: now,
           exactEvidence: {
@@ -310,7 +429,10 @@ export async function applyContextProposalInTransaction(
       data: {
         userId,
         proposalId: proposal.id,
+        targetObservationId: targetObservation?.id ?? null,
         resultObservationId: resultObservation.id,
+        priorTargetStatus: targetObservation?.status ?? null,
+        priorTargetEffectiveTo: targetObservation?.effectiveTo ?? null,
         appliedAt: now,
       },
     });
@@ -417,13 +539,32 @@ export async function undoContextProposalApplication(
       where: { id: resultObservation.id },
       data: { status: LifeObservationStatus.DISMISSED },
     });
+    if (application.targetObservation) {
+      if (application.targetObservation.userId !== userId) {
+        throw new ImportProposalApplicationNotFoundError();
+      }
+      if (application.targetObservation.status !== LifeObservationStatus.SUPERSEDED) {
+        throw new ImportProposalApplicationConflictError("STALE_TARGET");
+      }
+      await transaction.lifeObservation.update({
+        where: { id: application.targetObservation.id },
+        data: {
+          status: application.priorTargetStatus ?? LifeObservationStatus.ACTIVE,
+          effectiveTo: application.priorTargetEffectiveTo,
+        },
+      });
+    }
     await transaction.importProposalApplication.update({
       where: { id: application.id },
       data: { revertedAt: now },
     });
     await transaction.importProposal.update({
       where: { id: proposal.id },
-      data: { status: ImportProposalStatus.PENDING, reviewedAt: null, observationId: null },
+      data: {
+        status: ImportProposalStatus.PENDING,
+        reviewedAt: null,
+        observationId: application.targetObservationId,
+      },
     });
     return {
       status: "undone" as const,

@@ -11,6 +11,10 @@ import {
   undoPossibilityProposalApplication,
 } from "./apply-possibility-proposal";
 import {
+  applyContextProposal,
+  undoContextProposalApplication,
+} from "./apply-context-proposal";
+import {
   applyNewChapterProposal,
   undoNewChapterProposalApplication,
 } from "./apply-new-chapter-proposal";
@@ -373,6 +377,159 @@ integrationSuite("import source processing — PostgreSQL", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ name: "Build my London career", slot: 1 });
     expect(groups[0]!.memberships).toHaveLength(2);
+  }, 15_000);
+
+  it("supersedes a changed chapter meaning while preserving reversible history", async () => {
+    const userId = await createUser("chapter-update-history");
+    const oldText = "Seeking a first mortgage adviser role.";
+    const newText =
+      "Accepted a first mortgage adviser role; passing probation is now the immediate plan.";
+    const chapter = await prisma.goal.create({
+      data: {
+        userId,
+        title: "Mortgage advice career",
+        description: "Build a mortgage advice career.",
+        background: `Five years of property experience.\n\n${oldText}\n\nCeMAP completed.`,
+      },
+    });
+    const priorObservation = await prisma.lifeObservation.create({
+      data: {
+        userId,
+        kind: "COMMITMENT",
+        status: "ACTIVE",
+        memoryDestination: "CHAPTER",
+        temporalState: "ONGOING",
+        temporalPrecision: "ONGOING",
+        canonicalKey: "career:mortgage-adviser-role",
+        canonicalText: oldText,
+        chapters: {
+          create: { userId, goalId: chapter.id, role: "PRIMARY" },
+        },
+      },
+    });
+    const sourceText = "I accepted my first mortgage adviser role and start on 1 September 2026.";
+    const stored = await createSource(userId, sourceText, "chapter-update-history");
+    const provider: ImportExtractionProvider = {
+      async extractSegment(input) {
+        return {
+          candidates: [
+            candidate("mortgage-adviser-role-update", input.segmentText, {
+              classification: "update",
+              canonicalKey: "career:mortgage-adviser-role",
+              proposedText: newText,
+              informationType: "event",
+              memoryDestination: "chapter",
+              backgroundCategory: null,
+              temporal: {
+                state: "planned",
+                precision: "exact",
+                effectiveFrom: "2026-09-01",
+                effectiveTo: null,
+              },
+              targetGoalIds: [chapter.id],
+              existingObservationId: priorObservation.id,
+            }),
+          ],
+        };
+      },
+    };
+
+    expect((await processImportSource(userId, stored.source.id, { provider })).status).toBe(
+      "completed",
+    );
+    const proposal = await prisma.importProposal.findFirstOrThrow({
+      where: { sourceId: stored.source.id },
+    });
+    expect(proposal).toMatchObject({
+      kind: "UPDATE",
+      observationId: priorObservation.id,
+      targetGoalId: chapter.id,
+    });
+
+    const appliedAt = new Date("2026-08-02T12:00:00.000Z");
+    const applied = await applyContextProposal(
+      userId,
+      stored.source.id,
+      proposal.id,
+      appliedAt,
+    );
+    expect(applied).toMatchObject({ status: "applied", chapterId: chapter.id });
+    const resultObservationId = applied.observationId;
+    expect(
+      await prisma.lifeObservation.findUniqueOrThrow({ where: { id: priorObservation.id } }),
+    ).toMatchObject({
+      status: "SUPERSEDED",
+      effectiveTo: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    expect(
+      await prisma.lifeObservation.findUniqueOrThrow({ where: { id: resultObservationId } }),
+    ).toMatchObject({
+      status: "ACTIVE",
+      canonicalText: newText,
+      supersedesObservationId: priorObservation.id,
+    });
+    expect(await prisma.goal.findUniqueOrThrow({ where: { id: chapter.id } })).toMatchObject({
+      background: `Five years of property experience.\n\n${newText}\n\nCeMAP completed.`,
+    });
+    expect(
+      await prisma.lifeObservation.findMany({
+        where: {
+          status: "ACTIVE",
+          chapters: { some: { goalId: chapter.id } },
+        },
+      }),
+    ).toHaveLength(1);
+    expect(
+      await prisma.importProposalApplication.findUniqueOrThrow({
+        where: { proposalId: proposal.id },
+      }),
+    ).toMatchObject({
+      targetObservationId: priorObservation.id,
+      resultObservationId,
+      priorTargetStatus: "ACTIVE",
+      priorTargetEffectiveTo: null,
+    });
+
+    expect(
+      await undoContextProposalApplication(
+        userId,
+        stored.source.id,
+        proposal.id,
+        new Date("2026-08-02T12:01:00.000Z"),
+      ),
+    ).toMatchObject({ status: "undone", sourceState: "AWAITING_REVIEW" });
+    expect(
+      await prisma.lifeObservation.findUniqueOrThrow({ where: { id: priorObservation.id } }),
+    ).toMatchObject({ status: "ACTIVE", effectiveTo: null });
+    expect(
+      await prisma.lifeObservation.findUniqueOrThrow({ where: { id: resultObservationId } }),
+    ).toMatchObject({ status: "DISMISSED" });
+    expect(await prisma.goal.findUniqueOrThrow({ where: { id: chapter.id } })).toMatchObject({
+      background: `Five years of property experience.\n\n${oldText}\n\nCeMAP completed.`,
+    });
+    expect(await prisma.importProposal.findUniqueOrThrow({ where: { id: proposal.id } })).toMatchObject({
+      status: "PENDING",
+      observationId: priorObservation.id,
+    });
+
+    expect(
+      await applyContextProposal(
+        userId,
+        stored.source.id,
+        proposal.id,
+        new Date("2026-08-02T12:02:00.000Z"),
+      ),
+    ).toMatchObject({ status: "applied", observationId: resultObservationId });
+    expect(
+      await prisma.lifeObservation.findUniqueOrThrow({ where: { id: priorObservation.id } }),
+    ).toMatchObject({ status: "SUPERSEDED" });
+    expect(
+      await prisma.lifeObservation.findUniqueOrThrow({ where: { id: resultObservationId } }),
+    ).toMatchObject({ status: "ACTIVE" });
+    expect(await prisma.lifeObservation.count({ where: { userId } })).toBe(2);
+    expect(await prisma.importProposalApplication.count({ where: { proposalId: proposal.id } })).toBe(
+      1,
+    );
   }, 15_000);
 
   it("preserves an explored possibility and targets it when the user later rejects it", async () => {

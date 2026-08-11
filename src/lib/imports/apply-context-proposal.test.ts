@@ -1,18 +1,24 @@
 import {
+  ImportProposalKind,
   ImportProposalStatus,
   LifeMemoryDestination,
+  LifeObservationStatus,
 } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
   appendConfirmedContext,
   planContextProposalApplication,
+  replaceConfirmedContext,
 } from "./apply-context-proposal";
 
 const BASE = {
   status: ImportProposalStatus.PENDING,
+  kind: ImportProposalKind.NEW_OBSERVATION,
   memoryDestination: LifeMemoryDestination.BACKGROUND,
   evidenceCount: 1,
   hasActiveChapterTarget: false,
+  targetGoalId: null,
+  targetObservation: null,
 };
 
 describe("context proposal application policy", () => {
@@ -26,6 +32,7 @@ describe("context proposal application policy", () => {
         ...BASE,
         memoryDestination: LifeMemoryDestination.CHAPTER,
         hasActiveChapterTarget: true,
+        targetGoalId: "chapter-1",
       }),
     ).toEqual({ action: "update_chapter" });
 
@@ -35,6 +42,49 @@ describe("context proposal application policy", () => {
         memoryDestination: LifeMemoryDestination.CHAPTER,
       }),
     ).toThrowError(expect.objectContaining({ code: "MISSING_TARGET" }));
+  });
+
+  it("only replaces an explicitly targeted active observation in the same chapter", () => {
+    expect(
+      planContextProposalApplication({
+        ...BASE,
+        kind: ImportProposalKind.UPDATE,
+        memoryDestination: LifeMemoryDestination.CHAPTER,
+        hasActiveChapterTarget: true,
+        targetGoalId: "chapter-1",
+        targetObservation: {
+          status: LifeObservationStatus.ACTIVE,
+          memoryDestination: LifeMemoryDestination.CHAPTER,
+          chapterIds: ["chapter-1"],
+        },
+      }),
+    ).toEqual({ action: "update_chapter" });
+
+    expect(() =>
+      planContextProposalApplication({
+        ...BASE,
+        kind: ImportProposalKind.UPDATE,
+        memoryDestination: LifeMemoryDestination.CHAPTER,
+        hasActiveChapterTarget: true,
+        targetGoalId: "chapter-1",
+        targetObservation: null,
+      }),
+    ).toThrowError(expect.objectContaining({ code: "MISSING_TARGET" }));
+
+    expect(() =>
+      planContextProposalApplication({
+        ...BASE,
+        kind: ImportProposalKind.UPDATE,
+        memoryDestination: LifeMemoryDestination.CHAPTER,
+        hasActiveChapterTarget: true,
+        targetGoalId: "chapter-1",
+        targetObservation: {
+          status: LifeObservationStatus.ACTIVE,
+          memoryDestination: LifeMemoryDestination.CHAPTER,
+          chapterIds: ["chapter-1", "chapter-2"],
+        },
+      }),
+    ).toThrowError(expect.objectContaining({ code: "STALE_TARGET" }));
   });
 
   it.each([
@@ -58,5 +108,25 @@ describe("context proposal application policy", () => {
         "returning to london on 16 august 2026.",
       ),
     ).toBe("Career context.\n\nReturning to London on 16 August 2026.");
+  });
+
+  it("replaces only the exact prior paragraph and preserves unrelated context", () => {
+    expect(
+      replaceConfirmedContext(
+        "Five years of property experience.\r\n\r\nSeeking a first mortgage adviser role.\r\n\r\nCeMAP completed.",
+        "seeking a FIRST mortgage adviser role.",
+        "Accepted a first mortgage adviser role; probation is now the immediate plan.",
+      ),
+    ).toBe(
+      "Five years of property experience.\n\nAccepted a first mortgage adviser role; probation is now the immediate plan.\n\nCeMAP completed.",
+    );
+
+    expect(
+      replaceConfirmedContext(
+        "Five years of property experience.\n\nStill exploring adviser roles.",
+        "Seeking a first mortgage adviser role.",
+        "Accepted a first mortgage adviser role.",
+      ),
+    ).toBeNull();
   });
 });

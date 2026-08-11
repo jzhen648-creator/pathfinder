@@ -57,6 +57,7 @@ model User {
   chapterRevisions          ChapterRevision[]
   interpretationCorrections InterpretationCorrection[]
   livingTreeGroups          LivingTreeGroup[]
+  atlasPlacements           AtlasPlacement[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -526,6 +527,7 @@ model Goal {
   relatedImportProposals ImportProposal[]          @relation("ProposalRelatedGoal")
   chapterRevisions       ChapterRevision[]
   livingTreeMembership   LivingTreeGroupMembership?
+  atlasPlacement         AtlasPlacement?
 
   @@index([parentGoalId])
   @@index([createdFromGoalId])
@@ -533,6 +535,7 @@ model Goal {
   @@index([themeId])
   @@index([archived])
   @@index([categoryId, sequencePosition])
+  @@unique([id, userId])
 }
 
 /// Append-only pursuit context log — source of truth for user-stated context.
@@ -1022,6 +1025,26 @@ model LivingTreeGroupMembership {
   confirmedAt DateTime        @default(now())
 
   @@index([groupId])
+}
+
+/// Stable, non-semantic placement of one Chapter on the Personal Atlas.
+/// Slot geography never encodes theme, status, importance, time or relationship.
+/// Hiding a Chapter keeps this row so restore returns it to the same position.
+model AtlasPlacement {
+  goalId    String   @id
+  userId    String
+  goal      Goal     @relation(fields: [goalId, userId], references: [id, userId], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot      Int
+  hiddenAt  DateTime?
+  focusedAt DateTime?
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, slot])
+  @@unique([goalId, userId])
+  @@index([userId, hiddenAt])
 }
 
 /// Projection-side record of what one applied proposal did to the tree, so Undo
