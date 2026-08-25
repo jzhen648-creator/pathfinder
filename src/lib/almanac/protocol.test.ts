@@ -6,6 +6,37 @@ import {
 } from "@/lib/almanac/protocol";
 
 describe("ALMANAC/1 persisted parser", () => {
+  it("accepts snapshot-assisted result metadata without counting it as an Update", () => {
+    const parsed = parseAlmanacPacket(
+      "ALMANAC/1\nscope: chat\ncoverage: searched\nresult: changes\nStudio | NOW | Tools are ready.",
+    );
+    expect(parsed.result).toBe("changes");
+    expect(parsed.updates[0]?.lineNumber).toBe(5);
+    expect(parsed.fatalErrors).toEqual([]);
+  });
+
+  it("accepts explicit no_changes and needs_source outcomes", () => {
+    expect(
+      parseAlmanacPacket("ALMANAC/1\nscope: chat\ncoverage: searched\nresult: no_changes")
+        .fatalErrors,
+    ).toEqual([]);
+    expect(
+      parseAlmanacPacket("ALMANAC/1\nscope: chat\ncoverage: unavailable\nresult: needs_source")
+        .fatalErrors,
+    ).toEqual([]);
+  });
+
+  it("rejects inconsistent result metadata", () => {
+    expect(
+      parseAlmanacPacket("ALMANAC/1\nscope: chat\ncoverage: searched\nresult: changes")
+        .fatalErrors[0]?.code,
+    ).toBe("result_updates_mismatch");
+    expect(
+      parseAlmanacPacket("ALMANAC/1\nscope: chat\ncoverage: searched\nresult: needs_source")
+        .fatalErrors[0]?.code,
+    ).toBe("needs_source_coverage_mismatch");
+  });
+
   it.each([
     ["chat", 5],
     ["project", 10],
@@ -47,6 +78,30 @@ describe("ALMANAC/1 persisted parser", () => {
     expect(parseAlmanacPacket(`ALMANAC/1\nscope: chat\n${body}`).fatalErrors[0]?.code).toBe(
       "excess_updates",
     );
+  });
+
+  it("accepts honest history coverage without counting it as an Update", () => {
+    const parsed = parseAlmanacPacket(
+      "ALMANAC/1\nscope: chat\ncoverage: partial\nStudio | NOW | Tools are ready.",
+    );
+    expect(parsed.coverage).toBe("partial");
+    expect(parsed.updateLineCount).toBe(1);
+    expect(parsed.updates[0]?.lineNumber).toBe(4);
+    expect(parsed.fatalErrors).toEqual([]);
+  });
+
+  it("rejects Updates when the provider reports unavailable history", () => {
+    const parsed = parseAlmanacPacket(
+      "ALMANAC/1\nscope: chat\ncoverage: unavailable\nStudio | NOW | Tools are ready.",
+    );
+    expect(parsed.fatalErrors[0]?.code).toBe("unavailable_coverage_with_updates");
+  });
+
+  it("keeps older packets without coverage compatible", () => {
+    const parsed = parseAlmanacPacket("ALMANAC/1\nscope: chat\nStudio | NOW | Tools are ready.");
+    expect(parsed.coverage).toBeNull();
+    expect(parsed.result).toBeNull();
+    expect(parsed.fatalErrors).toEqual([]);
   });
 
   it.each([

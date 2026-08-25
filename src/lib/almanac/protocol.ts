@@ -1,9 +1,13 @@
 export const ALMANAC_PROTOCOL_VERSION = "ALMANAC/1";
 export const ALMANAC_IMPORT_SCOPES = ["chat", "project", "bootstrap"] as const;
 export const ALMANAC_UPDATE_STATES = ["NOW", "DONE", "NEXT", "OPEN"] as const;
+export const ALMANAC_HISTORY_COVERAGE = ["searched", "partial", "unavailable"] as const;
+export const ALMANAC_TRANSFER_RESULTS = ["changes", "no_changes", "needs_source"] as const;
 
 export type AlmanacImportScopeValue = (typeof ALMANAC_IMPORT_SCOPES)[number];
 export type AlmanacUpdateStateValue = (typeof ALMANAC_UPDATE_STATES)[number];
+export type AlmanacHistoryCoverageValue = (typeof ALMANAC_HISTORY_COVERAGE)[number];
+export type AlmanacTransferResultValue = (typeof ALMANAC_TRANSFER_RESULTS)[number];
 
 export const ALMANAC_UPDATE_LIMITS: Readonly<Record<AlmanacImportScopeValue, number>> = {
   chat: 5,
@@ -18,6 +22,11 @@ export const ALMANAC_UPDATE_TEXT_MAX_LENGTH = 500;
 export type AlmanacPacketErrorCode =
   | "invalid_header"
   | "invalid_scope"
+  | "invalid_coverage"
+  | "invalid_result"
+  | "result_updates_mismatch"
+  | "needs_source_coverage_mismatch"
+  | "unavailable_coverage_with_updates"
   | "excess_updates"
   | "invalid_delimiters"
   | "missing_place"
@@ -44,6 +53,8 @@ export type AlmanacParsedUpdate = {
 export type AlmanacParsedPacket = {
   rawPacket: string;
   scope: AlmanacImportScopeValue | null;
+  coverage: AlmanacHistoryCoverageValue | null;
+  result: AlmanacTransferResultValue | null;
   updateLineCount: number;
   updates: AlmanacParsedUpdate[];
   invalidLines: AlmanacPacketError[];
@@ -71,6 +82,14 @@ function isScope(value: string): value is AlmanacImportScopeValue {
 
 function isState(value: string): value is AlmanacUpdateStateValue {
   return (ALMANAC_UPDATE_STATES as readonly string[]).includes(value);
+}
+
+function isCoverage(value: string): value is AlmanacHistoryCoverageValue {
+  return (ALMANAC_HISTORY_COVERAGE as readonly string[]).includes(value);
+}
+
+function isTransferResult(value: string): value is AlmanacTransferResultValue {
+  return (ALMANAC_TRANSFER_RESULTS as readonly string[]).includes(value);
 }
 
 function issue(
@@ -120,7 +139,42 @@ export function parseAlmanacPacket(rawPacket: string): AlmanacParsedPacket {
     );
   }
 
-  const body = nonBlank.slice(2);
+  const possibleCoverageLine = nonBlank[2];
+  const hasCoverageLine = possibleCoverageLine?.text.startsWith("coverage:") ?? false;
+  const coverageValue = hasCoverageLine
+    ? possibleCoverageLine!.text.slice("coverage:".length).trim()
+    : "";
+  const coverage = isCoverage(coverageValue) ? coverageValue : null;
+  if (hasCoverageLine && !coverage) {
+    fatalErrors.push(
+      issue(
+        "invalid_coverage",
+        possibleCoverageLine!.lineNumber,
+        possibleCoverageLine!.raw,
+        "Coverage must be searched, partial or unavailable.",
+      ),
+    );
+  }
+
+  const possibleResultLine = nonBlank[hasCoverageLine ? 3 : 2];
+  const hasResultLine = possibleResultLine?.text.startsWith("result:") ?? false;
+  const resultValue = hasResultLine
+    ? possibleResultLine!.text.slice("result:".length).trim()
+    : "";
+  const result = isTransferResult(resultValue) ? resultValue : null;
+  if (hasResultLine && !result) {
+    fatalErrors.push(
+      issue(
+        "invalid_result",
+        possibleResultLine!.lineNumber,
+        possibleResultLine!.raw,
+        "Result must be changes, no_changes or needs_source.",
+      ),
+    );
+  }
+
+  const bodyStart = 2 + (hasCoverageLine ? 1 : 0) + (hasResultLine ? 1 : 0);
+  const body = nonBlank.slice(bodyStart);
   if (scope && body.length > ALMANAC_UPDATE_LIMITS[scope]) {
     fatalErrors.push(
       issue(
@@ -196,9 +250,53 @@ export function parseAlmanacPacket(rawPacket: string): AlmanacParsedPacket {
     updates.push({ lineNumber: line.lineNumber, raw: line.raw, placeName, state: stateValue, statement });
   }
 
+  if (coverage === "unavailable" && updates.length > 0) {
+    fatalErrors.push(
+      issue(
+        "unavailable_coverage_with_updates",
+        possibleCoverageLine!.lineNumber,
+        possibleCoverageLine!.raw,
+        "The response says past-chat access was unavailable, so it must not include Updates.",
+      ),
+    );
+  }
+
+  if (result === "changes" && updates.length === 0 && invalidLines.length === 0) {
+    fatalErrors.push(
+      issue(
+        "result_updates_mismatch",
+        possibleResultLine!.lineNumber,
+        possibleResultLine!.raw,
+        "The response says changes were found, but it contains no Update lines.",
+      ),
+    );
+  }
+  if ((result === "no_changes" || result === "needs_source") && body.length > 0) {
+    fatalErrors.push(
+      issue(
+        "result_updates_mismatch",
+        possibleResultLine!.lineNumber,
+        possibleResultLine!.raw,
+        `${result === "no_changes" ? "no_changes" : "needs_source"} responses must not include Update lines.`,
+      ),
+    );
+  }
+  if (result === "needs_source" && coverage !== "unavailable") {
+    fatalErrors.push(
+      issue(
+        "needs_source_coverage_mismatch",
+        possibleResultLine!.lineNumber,
+        possibleResultLine!.raw,
+        "needs_source requires coverage: unavailable.",
+      ),
+    );
+  }
+
   return {
     rawPacket,
     scope,
+    coverage,
+    result,
     updateLineCount: body.length,
     updates,
     invalidLines,

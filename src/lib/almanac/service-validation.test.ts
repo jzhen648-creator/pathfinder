@@ -59,4 +59,20 @@ describe("server-side Almanac decision validation", () => {
     });
     expect([...result.duplicateLines]).toEqual([5]);
   });
+
+  it("accepts snapshot-assisted metadata while preserving exact source line decisions", () => {
+    const comparedPacket = [
+      "ALMANAC/1",
+      "scope: chat",
+      "coverage: searched",
+      "result: changes",
+      "Studio | NOW | Weekly sessions are active.",
+    ].join("\n");
+    const result = validateAlmanacCommitRequest({
+      idempotencyKey: "client-import-003",
+      rawPacket: comparedPacket,
+      decisions: [{ lineNumber: 5, accepted: true }],
+    });
+    expect([...result.decisionByLine.keys()]).toEqual([5]);
+  });
 });
