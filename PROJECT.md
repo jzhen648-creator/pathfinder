@@ -1,5 +1,8 @@
 # Almanac Product Philosophy
 
+> **Historical Pathfinder positioning.** This document does not define the
+> current product. Use [`../docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md).
+
 ## What Almanac Is
 A life map. A save point for your story.
 The tool that lets you understand yourself

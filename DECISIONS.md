@@ -1,8 +1,10 @@
-# Decisions
+# Historical engineering decisions
 
-> **Product decisions (read-first):** [`PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) at workspace root — **wins** over rows in this file when they conflict.
->
-> **Active client:** `pathfinder-mobile/`. Desktop tree UI removed — see [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md).
+> These dated Pathfinder decisions explain legacy code; they do not define the
+> current product. Start with
+> [`../docs/current/README.md`](../docs/current/README.md). The longer historical
+> log is preserved at
+> [`../docs/history/PATHFINDER-DECISIONS-LOG.md`](../docs/history/PATHFINDER-DECISIONS-LOG.md).
 
 Short-lived engineering decisions and behavior notes. Prefer dates + one paragraph each.
 
@@ -60,13 +62,13 @@ Short-lived engineering decisions and behavior notes. Prefer dates + one paragra
 
 ## 2026-06-16 — Design slate open (major redesign)
 
-**FOUNDER:** All **design rulings** are **negotiable** for the upcoming major visual/product pass. Prior docs used “locked”, “frozen”, and “structural vs mood-lock” — **retired as governance**. Replace with three buckets in [`claude-project/PATHFINDER-CONTEXT.md`](../claude-project/PATHFINDER-CONTEXT.md) §7:
+**FOUNDER:** All **design rulings** are **negotiable** for the upcoming major visual/product pass. Prior docs used “locked”, “frozen”, and “structural vs mood-lock” — **retired as governance**. Historical detail: [`PATHFINDER-CONTEXT.md`](../docs/archive/v1-v2-claude-project-pack-2026-08/PATHFINDER-CONTEXT.md) §7.
 
 1. **Shipped snapshot** — what the build does today (for screenshot/code alignment; not law)
 2. **Exploration zone** — metaphor, materials, motion, typography, restraint, map chrome — **all open**
 3. **Retired patterns** — Profile tab, hub zoom, marks on canvas, etc. — don’t resurrect without deliberate choice
 
-Log accepted new direction in [`claude-project/PATHFINDER-PLAN.md`](../claude-project/PATHFINDER-PLAN.md) §13. [`pathfinder-mobile/DESIGN-BRIEF.md`](../pathfinder-mobile/DESIGN-BRIEF.md) reframed to match.
+The former accepted-direction log is archived in [`PATHFINDER-PLAN.md`](../docs/archive/v1-v2-claude-project-pack-2026-08/PATHFINDER-PLAN.md) §13. The associated mobile brief is archived at [`DESIGN-BRIEF.md`](../docs/archive/v2-living-tree/mobile/DESIGN-BRIEF.md).
 
 ## 2026-06-15 — Dirty reflect uses scoped map context; pace facts deferred
 

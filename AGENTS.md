@@ -1,3 +1,5 @@
+> **Workspace canon:** read [`docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md), [`docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md`](../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md) and the root [`AGENTS.md`](../AGENTS.md) first. The user-facing durable unit is **Subject**; persistence temporarily remains `AlmanacPlace`. Almanac is not an Atlas or map. No migration is authorised merely to rename compatibility fields.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -12,13 +14,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 **Product name:** **Almanac** (mobile display name). This repo deploys **Next.js `/api/*`** on Vercel for the Expo client in `pathfinder-mobile/`.
 
-**Workspace map** (workspace-external — these `../` files exist only in the full workspace checkout, not in this repo): [`../START-HERE.md`](../START-HERE.md) · **Git:** [`../GIT-WORKFLOW.md`](../GIT-WORKFLOW.md)
+**Workspace map** (workspace-external — these `../` files exist only in the full workspace checkout, not in this repo): [`../README.md`](../README.md) · **Git:** [`../GIT-WORKFLOW.md`](../GIT-WORKFLOW.md)
 
-**Read first** (workspace-external): [`../PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) · [`../PATHFINDER-CORRECTED-FACTS.md`](../PATHFINDER-CORRECTED-FACTS.md) · [`../PATHFINDER-QA-PLAN.md`](../PATHFINDER-QA-PLAN.md) — in-repo fallback: [`DECISIONS.md`](./DECISIONS.md)
+**Read first** (workspace-external):
+[`../docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md) ·
+[`../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md`](../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md) ·
+[`../docs/current/ALMANAC-MEMORY-INTEGRITY-SPEC.md`](../docs/current/ALMANAC-MEMORY-INTEGRITY-SPEC.md).
+Files in `docs/history/` and `docs/archive/` are evidence only, never current
+direction.
 
-**Mobile UI copy:** [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) (workspace-external) — user-facing **chapter**, not pursuit.
+**Mobile UI copy:** [`../pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) (workspace-external) — user-facing **Subject**, not Place/chapter/pursuit.
 
-**Persistence vocabulary:** [`GLOSSARY.md`](./GLOSSARY.md) · [`ONTOLOGY.md`](./ONTOLOGY.md)
+**Legacy persistence vocabulary:** [`GLOSSARY.md`](./GLOSSARY.md) ·
+[`ONTOLOGY.md`](./ONTOLOGY.md). Their Goal/Theme/Chapter ontology documents
+compatibility data only; it does not define current Almanac.
 
 **Desktop web UI:** **Removed** — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). `src/components/tree/` is deleted; do not recreate desktop map UI unless explicitly asked.
 
@@ -32,7 +41,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | Auth pages | `src/app/login/`, `src/app/reset-password/` |
 | Web landing | `src/components/MobileWebLanding.tsx` |
 
-## Domain words (API / persistence)
+## Legacy domain words (compatibility only)
+
+The table below documents V1 persistence that may still exist during removal.
+It is not current product vocabulary. The live new-core service is
+`src/lib/almanac/` and `src/app/api/almanac/`; its `Place`, `atlas` and `slot`
+names are compatibility wire/storage terms.
 
 | UI (Almanac mobile) | Persistence |
 |---------------------|-------------|
@@ -52,8 +66,8 @@ npx prisma migrate dev
 npm test
 ```
 
-**After taxonomy changes:** `npm run backfill:taxonomy` (see workspace `START-HERE.md`).
-
-**Reflect prompt deploy:** bump `REFLECT_PROMPT_VERSION` in `src/lib/insights/reflect-prompt-version.ts` when shipping material reflect/enrich prompt or post-gen gate changes (same commit).
+Legacy taxonomy and Reflect maintenance is not current Almanac work. Do not run
+old backfills or revive removed prompt-version paths unless the user explicitly
+requests V1 maintenance.
 
 **Deploy:** [`DEPLOY.md`](./DEPLOY.md)

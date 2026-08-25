@@ -4,7 +4,7 @@ This repo is **API-only** — Next.js `/api/*`, Prisma, domain + AI libs for the
 
 **Canonical agent rules:** [`AGENTS.md`](./AGENTS.md)
 
-**Read first:** [`../PATHFINDER-DECISIONS-LOG.md`](../PATHFINDER-DECISIONS-LOG.md) · [`../PATHFINDER-CORRECTED-FACTS.md`](../PATHFINDER-CORRECTED-FACTS.md)
+**Read first:** [`../docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md) · [`../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md`](../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md) · [`../docs/current/ALMANAC-MEMORY-INTEGRITY-SPEC.md`](../docs/current/ALMANAC-MEMORY-INTEGRITY-SPEC.md). History and archive files are evidence only.
 
 **Desktop web UI:** removed — see [`DESKTOP-ON-HOLD.md`](./DESKTOP-ON-HOLD.md). Do not extend retired tree/map UI.
 
@@ -12,4 +12,5 @@ This repo is **API-only** — Next.js `/api/*`, Prisma, domain + AI libs for the
 
 **Never touch without asking:** `prisma/schema.prisma`, NextAuth config, `src/app/api/auth/`
 
-**AI:** Gemini primary (`USE_REFLECT_CALL=true` in prod); keep AI calls in `/api` routes only.
+**AI:** legacy AI routes may remain, but the current persisted Almanac slice
+must not add an internal AI call. Any existing AI call stays server-side.

@@ -8,7 +8,7 @@ on:
       base_url:
         description: API base URL (preview or production)
         required: false
-        default: https://pathfinder-xi-rust.vercel.app
+        default: https://pathfinder-chi-roan.vercel.app
 
 jobs:
   smoke:
@@ -29,7 +29,7 @@ jobs:
 
       - name: Health check
         env:
-          SMOKE_BASE_URL: ${{ github.event.inputs.base_url || 'https://pathfinder-xi-rust.vercel.app' }}
+          SMOKE_BASE_URL: ${{ github.event.inputs.base_url || 'https://pathfinder-chi-roan.vercel.app' }}
         run: |
           url="${SMOKE_BASE_URL%/}/api/health"
           code=$(curl -sS -o /tmp/health.json -w "%{http_code}" "$url")
@@ -38,7 +38,7 @@ jobs:
 
       - name: Authenticated smoke test
         env:
-          SMOKE_BASE_URL: ${{ github.event.inputs.base_url || 'https://pathfinder-xi-rust.vercel.app' }}
+          SMOKE_BASE_URL: ${{ github.event.inputs.base_url || 'https://pathfinder-chi-roan.vercel.app' }}
           SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
           SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         run: npm run smoke-test

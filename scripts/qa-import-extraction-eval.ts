@@ -7,6 +7,12 @@ import { config as loadEnv } from "dotenv";
 
 loadEnv({ path: path.resolve(process.cwd(), ".env.local"), override: true });
 delete process.env.AI_FAKE_PROVIDER;
+const requestedProvider = process.argv
+  .find((argument) => argument.startsWith("--provider="))
+  ?.slice("--provider=".length)
+  .trim()
+  .toLocaleLowerCase();
+if (requestedProvider) process.env.AI_PROVIDER = requestedProvider;
 
 type Candidate = import("../src/lib/imports/extraction-contract").ImportExtractionCandidate;
 type Fixture = import("../src/lib/imports/qa-import-extraction-fixtures").ImportExtractionQaFixture;
@@ -64,6 +70,12 @@ function fieldChecks(
   }
   if (expectation.targetGoalId) {
     checks.push({ label: "targetGoal", pass: candidate.targetGoalIds.includes(expectation.targetGoalId) });
+  }
+  if (expectation.existingObservationId) {
+    checks.push({
+      label: "existingObservation",
+      pass: candidate.existingObservationId === expectation.existingObservationId,
+    });
   }
   return checks;
 }
@@ -162,9 +174,16 @@ async function evaluateFixture(fixture: Fixture) {
         })),
       );
     } catch (error) {
+      const issueSuffix =
+        error instanceof contractModule.ImportProviderOutputError && error.issuePaths.length > 0
+          ? ` (${error.issuePaths.join(", ")})`
+          : "";
       contractErrors.push({
         segment: segment.position,
-        message: error instanceof Error ? `${error.name}: ${error.message}` : "Unknown provider error",
+        message:
+          error instanceof Error
+            ? `${error.name}: ${error.message}${issueSuffix}`
+            : "Unknown provider error",
       });
     }
   }
@@ -206,7 +225,9 @@ async function evaluateFixture(fixture: Fixture) {
     ...candidate,
     evidence: candidate.evidence.map((evidence) => ({ ...evidence, segmentId: candidate.segmentId })),
   }));
-  const partition = reconciliationModule.partitionProposalCandidates(reconcilable);
+  const partition = reconciliationModule.partitionProposalCandidates(reconcilable, undefined, {
+    isFirstImport: fixture.context.goals.length === 0 && fixture.context.observations.length === 0,
+  });
   const matched = expectationResults.filter((result) => result.match).length;
   const checks = expectationResults.flatMap((result) => result.checks);
   const passedChecks = checks.filter((check) => check.pass).length;

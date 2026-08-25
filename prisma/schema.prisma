@@ -58,6 +58,9 @@ model User {
   interpretationCorrections InterpretationCorrection[]
   livingTreeGroups          LivingTreeGroup[]
   atlasPlacements           AtlasPlacement[]
+  almanacImports            AlmanacImport[]
+  almanacPlaces             AlmanacPlace[]
+  almanacUpdates            AlmanacUpdate[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -147,6 +150,19 @@ enum ImportCaptureDisposition {
   PRIMARY
   DUPLICATE_IGNORED
   DUPLICATE_RETAINED
+}
+
+enum AlmanacImportScope {
+  CHAT
+  PROJECT
+  BOOTSTRAP
+}
+
+enum AlmanacUpdateState {
+  NOW
+  NEXT
+  OPEN
+  DONE
 }
 
 enum ImportSourceState {
@@ -456,7 +472,7 @@ model AiReadingDirtyItem {
 }
 
 model Goal {
-  id                     String                    @id @default(cuid())
+  id                     String                     @id @default(cuid())
   title                  String
   /// AI-generated compact label for map canvas SVG only (never panel/roadmap/timeline).
   shortLabel             String?
@@ -464,11 +480,11 @@ model Goal {
   iconName               String?
   description            String
   /// User-authored background prose — AI reads, never writes. Physical column rename deferred post-TestFlight.
-  background             String?                   @map("rationale")
+  background             String?                    @map("rationale")
   /// Structured clarifier answers from pursuit enrich ({ clarifierId, prompt, selectedOption }[]).
   enrichAnswers          Json?
-  lifeArea               String                    @default("Other")
-  goalType               String                    @default("action")
+  lifeArea               String                     @default("Other")
+  goalType               String                     @default("action")
   targetAmount           Float?
   currentAmount          Float?
   unit                   String?
@@ -477,19 +493,19 @@ model Goal {
   deadline               DateTime?
   /// Swimlane / timeline span start; when null the UI uses {@link createdAt}.
   timelineStart          DateTime?
-  aiGenerated            Boolean                   @default(true)
-  archived               Boolean                   @default(false)
-  status                 PursuitStatus             @default(ACTIVE)
+  aiGenerated            Boolean                    @default(true)
+  archived               Boolean                    @default(false)
+  status                 PursuitStatus              @default(ACTIVE)
   completedAt            DateTime?
   endedAt                DateTime?
   endReason              String?
   parentGoalId           String?
-  parentGoal             Goal?                     @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
-  forkedGoals            Goal[]                    @relation("GoalFork")
+  parentGoal             Goal?                      @relation("GoalFork", fields: [parentGoalId], references: [id], onDelete: SetNull)
+  forkedGoals            Goal[]                     @relation("GoalFork")
   createdFromGoalId      String?
-  createdFromGoal        Goal?                     @relation("SuggestAddProvenance", fields: [createdFromGoalId], references: [id], onDelete: SetNull)
-  suggestedGoals         Goal[]                    @relation("SuggestAddProvenance")
-  year                   Int                       @default(2026)
+  createdFromGoal        Goal?                      @relation("SuggestAddProvenance", fields: [createdFromGoalId], references: [id], onDelete: SetNull)
+  suggestedGoals         Goal[]                     @relation("SuggestAddProvenance")
+  year                   Int                        @default(2026)
   month                  Int?
   /// Explicit linear order along the parent category line (mobile reorganize fallback).
   sequencePosition       Float?
@@ -499,8 +515,8 @@ model Goal {
   mapGridR               Int?
   /// User-set importance 1–3; null = unset (map renders neutral size).
   significance           Int?
-  future                 Boolean                   @default(false)
-  isTurningPoint         Boolean                   @default(false)
+  future                 Boolean                    @default(false)
+  isTurningPoint         Boolean                    @default(false)
   location               String?
   timelineNote           String?
   subtype                String?
@@ -511,31 +527,31 @@ model Goal {
   /// Short statement of what matters now within this chapter (≤140 chars in API).
   currentFocus           String?
   themeId                String?
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
   userId                 String
-  user                   User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                   User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId             String?
-  themeCategory          ThemeCategory?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  themeCategory          ThemeCategory?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   milestones             Milestone[]
   contextEntries         PursuitContextEntry[]
-  relationshipsAsA       PursuitRelationship[]     @relation("RelationshipGoalA")
-  relationshipsAsB       PursuitRelationship[]     @relation("RelationshipGoalB")
+  relationshipsAsA       PursuitRelationship[]      @relation("RelationshipGoalA")
+  relationshipsAsB       PursuitRelationship[]      @relation("RelationshipGoalB")
   statusTransitions      PursuitStatusTransition[]
   observations           ChapterObservation[]
-  importProposals        ImportProposal[]          @relation("ProposalTargetGoal")
-  relatedImportProposals ImportProposal[]          @relation("ProposalRelatedGoal")
+  importProposals        ImportProposal[]           @relation("ProposalTargetGoal")
+  relatedImportProposals ImportProposal[]           @relation("ProposalRelatedGoal")
   chapterRevisions       ChapterRevision[]
   livingTreeMembership   LivingTreeGroupMembership?
   atlasPlacement         AtlasPlacement?
 
+  @@unique([id, userId])
   @@index([parentGoalId])
   @@index([createdFromGoalId])
   @@index([categoryId])
   @@index([themeId])
   @@index([archived])
   @@index([categoryId, sequencePosition])
-  @@unique([id, userId])
 }
 
 /// Append-only pursuit context log — source of truth for user-stated context.
@@ -816,18 +832,18 @@ model ImportProposal {
 /// Reversible, user-confirmed application of one proposal. The result remains
 /// inspectable after undo; undo changes observation status instead of erasing history.
 model ImportProposalApplication {
-  id                     String                 @id @default(cuid())
+  id                     String                       @id @default(cuid())
   userId                 String
-  user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  proposalId             String                 @unique
-  proposal               ImportProposal         @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user                   User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposalId             String                       @unique
+  proposal               ImportProposal               @relation(fields: [proposalId], references: [id], onDelete: Cascade)
   targetObservationId    String?
-  targetObservation      LifeObservation?       @relation("ApplicationTargetObservation", fields: [targetObservationId], references: [id], onDelete: SetNull)
-  resultObservationId    String?                @unique
-  resultObservation      LifeObservation?       @relation("ApplicationResultObservation", fields: [resultObservationId], references: [id], onDelete: SetNull)
+  targetObservation      LifeObservation?             @relation("ApplicationTargetObservation", fields: [targetObservationId], references: [id], onDelete: SetNull)
+  resultObservationId    String?                      @unique
+  resultObservation      LifeObservation?             @relation("ApplicationResultObservation", fields: [resultObservationId], references: [id], onDelete: SetNull)
   priorTargetStatus      LifeObservationStatus?
   priorTargetEffectiveTo DateTime?
-  appliedAt              DateTime               @default(now())
+  appliedAt              DateTime                     @default(now())
   revertedAt             DateTime?
   livingTreeEffect       LivingTreeApplicationEffect?
 
@@ -986,21 +1002,21 @@ enum LivingTreeGroupOrigin {
 /// Slot range, archive/slot exclusivity and one-group-per-visible-slot are
 /// enforced by database constraints declared in the migration, not by Prisma.
 model LivingTreeGroup {
-  id          String                @id @default(cuid())
-  userId      String
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String                @id @default(cuid())
+  userId     String
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// User-confirmed and editable. AI may propose it; only confirmation stores it.
-  name        String
+  name       String
   /// 1..5 while visible on the tree. Null means All chapters, or archived.
-  slot        Int?
+  slot       Int?
   /// Slot held at archive time so Undo can restore the same position.
-  lastSlot    Int?
-  archivedAt  DateTime?
+  lastSlot   Int?
+  archivedAt DateTime?
   /// Per-group optimistic concurrency. Bumped on every write to this group.
-  version     Int                   @default(1)
-  origin      LivingTreeGroupOrigin
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  version    Int                   @default(1)
+  origin     LivingTreeGroupOrigin
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
 
   memberships       LivingTreeGroupMembership[]
   effectsAsGroup    LivingTreeApplicationEffect[] @relation("EffectGroup")
@@ -1031,20 +1047,83 @@ model LivingTreeGroupMembership {
 /// Slot geography never encodes theme, status, importance, time or relationship.
 /// Hiding a Chapter keeps this row so restore returns it to the same position.
 model AtlasPlacement {
-  goalId    String   @id
+  goalId    String    @id
   userId    String
-  goal      Goal     @relation(fields: [goalId, userId], references: [id, userId], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      Goal      @relation(fields: [goalId, userId], references: [id, userId], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   slot      Int
   hiddenAt  DateTime?
   focusedAt DateTime?
-  version   Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([userId, slot])
   @@unique([goalId, userId])
   @@index([userId, hiddenAt])
+}
+
+/// Immutable provenance for one user-reviewed ALMANAC/1 packet. Only undoneAt
+/// may change after commit; the database migration enforces that boundary.
+model AlmanacImport {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey  String
+  protocolVersion String             @default("ALMANAC/1")
+  scope           AlmanacImportScope
+  rawPacket       String
+  receipt         Json
+  createdAt       DateTime           @default(now())
+  undoneAt        DateTime?
+  updates         AlmanacUpdate[]
+
+  @@unique([userId, idempotencyKey])
+  @@unique([id, userId])
+  @@index([userId, createdAt])
+}
+
+/// Stable, non-semantic subject on the Almanac Atlas. A Place row and slot are
+/// retained when every attached Import is undone so later reuse does not move it.
+model AlmanacPlace {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  normalisedName String
+  slot           Int
+  createdAt      DateTime        @default(now())
+  updates        AlmanacUpdate[]
+
+  @@unique([userId, normalisedName])
+  @@unique([userId, slot])
+  @@unique([id, userId])
+}
+
+/// One accepted ALMANAC/1 line. Updates are append-only; a newer row may point
+/// to the older row it explicitly supersedes without rewriting either history.
+model AlmanacUpdate {
+  id                    String             @id @default(cuid())
+  userId                String
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importId              String
+  import                AlmanacImport      @relation(fields: [importId, userId], references: [id, userId], onDelete: Cascade)
+  placeId               String
+  place                 AlmanacPlace       @relation(fields: [placeId, userId], references: [id, userId], onDelete: Cascade)
+  state                 AlmanacUpdateState
+  text                  String
+  normalisedFingerprint String
+  sourceLineNumber      Int
+  supersedesUpdateId    String?
+  supersedesUpdate      AlmanacUpdate?     @relation("AlmanacUpdateSupersession", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
+  supersededBy          AlmanacUpdate[]    @relation("AlmanacUpdateSupersession")
+  createdAt             DateTime           @default(now())
+
+  @@unique([importId, sourceLineNumber])
+  @@unique([id, userId])
+  @@index([userId, placeId, state, createdAt])
+  @@index([userId, importId])
+  @@index([userId, supersedesUpdateId])
 }
 
 /// Projection-side record of what one applied proposal did to the tree, so Undo

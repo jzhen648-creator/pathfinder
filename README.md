@@ -1,4 +1,9 @@
-> **API backend for Almanac.** Active app: `pathfinder-mobile/`. Desktop tree UI on hold — [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md). Workspace map: [../START-HERE.md](../START-HERE.md).
+> **API backend for Almanac.** The active product is the Expo app in
+> `../pathfinder-mobile/`. The desktop product UI is removed; this repository
+> provides Next.js API routes, Prisma, authentication and domain services.
+> Current product authority: [canon](../docs/current/ALMANAC-PRODUCT-CANON.md),
+> [Subject History experience](../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md)
+> and [memory integrity](../docs/current/ALMANAC-MEMORY-INTEGRITY-SPEC.md).
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
@@ -18,9 +23,16 @@ bun dev
 
 Open [http://localhost:3001](http://localhost:3001) with your browser to see the result (dev server uses port 3001 by default; port 3000 is often taken on Windows).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+API routes live under `src/app/api/`. The small web landing lives in
+`src/components/MobileWebLanding.tsx`; do not rebuild the removed desktop
+product UI.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+The separate Expo web dogfood at
+`https://almanac-mobile-dogfood.vercel.app/almanac` proxies `/api/*` to this
+service for browser QA. It is not hosted by this backend project and is not a
+desktop product or TestFlight release candidate.
 
 ## Learn More
 
@@ -37,19 +49,23 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Project brief & docs
+## Project docs
 
 | Doc | Purpose |
 |-----|---------|
-| [BRIEF.md](./BRIEF.md) | Short product summary (start here) |
-| [GLOSSARY.md](./GLOSSARY.md) / [ONTOLOGY.md](./ONTOLOGY.md) | Terms and entity relationships |
+| [Current product canon](../docs/current/ALMANAC-PRODUCT-CANON.md) | Product direction — start here |
+| [Subject History experience](../docs/current/ALMANAC-SUBJECT-HISTORY-EXPERIENCE.md) | Current mobile interaction |
+| [Memory integrity](../docs/current/ALMANAC-MEMORY-INTEGRITY-SPEC.md) | Ownership, provenance, supersession and undo |
+| [GLOSSARY.md](./GLOSSARY.md) / [ONTOLOGY.md](./ONTOLOGY.md) | Legacy persistence vocabulary only |
 | [CHANGELOG.md](./CHANGELOG.md) | Dated ship log |
-| [DECISIONS.md](./DECISIONS.md) | Why we built it this way |
+| [DECISIONS.md](./DECISIONS.md) | Historical backend decisions; not current product authority |
 | [docs/STABILIZATION.md](./docs/STABILIZATION.md) | Dogfood QA checklist |
-| [docs/current-focus.md](./docs/current-focus.md) | What to work on now (mobile-first) |
-| *(removed)* | Historical desktop/tree notes — deleted Jul 2026 |
+| [DESKTOP-ON-HOLD.md](./DESKTOP-ON-HOLD.md) | Record of the removed desktop UI |
 
-## Product philosophy
-See [PROJECT.md](./PROJECT.md) for the full vision,
-philosophical foundation and product
-principles that guide every decision.
+## Product boundary
+
+The current canonical model remains `Import + Place + Update`, presented to
+people as immutable original responses, **Subjects** and accepted **Updates**.
+`Place`, `atlas` and `slot` are temporary persistence/wire names. Do not use
+this backend's Goal/Theme/Chapter tables to define the new interface, and do
+not add an internal AI call to the first persisted Subject History slice.

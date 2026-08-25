@@ -1,5 +1,10 @@
 # Almanac prompt philosophy
 
+> **Legacy AI prompt reference.** Reflect, Story, pursuit and similar pipelines
+> are not current Almanac product architecture. Use
+> [`../docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md)
+> and inspect the active `src/lib/almanac/` implementation before changing prompts.
+
 This document governs every AI-generated string shown to users in Almanac. When writing or revising a system prompt, start here. If output could appear in someone else's app, it fails.
 
 **Implementation map** (where prompts live today — updated 2026-07-13; Stream/Story/memory prompt modules were removed with the desktop retirement):

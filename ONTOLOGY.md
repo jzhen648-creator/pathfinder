@@ -1,5 +1,9 @@
 # Almanac ontology
 
+> **Historical Pathfinder ontology.** Goal, Theme and Map relationships below do
+> not define the current product. Use
+> [`../docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md).
+
 Canonical relationships between persisted entities and derived UI concepts. Naming: [`GLOSSARY.md`](./GLOSSARY.md) (persistence) · [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) (UI copy).
 
 ## Product surfaces (mobile, 2026-06)

@@ -1,40 +1,29 @@
-# Almanac docs index
+# Backend documentation index
 
-> **Desktop/web UI is paused.** The active client is **`pathfinder-mobile/`**.  
-> Workspace map: [../../START-HERE.md](../../START-HERE.md)
+> Most files in this directory describe retired Pathfinder, Map, Insights,
+> Story, Stream or Living Tree systems. They are implementation history, not
+> current Almanac product direction.
 
-**Engineering history:** [`../CHANGELOG.md`](../CHANGELOG.md), [`../DECISIONS.md`](../DECISIONS.md).  
-**Frozen desktop UI:** [`../DESKTOP-ON-HOLD.md`](../DESKTOP-ON-HOLD.md).
+Start with the workspace authority index:
+[`../../docs/current/README.md`](../../docs/current/README.md).
 
-## Active docs
+## Current backend authority
 
-| Doc | Use for |
-|-----|---------|
-| [`../GLOSSARY.md`](../GLOSSARY.md) / [`../ONTOLOGY.md`](../ONTOLOGY.md) | Terms and code↔product mapping |
-| [`../AGENTS.md`](../AGENTS.md) | Agent rules (domain language; API + legacy tree notes) |
-| [`current-focus.md`](./current-focus.md) | What to work on now (mobile-first) |
-| [`STREAM.md`](./STREAM.md) | Stream feature spec (extract, confirm, ambiguous) |
-| [`../../PATHFINDER-ARCHITECTURE.md`](../../PATHFINDER-ARCHITECTURE.md) | **Mobile-first** system architecture (Claude audit) |
-| [`architecture.md`](./architecture.md) | **Superseded** — desktop tree era; see PATHFINDER-ARCHITECTURE |
-| [`STABILIZATION.md`](./STABILIZATION.md) | QA checklist (shared backend behaviors) |
-| [`BACKLOG.md`](./BACKLOG.md) | Deferred backend / desktop ideas |
-| [`READING-COMPILER.md`](./READING-COMPILER.md) | Deterministic facts before Gemini (story delta + enrich) |
-| [`INSIGHT-ROADMAP-PLAN.md`](./INSIGHT-ROADMAP-PLAN.md) | V2 sequencing + **Unified Question Mechanism** feasibility audit |
-| [`QUESTION-MECHANISM.md`](./QUESTION-MECHANISM.md) | V2 design concept — three interpretive asks (post-TestFlight) |
-| [`../../PATHFINDER-AUDIT-BRIEF.md`](../../PATHFINDER-AUDIT-BRIEF.md) | Claude audit packet: changed files, review questions, known gaps |
-| [`../PROMPTS.md`](../PROMPTS.md) | AI prompts (Stream, Story) |
-| [`../BRIEF.md`](../BRIEF.md) | Short product summary |
+| Source | Use for |
+|---|---|
+| [`../AGENTS.md`](../AGENTS.md) | Backend working rules and current product boundary |
+| [`../README.md`](../README.md) | Active API surface and repository role |
+| [`../DEPLOY.md`](../DEPLOY.md) | Deployment operations |
+| [`../prisma/schema.prisma`](../prisma/schema.prisma) | Implemented database schema |
+| [`../src/lib/almanac/`](../src/lib/almanac/) | Persisted Almanac service behaviour |
+| [`../../docs/current/ALMANAC-NATIVE-DOGFOOD-STATUS.md`](../../docs/current/ALMANAC-NATIVE-DOGFOOD-STATUS.md) | Verified build and deployment status |
 
-## Archive (desktop / tree era)
+## Historical compatibility material
 
-Historical only — do not treat as current product direction:
+The remaining documents are useful only for tracing or maintaining legacy code.
+Names such as Goal, Chapter, Theme, Map, Insights, Story, Reflect and Living Tree
+must not be treated as requirements for the current Subject History product.
 
-[`archive/README.md`](./archive/README.md)
-
-## Optional / philosophy
-
-| Doc | Note |
-|-----|------|
-| [`../PROJECT.md`](../PROJECT.md) | Deeper philosophy |
-
-*Reconcile active docs with CHANGELOG after each sprint.*
+Repository history remains in [`../CHANGELOG.md`](../CHANGELOG.md) and
+[`../DECISIONS.md`](../DECISIONS.md), but dated decisions do not override the
+workspace current canon.

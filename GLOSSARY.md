@@ -1,5 +1,9 @@
 # Almanac glossary (persistence & API)
 
+> **Legacy compatibility vocabulary.** The current user-facing unit is Subject;
+> `AlmanacPlace`, `placeId`, `atlas` and `slot` remain storage/wire names only.
+> Use [`../docs/current/ALMANAC-PRODUCT-CANON.md`](../docs/current/ALMANAC-PRODUCT-CANON.md).
+
 **Mobile UI copy:** [`pathfinder-mobile/TERMINOLOGY.md`](../pathfinder-mobile/TERMINOLOGY.md) is the source of truth.
 
 **Mental model:** theme → category → pursuit (+ status). Prisma: `ThemeCategory`, `Goal`, `categoryId`, `themeId`.
