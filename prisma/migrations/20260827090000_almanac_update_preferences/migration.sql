@@ -18,4 +18,3 @@ ALTER TABLE "AlmanacUpdatePreference" ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE "AlmanacUpdatePreference" FROM PUBLIC;
 REVOKE ALL PRIVILEGES ON TABLE "AlmanacUpdatePreference" FROM anon;
 REVOKE ALL PRIVILEGES ON TABLE "AlmanacUpdatePreference" FROM authenticated;
-REVOKE ALL PRIVILEGES ON TABLE "AlmanacUpdatePreference" FROM service_role;
