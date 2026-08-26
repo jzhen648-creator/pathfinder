@@ -78,7 +78,8 @@ describe("Subject organisation contracts", () => {
       archived: false,
     }).success).toBe(true);
     expect(updateAlmanacSubjectRequestSchema.safeParse({}).success).toBe(false);
-    expect(updateAlmanacSubjectRequestSchema.safeParse({ iconKey: "sparkles" }).success).toBe(false);
+    expect(updateAlmanacSubjectRequestSchema.safeParse({ iconKey: "sparkles" }).success).toBe(true);
+    expect(updateAlmanacSubjectRequestSchema.safeParse({ iconKey: "made-up-icon" }).success).toBe(false);
   });
 
   it("requires an explicit destination and combined name", () => {

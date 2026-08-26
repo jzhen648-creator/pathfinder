@@ -23,13 +23,6 @@ import {
 } from "@/lib/almanac/protocol";
 
 const TRANSACTION_ATTEMPTS = 3;
-const ATLAS_DISPERSION_ORDER = [
-  0, 8, 14, 21, 29, 37, 42, 51, 53, 57, 60, 63, 3, 18, 27, 35,
-  44, 46, 55, 61, 5, 11, 17, 23, 31, 39, 48, 52, 58, 2, 7, 13,
-  20, 26, 32, 40, 47, 54, 62, 10, 1, 4, 6, 9, 12, 15, 16, 19,
-  22, 24, 25, 28, 30, 33, 34, 36, 38, 41, 43, 45, 49, 50, 56, 59,
-] as const;
-
 type Transaction = Prisma.TransactionClient;
 type StoredImport = AlmanacImport & { updates: AlmanacUpdate[] };
 
@@ -69,10 +62,6 @@ export class AlmanacConflictError extends Error {
   readonly code = "ALMANAC_CONFLICT";
 }
 
-export class AlmanacCapacityError extends Error {
-  readonly code = "ALMANAC_CAPACITY";
-}
-
 export type AlmanacCommitTestHooks = {
   /** Integration-test failure injection; routes never provide hooks. */
   afterPlacesResolved?: () => void | Promise<void>;
@@ -99,7 +88,7 @@ async function runSerializable<T>(work: (transaction: Transaction) => Promise<T>
 }
 
 async function lockOwner(transaction: Transaction, userId: string): Promise<void> {
-  // One short transaction per owner at a time makes Place-name, slot and exact
+  // One short transaction per owner at a time makes Place-name, compatibility-slot and exact
   // duplicate decisions deterministic without locking unrelated users.
   await transaction.$queryRaw`
     SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))::text AS locked
@@ -149,11 +138,8 @@ export function validateAlmanacCommitRequest(input: CommitAlmanacImportRequest) 
   return { packet, packetScope: packet.scope, duplicateLines, decisionByLine };
 }
 
-function nextSlot(places: readonly Pick<AlmanacPlace, "slot">[]): number {
-  const occupied = new Set(places.map((place) => place.slot));
-  const slot = ATLAS_DISPERSION_ORDER.find((candidate) => !occupied.has(candidate));
-  if (slot === undefined) throw new AlmanacCapacityError("The Atlas has no free Place slots.");
-  return slot;
+function nextCompatibilitySlot(places: readonly Pick<AlmanacPlace, "slot">[]): number {
+  return places.reduce((highest, place) => Math.max(highest, place.slot), -1) + 1;
 }
 
 async function validateSupersession(
@@ -301,7 +287,7 @@ async function loadProjection(transaction: Transaction, userId: string) {
   const [places, updates, imports, subjectPreferences, updatePreferences] = await Promise.all([
     transaction.almanacPlace.findMany({
       where: { userId },
-      orderBy: [{ slot: "asc" }, { id: "asc" }],
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
     transaction.almanacUpdate.findMany({
       where: { userId },
@@ -493,7 +479,7 @@ export async function commitAlmanacImport(
               userId,
               name: effectiveParsed.placeName,
               normalisedName,
-              slot: nextSlot(allPlaces),
+              slot: nextCompatibilitySlot(allPlaces),
             },
           });
           allPlaces.push(place);

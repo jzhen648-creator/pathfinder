@@ -1085,8 +1085,8 @@ model AlmanacImport {
   @@index([userId, createdAt])
 }
 
-/// Stable, non-semantic subject on the Almanac Atlas. A Place row and slot are
-/// retained when every attached Import is undone so later reuse does not move it.
+/// Stable storage row for a user-facing Subject. `slot` is a deployed
+/// compatibility sequence only; it has no spatial, ordering or capacity meaning.
 model AlmanacPlace {
   id                       String                     @id @default(cuid())
   userId                   String

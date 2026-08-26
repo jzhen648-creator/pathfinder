@@ -5,6 +5,7 @@ import {
   ALMANAC_UPDATE_TEXT_MAX_LENGTH,
   ALMANAC_UPDATE_STATES,
 } from "@/lib/almanac/protocol";
+import { ALMANAC_SUBJECT_ICON_KEYS } from "@/lib/almanac/subject-icons";
 
 export const almanacLineDecisionSchema = z
   .object({
@@ -59,17 +60,6 @@ export const commitAlmanacImportRequestSchema = z
   });
 
 export type CommitAlmanacImportRequest = z.infer<typeof commitAlmanacImportRequestSchema>;
-
-export const ALMANAC_SUBJECT_ICON_KEYS = [
-  "activity",
-  "book-open",
-  "briefcase-business",
-  "circle",
-  "compass",
-  "house",
-  "landmark",
-  "wallet",
-] as const;
 
 export const updateAlmanacSubjectRequestSchema = z
   .object({

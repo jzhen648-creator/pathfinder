@@ -101,13 +101,14 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
         AND cls.relname IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference', 'AlmanacUpdatePreference')
       ORDER BY cls.relname
     `;
-    expect(tables).toEqual([
+    expect(tables).toHaveLength(5);
+    expect(tables).toEqual(expect.arrayContaining([
       { table_name: "AlmanacImport", row_security: true },
       { table_name: "AlmanacPlace", row_security: true },
       { table_name: "AlmanacSubjectPreference", row_security: true },
       { table_name: "AlmanacUpdatePreference", row_security: true },
       { table_name: "AlmanacUpdate", row_security: true },
-    ]);
+    ]));
 
     const policies = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*)::bigint AS count
@@ -162,6 +163,7 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     expect(constraintByName.get("AlmanacUpdate_supersedesUpdateId_userId_fkey")).toContain(
       'FOREIGN KEY ("supersedesUpdateId", "userId")',
     );
+    expect(constraintByName.has("AlmanacPlace_slot_range")).toBe(false);
 
     const triggers = await prisma.$queryRaw<Array<{ trigger_name: string }>>`
       SELECT tgname AS trigger_name
@@ -189,6 +191,26 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       input("legacy-write-boundary", ["Notebook | NOW | Contains synthetic notes."]),
     );
     expect(await nonAlmanacTableCounts()).toEqual(before);
+  });
+
+  it("creates more than 64 Subjects without Atlas capacity or dispersion ordering", async () => {
+    const userId = await createUser("subject-capacity");
+    await prisma.almanacPlace.createMany({
+      data: Array.from({ length: 64 }, (_, slot) => ({
+        userId,
+        name: `Existing subject ${slot}`,
+        normalisedName: `existing subject ${slot}`,
+        slot,
+      })),
+    });
+
+    const committed = await commitAlmanacImport(
+      userId,
+      input("subject-capacity-65", ["Sixty fifth subject | NOW | The Subject is retained without a map position."]),
+    );
+    const created = committed.atlas.places.find((place) => place.name === "Sixty fifth subject");
+    expect(created?.slot).toBe(64);
+    expect(committed.atlas.places).toHaveLength(65);
   });
 
   it("enforces immutable provenance, append-only history and database uniqueness", async () => {
@@ -344,7 +366,13 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     );
     await expect(loadAlmanacImport(userB, committed.import.id)).rejects.toBeInstanceOf(AlmanacNotFoundError);
     await expect(loadAlmanacPlace(userB, committed.atlas.places[0]!.id)).rejects.toBeInstanceOf(AlmanacNotFoundError);
-    expect(await loadAlmanacAtlas(userB)).toEqual({ places: [], updates: [], imports: [] });
+    expect(await loadAlmanacAtlas(userB)).toEqual({
+      places: [],
+      updates: [],
+      imports: [],
+      subjectPreferences: [],
+      updatePreferences: [],
+    });
 
     let releaseFirst!: () => void;
     let markFirstReady!: () => void;

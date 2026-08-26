@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import {
-  AlmanacCapacityError,
   AlmanacConflictError,
   AlmanacNotFoundError,
   AlmanacValidationError,
@@ -13,7 +12,7 @@ export function almanacRouteError(error: unknown): NextResponse {
   if (error instanceof AlmanacNotFoundError) {
     return NextResponse.json({ error: error.message, code: error.code }, { status: 404 });
   }
-  if (error instanceof AlmanacConflictError || error instanceof AlmanacCapacityError) {
+  if (error instanceof AlmanacConflictError) {
     return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
   }
   console.error("[almanac] Persisted dogfood request failed", {
