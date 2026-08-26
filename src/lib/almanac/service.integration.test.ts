@@ -10,6 +10,7 @@ import {
   unmergeAlmanacSubject,
   undoAlmanacImport,
   updateAlmanacSubject,
+  updateAlmanacUpdatePreference,
 } from "@/lib/almanac/service";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -65,7 +66,7 @@ async function nonAlmanacTableCounts(): Promise<Map<string, bigint>> {
     FROM information_schema.tables
     WHERE table_schema = 'public'
       AND table_type = 'BASE TABLE'
-      AND table_name NOT IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
+      AND table_name NOT IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference', 'AlmanacUpdatePreference')
     ORDER BY table_name
   `;
   const counts = new Map<string, bigint>();
@@ -97,13 +98,14 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       FROM pg_class cls
       JOIN pg_namespace ns ON ns.oid = cls.relnamespace
       WHERE ns.nspname = 'public'
-        AND cls.relname IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
+        AND cls.relname IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference', 'AlmanacUpdatePreference')
       ORDER BY cls.relname
     `;
     expect(tables).toEqual([
       { table_name: "AlmanacImport", row_security: true },
       { table_name: "AlmanacPlace", row_security: true },
       { table_name: "AlmanacSubjectPreference", row_security: true },
+      { table_name: "AlmanacUpdatePreference", row_security: true },
       { table_name: "AlmanacUpdate", row_security: true },
     ]);
 
@@ -111,7 +113,7 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       SELECT COUNT(*)::bigint AS count
       FROM pg_policies
       WHERE schemaname = 'public'
-        AND tablename IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
+        AND tablename IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference', 'AlmanacUpdatePreference')
     `;
     expect(policies[0]?.count).toBe(BigInt(0));
 
@@ -119,7 +121,7 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       SELECT COUNT(*)::bigint AS count
       FROM information_schema.role_table_grants
       WHERE table_schema = 'public'
-        AND table_name IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
+        AND table_name IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference', 'AlmanacUpdatePreference')
         AND grantee IN ('PUBLIC', 'anon', 'authenticated')
     `;
     expect(exposedGrants[0]?.count).toBe(BigInt(0));
@@ -710,5 +712,33 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     expect(await prisma.almanacPlace.count({ where: { userId } })).toBe(2);
     expect(await prisma.almanacUpdate.count({ where: { userId } })).toBe(2);
     expect(await prisma.almanacImport.count({ where: { userId } })).toBe(2);
+  });
+
+  it("hides and restores one Update without rewriting accepted history or its response", async () => {
+    const userId = await createUser("update-visibility");
+    const committed = await commitAlmanacImport(
+      userId,
+      input("update-visibility-a", [
+        "Career | NOW | Working in mortgage advice.",
+        "Career | NEXT | Progress towards financial advice.",
+      ]),
+    );
+    const update = committed.atlas.updates[0]!;
+    const rawPacket = committed.import.rawPacket;
+
+    const hidden = await updateAlmanacUpdatePreference(userId, update.id, { hidden: true });
+    expect(hidden.atlas.updatePreferences).toContainEqual(expect.objectContaining({
+      updateId: update.id,
+      hiddenAt: expect.any(String),
+    }));
+    expect(hidden.atlas.updates.find((item) => item.id === update.id)?.statement)
+      .toBe(update.statement);
+    expect(hidden.atlas.imports[0]?.rawPacket).toBe(rawPacket);
+
+    const restored = await updateAlmanacUpdatePreference(userId, update.id, { hidden: false });
+    expect(restored.atlas.updatePreferences).toContainEqual(expect.objectContaining({
+      updateId: update.id,
+      hiddenAt: null,
+    }));
   });
 });

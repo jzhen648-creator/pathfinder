@@ -62,6 +62,7 @@ model User {
   almanacPlaces             AlmanacPlace[]
   almanacUpdates            AlmanacUpdate[]
   almanacSubjectPreferences AlmanacSubjectPreference[]
+  almanacUpdatePreferences  AlmanacUpdatePreference[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -1128,27 +1129,43 @@ model AlmanacSubjectPreference {
 /// One accepted ALMANAC/1 line. Updates are append-only; a newer row may point
 /// to the older row it explicitly supersedes without rewriting either history.
 model AlmanacUpdate {
-  id                    String             @id @default(cuid())
+  id                    String                   @id @default(cuid())
   userId                String
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   importId              String
-  import                AlmanacImport      @relation(fields: [importId, userId], references: [id, userId], onDelete: Cascade)
+  import                AlmanacImport            @relation(fields: [importId, userId], references: [id, userId], onDelete: Cascade)
   placeId               String
-  place                 AlmanacPlace       @relation(fields: [placeId, userId], references: [id, userId], onDelete: Cascade)
+  place                 AlmanacPlace             @relation(fields: [placeId, userId], references: [id, userId], onDelete: Cascade)
   state                 AlmanacUpdateState
   text                  String
   normalisedFingerprint String
   sourceLineNumber      Int
   supersedesUpdateId    String?
-  supersedesUpdate      AlmanacUpdate?     @relation("AlmanacUpdateSupersession", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
-  supersededBy          AlmanacUpdate[]    @relation("AlmanacUpdateSupersession")
-  createdAt             DateTime           @default(now())
+  supersedesUpdate      AlmanacUpdate?           @relation("AlmanacUpdateSupersession", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
+  supersededBy          AlmanacUpdate[]          @relation("AlmanacUpdateSupersession")
+  visibilityPreference  AlmanacUpdatePreference?
+  createdAt             DateTime                 @default(now())
 
   @@unique([importId, sourceLineNumber])
   @@unique([id, userId])
   @@index([userId, placeId, state, createdAt])
   @@index([userId, importId])
   @@index([userId, supersedesUpdateId])
+}
+
+/// Mutable owner-scoped visibility for an accepted Update. Hiding an Update
+/// never edits the accepted statement or its immutable original response.
+model AlmanacUpdatePreference {
+  updateId  String        @id
+  userId    String
+  update    AlmanacUpdate @relation(fields: [updateId, userId], references: [id, userId], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hiddenAt  DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([updateId, userId])
+  @@index([userId, hiddenAt])
 }
 
 /// Projection-side record of what one applied proposal did to the tree, so Undo

@@ -3,6 +3,7 @@ import {
   commitAlmanacImportRequestSchema,
   mergeAlmanacSubjectsRequestSchema,
   updateAlmanacSubjectRequestSchema,
+  updateAlmanacUpdatePreferenceRequestSchema,
 } from "@/lib/almanac/contracts";
 
 describe("persisted Almanac commit contract", () => {
@@ -91,5 +92,14 @@ describe("Subject organisation contracts", () => {
       targetSubjectId: "same",
       displayName: "Career",
     }).success).toBe(false);
+  });
+});
+
+describe("Update visibility contract", () => {
+  it("accepts only an explicit hidden value", () => {
+    expect(updateAlmanacUpdatePreferenceRequestSchema.safeParse({ hidden: true }).success).toBe(true);
+    expect(updateAlmanacUpdatePreferenceRequestSchema.safeParse({ hidden: false }).success).toBe(true);
+    expect(updateAlmanacUpdatePreferenceRequestSchema.safeParse({}).success).toBe(false);
+    expect(updateAlmanacUpdatePreferenceRequestSchema.safeParse({ hidden: true, userId: "other" }).success).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   CommitAlmanacImportRequest,
   MergeAlmanacSubjectsRequest,
+  UpdateAlmanacUpdatePreferenceRequest,
   UpdateAlmanacSubjectRequest,
 } from "@/lib/almanac/contracts";
 import {
@@ -297,7 +298,7 @@ function serializeSubjectPreference(preference: {
 }
 
 async function loadProjection(transaction: Transaction, userId: string) {
-  const [places, updates, imports, subjectPreferences] = await Promise.all([
+  const [places, updates, imports, subjectPreferences, updatePreferences] = await Promise.all([
     transaction.almanacPlace.findMany({
       where: { userId },
       orderBy: [{ slot: "asc" }, { id: "asc" }],
@@ -315,6 +316,10 @@ async function loadProjection(transaction: Transaction, userId: string) {
     transaction.almanacSubjectPreference.findMany({
       where: { userId },
       orderBy: [{ createdAt: "asc" }, { placeId: "asc" }],
+    }),
+    transaction.almanacUpdatePreference.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "asc" }, { updateId: "asc" }],
     }),
   ]);
   const activeSuccessorByTarget = new Map<string, string>();
@@ -343,6 +348,11 @@ async function loadProjection(transaction: Transaction, userId: string) {
     ),
     imports: imports.map((imported) => serializeImport(imported as StoredImport)),
     subjectPreferences: subjectPreferences.map(serializeSubjectPreference),
+    updatePreferences: updatePreferences.map((preference) => ({
+      updateId: preference.updateId,
+      hiddenAt: preference.hiddenAt?.toISOString() ?? null,
+      updatedAt: preference.updatedAt.toISOString(),
+    })),
   };
 }
 
@@ -710,6 +720,24 @@ export async function unmergeAlmanacSubject(userId: string, placeId: string) {
     await transaction.almanacSubjectPreference.update({
       where: { placeId },
       data: { mergedIntoPlaceId: null },
+    });
+    return { atlas: await loadProjection(transaction, userId) };
+  });
+}
+
+export async function updateAlmanacUpdatePreference(
+  userId: string,
+  updateId: string,
+  input: UpdateAlmanacUpdatePreferenceRequest,
+) {
+  return runSerializable(async (transaction) => {
+    await lockOwner(transaction, userId);
+    const update = await transaction.almanacUpdate.findFirst({ where: { id: updateId, userId } });
+    if (!update) throw new AlmanacNotFoundError("Update not found.");
+    await transaction.almanacUpdatePreference.upsert({
+      where: { updateId },
+      create: { updateId, userId, hiddenAt: input.hidden ? new Date() : null },
+      update: { hiddenAt: input.hidden ? new Date() : null },
     });
     return { atlas: await loadProjection(transaction, userId) };
   });

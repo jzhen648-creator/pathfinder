@@ -97,3 +97,11 @@ export const mergeAlmanacSubjectsRequestSchema = z
 
 export type UpdateAlmanacSubjectRequest = z.infer<typeof updateAlmanacSubjectRequestSchema>;
 export type MergeAlmanacSubjectsRequest = z.infer<typeof mergeAlmanacSubjectsRequestSchema>;
+
+export const updateAlmanacUpdatePreferenceRequestSchema = z
+  .object({ hidden: z.boolean() })
+  .strict();
+
+export type UpdateAlmanacUpdatePreferenceRequest = z.infer<
+  typeof updateAlmanacUpdatePreferenceRequestSchema
+>;
