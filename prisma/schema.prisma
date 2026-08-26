@@ -61,6 +61,7 @@ model User {
   almanacImports            AlmanacImport[]
   almanacPlaces             AlmanacPlace[]
   almanacUpdates            AlmanacUpdate[]
+  almanacSubjectPreferences AlmanacSubjectPreference[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -1086,18 +1087,42 @@ model AlmanacImport {
 /// Stable, non-semantic subject on the Almanac Atlas. A Place row and slot are
 /// retained when every attached Import is undone so later reuse does not move it.
 model AlmanacPlace {
-  id             String          @id @default(cuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  normalisedName String
-  slot           Int
-  createdAt      DateTime        @default(now())
-  updates        AlmanacUpdate[]
+  id                       String                     @id @default(cuid())
+  userId                   String
+  user                     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                     String
+  normalisedName           String
+  slot                     Int
+  createdAt                DateTime                   @default(now())
+  updates                  AlmanacUpdate[]
+  subjectPreference        AlmanacSubjectPreference?  @relation("AlmanacSubjectPreferenceSource")
+  mergedSubjectPreferences AlmanacSubjectPreference[] @relation("AlmanacSubjectPreferenceTarget")
 
   @@unique([userId, normalisedName])
   @@unique([userId, slot])
   @@unique([id, userId])
+}
+
+/// Mutable owner-scoped presentation for one user-facing Subject. This is
+/// deliberately separate from append-only Places, Updates and original
+/// responses so rename, icon, archive and reversible merge never rewrite
+/// accepted history.
+model AlmanacSubjectPreference {
+  placeId           String        @id
+  userId            String
+  place             AlmanacPlace  @relation("AlmanacSubjectPreferenceSource", fields: [placeId, userId], references: [id, userId], onDelete: Cascade)
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName       String?
+  iconKey           String?
+  archivedAt        DateTime?
+  mergedIntoPlaceId String?
+  mergedIntoPlace   AlmanacPlace? @relation("AlmanacSubjectPreferenceTarget", fields: [mergedIntoPlaceId, userId], references: [id, userId], onDelete: NoAction)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([placeId, userId])
+  @@index([userId, archivedAt])
+  @@index([mergedIntoPlaceId, userId])
 }
 
 /// One accepted ALMANAC/1 line. Updates are append-only; a newer row may point

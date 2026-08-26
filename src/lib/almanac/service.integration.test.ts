@@ -6,7 +6,10 @@ import {
   loadAlmanacAtlas,
   loadAlmanacImport,
   loadAlmanacPlace,
+  mergeAlmanacSubjects,
+  unmergeAlmanacSubject,
   undoAlmanacImport,
+  updateAlmanacSubject,
 } from "@/lib/almanac/service";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -62,7 +65,7 @@ async function nonAlmanacTableCounts(): Promise<Map<string, bigint>> {
     FROM information_schema.tables
     WHERE table_schema = 'public'
       AND table_type = 'BASE TABLE'
-      AND table_name NOT IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate')
+      AND table_name NOT IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
     ORDER BY table_name
   `;
   const counts = new Map<string, bigint>();
@@ -88,18 +91,19 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     await prisma.$disconnect();
   });
 
-  it("applies exactly three owner-scoped RLS-protected tables", async () => {
+  it("applies the owner-scoped RLS-protected Almanac tables", async () => {
     const tables = await prisma.$queryRaw<Array<{ table_name: string; row_security: boolean }>>`
       SELECT cls.relname AS table_name, cls.relrowsecurity AS row_security
       FROM pg_class cls
       JOIN pg_namespace ns ON ns.oid = cls.relnamespace
       WHERE ns.nspname = 'public'
-        AND cls.relname IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate')
+        AND cls.relname IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
       ORDER BY cls.relname
     `;
     expect(tables).toEqual([
       { table_name: "AlmanacImport", row_security: true },
       { table_name: "AlmanacPlace", row_security: true },
+      { table_name: "AlmanacSubjectPreference", row_security: true },
       { table_name: "AlmanacUpdate", row_security: true },
     ]);
 
@@ -107,7 +111,7 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       SELECT COUNT(*)::bigint AS count
       FROM pg_policies
       WHERE schemaname = 'public'
-        AND tablename IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate')
+        AND tablename IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
     `;
     expect(policies[0]?.count).toBe(BigInt(0));
 
@@ -115,7 +119,7 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       SELECT COUNT(*)::bigint AS count
       FROM information_schema.role_table_grants
       WHERE table_schema = 'public'
-        AND table_name IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate')
+        AND table_name IN ('AlmanacImport', 'AlmanacPlace', 'AlmanacUpdate', 'AlmanacSubjectPreference')
         AND grantee IN ('PUBLIC', 'anon', 'authenticated')
     `;
     expect(exposedGrants[0]?.count).toBe(BigInt(0));
@@ -654,5 +658,57 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     expect(retained.slot).toBe(place.slot);
     expect(await prisma.almanacImport.count({ where: { userId } })).toBe(3);
     expect(await prisma.almanacUpdate.count({ where: { userId } })).toBe(3);
+  });
+
+  it("renames, archives and reversibly combines Subject presentation without rewriting history", async () => {
+    const userId = await createUser("subject-presentation");
+    const career = await commitAlmanacImport(
+      userId,
+      input("subject-presentation-a", [
+        "Mortgage adviser career | NOW | Working towards an employed adviser role.",
+      ]),
+    );
+    const future = await commitAlmanacImport(
+      userId,
+      input("subject-presentation-b", [
+        "Financial adviser career | NEXT | Progress towards CFP qualification.",
+      ]),
+    );
+    const source = career.atlas.places.find((place) => place.name === "Mortgage adviser career")!;
+    const target = future.atlas.places.find((place) => place.name === "Financial adviser career")!;
+
+    const merged = await mergeAlmanacSubjects(userId, {
+      sourceSubjectId: source.id,
+      targetSubjectId: target.id,
+      displayName: "Financial services career",
+    });
+    expect(merged.atlas.subjectPreferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({ placeId: source.id, mergedIntoPlaceId: target.id }),
+      expect.objectContaining({ placeId: target.id, displayName: "Financial services career" }),
+    ]));
+    expect(merged.atlas.updates).toHaveLength(2);
+    expect(merged.atlas.imports.map((item) => item.rawPacket)).toEqual([
+      career.import.rawPacket,
+      future.import.rawPacket,
+    ]);
+
+    const organised = await updateAlmanacSubject(userId, target.id, {
+      iconKey: "briefcase-business",
+      archived: true,
+    });
+    expect(organised.atlas.subjectPreferences).toContainEqual(expect.objectContaining({
+      placeId: target.id,
+      iconKey: "briefcase-business",
+      archivedAt: expect.any(String),
+    }));
+
+    const separated = await unmergeAlmanacSubject(userId, source.id);
+    expect(separated.atlas.subjectPreferences).toContainEqual(expect.objectContaining({
+      placeId: source.id,
+      mergedIntoPlaceId: null,
+    }));
+    expect(await prisma.almanacPlace.count({ where: { userId } })).toBe(2);
+    expect(await prisma.almanacUpdate.count({ where: { userId } })).toBe(2);
+    expect(await prisma.almanacImport.count({ where: { userId } })).toBe(2);
   });
 });

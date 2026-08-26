@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { commitAlmanacImportRequestSchema } from "@/lib/almanac/contracts";
+import {
+  commitAlmanacImportRequestSchema,
+  mergeAlmanacSubjectsRequestSchema,
+  updateAlmanacSubjectRequestSchema,
+} from "@/lib/almanac/contracts";
 
 describe("persisted Almanac commit contract", () => {
   const valid = {
@@ -62,5 +66,30 @@ describe("persisted Almanac commit contract", () => {
     expect(commitAlmanacImportRequestSchema.safeParse({ ...valid, userId: "user-b" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("Subject organisation contracts", () => {
+  it("accepts only bounded presentation changes", () => {
+    expect(updateAlmanacSubjectRequestSchema.safeParse({
+      displayName: "Financial services career",
+      iconKey: "briefcase-business",
+      archived: false,
+    }).success).toBe(true);
+    expect(updateAlmanacSubjectRequestSchema.safeParse({}).success).toBe(false);
+    expect(updateAlmanacSubjectRequestSchema.safeParse({ iconKey: "sparkles" }).success).toBe(false);
+  });
+
+  it("requires an explicit destination and combined name", () => {
+    expect(mergeAlmanacSubjectsRequestSchema.safeParse({
+      sourceSubjectId: "mortgage",
+      targetSubjectId: "financial",
+      displayName: "Financial services career",
+    }).success).toBe(true);
+    expect(mergeAlmanacSubjectsRequestSchema.safeParse({
+      sourceSubjectId: "same",
+      targetSubjectId: "same",
+      displayName: "Career",
+    }).success).toBe(false);
   });
 });

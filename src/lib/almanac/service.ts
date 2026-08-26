@@ -7,7 +7,11 @@ import {
   type AlmanacUpdate,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { CommitAlmanacImportRequest } from "@/lib/almanac/contracts";
+import type {
+  CommitAlmanacImportRequest,
+  MergeAlmanacSubjectsRequest,
+  UpdateAlmanacSubjectRequest,
+} from "@/lib/almanac/contracts";
 import {
   ALMANAC_PROTOCOL_VERSION,
   almanacUpdateFingerprint,
@@ -169,7 +173,15 @@ async function validateSupersession(
   if (target.import.undoneAt) {
     throw new AlmanacConflictError("An Update from an undone Import cannot be superseded.");
   }
-  if (target.placeId !== placeId || target.state !== stateToDatabase(state)) {
+  const sourcePreference = target.placeId === placeId
+    ? null
+    : await transaction.almanacSubjectPreference.findUnique({
+        where: { placeId: target.placeId },
+        select: { mergedIntoPlaceId: true },
+      });
+  const samePresentedSubject =
+    target.placeId === placeId || sourcePreference?.mergedIntoPlaceId === placeId;
+  if (!samePresentedSubject || target.state !== stateToDatabase(state)) {
     throw new AlmanacValidationError("Supersession must stay within the same Place and state.");
   }
   const activeSuccessor = await transaction.almanacUpdate.findFirst({
@@ -266,8 +278,26 @@ function serializeUpdate(
   };
 }
 
+function serializeSubjectPreference(preference: {
+  placeId: string;
+  displayName: string | null;
+  iconKey: string | null;
+  archivedAt: Date | null;
+  mergedIntoPlaceId: string | null;
+  updatedAt: Date;
+}) {
+  return {
+    placeId: preference.placeId,
+    displayName: preference.displayName,
+    iconKey: preference.iconKey,
+    archivedAt: preference.archivedAt?.toISOString() ?? null,
+    mergedIntoPlaceId: preference.mergedIntoPlaceId,
+    updatedAt: preference.updatedAt.toISOString(),
+  };
+}
+
 async function loadProjection(transaction: Transaction, userId: string) {
-  const [places, updates, imports] = await Promise.all([
+  const [places, updates, imports, subjectPreferences] = await Promise.all([
     transaction.almanacPlace.findMany({
       where: { userId },
       orderBy: [{ slot: "asc" }, { id: "asc" }],
@@ -281,6 +311,10 @@ async function loadProjection(transaction: Transaction, userId: string) {
       where: { userId },
       include: { updates: { select: { id: true } } },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+    transaction.almanacSubjectPreference.findMany({
+      where: { userId },
+      orderBy: [{ createdAt: "asc" }, { placeId: "asc" }],
     }),
   ]);
   const activeSuccessorByTarget = new Map<string, string>();
@@ -308,6 +342,7 @@ async function loadProjection(transaction: Transaction, userId: string) {
       ),
     ),
     imports: imports.map((imported) => serializeImport(imported as StoredImport)),
+    subjectPreferences: subjectPreferences.map(serializeSubjectPreference),
   };
 }
 
@@ -575,5 +610,107 @@ export async function undoAlmanacImport(userId: string, importId: string) {
       include: { updates: true },
     });
     return { disposition: "undone" as const, import: serializeImport(undone), atlas: await loadProjection(transaction, userId) };
+  });
+}
+
+async function requireOwnerPlace(
+  transaction: Transaction,
+  userId: string,
+  placeId: string,
+): Promise<AlmanacPlace> {
+  const place = await transaction.almanacPlace.findFirst({ where: { id: placeId, userId } });
+  if (!place) throw new AlmanacNotFoundError("Subject not found.");
+  return place;
+}
+
+export async function updateAlmanacSubject(
+  userId: string,
+  placeId: string,
+  input: UpdateAlmanacSubjectRequest,
+) {
+  return runSerializable(async (transaction) => {
+    await lockOwner(transaction, userId);
+    await requireOwnerPlace(transaction, userId, placeId);
+    const existing = await transaction.almanacSubjectPreference.findUnique({ where: { placeId } });
+    if (existing?.mergedIntoPlaceId) {
+      throw new AlmanacConflictError("Organise the combined Subject instead.");
+    }
+    await transaction.almanacSubjectPreference.upsert({
+      where: { placeId },
+      create: {
+        placeId,
+        userId,
+        displayName: input.displayName ?? null,
+        iconKey: input.iconKey ?? null,
+        archivedAt: input.archived ? new Date() : null,
+      },
+      update: {
+        ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+        ...(input.iconKey !== undefined ? { iconKey: input.iconKey } : {}),
+        ...(input.archived !== undefined ? { archivedAt: input.archived ? new Date() : null } : {}),
+      },
+    });
+    return { atlas: await loadProjection(transaction, userId) };
+  });
+}
+
+export async function mergeAlmanacSubjects(
+  userId: string,
+  input: MergeAlmanacSubjectsRequest,
+) {
+  return runSerializable(async (transaction) => {
+    await lockOwner(transaction, userId);
+    await Promise.all([
+      requireOwnerPlace(transaction, userId, input.sourceSubjectId),
+      requireOwnerPlace(transaction, userId, input.targetSubjectId),
+    ]);
+    const preferences = await transaction.almanacSubjectPreference.findMany({
+      where: { userId, placeId: { in: [input.sourceSubjectId, input.targetSubjectId] } },
+    });
+    const byPlace = new Map(preferences.map((preference) => [preference.placeId, preference]));
+    if (byPlace.get(input.sourceSubjectId)?.mergedIntoPlaceId) {
+      throw new AlmanacConflictError("The source Subject is already combined.");
+    }
+    if (byPlace.get(input.targetSubjectId)?.mergedIntoPlaceId) {
+      throw new AlmanacConflictError("Choose the visible combined Subject as the destination.");
+    }
+    const sourceHasMembers = await transaction.almanacSubjectPreference.count({
+      where: { userId, mergedIntoPlaceId: input.sourceSubjectId },
+    });
+    if (sourceHasMembers > 0) {
+      throw new AlmanacConflictError("Separate this combined Subject before combining it again.");
+    }
+
+    await transaction.almanacSubjectPreference.upsert({
+      where: { placeId: input.targetSubjectId },
+      create: { placeId: input.targetSubjectId, userId, displayName: input.displayName },
+      update: { displayName: input.displayName, archivedAt: null },
+    });
+    await transaction.almanacSubjectPreference.upsert({
+      where: { placeId: input.sourceSubjectId },
+      create: {
+        placeId: input.sourceSubjectId,
+        userId,
+        mergedIntoPlaceId: input.targetSubjectId,
+      },
+      update: { mergedIntoPlaceId: input.targetSubjectId, archivedAt: null },
+    });
+    return { atlas: await loadProjection(transaction, userId) };
+  });
+}
+
+export async function unmergeAlmanacSubject(userId: string, placeId: string) {
+  return runSerializable(async (transaction) => {
+    await lockOwner(transaction, userId);
+    await requireOwnerPlace(transaction, userId, placeId);
+    const existing = await transaction.almanacSubjectPreference.findUnique({ where: { placeId } });
+    if (!existing?.mergedIntoPlaceId) {
+      throw new AlmanacConflictError("This Subject is not combined.");
+    }
+    await transaction.almanacSubjectPreference.update({
+      where: { placeId },
+      data: { mergedIntoPlaceId: null },
+    });
+    return { atlas: await loadProjection(transaction, userId) };
   });
 }
