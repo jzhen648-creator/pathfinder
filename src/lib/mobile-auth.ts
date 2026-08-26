@@ -2,8 +2,7 @@
  * Mobile auth helpers — sign a NextAuth-compatible session JWT that downstream
  * `getServerSession(authOptions)` can read once middleware injects it as a cookie.
  *
- * Used by `/api/auth/mobile-login`, `mobile-register`, `mobile-anonymous`, and
- * `mobile-claim`. The token shape mirrors what NextAuth's own `jwt` callback
+ * Used by `/api/auth/mobile-login`. The token shape mirrors NextAuth's `jwt` callback
  * writes in `src/lib/auth.ts` so cookie-mode and bearer-mode are interchangeable.
  */
 import { encode } from "next-auth/jwt";

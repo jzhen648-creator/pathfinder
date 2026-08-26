@@ -70,8 +70,8 @@ function withBearerCookieForwarded(req: NextRequest): NextResponse {
 }
 
 /**
- * Require a session for all pages except `/login`, and for `/api/*` except `/api/auth/*`.
- * Incomplete onboarding → `/onboarding`; completed users cannot revisit onboarding.
+ * Require a session for all pages except the invited-account entry points, and
+ * for `/api/*` except the explicit authentication routes.
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

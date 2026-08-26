@@ -33,7 +33,7 @@ async function auditUser(userId: string, email: string) {
     insightCache,
     profileFacts,
     manualProfile,
-    goalsActive,
+    _goalsActive,
     goalsArchived,
     goalsMomentEvent,
     goalsPractice,

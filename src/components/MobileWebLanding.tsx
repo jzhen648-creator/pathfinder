@@ -7,24 +7,24 @@ export function MobileWebLanding() {
       <div className="w-full max-w-md space-y-8 text-center">
         <div className="space-y-3">
           <p className="text-sm font-medium tracking-[0.2em] text-[#818cf8] uppercase">
-            Pathfinder
+            Almanac
           </p>
           <h1 className="font-serif text-3xl leading-tight tracking-tight">
-            Your life map lives on mobile
+            Your enduring life context, kept clearly
           </h1>
           <p className="text-base leading-relaxed text-[rgba(243,239,230,0.78)]">
-            The web site is the shared API for the Pathfinder app. Open Pathfinder on your phone
-            to view your map, add pursuits, and read Insights.
+            Almanac keeps the Updates you deliberately accept from AI conversations in a
+            source-backed history. The active product lives in the iOS app.
           </p>
         </div>
 
         <div className="rounded-2xl border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.04)] px-5 py-4 text-left text-sm leading-relaxed text-[rgba(243,239,230,0.78)]">
           <p className="font-medium text-[#F3EFE6]">Developers</p>
           <p className="mt-2">
-            Mobile clients authenticate with{" "}
+            The iOS client authenticates with{" "}
             <code className="text-[#EF9F27]">POST /api/auth/mobile-login</code> and call{" "}
-            <code className="text-[#EF9F27]">/api/*</code> with a Bearer token. The legacy desktop
-            map UI is no longer served here.
+            <code className="text-[#EF9F27]">/api/almanac</code> with a Bearer token. This site is
+            the supporting API, not a second Almanac product.
           </p>
         </div>
 

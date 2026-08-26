@@ -3,288 +3,162 @@
 import { useCallback, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { DEV_LOGIN_EMAIL_DEFAULT, DEV_LOGIN_PASSWORD } from "@/lib/dev-login-credentials";
 
-import {
-  DEV_LOGIN_EMAIL_DEFAULT,
-  DEV_LOGIN_PASSWORD,
-} from "@/lib/dev-login-credentials";
-
-const DEV_LOGIN_EMAIL =
-  process.env.NEXT_PUBLIC_DEV_PIN_USER_EMAIL ?? DEV_LOGIN_EMAIL_DEFAULT;
-
+const DEV_LOGIN_EMAIL = process.env.NEXT_PUBLIC_DEV_PIN_USER_EMAIL ?? DEV_LOGIN_EMAIL_DEFAULT;
 const isDev = process.env.NODE_ENV === "development";
 
 function safeCallbackPath(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
-  if (raw.includes("://")) return null;
-  if (raw === "/login" || raw.startsWith("/login/")) return null;
+  if (raw.includes("://") || raw === "/login" || raw.startsWith("/login/")) return null;
   return raw;
-}
-
-async function resolvePostLoginPath(): Promise<string> {
-  const callback = safeCallbackPath(
-    new URLSearchParams(window.location.search).get("callbackUrl"),
-  );
-  if (callback) return callback;
-
-  return "/";
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [forgot, setForgot] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const submitCredentials = useCallback(
-    async (email: string, password: string) => {
-      setError(null);
-      setIsSubmitting(true);
-
-      try {
-        const signInResult = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        });
-
-        if (signInResult?.error) {
-          setError("Invalid email or password.");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const destination = await resolvePostLoginPath();
-        router.push(destination);
-        router.refresh();
-      } catch {
-        setError("Something went wrong. Please try again.");
-        setIsSubmitting(false);
+  const submitCredentials = useCallback(async (nextEmail: string, nextPassword: string) => {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const result = await signIn("credentials", {
+        email: nextEmail,
+        password: nextPassword,
+        redirect: false,
+      });
+      if (result?.error) {
+        setError("Invalid email or password.");
+        return;
       }
-    },
-    [router],
-  );
-
-  const handleDevLogin = useCallback(() => {
-    setEmail(DEV_LOGIN_EMAIL);
-    setPassword(DEV_LOGIN_PASSWORD);
-    void submitCredentials(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD);
-  }, [submitCredentials]);
+      const callback = safeCallbackPath(new URLSearchParams(window.location.search).get("callbackUrl"));
+      router.push(callback ?? "/");
+      router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [router]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0f0f0f] px-4 py-10">
-      <section className="w-full max-w-md rounded-2xl border border-white/10 bg-[#141414] p-6 shadow-2xl">
-        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-indigo-300">
-          Pathfinder
-        </p>
-        <h1 className="text-2xl font-semibold text-white">
-          {mode === "signin" ? "Welcome back" : mode === "signup" ? "Set up your account" : "Reset your password"}
-        </h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          {mode === "signin"
-            ? "Sign in to continue."
-            : mode === "signup"
-              ? "Set up an account to start tracking pursuits."
-              : "Enter your email and we'll send you a reset link."}
-        </p>
-
-        <div className="mt-5 grid grid-cols-2 rounded-xl border border-white/10 bg-zinc-950/60 p-1">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signin");
-              setError(null);
-              setNotice(null);
-            }}
-            className={`rounded-lg px-3 py-2 text-sm transition ${
-              mode === "signin"
-                ? "bg-indigo-500 text-white"
-                : "text-zinc-300 hover:text-white"
-            }`}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signup");
-              setError(null);
-              setNotice(null);
-            }}
-            className={`rounded-lg px-3 py-2 text-sm transition ${
-              mode === "signup"
-                ? "bg-indigo-500 text-white"
-                : "text-zinc-300 hover:text-white"
-            }`}
-          >
-            Set up account
-          </button>
-        </div>
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7F0] px-6 py-12 text-[#10221F]">
+      <section className="w-full max-w-md space-y-8">
+        <header className="space-y-3">
+          <p className="font-serif text-xl">Almanac</p>
+          <h1 className="font-serif text-4xl leading-tight">{forgot ? "Reset password" : "Welcome back"}</h1>
+          <p className="max-w-sm text-sm leading-6 text-[#4F544F]">
+            {forgot
+              ? "Enter your invited-account email and we’ll send a reset link."
+              : "Sign in to return to your source-backed Subject history."}
+          </p>
+        </header>
 
         <form
           method="post"
-          className="mt-5 space-y-4"
+          className="space-y-5 rounded-2xl border border-[#C4B094]/70 bg-white p-6"
           onSubmit={async (event) => {
             event.preventDefault();
             setError(null);
+            setNotice(null);
             setIsSubmitting(true);
-
             try {
-              if (mode === "forgot") {
+              if (forgot) {
                 const response = await fetch("/api/auth/forgot-password", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ email }),
                 });
                 if (!response.ok) {
-                  setError("Could not send reset link right now.");
-                  setIsSubmitting(false);
-                  return;
+                  setError("Could not send a reset link right now.");
+                } else {
+                  setNotice("If that email exists, we’ll send a password reset link.");
                 }
-                setNotice("If that email exists, we'll send a password reset link.");
-                setIsSubmitting(false);
                 return;
               }
-
-              if (mode === "signup") {
-                const response = await fetch("/api/auth/register", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    name,
-                    email,
-                    password,
-                  }),
-                });
-
-                const result = (await response.json()) as { error?: string };
-
-                if (!response.ok) {
-                  setError(result.error ?? "Could not set up account.");
-                  setIsSubmitting(false);
-                  return;
-                }
-              }
-
               await submitCredentials(email, password);
             } catch {
               setError("Something went wrong. Please try again.");
+            } finally {
               setIsSubmitting(false);
             }
           }}
         >
-          {mode === "signup" ? (
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm text-zinc-300">
-                Full name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Jane Doe"
-                required={mode === "signup"}
-                className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
-              />
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm text-zinc-300">
-              Email
-            </label>
+          <label className="block space-y-2 text-sm font-medium">
+            <span>Email</span>
             <input
-              id="email"
               name="email"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
               required
-              className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
+              autoComplete="email"
+              className="min-h-12 w-full rounded-xl border border-[#977E5B]/70 bg-[#FBF7F0] px-4 text-base outline-none ring-[#1F5E4D]/30 focus:ring"
             />
-          </div>
+          </label>
 
-          {mode !== "forgot" ? (
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm text-zinc-300">
-                Password
-              </label>
+          {!forgot ? (
+            <label className="block space-y-2 text-sm font-medium">
+              <span>Password</span>
               <input
-                id="password"
                 name="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="********"
                 required
-                className="w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none ring-indigo-500/40 transition focus:ring"
+                autoComplete="current-password"
+                className="min-h-12 w-full rounded-xl border border-[#977E5B]/70 bg-[#FBF7F0] px-4 text-base outline-none ring-[#1F5E4D]/30 focus:ring"
               />
-            </div>
+            </label>
           ) : null}
 
-          {error ? <p className="text-sm text-rose-400">{error}</p> : null}
-          {notice ? <p className="text-sm text-emerald-400">{notice}</p> : null}
+          {error ? <p className="text-sm text-[#A94639]" role="alert">{error}</p> : null}
+          {notice ? <p className="text-sm text-[#1F5E4D]" role="status">{notice}</p> : null}
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-60"
+            className="min-h-12 w-full rounded-xl bg-[#1F5E4D] px-4 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {isSubmitting
-              ? "Please wait..."
-              : mode === "signin"
-                ? "Sign in"
-                : mode === "signup"
-                  ? "Set up account"
-                  : "Send reset link"}
+            {isSubmitting ? "Please wait…" : forgot ? "Send reset link" : "Sign in"}
           </button>
 
-          {mode === "signin" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("forgot");
-                setError(null);
-                setNotice(null);
-              }}
-              className="w-full text-sm text-zinc-400 transition hover:text-white"
-            >
-              Forgot password?
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setForgot((current) => !current);
+              setError(null);
+              setNotice(null);
+            }}
+            className="min-h-11 w-full text-sm font-semibold text-[#1F5E4D]"
+          >
+            {forgot ? "Back to sign in" : "Forgot password?"}
+          </button>
 
-          {mode === "forgot" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signin");
-                setError(null);
-                setNotice(null);
-              }}
-              className="w-full text-sm text-zinc-400 transition hover:text-white"
-            >
-              Back to sign in
-            </button>
-          ) : null}
-
-          {isDev && mode === "signin" ? (
+          {isDev && !forgot ? (
             <button
               type="button"
               disabled={isSubmitting}
-              onClick={handleDevLogin}
-              className="w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-200 transition hover:border-amber-400/60 hover:bg-amber-500/15 disabled:opacity-60"
+              onClick={() => {
+                setEmail(DEV_LOGIN_EMAIL);
+                setPassword(DEV_LOGIN_PASSWORD);
+                void submitCredentials(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD);
+              }}
+              className="min-h-11 w-full rounded-xl border border-[#A96D20]/50 bg-[#F7EEDC] px-4 text-sm font-semibold text-[#7C4D12] disabled:opacity-60"
             >
               Dev login
             </button>
           ) : null}
         </form>
+
+        <p className="text-center text-xs leading-5 text-[#74756F]">
+          Almanac currently uses invited accounts. The iOS app is the active product.
+        </p>
       </section>
     </main>
   );

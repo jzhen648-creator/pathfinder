@@ -33,17 +33,12 @@ async function main() {
   const health = (await healthResponse.json().catch(() => ({}))) as {
     ok?: boolean;
     db?: string;
-    reflect?: boolean;
-    deliveryBypass?: boolean;
   };
   if (!healthResponse.ok || !health.ok || health.db !== "up") {
     console.error(`FAIL: health HTTP ${healthResponse.status}, db=${health.db ?? "unknown"}`);
     failed = true;
-  } else if (health.reflect !== false || health.deliveryBypass !== false) {
-    console.error("FAIL: retired Reflect or delivery-bypass path is enabled");
-    failed = true;
   } else {
-    console.log("health: OK (database up; internal Reflect disabled)");
+    console.log("health: OK (database up)");
   }
 
   const privacyResponse = await fetch(`${baseUrl}/privacy`);
