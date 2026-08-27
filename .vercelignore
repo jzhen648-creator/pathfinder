@@ -1,0 +1,10 @@
+prisma/dev.db*
+prisma/seed.ts
+fork-overlay-debug.png
+qa-quality-report.json
+qa-quality-report.md
+reference/
+scripts/
+docs/
+**/*.test.ts
+**/*.integration.test.ts

@@ -3,10 +3,6 @@
 import { useCallback, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { DEV_LOGIN_EMAIL_DEFAULT, DEV_LOGIN_PASSWORD } from "@/lib/dev-login-credentials";
-
-const DEV_LOGIN_EMAIL = process.env.NEXT_PUBLIC_DEV_PIN_USER_EMAIL ?? DEV_LOGIN_EMAIL_DEFAULT;
-const isDev = process.env.NODE_ENV === "development";
 
 function safeCallbackPath(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
@@ -140,20 +136,6 @@ export default function LoginPage() {
             {forgot ? "Back to sign in" : "Forgot password?"}
           </button>
 
-          {isDev && !forgot ? (
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => {
-                setEmail(DEV_LOGIN_EMAIL);
-                setPassword(DEV_LOGIN_PASSWORD);
-                void submitCredentials(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD);
-              }}
-              className="min-h-11 w-full rounded-xl border border-[#A96D20]/50 bg-[#F7EEDC] px-4 text-sm font-semibold text-[#7C4D12] disabled:opacity-60"
-            >
-              Dev login
-            </button>
-          ) : null}
         </form>
 
         <p className="text-center text-xs leading-5 text-[#74756F]">
