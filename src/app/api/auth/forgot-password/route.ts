@@ -38,8 +38,8 @@ function appResetDeepLink(token: string): string {
 function resetPasswordHtml(resetUrl: string, appLink: string): string {
   return `
     <div style="font-family:Inter,Arial,sans-serif;line-height:1.5;color:#18181b">
-      <h1 style="font-size:20px;margin:0 0 12px">Reset your Pathfinder password</h1>
-      <p style="margin:0 0 16px">Use the button below to set a new password for your Pathfinder account.</p>
+      <h1 style="font-size:20px;margin:0 0 12px">Reset your Almanac password</h1>
+      <p style="margin:0 0 16px">Use the button below to set a new password for your Almanac account.</p>
       <p style="margin:0 0 20px">
         <a href="${resetUrl}" style="display:inline-block;border-radius:10px;background:#4f46e5;color:#fff;padding:11px 16px;text-decoration:none;font-weight:600">
           Reset password
@@ -110,10 +110,10 @@ export async function POST(request: Request) {
     await resend.emails.send({
       from,
       to: user.email,
-      subject: "Reset your Pathfinder password",
+      subject: "Reset your Almanac password",
       html: resetPasswordHtml(resetUrl, appLink),
       text: [
-        "Reset your Pathfinder password",
+        "Reset your Almanac password",
         "",
         "Use this link to set a new password:",
         resetUrl,

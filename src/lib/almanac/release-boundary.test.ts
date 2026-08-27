@@ -7,18 +7,19 @@ const source = (relativePath: string): string =>
   readFileSync(resolve(ROOT, relativePath), "utf8");
 
 describe("current Almanac runtime boundary", () => {
-  it("has no routable V1, internal-AI, voice or registration surface", () => {
+  it("has no routable V1, internal-AI, voice or guest-account surface", () => {
     const removed = [
       "src/app/onboarding/page.tsx",
       "src/app/api/transcribe/route.ts",
       "src/app/api/transcribe/status/route.ts",
       "src/app/api/auth/register/route.ts",
-      "src/app/api/auth/mobile-register/route.ts",
       "src/app/api/auth/mobile-anonymous/route.ts",
       "src/app/api/auth/mobile-claim/route.ts",
       "src/app/api/auth/mobile-merge/route.ts",
     ];
     for (const path of removed) expect(existsSync(resolve(ROOT, path)), path).toBe(false);
+    expect(existsSync(resolve(ROOT, "src/app/api/auth/mobile-register/route.ts"))).toBe(true);
+    expect(existsSync(resolve(ROOT, "src/app/api/account/route.ts"))).toBe(true);
   });
 
   it("does not impose Atlas position or capacity semantics on Subjects", () => {

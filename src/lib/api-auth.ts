@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { decode, getToken } from "next-auth/jwt";
+import { prisma } from "@/lib/prisma";
 
 async function resolveApiUserId(secret: string): Promise<string | null> {
   const hdrs = await headers();
@@ -53,5 +54,25 @@ export async function requireApiSessionUserId(): Promise<
   if (!userId) {
     return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
+
+  // Mobile sessions are stateless JWTs. Checking the owner still exists is
+  // what makes an account-deletion request revoke every previously issued
+  // token without adding a separate revocation table or migration.
+  try {
+    const owner = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!owner) {
+      return { ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    }
+  } catch (error) {
+    console.error("[api-auth] Could not verify session owner", error);
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "Authentication is temporarily unavailable." },
+        { status: 503 },
+      ),
+    };
+  }
+
   return { ok: true, userId };
 }
