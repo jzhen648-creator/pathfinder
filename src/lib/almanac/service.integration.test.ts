@@ -342,6 +342,29 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     expect((await undoAlmanacImport(userId, second.import.id)).disposition).toBe("already_undone");
   });
 
+  it("reviews an undone response again as a new immutable Import", async () => {
+    const userId = await createUser("review-again");
+    const originalInput = input(
+      "review-again-client-a",
+      ["Studio | NOW | Weekly sessions are active."],
+    );
+    const first = await commitAlmanacImport(userId, originalInput);
+    const placeId = first.atlas.places[0]!.id;
+
+    await undoAlmanacImport(userId, first.import.id);
+    const reviewedAgain = await commitAlmanacImport(userId, {
+      ...originalInput,
+      idempotencyKey: "review-again-client-b",
+    });
+
+    expect(reviewedAgain.disposition).toBe("created");
+    expect(reviewedAgain.import.id).not.toBe(first.import.id);
+    expect(reviewedAgain.import.rawPacket).toBe(first.import.rawPacket);
+    expect(reviewedAgain.atlas.places[0]).toMatchObject({ id: placeId, active: true });
+    expect(reviewedAgain.atlas.updates.filter((update) => update.active)).toHaveLength(1);
+    expect((await loadAlmanacImport(userId, first.import.id)).undoneAt).not.toBeNull();
+  });
+
   it("undoing an older Import preserves later active enrichment and its Place", async () => {
     const userId = await createUser("older-undo");
     const first = await commitAlmanacImport(
