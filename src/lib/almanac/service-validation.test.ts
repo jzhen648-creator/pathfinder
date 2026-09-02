@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AlmanacValidationError,
+  canSupersedeAlmanacUpdateState,
   validateAlmanacCommitRequest,
 } from "@/lib/almanac/service";
 
@@ -74,5 +75,23 @@ describe("server-side Almanac decision validation", () => {
       decisions: [{ lineNumber: 5, accepted: true }],
     });
     expect([...result.decisionByLine.keys()]).toEqual([5]);
+  });
+});
+
+describe("explicit Almanac supersession states", () => {
+  const expectedEarlierStates = {
+    NOW: ["NOW", "NEXT", "OPEN"],
+    NEXT: ["NEXT", "OPEN"],
+    OPEN: ["OPEN"],
+    DONE: ["NOW", "NEXT", "OPEN", "DONE"],
+  } as const;
+  const states = ["NOW", "NEXT", "OPEN", "DONE"] as const;
+
+  it.each(states)("allows only the agreed earlier states for incoming %s", (incomingState) => {
+    expect(
+      states.filter((earlierState) =>
+        canSupersedeAlmanacUpdateState(incomingState, earlierState),
+      ),
+    ).toEqual(expectedEarlierStates[incomingState]);
   });
 });

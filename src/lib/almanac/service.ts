@@ -103,6 +103,25 @@ function stateToDatabase(state: AlmanacUpdateStateValue): AlmanacUpdateState {
   return AlmanacUpdateState[state];
 }
 
+// Directional eligibility only. The client must still name the exact earlier
+// Update in an explicit accepted decision; the service never chooses a target.
+const SUPERSEDED_STATES_BY_INCOMING_STATE: Record<
+  AlmanacUpdateStateValue,
+  readonly AlmanacUpdateStateValue[]
+> = {
+  NOW: ["NOW", "NEXT", "OPEN"],
+  NEXT: ["NEXT", "OPEN"],
+  OPEN: ["OPEN"],
+  DONE: ["NOW", "NEXT", "OPEN", "DONE"],
+};
+
+export function canSupersedeAlmanacUpdateState(
+  incomingState: AlmanacUpdateStateValue,
+  earlierState: AlmanacUpdateStateValue,
+): boolean {
+  return SUPERSEDED_STATES_BY_INCOMING_STATE[incomingState].includes(earlierState);
+}
+
 function packetKey(update: AlmanacParsedUpdate): string {
   return `${normaliseAlmanacPlaceName(update.placeName)}\u001f${almanacUpdateFingerprint(update.state, update.statement)}`;
 }
@@ -149,9 +168,6 @@ async function validateSupersession(
   state: AlmanacUpdateStateValue,
   targetId: string,
 ): Promise<AlmanacUpdate> {
-  if (state !== "NOW" && state !== "NEXT") {
-    throw new AlmanacValidationError("Only NOW or NEXT Updates can explicitly supersede earlier wording.");
-  }
   const target = await transaction.almanacUpdate.findFirst({
     where: { id: targetId, userId },
     include: { import: { select: { undoneAt: true } } },
@@ -168,8 +184,13 @@ async function validateSupersession(
       });
   const samePresentedSubject =
     target.placeId === placeId || sourcePreference?.mergedIntoPlaceId === placeId;
-  if (!samePresentedSubject || target.state !== stateToDatabase(state)) {
-    throw new AlmanacValidationError("Supersession must stay within the same Place and state.");
+  if (
+    !samePresentedSubject ||
+    !canSupersedeAlmanacUpdateState(state, target.state)
+  ) {
+    throw new AlmanacValidationError(
+      "Supersession must stay within the same Subject and use a compatible earlier state.",
+    );
   }
   const activeSuccessor = await transaction.almanacUpdate.findFirst({
     where: {
@@ -433,6 +454,7 @@ export async function commitAlmanacImport(
     }> = [];
     let newPlaces = 0;
     const seenResolved = new Set<string>();
+    const pendingSupersessionTargets = new Set<string>();
 
     for (const parsed of packet.updates) {
       if (duplicateLines.has(parsed.lineNumber)) continue;
@@ -515,6 +537,11 @@ export async function commitAlmanacImport(
 
       const supersedesUpdateId = decision.supersedesUpdateId ?? null;
       if (supersedesUpdateId) {
+        if (pendingSupersessionTargets.has(supersedesUpdateId)) {
+          throw new AlmanacValidationError(
+            "One earlier Update cannot be superseded more than once in the same Import.",
+          );
+        }
         await validateSupersession(
           transaction,
           userId,
@@ -522,6 +549,7 @@ export async function commitAlmanacImport(
           effectiveParsed.state,
           supersedesUpdateId,
         );
+        pendingSupersessionTargets.add(supersedesUpdateId);
       }
       accepted.push({ parsed: effectiveParsed, place, supersedesUpdateId, fingerprint });
     }

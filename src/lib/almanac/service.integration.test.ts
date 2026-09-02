@@ -1,7 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
+  AlmanacConflictError,
   AlmanacNotFoundError,
+  AlmanacValidationError,
   commitAlmanacImport,
   loadAlmanacAtlas,
   loadAlmanacImport,
@@ -340,6 +342,121 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
     expect(undone.atlas.updates.find((update) => update.id === oldUpdate.id)).toMatchObject({ current: true });
     expect(undone.atlas.places[0]).toMatchObject({ id: place.id, slot: place.slot });
     expect((await undoAlmanacImport(userId, second.import.id)).disposition).toBe("already_undone");
+  });
+
+  it("supersedes an earlier state explicitly and restores it on undo", async () => {
+    const userId = await createUser("cross-state-history");
+    const first = await commitAlmanacImport(
+      userId,
+      input("cross-state-client-a", ["Studio | OPEN | Consider weekly sessions."]),
+    );
+    const earlier = first.atlas.updates[0]!;
+
+    const second = await commitAlmanacImport(userId, {
+      ...input("cross-state-client-b", ["Studio | NOW | Weekly sessions are active."]),
+      decisions: [{ lineNumber: 3, accepted: true, supersedesUpdateId: earlier.id }],
+    });
+    const incoming = second.atlas.updates.find(
+      (update) => update.importId === second.import.id,
+    )!;
+
+    expect(incoming).toMatchObject({
+      state: "NOW",
+      supersedesUpdateId: earlier.id,
+      current: true,
+    });
+    expect(second.atlas.updates.find((update) => update.id === earlier.id)).toMatchObject({
+      state: "OPEN",
+      supersededByUpdateId: incoming.id,
+      current: false,
+    });
+
+    const undone = await undoAlmanacImport(userId, second.import.id);
+    expect(undone.atlas.updates.find((update) => update.id === earlier.id)).toMatchObject({
+      current: true,
+      supersededByUpdateId: null,
+    });
+  });
+
+  it("rejects incompatible, cross-Subject and undone supersession targets", async () => {
+    const userId = await createUser("cross-state-guards");
+    const first = await commitAlmanacImport(
+      userId,
+      input("cross-state-guards-a", [
+        "Studio | DONE | Opened the studio.",
+        "Career | NOW | Working in mortgage advice.",
+        "Archive | OPEN | Consider cataloguing the papers.",
+      ]),
+    );
+    const completed = first.atlas.updates.find((update) => update.state === "DONE")!;
+    const career = first.atlas.updates.find((update) => update.state === "NOW")!;
+    const archive = first.atlas.updates.find((update) => update.state === "OPEN")!;
+
+    await expect(
+      commitAlmanacImport(userId, {
+        ...input("cross-state-guards-b", ["Studio | OPEN | Reconsider the opening."]),
+        decisions: [{ lineNumber: 3, accepted: true, supersedesUpdateId: completed.id }],
+      }),
+    ).rejects.toBeInstanceOf(AlmanacValidationError);
+
+    await expect(
+      commitAlmanacImport(userId, {
+        ...input("cross-state-guards-c", ["Studio | DONE | Finished the career change."]),
+        decisions: [{ lineNumber: 3, accepted: true, supersedesUpdateId: career.id }],
+      }),
+    ).rejects.toBeInstanceOf(AlmanacValidationError);
+
+    await undoAlmanacImport(userId, first.import.id);
+    await expect(
+      commitAlmanacImport(userId, {
+        ...input("cross-state-guards-d", ["Archive | NOW | Cataloguing is active."]),
+        decisions: [{ lineNumber: 3, accepted: true, supersedesUpdateId: archive.id }],
+      }),
+    ).rejects.toBeInstanceOf(AlmanacConflictError);
+  });
+
+  it("rejects two successors for one earlier Update and rolls back the whole Import", async () => {
+    const userId = await createUser("duplicate-supersession-target");
+    const first = await commitAlmanacImport(
+      userId,
+      input("duplicate-supersession-target-a", ["Studio | OPEN | Consider weekly sessions."]),
+    );
+    const earlier = first.atlas.updates[0]!;
+
+    await expect(
+      commitAlmanacImport(userId, {
+        ...input("duplicate-supersession-target-b", [
+          "Studio | NOW | Weekly evening sessions are active.",
+          "Studio | NOW | Weekly weekend sessions are active.",
+        ]),
+        decisions: [
+          { lineNumber: 3, accepted: true, supersedesUpdateId: earlier.id },
+          { lineNumber: 4, accepted: true, supersedesUpdateId: earlier.id },
+        ],
+      }),
+    ).rejects.toThrow(
+      "One earlier Update cannot be superseded more than once in the same Import.",
+    );
+
+    expect(
+      await prisma.almanacImport.findUnique({
+        where: {
+          userId_idempotencyKey: {
+            userId,
+            idempotencyKey: "duplicate-supersession-target-b",
+          },
+        },
+      }),
+    ).toBeNull();
+    expect(
+      await prisma.almanacUpdate.count({
+        where: { userId, supersedesUpdateId: earlier.id },
+      }),
+    ).toBe(0);
+    expect((await loadAlmanacAtlas(userId)).updates.find((update) => update.id === earlier.id)).toMatchObject({
+      current: true,
+      supersededByUpdateId: null,
+    });
   });
 
   it("reviews an undone response again as a new immutable Import", async () => {
