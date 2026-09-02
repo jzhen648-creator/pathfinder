@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ requireUser: vi.fn(), commit: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  requireUser: vi.fn(),
+  commit: vi.fn(),
+  findDirect: vi.fn(),
+}));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    almanacImport: { findFirst: (...args: unknown[]) => mocks.findDirect(...args) },
+  },
+}));
 vi.mock("@/lib/almanac/auth", () => ({
   requireAlmanacDogfoodUser: (...args: unknown[]) => mocks.requireUser(...args),
 }));
@@ -21,6 +30,7 @@ describe("POST /api/almanac/imports", () => {
     vi.stubEnv("ALMANAC_PERSISTED_DOGFOOD_ENABLED", "1");
     mocks.requireUser.mockResolvedValue({ ok: true, userId: "user-a" });
     mocks.commit.mockResolvedValue({ disposition: "created", import: { id: "import-a" }, atlas: {} });
+    mocks.findDirect.mockResolvedValue(null);
   });
   afterEach(() => {
     vi.clearAllMocks();
@@ -28,11 +38,14 @@ describe("POST /api/almanac/imports", () => {
     vi.resetModules();
   });
 
-  async function post(body: unknown = requestBody) {
+  async function post(body: unknown = requestBody, capable = true) {
     const { POST } = await import("./route");
     return POST(
       new Request("http://localhost/api/almanac/imports", {
         method: "POST",
+        ...(capable
+          ? { headers: { "X-Almanac-Capabilities": "user-entry-v1" } }
+          : {}),
         body: JSON.stringify(body),
       }),
     );
@@ -62,5 +75,27 @@ describe("POST /api/almanac/imports", () => {
   it("returns 200 for an idempotent retry", async () => {
     mocks.commit.mockResolvedValue({ disposition: "idempotent_retry", import: {}, atlas: {} });
     expect((await post()).status).toBe(200);
+  });
+
+  it("fails closed if the first direct source races a legacy mutation, then permits capable retry", async () => {
+    mocks.findDirect
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "concurrent-direct" });
+
+    const legacyResponse = await post(requestBody, false);
+
+    expect(legacyResponse.status).toBe(409);
+    expect(await legacyResponse.json()).toMatchObject({
+      code: "ALMANAC_CLIENT_UPGRADE_REQUIRED",
+    });
+    expect(mocks.commit).toHaveBeenCalledTimes(1);
+
+    mocks.commit.mockResolvedValue({
+      disposition: "idempotent_retry",
+      import: { id: "import-a" },
+      atlas: { imports: [{ scope: "direct" }] },
+    });
+    expect((await post(requestBody, true)).status).toBe(200);
+    expect(mocks.commit).toHaveBeenCalledTimes(2);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AlmanacValidationError,
   canSupersedeAlmanacUpdateState,
+  createDirectAlmanacSubjectUpdate,
   validateAlmanacCommitRequest,
 } from "@/lib/almanac/service";
 
@@ -93,5 +94,50 @@ describe("explicit Almanac supersession states", () => {
         canSupersedeAlmanacUpdateState(incomingState, earlierState),
       ),
     ).toEqual(expectedEarlierStates[incomingState]);
+  });
+});
+
+describe("direct record-repair defensive validation", () => {
+  const correction = {
+    idempotencyKey: "direct-validation-001",
+    action: "correction" as const,
+    state: "NOW" as const,
+    statement: "Corrected wording.",
+    supersedesUpdateIds: ["update-a"],
+  };
+
+  it("rejects CR/LF before opening a database transaction", async () => {
+    await expect(
+      createDirectAlmanacSubjectUpdate("user-a", "subject-a", {
+        ...correction,
+        statement: "line one\r\nline two",
+      }),
+    ).rejects.toBeInstanceOf(AlmanacValidationError);
+  });
+
+  it("rejects duplicate predecessor IDs before opening a database transaction", async () => {
+    await expect(
+      createDirectAlmanacSubjectUpdate("user-a", "subject-a", {
+        ...correction,
+        action: "resolution",
+        supersedesUpdateIds: ["update-a", "update-a"],
+      }),
+    ).rejects.toBeInstanceOf(AlmanacValidationError);
+  });
+
+  it("rejects a target date on a non-NEXT Update before opening a database transaction", async () => {
+    await expect(
+      createDirectAlmanacSubjectUpdate("user-a", "subject-a", {
+        ...correction,
+        curation: {
+          targetDate: {
+            precision: "YEAR",
+            year: 2028,
+            month: null,
+            day: null,
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(AlmanacValidationError);
   });
 });

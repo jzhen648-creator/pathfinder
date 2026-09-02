@@ -22,7 +22,7 @@
     "smoke-test": "npx tsx scripts/smoke-test.ts",
     "test": "vitest run",
     "db:integration:migrate": "prisma migrate deploy --config prisma.integration.config.ts",
-    "test:almanac:integration": "vitest run --no-file-parallelism src/lib/almanac/service.integration.test.ts src/lib/account-data.integration.test.ts",
+    "test:almanac:integration": "vitest run --no-file-parallelism src/lib/almanac/service.integration.test.ts src/lib/account-data.integration.test.ts src/lib/almanac/record-repair-populated-migration.integration.test.ts",
     "test:watch": "vitest",
     "verify:prod": "npx tsx scripts/verify-prod-deploy.ts"
   },

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAlmanacDogfoodUser } from "@/lib/almanac/auth";
+import {
+  almanacUserEntryCapabilityGuard,
+  almanacUserEntrySafeJson,
+} from "@/lib/almanac/client-capability";
 import { mergeAlmanacSubjectsRequestSchema } from "@/lib/almanac/contracts";
 import { almanacDogfoodEnabled } from "@/lib/almanac/feature";
 import { almanacRouteError } from "@/lib/almanac/route-response";
@@ -11,6 +15,8 @@ export async function POST(request: Request) {
   if (!almanacDogfoodEnabled()) {
     return NextResponse.json({ error: "Almanac dogfood is not enabled." }, { status: 503 });
   }
+  const capabilityResponse = await almanacUserEntryCapabilityGuard(request, auth.userId);
+  if (capabilityResponse) return capabilityResponse;
   let body: unknown;
   try {
     body = await request.json();
@@ -25,7 +31,8 @@ export async function POST(request: Request) {
     );
   }
   try {
-    return NextResponse.json(await mergeAlmanacSubjects(auth.userId, parsed.data));
+    const result = await mergeAlmanacSubjects(auth.userId, parsed.data);
+    return almanacUserEntrySafeJson(request, auth.userId, result);
   } catch (error) {
     return almanacRouteError(error);
   }

@@ -1,11 +1,22 @@
 export const ALMANAC_PROTOCOL_VERSION = "ALMANAC/1";
+export const ALMANAC_USER_PROTOCOL_VERSION = "ALMANAC/USER/1";
 export const ALMANAC_IMPORT_SCOPES = ["chat", "project", "bootstrap"] as const;
+export const ALMANAC_SOURCE_SCOPES = [...ALMANAC_IMPORT_SCOPES, "direct"] as const;
+export const ALMANAC_ORIGIN_KINDS = ["AI_RESPONSE", "USER_ENTRY"] as const;
 export const ALMANAC_UPDATE_STATES = ["NOW", "DONE", "NEXT", "OPEN"] as const;
+export const ALMANAC_UPDATE_SIGNIFICANCE = ["STANDARD", "KEY"] as const;
+export const ALMANAC_TARGET_DATE_PRECISIONS = ["YEAR", "MONTH", "DAY"] as const;
 export const ALMANAC_HISTORY_COVERAGE = ["searched", "partial", "unavailable"] as const;
 export const ALMANAC_TRANSFER_RESULTS = ["changes", "no_changes", "needs_source"] as const;
 
 export type AlmanacImportScopeValue = (typeof ALMANAC_IMPORT_SCOPES)[number];
+export type AlmanacSourceScopeValue = (typeof ALMANAC_SOURCE_SCOPES)[number];
+export type AlmanacOriginKind = (typeof ALMANAC_ORIGIN_KINDS)[number];
 export type AlmanacUpdateStateValue = (typeof ALMANAC_UPDATE_STATES)[number];
+export type AlmanacUpdateSignificanceValue =
+  (typeof ALMANAC_UPDATE_SIGNIFICANCE)[number];
+export type AlmanacTargetDatePrecisionValue =
+  (typeof ALMANAC_TARGET_DATE_PRECISIONS)[number];
 export type AlmanacHistoryCoverageValue = (typeof ALMANAC_HISTORY_COVERAGE)[number];
 export type AlmanacTransferResultValue = (typeof ALMANAC_TRANSFER_RESULTS)[number];
 
@@ -18,6 +29,23 @@ export const ALMANAC_UPDATE_LIMITS: Readonly<Record<AlmanacImportScopeValue, num
 export const ALMANAC_RAW_PACKET_MAX_LENGTH = 20_000;
 export const ALMANAC_PLACE_NAME_MAX_LENGTH = 80;
 export const ALMANAC_UPDATE_TEXT_MAX_LENGTH = 500;
+
+/**
+ * Derives truthful user-facing provenance from the immutable source envelope.
+ * Unknown or mismatched protocol/scope pairs deliberately fail closed.
+ */
+export function almanacOriginKindForSource(
+  protocolVersion: string,
+  scope: AlmanacSourceScopeValue,
+): AlmanacOriginKind | null {
+  if (protocolVersion === ALMANAC_USER_PROTOCOL_VERSION && scope === "direct") {
+    return "USER_ENTRY";
+  }
+  if (protocolVersion === ALMANAC_PROTOCOL_VERSION && scope !== "direct") {
+    return "AI_RESPONSE";
+  }
+  return null;
+}
 
 export type AlmanacPacketErrorCode =
   | "invalid_header"

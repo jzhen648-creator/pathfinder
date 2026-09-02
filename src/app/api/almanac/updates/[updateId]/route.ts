@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAlmanacDogfoodUser } from "@/lib/almanac/auth";
+import {
+  almanacUserEntryCapabilityGuard,
+  almanacUserEntrySafeJson,
+} from "@/lib/almanac/client-capability";
 import { updateAlmanacUpdatePreferenceRequestSchema } from "@/lib/almanac/contracts";
 import { almanacDogfoodEnabled } from "@/lib/almanac/feature";
 import { almanacRouteError } from "@/lib/almanac/route-response";
@@ -13,6 +17,8 @@ export async function PATCH(request: Request, context: Context) {
   if (!almanacDogfoodEnabled()) {
     return NextResponse.json({ error: "Almanac dogfood is not enabled." }, { status: 503 });
   }
+  const capabilityResponse = await almanacUserEntryCapabilityGuard(request, auth.userId);
+  if (capabilityResponse) return capabilityResponse;
   let body: unknown;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "JSON body required" }, { status: 400 });
@@ -26,7 +32,8 @@ export async function PATCH(request: Request, context: Context) {
   }
   const { updateId } = await context.params;
   try {
-    return NextResponse.json(await updateAlmanacUpdatePreference(auth.userId, updateId, parsed.data));
+    const result = await updateAlmanacUpdatePreference(auth.userId, updateId, parsed.data);
+    return almanacUserEntrySafeJson(request, auth.userId, result);
   } catch (error) {
     return almanacRouteError(error);
   }

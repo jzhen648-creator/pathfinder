@@ -14,7 +14,11 @@ describe("PATCH /api/almanac/updates/[updateId]", () => {
   beforeEach(() => {
     vi.stubEnv("ALMANAC_PERSISTED_DOGFOOD_ENABLED", "1");
     mocks.requireUser.mockResolvedValue({ ok: true, userId: "user-a" });
-    mocks.update.mockResolvedValue({ atlas: {} });
+    mocks.update.mockResolvedValue({
+      updateId: "update-a",
+      curation: { hidden: false, significance: "KEY", targetDate: null },
+      atlas: {},
+    });
   });
   afterEach(() => {
     vi.clearAllMocks();
@@ -27,6 +31,7 @@ describe("PATCH /api/almanac/updates/[updateId]", () => {
     return PATCH(
       new Request("http://localhost/api/almanac/updates/update-a", {
         method: "PATCH",
+        headers: { "X-Almanac-Capabilities": "user-entry-v1" },
         body: JSON.stringify(body),
       }),
       { params: Promise.resolve({ updateId: "update-a" }) },
@@ -37,6 +42,31 @@ describe("PATCH /api/almanac/updates/[updateId]", () => {
     expect((await patch()).status).toBe(200);
     expect(mocks.update).toHaveBeenCalledWith("user-a", "update-a", { hidden: true });
     expect((await patch({ hidden: true, userId: "user-b" })).status).toBe(400);
+  });
+
+  it("accepts partial curation without resetting omitted fields", async () => {
+    const body = {
+      significance: "KEY",
+      targetDate: { precision: "MONTH", year: 2027, month: 3 },
+    };
+
+    const response = await patch(body);
+
+    expect(response.status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith("user-a", "update-a", {
+      significance: "KEY",
+      targetDate: { precision: "MONTH", year: 2027, month: 3, day: null },
+    });
+    expect(await response.json()).toEqual({
+      updateId: "update-a",
+      curation: { hidden: false, significance: "KEY", targetDate: null },
+      atlas: {},
+    });
+  });
+
+  it("rejects target dates without explicit precision", async () => {
+    expect((await patch({ targetDate: { year: 2027, month: 3 } })).status).toBe(400);
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("rejects signed-out users before changing visibility", async () => {

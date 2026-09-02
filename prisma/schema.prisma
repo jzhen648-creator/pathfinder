@@ -10,59 +10,60 @@ datasource db {
 }
 
 model User {
-  id                        String                      @id @default(cuid())
-  name                      String?
-  birthYear                 Int?
-  birthPlace                String?
-  email                     String                      @unique
+  id                         String                      @id @default(cuid())
+  name                       String?
+  birthYear                  Int?
+  birthPlace                 String?
+  email                      String                      @unique
   /// Null for silent anonymous accounts until claimed with email/password.
-  passwordHash              String?
+  passwordHash               String?
   /// Guest-first launch: device-minted account before email claim.
-  isAnonymous               Boolean                     @default(false)
-  passwordResetToken        String?                     @unique
-  passwordResetExpiry       DateTime?
-  onboardingCompleted       Boolean                     @default(false)
+  isAnonymous                Boolean                     @default(false)
+  passwordResetToken         String?                     @unique
+  passwordResetExpiry        DateTime?
+  onboardingCompleted        Boolean                     @default(false)
   /// Theme picked during guided onboarding Scene 2 (`LifeAreaId` / limb id).
-  onboardingThemeId         String?
+  onboardingThemeId          String?
   /// Last applied {@link TAXONOMY_VERSION} from taxonomy-sync; null = never synced.
-  taxonomyVersion           String?
-  taxonomySyncedAt          DateTime?
+  taxonomyVersion            String?
+  taxonomySyncedAt           DateTime?
   /// Last successful AI reading delivery (Gemini-bearing ai-sync); free-tier interval gate.
-  lastReadingDeliveredAt    DateTime?
+  lastReadingDeliveredAt     DateTime?
   /// Last successful full-map reflect (theme synthesis + all pursuits); periodic regen gate.
-  lastFullReflectAt         DateTime?
+  lastFullReflectAt          DateTime?
   /// Life-area ids unlocked on the tree (`finance` | `work` | …).
-  unlockedLimbIds           Json?
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime                    @updatedAt
-  goals                     Goal[]
-  branches                  ThemeCategory[]
-  accounts                  Account[]
-  sessions                  Session[]
-  profileFacts              ProfileFact[]
-  manualProfile             UserManualProfile?
-  insightCache              InsightCache?
-  readingDirtyItems         AiReadingDirtyItem[]
-  userMemory                UserMemory?
-  userMemoryHistory         UserMemoryHistory[]
-  pursuitContextEntries     PursuitContextEntry[]
-  pursuitRelationships      PursuitRelationship[]
-  betaUsageEvents           BetaUsageEvent[]
-  importSources             ImportSource[]
-  importCaptureReceipts     ImportCaptureReceipt[]
-  lifeObservations          LifeObservation[]
-  chapterObservations       ChapterObservation[]
-  importProposals           ImportProposal[]
-  proposalApplications      ImportProposalApplication[]
-  chapterRevisions          ChapterRevision[]
-  interpretationCorrections InterpretationCorrection[]
-  livingTreeGroups          LivingTreeGroup[]
-  atlasPlacements           AtlasPlacement[]
-  almanacImports            AlmanacImport[]
-  almanacPlaces             AlmanacPlace[]
-  almanacUpdates            AlmanacUpdate[]
-  almanacSubjectPreferences AlmanacSubjectPreference[]
-  almanacUpdatePreferences  AlmanacUpdatePreference[]
+  unlockedLimbIds            Json?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  goals                      Goal[]
+  branches                   ThemeCategory[]
+  accounts                   Account[]
+  sessions                   Session[]
+  profileFacts               ProfileFact[]
+  manualProfile              UserManualProfile?
+  insightCache               InsightCache?
+  readingDirtyItems          AiReadingDirtyItem[]
+  userMemory                 UserMemory?
+  userMemoryHistory          UserMemoryHistory[]
+  pursuitContextEntries      PursuitContextEntry[]
+  pursuitRelationships       PursuitRelationship[]
+  betaUsageEvents            BetaUsageEvent[]
+  importSources              ImportSource[]
+  importCaptureReceipts      ImportCaptureReceipt[]
+  lifeObservations           LifeObservation[]
+  chapterObservations        ChapterObservation[]
+  importProposals            ImportProposal[]
+  proposalApplications       ImportProposalApplication[]
+  chapterRevisions           ChapterRevision[]
+  interpretationCorrections  InterpretationCorrection[]
+  livingTreeGroups           LivingTreeGroup[]
+  atlasPlacements            AtlasPlacement[]
+  almanacImports             AlmanacImport[]
+  almanacPlaces              AlmanacPlace[]
+  almanacUpdates             AlmanacUpdate[]
+  almanacUpdateSupersessions AlmanacUpdateSupersession[]
+  almanacSubjectPreferences  AlmanacSubjectPreference[]
+  almanacUpdatePreferences   AlmanacUpdatePreference[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -158,6 +159,7 @@ enum AlmanacImportScope {
   CHAT
   PROJECT
   BOOTSTRAP
+  DIRECT
 }
 
 enum AlmanacUpdateState {
@@ -165,6 +167,17 @@ enum AlmanacUpdateState {
   NEXT
   OPEN
   DONE
+}
+
+enum AlmanacUpdateSignificance {
+  STANDARD
+  KEY
+}
+
+enum AlmanacTargetDatePrecision {
+  YEAR
+  MONTH
+  DAY
 }
 
 enum ImportSourceState {
@@ -1129,22 +1142,24 @@ model AlmanacSubjectPreference {
 /// One accepted ALMANAC/1 line. Updates are append-only; a newer row may point
 /// to the older row it explicitly supersedes without rewriting either history.
 model AlmanacUpdate {
-  id                    String                   @id @default(cuid())
+  id                    String                      @id @default(cuid())
   userId                String
-  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   importId              String
-  import                AlmanacImport            @relation(fields: [importId, userId], references: [id, userId], onDelete: Cascade)
+  import                AlmanacImport               @relation(fields: [importId, userId], references: [id, userId], onDelete: Cascade)
   placeId               String
-  place                 AlmanacPlace             @relation(fields: [placeId, userId], references: [id, userId], onDelete: Cascade)
+  place                 AlmanacPlace                @relation(fields: [placeId, userId], references: [id, userId], onDelete: Cascade)
   state                 AlmanacUpdateState
   text                  String
   normalisedFingerprint String
   sourceLineNumber      Int
   supersedesUpdateId    String?
-  supersedesUpdate      AlmanacUpdate?           @relation("AlmanacUpdateSupersession", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
-  supersededBy          AlmanacUpdate[]          @relation("AlmanacUpdateSupersession")
+  supersedesUpdate      AlmanacUpdate?              @relation("AlmanacUpdateSupersession", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
+  supersededBy          AlmanacUpdate[]             @relation("AlmanacUpdateSupersession")
+  supersedesEdges       AlmanacUpdateSupersession[] @relation("AlmanacUpdateSuccessorEdges")
+  supersededByEdges     AlmanacUpdateSupersession[] @relation("AlmanacUpdatePredecessorEdges")
   visibilityPreference  AlmanacUpdatePreference?
-  createdAt             DateTime                 @default(now())
+  createdAt             DateTime                    @default(now())
 
   @@unique([importId, sourceLineNumber])
   @@unique([id, userId])
@@ -1153,16 +1168,35 @@ model AlmanacUpdate {
   @@index([userId, supersedesUpdateId])
 }
 
-/// Mutable owner-scoped visibility for an accepted Update. Hiding an Update
-/// never edits the accepted statement or its immutable original response.
+/// Append-only multi-predecessor lineage. The legacy singular
+/// `supersedesUpdateId` remains temporarily for deployed-client compatibility.
+model AlmanacUpdateSupersession {
+  successorUpdateId   String
+  predecessorUpdateId String
+  userId              String
+  successor           AlmanacUpdate @relation("AlmanacUpdateSuccessorEdges", fields: [successorUpdateId, userId], references: [id, userId], onDelete: Cascade)
+  predecessor         AlmanacUpdate @relation("AlmanacUpdatePredecessorEdges", fields: [predecessorUpdateId, userId], references: [id, userId], onDelete: Cascade)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime      @default(now())
+
+  @@id([successorUpdateId, predecessorUpdateId])
+  @@index([userId, predecessorUpdateId])
+  @@index([userId, successorUpdateId])
+}
+
+/// Mutable owner-scoped curation for an accepted Update. These fields never
+/// edit the accepted statement or its immutable source.
 model AlmanacUpdatePreference {
-  updateId  String        @id
-  userId    String
-  update    AlmanacUpdate @relation(fields: [updateId, userId], references: [id, userId], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  hiddenAt  DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  updateId            String                      @id
+  userId              String
+  update              AlmanacUpdate               @relation(fields: [updateId, userId], references: [id, userId], onDelete: Cascade)
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hiddenAt            DateTime?
+  significance        AlmanacUpdateSignificance   @default(STANDARD)
+  targetDate          DateTime?                   @db.Date
+  targetDatePrecision AlmanacTargetDatePrecision?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
 
   @@unique([updateId, userId])
   @@index([userId, hiddenAt])

@@ -2,20 +2,27 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eraseAlmanacForUser } from "@/lib/account-data";
 import { requireAlmanacDogfoodUser } from "@/lib/almanac/auth";
+import {
+  almanacUserEntryCapabilityGuard,
+  almanacUserEntrySafeJson,
+} from "@/lib/almanac/client-capability";
 import { almanacDogfoodEnabled } from "@/lib/almanac/feature";
 import { almanacRouteError } from "@/lib/almanac/route-response";
 import { loadAlmanacAtlas } from "@/lib/almanac/service";
 
 const eraseSchema = z.object({ confirmation: z.literal("ERASE") });
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireAlmanacDogfoodUser();
   if (!auth.ok) return auth.response;
   if (!almanacDogfoodEnabled()) {
     return NextResponse.json({ error: "Almanac dogfood is not enabled." }, { status: 503 });
   }
+  const capabilityResponse = await almanacUserEntryCapabilityGuard(request, auth.userId);
+  if (capabilityResponse) return capabilityResponse;
   try {
-    return NextResponse.json({ atlas: await loadAlmanacAtlas(auth.userId) });
+    const body = { atlas: await loadAlmanacAtlas(auth.userId) };
+    return almanacUserEntrySafeJson(request, auth.userId, body);
   } catch (error) {
     return almanacRouteError(error);
   }

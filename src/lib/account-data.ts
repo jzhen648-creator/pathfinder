@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 
+import { lockAlmanacOwner } from "@/lib/almanac/owner-lock";
 import { DUMMY_BCRYPT_HASH } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -15,10 +16,21 @@ export class AccountPasswordError extends Error {
  * legacy rows remain untouched. The order clears explicit NoAction links
  * before their parent rows; the transaction makes the operation all-or-none.
  */
-export async function eraseAlmanacForUser(userId: string): Promise<void> {
+export type AlmanacEraseTestHooks = {
+  /** Integration-test concurrency hook; routes never provide hooks. */
+  afterOwnerLocked?: () => void | Promise<void>;
+};
+
+export async function eraseAlmanacForUser(
+  userId: string,
+  hooks: AlmanacEraseTestHooks = {},
+): Promise<void> {
   await prisma.$transaction(async (tx) => {
+    await lockAlmanacOwner(tx, userId);
+    await hooks.afterOwnerLocked?.();
     await tx.almanacUpdatePreference.deleteMany({ where: { userId } });
     await tx.almanacSubjectPreference.deleteMany({ where: { userId } });
+    await tx.almanacUpdateSupersession.deleteMany({ where: { userId } });
     await tx.almanacUpdate.deleteMany({ where: { userId } });
     await tx.almanacImport.deleteMany({ where: { userId } });
     await tx.almanacPlace.deleteMany({ where: { userId } });

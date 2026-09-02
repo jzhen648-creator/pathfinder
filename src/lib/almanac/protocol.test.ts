@@ -1,11 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALMANAC_PROTOCOL_VERSION,
+  ALMANAC_USER_PROTOCOL_VERSION,
+  almanacOriginKindForSource,
   almanacUpdateFingerprint,
   normaliseAlmanacPlaceName,
   parseAlmanacPacket,
 } from "@/lib/almanac/protocol";
 
 describe("ALMANAC/1 persisted parser", () => {
+  it("distinguishes AI responses from explicit direct user sources", () => {
+    expect(almanacOriginKindForSource(ALMANAC_PROTOCOL_VERSION, "chat")).toBe(
+      "AI_RESPONSE",
+    );
+    expect(almanacOriginKindForSource(ALMANAC_USER_PROTOCOL_VERSION, "direct")).toBe(
+      "USER_ENTRY",
+    );
+    expect(almanacOriginKindForSource(ALMANAC_PROTOCOL_VERSION, "direct")).toBeNull();
+    expect(almanacOriginKindForSource(ALMANAC_USER_PROTOCOL_VERSION, "project")).toBeNull();
+  });
+
+  it("does not accept a direct source envelope as an external AI packet", () => {
+    expect(
+      parseAlmanacPacket("ALMANAC/USER/1\naction: correction\nExact wording.").fatalErrors[0]
+        ?.code,
+    ).toBe("invalid_header");
+  });
+
   it("accepts snapshot-assisted result metadata without counting it as an Update", () => {
     const parsed = parseAlmanacPacket(
       "ALMANAC/1\nscope: chat\ncoverage: searched\nresult: changes\nStudio | NOW | Tools are ready.",

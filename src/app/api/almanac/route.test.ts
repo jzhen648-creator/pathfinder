@@ -27,6 +27,12 @@ describe("GET /api/almanac", () => {
     vi.resetModules();
   });
 
+  function capableRequest() {
+    return new Request("https://example.test/api/almanac", {
+      headers: { "X-Almanac-Capabilities": "user-entry-v1" },
+    });
+  }
+
   it("authenticates before checking the server flag", async () => {
     vi.stubEnv("ALMANAC_PERSISTED_DOGFOOD_ENABLED", "0");
     mocks.requireUser.mockResolvedValue({
@@ -34,20 +40,20 @@ describe("GET /api/almanac", () => {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
     const { GET } = await import("./route");
-    expect((await GET()).status).toBe(401);
+    expect((await GET(capableRequest())).status).toBe(401);
     expect(mocks.loadAtlas).not.toHaveBeenCalled();
   });
 
   it("fails closed when the server flag is off", async () => {
     vi.stubEnv("ALMANAC_PERSISTED_DOGFOOD_ENABLED", "0");
     const { GET } = await import("./route");
-    expect((await GET()).status).toBe(503);
+    expect((await GET(capableRequest())).status).toBe(503);
     expect(mocks.loadAtlas).not.toHaveBeenCalled();
   });
 
   it("loads only through the authenticated user scope", async () => {
     const { GET } = await import("./route");
-    expect((await GET()).status).toBe(200);
+    expect((await GET(capableRequest())).status).toBe(200);
     expect(mocks.loadAtlas).toHaveBeenCalledWith("user-a");
   });
 
