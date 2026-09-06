@@ -200,11 +200,12 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
         )
       ORDER BY tgname
     `;
-    expect(triggers.map((trigger) => trigger.trigger_name)).toHaveLength(6);
+    expect(triggers.map((trigger) => trigger.trigger_name)).toHaveLength(7);
     expect(triggers.map((trigger) => trigger.trigger_name)).toEqual(expect.arrayContaining([
       "AlmanacImport_immutable_provenance",
       "AlmanacPlace_append_only",
       "AlmanacUpdate_append_only",
+      "AlmanacUpdate_suggestion_lineage",
       "AlmanacUpdateSupersession_append_only",
       "AlmanacUpdateSupersession_integrity",
       "AlmanacUpdatePreference_next_target_date",

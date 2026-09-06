@@ -344,7 +344,7 @@ export async function mutateAlmanacSuggestion(
 
     const resultVersion = suggestion.version + 1;
     let kind: AlmanacSuggestionDecisionKind;
-    let data: Prisma.AlmanacSuggestionUpdateInput;
+    let data: Prisma.AlmanacSuggestionUncheckedUpdateInput;
     if (input.action === "dismiss") {
       if (suggestion.status !== AlmanacSuggestionStatus.PENDING) {
         throw new AlmanacConflictError("Only a pending Suggestion can be dismissed.");
@@ -397,12 +397,8 @@ export async function mutateAlmanacSuggestion(
         draftSubjectName: input.subjectName ?? suggestion.draftSubjectName,
         draftState: input.state ? AlmanacUpdateState[input.state] : suggestion.draftState,
         draftText: input.statement ?? suggestion.draftText,
-        routedPlace: routedPlaceId ? { connect: { id_userId: { id: routedPlaceId, userId } } } : { disconnect: true },
-        supersedesUpdate: input.supersedesUpdateId === undefined
-          ? undefined
-          : input.supersedesUpdateId
-            ? { connect: { id_userId: { id: input.supersedesUpdateId, userId } } }
-            : { disconnect: true },
+        routedPlaceId,
+        supersedesUpdateId: input.supersedesUpdateId,
         version: resultVersion,
       };
     }
