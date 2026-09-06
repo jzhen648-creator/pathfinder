@@ -88,7 +88,17 @@ ALTER TABLE "AlmanacUpdate" ADD CONSTRAINT "AlmanacUpdate_suggestionApplicationI
 
 CREATE FUNCTION "enforce_almanac_suggestion_originals"() RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
-  IF ROW(OLD."id", OLD."userId", OLD."importId", OLD."sourceLineNumber", OLD."originalSubjectName", OLD."originalState", OLD."originalText", OLD."createdAt") IS DISTINCT FROM ROW(NEW."id", NEW."userId", NEW."importId", NEW."sourceLineNumber", NEW."originalSubjectName", NEW."originalState", NEW."originalText", NEW."createdAt") THEN
+  IF (
+    to_jsonb(OLD) - ARRAY[
+      'draftSubjectName', 'draftState', 'draftText', 'routedPlaceId',
+      'supersedesUpdateId', 'status', 'version', 'updatedAt'
+    ]::text[]
+  ) IS DISTINCT FROM (
+    to_jsonb(NEW) - ARRAY[
+      'draftSubjectName', 'draftState', 'draftText', 'routedPlaceId',
+      'supersedesUpdateId', 'status', 'version', 'updatedAt'
+    ]::text[]
+  ) THEN
     RAISE EXCEPTION 'Almanac Suggestion source identity is immutable' USING ERRCODE = '22000';
   END IF;
   IF NEW."version" <> OLD."version" + 1 THEN

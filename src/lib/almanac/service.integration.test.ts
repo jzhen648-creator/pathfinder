@@ -151,7 +151,7 @@ integrationSuite("persisted Almanac dogfood — PostgreSQL", () => {
       "AlmanacImport_userId_idempotencyKey_key",
       "AlmanacPlace_userId_normalisedName_key",
       "AlmanacPlace_userId_slot_key",
-      "AlmanacUpdate_importId_sourceLineNumber_key",
+      "AlmanacUpdate_legacy_import_line_key",
       "AlmanacUpdate_userId_placeId_state_createdAt_idx",
       "AlmanacUpdateSupersession_userId_predecessorUpdateId_idx",
       "AlmanacUpdateSupersession_userId_successorUpdateId_idx",

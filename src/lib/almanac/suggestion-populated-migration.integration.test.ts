@@ -99,8 +99,8 @@ integrationSuite("persistent Suggestion populated forward migration — PostgreS
       await isolated.$executeRawUnsafe(
         `INSERT INTO "AlmanacUpdate" (
           "id", "userId", "importId", "placeId", "state", "text",
-          "normalisedFingerprint", "sourceLineNumber", "createdAt", "updatedAt"
-        ) VALUES ($1, $2, $3, $4, 'NOW', $5, $6, $7, NOW(), NOW())`,
+          "normalisedFingerprint", "sourceLineNumber", "createdAt"
+        ) VALUES ($1, $2, $3, $4, 'NOW', $5, $6, $7, NOW())`,
         "legacy-update", "owner", "legacy-import", "career", "Existing.",
         "NOW\u001fexisting.", 3,
       );
