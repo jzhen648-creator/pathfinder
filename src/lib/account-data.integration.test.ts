@@ -7,6 +7,10 @@ import {
   eraseAlmanacForUser,
 } from "@/lib/account-data";
 import { commitAlmanacImport } from "@/lib/almanac/service";
+import {
+  acceptAlmanacSuggestion,
+  stageAlmanacSuggestions,
+} from "@/lib/almanac/suggestion-service";
 import { prisma } from "@/lib/prisma";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -158,6 +162,14 @@ async function createRichAccount(label: string): Promise<{ userId: string; passw
       targetDatePrecision: "MONTH",
     },
   });
+  const staged = await stageAlmanacSuggestions(user.id, {
+    idempotencyKey: `${label}-suggestion-${crypto.randomUUID()}`,
+    rawPacket: "ALMANAC/1\nscope: chat\nCareer | DONE | Lifecycle erasure fixture.",
+  });
+  await acceptAlmanacSuggestion(user.id, staged.suggestions[0]!.id, {
+    operationKey: `${label}-accept-${crypto.randomUUID()}`,
+    expectedVersion: 1,
+  });
   return { userId: user.id, password };
 }
 
@@ -169,6 +181,9 @@ async function currentAlmanacCount(userId: string): Promise<number> {
     prisma.almanacUpdateSupersession.count({ where: { userId } }),
     prisma.almanacSubjectPreference.count({ where: { userId } }),
     prisma.almanacUpdatePreference.count({ where: { userId } }),
+    prisma.almanacSuggestion.count({ where: { userId } }),
+    prisma.almanacSuggestionDecision.count({ where: { userId } }),
+    prisma.almanacSuggestionApplication.count({ where: { userId } }),
   ]);
   return counts.reduce((sum, count) => sum + count, 0);
 }

@@ -64,6 +64,9 @@ model User {
   almanacUpdateSupersessions AlmanacUpdateSupersession[]
   almanacSubjectPreferences  AlmanacSubjectPreference[]
   almanacUpdatePreferences   AlmanacUpdatePreference[]
+  almanacSuggestions         AlmanacSuggestion[]
+  almanacSuggestionDecisions AlmanacSuggestionDecision[]
+  almanacSuggestionApplications AlmanacSuggestionApplication[]
 }
 
 /// Friends-and-family TestFlight usage telemetry (client + server auth events).
@@ -178,6 +181,20 @@ enum AlmanacTargetDatePrecision {
   YEAR
   MONTH
   DAY
+}
+
+enum AlmanacSuggestionStatus {
+  PENDING
+  ACCEPTED
+  DISMISSED
+}
+
+enum AlmanacSuggestionDecisionKind {
+  EDIT
+  DISMISS
+  RESTORE
+  ACCEPT
+  UNDO_ACCEPTANCE
 }
 
 enum ImportSourceState {
@@ -1092,6 +1109,7 @@ model AlmanacImport {
   createdAt       DateTime           @default(now())
   undoneAt        DateTime?
   updates         AlmanacUpdate[]
+  suggestions     AlmanacSuggestion[]
 
   @@unique([userId, idempotencyKey])
   @@unique([id, userId])
@@ -1109,6 +1127,7 @@ model AlmanacPlace {
   slot                     Int
   createdAt                DateTime                   @default(now())
   updates                  AlmanacUpdate[]
+  routedSuggestions        AlmanacSuggestion[]
   subjectPreference        AlmanacSubjectPreference?  @relation("AlmanacSubjectPreferenceSource")
   mergedSubjectPreferences AlmanacSubjectPreference[] @relation("AlmanacSubjectPreferenceTarget")
 
@@ -1153,19 +1172,96 @@ model AlmanacUpdate {
   text                  String
   normalisedFingerprint String
   sourceLineNumber      Int
+  suggestionApplicationId String?
+  suggestionApplication AlmanacSuggestionApplication? @relation(fields: [suggestionApplicationId, userId], references: [id, userId], onDelete: Cascade)
   supersedesUpdateId    String?
   supersedesUpdate      AlmanacUpdate?              @relation("AlmanacUpdateSupersession", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
   supersededBy          AlmanacUpdate[]             @relation("AlmanacUpdateSupersession")
   supersedesEdges       AlmanacUpdateSupersession[] @relation("AlmanacUpdateSuccessorEdges")
   supersededByEdges     AlmanacUpdateSupersession[] @relation("AlmanacUpdatePredecessorEdges")
+  suggestedRevisions    AlmanacSuggestion[]         @relation("AlmanacSuggestionPredecessor")
   visibilityPreference  AlmanacUpdatePreference?
   createdAt             DateTime                    @default(now())
 
-  @@unique([importId, sourceLineNumber])
+  @@unique([suggestionApplicationId])
+  @@unique([suggestionApplicationId, userId])
   @@unique([id, userId])
   @@index([userId, placeId, state, createdAt])
   @@index([userId, importId])
   @@index([userId, supersedesUpdateId])
+}
+
+/// One staged proposal from one immutable ALMANAC/1 source line. Original
+/// values never change; draft/routing/status are the current user-owned view.
+model AlmanacSuggestion {
+  id                       String                  @id @default(cuid())
+  userId                   String
+  user                     User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importId                 String
+  import                   AlmanacImport           @relation(fields: [importId, userId], references: [id, userId], onDelete: Cascade)
+  sourceLineNumber         Int
+  originalSubjectName      String
+  originalState            AlmanacUpdateState
+  originalText             String
+  draftSubjectName         String
+  draftState               AlmanacUpdateState
+  draftText                String
+  routedPlaceId            String?
+  routedPlace              AlmanacPlace?           @relation(fields: [routedPlaceId, userId], references: [id, userId], onDelete: NoAction)
+  supersedesUpdateId       String?
+  supersedesUpdate         AlmanacUpdate?          @relation("AlmanacSuggestionPredecessor", fields: [supersedesUpdateId, userId], references: [id, userId], onDelete: NoAction)
+  status                   AlmanacSuggestionStatus @default(PENDING)
+  version                  Int                     @default(1)
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  decisions                AlmanacSuggestionDecision[]
+  applications             AlmanacSuggestionApplication[]
+
+  @@unique([importId, sourceLineNumber])
+  @@unique([id, userId])
+  @@index([userId, status, updatedAt])
+  @@index([routedPlaceId, userId])
+}
+
+/// Append-only user operation and durable idempotency result.
+model AlmanacSuggestionDecision {
+  id                String                         @id @default(cuid())
+  userId            String
+  user              User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestionId      String
+  suggestion        AlmanacSuggestion              @relation(fields: [suggestionId, userId], references: [id, userId], onDelete: Cascade)
+  operationKey      String
+  requestHash       String
+  kind              AlmanacSuggestionDecisionKind
+  expectedVersion   Int
+  resultVersion     Int
+  result             Json
+  createdAt          DateTime                       @default(now())
+  application        AlmanacSuggestionApplication?
+
+  @@unique([userId, operationKey])
+  @@unique([id, userId])
+  @@index([suggestionId, createdAt])
+}
+
+/// One acceptance attempt. Only revertedAt may change, once, for action Undo.
+model AlmanacSuggestionApplication {
+  id                  String                    @id @default(cuid())
+  userId              String
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestionId        String
+  suggestion          AlmanacSuggestion         @relation(fields: [suggestionId, userId], references: [id, userId], onDelete: Cascade)
+  decisionId          String                    @unique
+  decision            AlmanacSuggestionDecision @relation(fields: [decisionId, userId], references: [id, userId], onDelete: Cascade)
+  applicationSequence Int
+  acceptedAt          DateTime                  @default(now())
+  revertedAt          DateTime?
+  update              AlmanacUpdate?
+
+  @@unique([suggestionId, applicationSequence])
+  @@unique([decisionId, userId])
+  @@unique([id, userId])
+  @@index([userId, revertedAt])
 }
 
 /// Append-only multi-predecessor lineage. The legacy singular

@@ -4,9 +4,44 @@ import {
   createDirectAlmanacSubjectUpdateRequestSchema,
   directAlmanacSubjectUpdateResponseSchema,
   mergeAlmanacSubjectsRequestSchema,
+  mutateAlmanacSuggestionRequestSchema,
+  stageAlmanacSuggestionsRequestSchema,
   updateAlmanacSubjectRequestSchema,
   updateAlmanacUpdatePreferenceRequestSchema,
 } from "@/lib/almanac/contracts";
+
+describe("persistent Suggestion contracts", () => {
+  it("accepts a bounded immutable source envelope", () => {
+    expect(stageAlmanacSuggestionsRequestSchema.safeParse({
+      idempotencyKey: "suggestion-source-001",
+      rawPacket: "ALMANAC/1\nscope: chat\nStudio | NOW | Weekly sessions are active.",
+    }).success).toBe(true);
+    expect(stageAlmanacSuggestionsRequestSchema.safeParse({
+      idempotencyKey: "suggestion-source-001",
+      rawPacket: "ALMANAC/1\nscope: chat",
+      userId: "another-owner",
+    }).success).toBe(false);
+  });
+
+  it("requires optimistic concurrency and a durable operation key", () => {
+    expect(mutateAlmanacSuggestionRequestSchema.safeParse({
+      action: "edit",
+      operationKey: "suggestion-edit-001",
+      expectedVersion: 2,
+      statement: "Use the corrected exact wording.",
+    }).success).toBe(true);
+    expect(mutateAlmanacSuggestionRequestSchema.safeParse({
+      action: "edit",
+      operationKey: "suggestion-edit-001",
+      expectedVersion: 2,
+    }).success).toBe(false);
+    expect(mutateAlmanacSuggestionRequestSchema.safeParse({
+      action: "dismiss",
+      operationKey: "short",
+      expectedVersion: 2,
+    }).success).toBe(false);
+  });
+});
 
 describe("persisted Almanac commit contract", () => {
   const valid = {

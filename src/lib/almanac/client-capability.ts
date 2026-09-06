@@ -4,11 +4,16 @@ import { prisma } from "@/lib/prisma";
 
 export const ALMANAC_CAPABILITIES_HEADER = "x-almanac-capabilities";
 export const ALMANAC_USER_ENTRY_CAPABILITY = "user-entry-v1";
+export const ALMANAC_PERSISTENT_SUGGESTIONS_CAPABILITY = "persistent-suggestions-v1";
 
-function hasUserEntryCapability(request: Request): boolean {
+export function hasAlmanacCapability(request: Request, capability: string): boolean {
   return (request.headers.get(ALMANAC_CAPABILITIES_HEADER) ?? "")
     .split(",")
-    .some((value) => value.trim().toLowerCase() === ALMANAC_USER_ENTRY_CAPABILITY);
+    .some((value) => value.trim().toLowerCase() === capability);
+}
+
+function hasUserEntryCapability(request: Request): boolean {
+  return hasAlmanacCapability(request, ALMANAC_USER_ENTRY_CAPABILITY);
 }
 
 function upgradeRequiredResponse(): NextResponse {
@@ -19,6 +24,14 @@ function upgradeRequiredResponse(): NextResponse {
     },
     { status: 409 },
   );
+}
+
+export function almanacPersistentSuggestionsCapabilityGuard(
+  request: Request,
+): NextResponse | null {
+  return hasAlmanacCapability(request, ALMANAC_PERSISTENT_SUGGESTIONS_CAPABILITY)
+    ? null
+    : upgradeRequiredResponse();
 }
 
 function bodyContainsUserEntryMetadata(value: unknown, seen = new Set<object>()): boolean {

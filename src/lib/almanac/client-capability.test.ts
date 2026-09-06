@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
 
 import {
   ALMANAC_CAPABILITIES_HEADER,
+  almanacPersistentSuggestionsCapabilityGuard,
   almanacUserEntryCapabilityGuard,
   almanacUserEntrySafeJson,
 } from "@/lib/almanac/client-capability";
@@ -109,5 +110,26 @@ describe("Almanac user-entry client capability", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("Almanac persistent-Suggestion capability", () => {
+  it("requires the exact lifecycle capability without activating an account-wide lock", async () => {
+    const legacy = almanacPersistentSuggestionsCapabilityGuard(
+      new Request("https://example.test/api/almanac/suggestions", {
+        headers: { [ALMANAC_CAPABILITIES_HEADER]: "user-entry-v1" },
+      }),
+    );
+    expect(legacy?.status).toBe(409);
+    expect(mocks.findFirst).not.toHaveBeenCalled();
+
+    const capable = almanacPersistentSuggestionsCapabilityGuard(
+      new Request("https://example.test/api/almanac/suggestions", {
+        headers: {
+          [ALMANAC_CAPABILITIES_HEADER]: "user-entry-v1, persistent-suggestions-v1",
+        },
+      }),
+    );
+    expect(capable).toBeNull();
   });
 });

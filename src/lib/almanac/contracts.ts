@@ -144,6 +144,53 @@ export const commitAlmanacImportRequestSchema = z
 
 export type CommitAlmanacImportRequest = z.infer<typeof commitAlmanacImportRequestSchema>;
 
+export const stageAlmanacSuggestionsRequestSchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(8).max(128),
+    rawPacket: z.string().min(1).max(ALMANAC_RAW_PACKET_MAX_LENGTH),
+  })
+  .strict();
+
+const almanacSuggestionOperationSchema = z.object({
+  operationKey: z.string().trim().min(8).max(128),
+  expectedVersion: z.number().int().min(1),
+});
+
+export const mutateAlmanacSuggestionRequestSchema = z.discriminatedUnion("action", [
+  almanacSuggestionOperationSchema.extend({
+    action: z.literal("edit"),
+    subjectName: z.string().trim().min(1).max(ALMANAC_PLACE_NAME_MAX_LENGTH).optional(),
+    state: z.enum(ALMANAC_UPDATE_STATES).optional(),
+    statement: z.string().trim().min(1).max(ALMANAC_UPDATE_TEXT_MAX_LENGTH).optional(),
+    placeId: almanacRecordIdSchema.nullable().optional(),
+    supersedesUpdateId: almanacRecordIdSchema.nullable().optional(),
+  }).strict().refine(
+    (input) => input.subjectName !== undefined || input.state !== undefined ||
+      input.statement !== undefined || input.placeId !== undefined ||
+      input.supersedesUpdateId !== undefined,
+    { message: "Choose at least one Suggestion change." },
+  ),
+  almanacSuggestionOperationSchema.extend({ action: z.literal("dismiss") }).strict(),
+  almanacSuggestionOperationSchema.extend({ action: z.literal("restore") }).strict(),
+]);
+
+export const acceptAlmanacSuggestionRequestSchema = almanacSuggestionOperationSchema.strict();
+export const undoAlmanacSuggestionAcceptanceRequestSchema =
+  almanacSuggestionOperationSchema.strict();
+
+export type StageAlmanacSuggestionsRequest = z.infer<
+  typeof stageAlmanacSuggestionsRequestSchema
+>;
+export type MutateAlmanacSuggestionRequest = z.infer<
+  typeof mutateAlmanacSuggestionRequestSchema
+>;
+export type AcceptAlmanacSuggestionRequest = z.infer<
+  typeof acceptAlmanacSuggestionRequestSchema
+>;
+export type UndoAlmanacSuggestionAcceptanceRequest = z.infer<
+  typeof undoAlmanacSuggestionAcceptanceRequestSchema
+>;
+
 export const ALMANAC_DIRECT_UPDATE_ACTIONS = [
   "correction",
   "outcome",

@@ -30,6 +30,7 @@ import {
   type AlmanacUpdateStateValue,
 } from "@/lib/almanac/protocol";
 import { lockAlmanacOwner } from "@/lib/almanac/owner-lock";
+import { isAlmanacUpdateActive } from "@/lib/almanac/suggestion-lifecycle-policy";
 
 const TRANSACTION_ATTEMPTS = 3;
 type Transaction = Prisma.TransactionClient;
@@ -40,14 +41,19 @@ type StoredUpdate = AlmanacUpdate & {
     "id" | "protocolVersion" | "scope" | "rawPacket" | "createdAt" | "undoneAt"
   >;
   visibilityPreference: AlmanacUpdatePreference | null;
+  suggestionApplication: { revertedAt: Date | null } | null;
   supersedesEdges: Array<{ predecessorUpdateId: string }>;
   supersededBy: Array<{
     id: string;
     import: Pick<AlmanacImport, "undoneAt">;
+    suggestionApplication: { revertedAt: Date | null } | null;
   }>;
   supersededByEdges: Array<{
     successorUpdateId: string;
-    successor: { import: Pick<AlmanacImport, "undoneAt"> };
+    successor: {
+      import: Pick<AlmanacImport, "undoneAt">;
+      suggestionApplication: { revertedAt: Date | null } | null;
+    };
   }>;
 };
 
@@ -186,20 +192,35 @@ const STORED_UPDATE_INCLUDE = {
     },
   },
   visibilityPreference: true,
+  suggestionApplication: { select: { revertedAt: true } },
   supersedesEdges: { select: { predecessorUpdateId: true } },
   supersededBy: {
     select: {
       id: true,
       import: { select: { undoneAt: true } },
+      suggestionApplication: { select: { revertedAt: true } },
     },
   },
   supersededByEdges: {
     select: {
       successorUpdateId: true,
-      successor: { select: { import: { select: { undoneAt: true } } } },
+      successor: {
+        select: {
+          import: { select: { undoneAt: true } },
+          suggestionApplication: { select: { revertedAt: true } },
+        },
+      },
     },
   },
 } satisfies Prisma.AlmanacUpdateInclude;
+
+const ACTIVE_UPDATE_WHERE = {
+  import: { undoneAt: null },
+  OR: [
+    { suggestionApplicationId: null },
+    { suggestionApplication: { is: { revertedAt: null } } },
+  ],
+} satisfies Prisma.AlmanacUpdateWhereInput;
 
 function originKindForImport(
   imported: Pick<AlmanacImport, "protocolVersion" | "scope">,
@@ -375,15 +396,16 @@ async function validateSupersession(
     where: { id: targetId, userId },
     include: {
       import: { select: { undoneAt: true } },
+      suggestionApplication: { select: { revertedAt: true } },
       visibilityPreference: { select: { hiddenAt: true } },
       supersededBy: {
-        where: { import: { undoneAt: null } },
+        where: ACTIVE_UPDATE_WHERE,
         select: { id: true },
       },
     },
   });
   if (!target) throw new AlmanacNotFoundError("Superseded Update not found.");
-  if (target.import.undoneAt) {
+  if (target.import.undoneAt || target.suggestionApplication?.revertedAt) {
     throw new AlmanacConflictError("An Update from an undone Import cannot be superseded.");
   }
   if (target.visibilityPreference?.hiddenAt) {
@@ -406,7 +428,7 @@ async function validateSupersession(
     where: {
       userId,
       predecessorUpdateId: target.id,
-      successor: { import: { undoneAt: null } },
+      successor: ACTIVE_UPDATE_WHERE,
     },
     select: { successorUpdateId: true },
   });
@@ -504,10 +526,12 @@ async function hasCurrentDuplicate(
       placeId: { in: memberPlaceIds },
       normalisedFingerprint: fingerprint,
       ...(excludedUpdateIds.length ? { id: { notIn: [...excludedUpdateIds] } } : {}),
-      import: { undoneAt: null },
-      OR: [
-        { visibilityPreference: { is: null } },
-        { visibilityPreference: { is: { hiddenAt: null } } },
+      AND: [
+        ACTIVE_UPDATE_WHERE,
+        { OR: [
+          { visibilityPreference: { is: null } },
+          { visibilityPreference: { is: { hiddenAt: null } } },
+        ] },
       ],
     },
     select: { id: true },
@@ -517,7 +541,7 @@ async function hasCurrentDuplicate(
     where: {
       userId,
       predecessorUpdateId: { in: candidates.map((candidate) => candidate.id) },
-      successor: { import: { undoneAt: null } },
+      successor: ACTIVE_UPDATE_WHERE,
     },
     select: { predecessorUpdateId: true },
   });
@@ -528,7 +552,7 @@ async function hasCurrentDuplicate(
     where: {
       userId,
       supersedesUpdateId: { in: candidates.map((candidate) => candidate.id) },
-      import: { undoneAt: null },
+      ...ACTIVE_UPDATE_WHERE,
     },
     select: { supersedesUpdateId: true },
   });
@@ -558,6 +582,9 @@ function serializeImport(imported: StoredImport) {
 }
 
 function serializeUpdate(update: StoredUpdate) {
+  const applicationReverted = (
+    application: { revertedAt: Date | null } | null,
+  ): boolean | null => application ? application.revertedAt !== null : null;
   const supersedesUpdateIds = update.supersedesEdges
     .map((edge) => edge.predecessorUpdateId)
     .sort();
@@ -566,13 +593,22 @@ function serializeUpdate(update: StoredUpdate) {
   }
   const supersededByUpdateIds = [...new Set([
     ...update.supersededByEdges
-      .filter((edge) => edge.successor.import.undoneAt === null)
+      .filter((edge) => isAlmanacUpdateActive({
+        importUndone: edge.successor.import.undoneAt !== null,
+        applicationReverted: applicationReverted(edge.successor.suggestionApplication),
+      }))
       .map((edge) => edge.successorUpdateId),
     ...update.supersededBy
-      .filter((successor) => successor.import.undoneAt === null)
+      .filter((successor) => isAlmanacUpdateActive({
+        importUndone: successor.import.undoneAt !== null,
+        applicationReverted: applicationReverted(successor.suggestionApplication),
+      }))
       .map((successor) => successor.id),
   ])].sort();
-  const active = update.import.undoneAt === null;
+  const active = isAlmanacUpdateActive({
+    importUndone: update.import.undoneAt !== null,
+    applicationReverted: applicationReverted(update.suggestionApplication),
+  });
   return {
     id: update.id,
     placeId: update.placeId,
@@ -655,7 +691,7 @@ async function loadProjection(
   ]);
   const activePlaceIds = new Set<string>();
   for (const update of updates) {
-    if (update.import.undoneAt === null) activePlaceIds.add(update.placeId);
+    if (serializeUpdate(update).active) activePlaceIds.add(update.placeId);
   }
   const mergedIntoByPlace = new Map(
     subjectPreferences.map((preference) => [preference.placeId, preference.mergedIntoPlaceId]),
@@ -716,7 +752,7 @@ export async function loadAlmanacPlace(userId: string, placeId: string) {
     normalisedName: place.normalisedName,
     slot: place.slot,
     createdAt: place.createdAt.toISOString(),
-    active: place.updates.some((update) => update.import.undoneAt === null),
+    active: place.updates.some((update) => serializeUpdate(update).active),
     updates: place.updates.map((update) => {
       return {
         ...serializeUpdate(update),
@@ -979,22 +1015,50 @@ export async function undoAlmanacImport(userId: string, importId: string) {
     }
 
     const updateIds = imported.updates.map((update) => update.id);
-    const activeLaterSuccessor = await transaction.almanacUpdateSupersession.findFirst({
+    const laterSuccessors = await transaction.almanacUpdateSupersession.findMany({
       where: {
         userId,
         predecessorUpdateId: { in: updateIds },
-        successor: { import: { undoneAt: null, id: { not: importId } } },
+        successor: { import: { id: { not: importId } } },
       },
-      select: { successorUpdateId: true },
+      select: {
+        successorUpdateId: true,
+        successor: {
+          select: {
+            import: { select: { undoneAt: true } },
+            suggestionApplication: { select: { revertedAt: true } },
+          },
+        },
+      },
     });
-    const legacyActiveLaterSuccessor = await transaction.almanacUpdate.findFirst({
+    const legacyLaterSuccessors = await transaction.almanacUpdate.findMany({
       where: {
         userId,
         supersedesUpdateId: { in: updateIds },
-        import: { undoneAt: null, id: { not: importId } },
+        import: { id: { not: importId } },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        import: { select: { undoneAt: true } },
+        suggestionApplication: { select: { revertedAt: true } },
+      },
     });
+    const activeLaterSuccessor = laterSuccessors.find(({ successor }) =>
+      isAlmanacUpdateActive({
+        importUndone: successor.import.undoneAt !== null,
+        applicationReverted: successor.suggestionApplication
+          ? successor.suggestionApplication.revertedAt !== null
+          : null,
+      })
+    );
+    const legacyActiveLaterSuccessor = legacyLaterSuccessors.find((successor) =>
+      isAlmanacUpdateActive({
+        importUndone: successor.import.undoneAt !== null,
+        applicationReverted: successor.suggestionApplication
+          ? successor.suggestionApplication.revertedAt !== null
+          : null,
+      })
+    );
     if (activeLaterSuccessor || legacyActiveLaterSuccessor) {
       throw new AlmanacConflictError("Undo the newer superseding Import first.");
     }
@@ -1405,7 +1469,7 @@ export async function unmergeAlmanacSubject(userId: string, placeId: string) {
     const activeCrossPlaceEdge = await transaction.almanacUpdateSupersession.findFirst({
       where: {
         userId,
-        successor: { import: { undoneAt: null } },
+        successor: ACTIVE_UPDATE_WHERE,
         OR: [
           {
             predecessor: { placeId },
@@ -1423,7 +1487,7 @@ export async function unmergeAlmanacSubject(userId: string, placeId: string) {
       where: {
         userId,
         supersedesUpdateId: { not: null },
-        import: { undoneAt: null },
+        ...ACTIVE_UPDATE_WHERE,
         OR: [
           {
             placeId: { not: placeId },

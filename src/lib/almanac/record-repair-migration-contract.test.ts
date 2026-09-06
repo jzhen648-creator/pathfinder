@@ -8,7 +8,7 @@ const migration = readFileSync(
     "prisma/migrations/20260902120000_almanac_record_repair_foundation/migration.sql",
   ),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 
 describe("Almanac record-repair migration contract", () => {
   it("adds a truthful DIRECT source protocol without weakening AI provenance", () => {

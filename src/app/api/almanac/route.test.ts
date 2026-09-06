@@ -33,6 +33,14 @@ describe("GET /api/almanac", () => {
     });
   }
 
+  function persistentSuggestionRequest() {
+    return new Request("https://example.test/api/almanac", {
+      headers: {
+        "X-Almanac-Capabilities": "user-entry-v1, persistent-suggestions-v1",
+      },
+    });
+  }
+
   it("authenticates before checking the server flag", async () => {
     vi.stubEnv("ALMANAC_PERSISTED_DOGFOOD_ENABLED", "0");
     mocks.requireUser.mockResolvedValue({
@@ -55,6 +63,30 @@ describe("GET /api/almanac", () => {
     const { GET } = await import("./route");
     expect((await GET(capableRequest())).status).toBe(200);
     expect(mocks.loadAtlas).toHaveBeenCalledWith("user-a");
+  });
+
+  it("gives older clients only active accepted lifecycle Updates", async () => {
+    mocks.loadAtlas.mockResolvedValue({
+      places: [],
+      imports: [
+        { id: "legacy", receipt: { version: 1 } },
+        { id: "source", receipt: { version: 2, mode: "persistent_suggestions" } },
+      ],
+      updates: [
+        { id: "legacy-update", importId: "legacy", active: false },
+        { id: "accepted", importId: "source", active: true, originKind: "AI_RESPONSE" },
+        { id: "undone", importId: "source", active: false, originKind: "AI_RESPONSE" },
+      ],
+    });
+    const { GET } = await import("./route");
+    const legacyBody = await (await GET(capableRequest())).json();
+    expect(legacyBody.atlas.imports).toEqual([{ id: "legacy", receipt: { version: 1 } }]);
+    expect(legacyBody.atlas.updates.map((update: { id: string }) => update.id))
+      .toEqual(["legacy-update", "accepted"]);
+
+    const currentBody = await (await GET(persistentSuggestionRequest())).json();
+    expect(currentBody.atlas.imports).toHaveLength(2);
+    expect(currentBody.atlas.updates).toHaveLength(3);
   });
 
   it("erases only after an explicit confirmation", async () => {

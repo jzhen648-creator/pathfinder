@@ -31,6 +31,9 @@ export async function eraseAlmanacForUser(
     await tx.almanacUpdatePreference.deleteMany({ where: { userId } });
     await tx.almanacSubjectPreference.deleteMany({ where: { userId } });
     await tx.almanacUpdateSupersession.deleteMany({ where: { userId } });
+    // Suggestion deletion cascades its decisions, applications and accepted
+    // lifecycle Updates before the remaining append-only history is removed.
+    await tx.almanacSuggestion.deleteMany({ where: { userId } });
     await tx.almanacUpdate.deleteMany({ where: { userId } });
     await tx.almanacImport.deleteMany({ where: { userId } });
     await tx.almanacPlace.deleteMany({ where: { userId } });
